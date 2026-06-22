@@ -3,13 +3,14 @@ from main import app
 # test_template.py
 # ponytail: assert-based self-check to verify autoloader logic. No test frameworks or fixtures required.
 
-def get_all_paths(routes):
+def get_all_paths(routes, prefix=""):
     paths = []
     for r in routes:
         if type(r).__name__ == "_IncludedRouter":
-            paths.extend(get_all_paths(r.original_router.routes))
+            inc_prefix = getattr(r.include_context, "prefix", "")
+            paths.extend(get_all_paths(r.original_router.routes, prefix + inc_prefix))
         elif hasattr(r, 'path'):
-            paths.append(r.path)
+            paths.append(prefix + r.path)
     return paths
 
 def test_routes_loaded():
@@ -17,7 +18,7 @@ def test_routes_loaded():
     print("Found paths recursively:", paths)
     
     # Assert HTTP users routes are registered
-    assert any(p.startswith("/users") for p in paths), "HTTP users router not registered!"
+    assert any(p.startswith("/api/users") for p in paths), "HTTP users router not registered under /api!"
     
     # Assert WebSocket route is registered
     assert "/ws/chat" in paths, "WebSocket chat router not registered!"

@@ -45,7 +45,7 @@ if routes_dir.exists():
         try:
             module = importlib.import_module(module_name)
             if hasattr(module, "router"):
-                app.include_router(module.router)
+                app.include_router(module.router, prefix="/api")
                 print(f"[Autoload] Registered HTTP router: {module_name}")
         except Exception as e:
             print(f"[Autoload] Failed to register HTTP router {module_name}: {e}")
