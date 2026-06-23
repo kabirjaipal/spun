@@ -10,7 +10,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (!session.user.companyId) return NextResponse.json({ error: "No company" }, { status: 400 });
 
   const { id } = await params;
-  const companyId = BigInt(session.user.companyId);
+  const companyId = Number(session.user.companyId);
   const userId = session.user.id;
   const { ledgerName, ledgerType } = await request.json();
 
@@ -29,7 +29,7 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
   if (!session.user.companyId) return NextResponse.json({ error: "No company" }, { status: 400 });
 
   const { id } = await params;
-  const companyId = BigInt(session.user.companyId);
+  const companyId = Number(session.user.companyId);
   const userId = session.user.id;
 
   await db

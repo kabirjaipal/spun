@@ -16,7 +16,7 @@ interface Product {
   productCode: string;
   productName: string;
   unit: string;
-  gstRateId: bigint | null;
+  gstRateId: number | null;
   openingStockQty: string;
   openingStockRate: string;
   taxName?: string | null;

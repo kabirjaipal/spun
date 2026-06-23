@@ -39,7 +39,7 @@ export async function POST(request: Request) {
         // Check if there is an owner associated with this company
         const existingOwner = await tx.query.mUsers.findFirst({
           where: (users, { eq, and }) => and(
-            eq(users.companyId, BigInt(existingCompany.companyId)),
+            eq(users.companyId, Number(existingCompany.companyId)),
             eq(users.role, "owner")
           ),
         });
@@ -69,7 +69,7 @@ export async function POST(request: Request) {
         name,
         email,
         passwordHash,
-        companyId: BigInt(targetCompanyId),
+        companyId: Number(targetCompanyId),
         role: "owner",
         isActive: true,
       }).returning({ id: mUsers.id, name: mUsers.name, email: mUsers.email });

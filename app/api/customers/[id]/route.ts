@@ -10,7 +10,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (!session.user.companyId) return NextResponse.json({ error: "No company" }, { status: 400 });
 
   const { id } = await params;
-  const companyId = BigInt(session.user.companyId);
+  const companyId = Number(session.user.companyId);
   const userId = session.user.id;
   const { customerName, gstNo, phone, email, address, openingBalance } = await request.json();
 
@@ -26,7 +26,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       await tx
         .update(mLedgers)
         .set({ ledgerName: customerName, updatedBy: userId, updatedOn: new Date() })
-        .where(and(eq(mLedgers.referenceId, BigInt(id)), eq(mLedgers.ledgerType, "customer"), eq(mLedgers.companyId, companyId)));
+        .where(and(eq(mLedgers.referenceId, Number(id)), eq(mLedgers.ledgerType, "customer"), eq(mLedgers.companyId, companyId)));
     }
 
     return [c];
@@ -41,7 +41,7 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
   if (!session.user.companyId) return NextResponse.json({ error: "No company" }, { status: 400 });
 
   const { id } = await params;
-  const companyId = BigInt(session.user.companyId);
+  const companyId = Number(session.user.companyId);
   const userId = session.user.id;
   const now = new Date();
 
@@ -54,7 +54,7 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
     await tx
       .update(mLedgers)
       .set({ deletedOn: now, deletedBy: userId })
-      .where(and(eq(mLedgers.referenceId, BigInt(id)), eq(mLedgers.ledgerType, "customer"), eq(mLedgers.companyId, companyId)));
+      .where(and(eq(mLedgers.referenceId, Number(id)), eq(mLedgers.ledgerType, "customer"), eq(mLedgers.companyId, companyId)));
   });
 
   return NextResponse.json({ success: true });

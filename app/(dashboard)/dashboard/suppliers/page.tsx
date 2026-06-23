@@ -11,7 +11,7 @@ export default async function SuppliersPage() {
   if (!session?.user?.id) redirect("/login");
   if (!session.user.companyId) redirect("/setup-company");
 
-  const companyId = BigInt(session.user.companyId);
+  const companyId = Number(session.user.companyId);
 
   const rows = await db
     .select()

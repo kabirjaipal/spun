@@ -13,7 +13,7 @@ interface Ledger {
   ledgerId: number;
   ledgerName: string;
   ledgerType: string;
-  referenceId: bigint | null;
+  referenceId: number | null;
 }
 
 const LEDGER_TYPES = [

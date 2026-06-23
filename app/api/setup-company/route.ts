@@ -31,7 +31,7 @@ export async function POST(request: Request) {
         // Check if there is an owner associated with this company
         const existingOwner = await tx.query.mUsers.findFirst({
           where: (users, { eq, and }) => and(
-            eq(users.companyId, BigInt(existingCompany.companyId)),
+            eq(users.companyId, Number(existingCompany.companyId)),
             eq(users.role, "owner")
           ),
         });
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
         await tx
           .update(mUsers)
           .set({ 
-            companyId: BigInt(existingCompany.companyId),
+            companyId: Number(existingCompany.companyId),
             role: "owner"
           })
           .where(eq(mUsers.id, session.user.id));
@@ -74,7 +74,7 @@ export async function POST(request: Request) {
       await tx
         .update(mUsers)
         .set({ 
-          companyId: BigInt(newCompany.companyId),
+          companyId: Number(newCompany.companyId),
           role: "owner"
         })
         .where(eq(mUsers.id, session.user.id));

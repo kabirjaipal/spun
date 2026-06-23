@@ -19,11 +19,11 @@ export default async function DashboardPage() {
 
   if (!session.user.companyId) redirect("/setup-company");
 
-  const companyIdVal = BigInt(session.user.companyId!);
+  const companyIdVal = Number(session.user.companyId);
 
   // Fetch Company Info
   const company = await db.query.mCompanies.findFirst({
-    where: eq(mCompanies.companyId, Number(session.user.companyId)),
+    where: eq(mCompanies.companyId, companyIdVal),
   });
 
   if (!company) {

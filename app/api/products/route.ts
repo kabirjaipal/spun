@@ -9,7 +9,7 @@ export async function GET() {
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!session.user.companyId) return NextResponse.json({ error: "No company" }, { status: 400 });
 
-  const companyId = BigInt(session.user.companyId);
+  const companyId = Number(session.user.companyId);
 
   const rows = await db
     .select({
@@ -36,7 +36,7 @@ export async function POST(request: Request) {
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!session.user.companyId) return NextResponse.json({ error: "No company" }, { status: 400 });
 
-  const companyId = BigInt(session.user.companyId);
+  const companyId = Number(session.user.companyId);
   const userId = session.user.id;
   const { productCode, productName, unit, gstRateId, openingStockQty, openingStockRate } = await request.json();
 
@@ -51,7 +51,7 @@ export async function POST(request: Request) {
       productCode,
       productName,
       unit,
-      gstRateId: gstRateId ? BigInt(gstRateId) : null,
+      gstRateId: gstRateId ? Number(gstRateId) : null,
       openingStockQty: String(openingStockQty ?? 0),
       openingStockRate: String(openingStockRate ?? 0),
       createdBy: userId,

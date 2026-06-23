@@ -9,7 +9,7 @@ export async function GET() {
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!session.user.companyId) return NextResponse.json({ error: "No company" }, { status: 400 });
 
-  const companyId = BigInt(session.user.companyId);
+  const companyId = Number(session.user.companyId);
 
   const rows = await db
     .select()
@@ -25,7 +25,7 @@ export async function POST(request: Request) {
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!session.user.companyId) return NextResponse.json({ error: "No company" }, { status: 400 });
 
-  const companyId = BigInt(session.user.companyId);
+  const companyId = Number(session.user.companyId);
   const userId = session.user.id;
   const body = await request.json();
   const { customerName, gstNo, phone, email, address, openingBalance } = body;
@@ -43,7 +43,7 @@ export async function POST(request: Request) {
       companyId,
       ledgerName: customerName,
       ledgerType: "customer",
-      referenceId: BigInt(c.customerId),
+      referenceId: Number(c.customerId),
       createdBy: userId,
       updatedBy: userId,
     });
