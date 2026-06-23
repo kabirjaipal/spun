@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:reset": "npx tsx --env-file=.env scripts/reset-db.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.2",

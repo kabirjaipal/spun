@@ -1,0 +1,1 @@
+ALTER TABLE "m_users" ALTER COLUMN "role" SET DEFAULT 'data_entry';

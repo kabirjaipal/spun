@@ -16,11 +16,11 @@ import type { AdapterAccountType } from "@auth/core/adapters";
 // Helper for repeating audit columns
 const auditColumns = {
   createdOn: timestamp("created_on", { mode: "date" }).defaultNow().notNull(),
-  createdBy: bigint("created_by", { mode: "bigint" }),
+  createdBy: text("created_by"),
   updatedOn: timestamp("updated_on", { mode: "date" }).defaultNow().notNull(),
-  updatedBy: bigint("updated_by", { mode: "bigint" }),
+  updatedBy: text("updated_by"),
   deletedOn: timestamp("deleted_on", { mode: "date" }),
-  deletedBy: bigint("deleted_by", { mode: "bigint" }),
+  deletedBy: text("deleted_by"),
 };
 
 // -------------------------------------------------------------
@@ -45,6 +45,7 @@ export const mUsers = pgTable("m_users", {
   image: text("image"),
   passwordHash: text("password_hash"),
   isActive: boolean("is_active").default(true).notNull(),
+  role: text("role").default("data_entry").notNull(),
   companyId: bigint("company_id", { mode: "bigint" }).references(() => mCompanies.companyId),
   ...auditColumns,
 });
@@ -207,5 +208,7 @@ export const tAuditLogs = pgTable("t_audit_logs", {
   oldDataJson: jsonb("old_data_json"),
   newDataJson: jsonb("new_data_json"),
   createdOn: timestamp("created_on", { mode: "date" }).defaultNow().notNull(),
-  createdBy: bigint("created_by", { mode: "bigint" }),
+  createdBy: text("created_by"),
 });
+
+
