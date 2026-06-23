@@ -9,6 +9,11 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - **Prohibited Colors**: DO NOT use hardcoded colors (`bg-blue-600`, `text-green-500`, `border-slate-200`, `dark:bg-zinc-900`, etc.).
 - **Theme Variables**: Refrain from using other custom styling palettes. Stick strictly to: `primary`, `secondary`, `success`, `warning`, `info`, `danger`, `muted`, `background`, `foreground`, `card`, `border`, `input`.
 
+# shadcn Components Rule
+- **NEVER create shadcn components manually.** Always add them via the CLI: `npx shadcn@latest add <component>`.
+- Run from the project root (`/media/kabir/Programming/Codes/Github-Projects/texora`).
+- Check `components/ui/` first — if the component file already exists, do not add it again.
+
 # UI & UX Conventions
 - **Labels**: Always uppercase, small size, and semi-bold; placed directly above inputs (never side-by-side).
 - **Inputs**: Always use searchable selects instead of standard select. Use shadcn multi-select for associations.
