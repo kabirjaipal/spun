@@ -1,0 +1,211 @@
+import {
+  pgTable,
+  text,
+  timestamp,
+  integer,
+  primaryKey,
+  bigint,
+  boolean,
+  numeric,
+  date,
+  jsonb,
+  serial,
+} from "drizzle-orm/pg-core";
+import type { AdapterAccountType } from "@auth/core/adapters";
+
+// Helper for repeating audit columns
+const auditColumns = {
+  createdOn: timestamp("created_on", { mode: "date" }).defaultNow().notNull(),
+  createdBy: bigint("created_by", { mode: "bigint" }),
+  updatedOn: timestamp("updated_on", { mode: "date" }).defaultNow().notNull(),
+  updatedBy: bigint("updated_by", { mode: "bigint" }),
+  deletedOn: timestamp("deleted_on", { mode: "date" }),
+  deletedBy: bigint("deleted_by", { mode: "bigint" }),
+};
+
+// -------------------------------------------------------------
+// 1. NextAuth / Core Admin Tables (Prefix: m_ or p_)
+// -------------------------------------------------------------
+
+export const mCompanies = pgTable("m_companies", {
+  companyId: serial("company_id").primaryKey(),
+  companyName: text("company_name").notNull(),
+  gstNo: text("gst_no"),
+  panNo: text("pan_no"),
+  address: text("address"),
+  financialYearStart: date("financial_year_start"),
+  ...auditColumns,
+});
+
+export const mUsers = pgTable("m_users", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  name: text("name"),
+  email: text("email").unique(),
+  emailVerified: timestamp("emailVerified", { mode: "date" }),
+  image: text("image"),
+  passwordHash: text("password_hash"),
+  isActive: boolean("is_active").default(true).notNull(),
+  companyId: bigint("company_id", { mode: "bigint" }).references(() => mCompanies.companyId),
+  ...auditColumns,
+});
+
+export const pAccounts = pgTable("p_accounts", {
+  userId: text("userId")
+    .notNull()
+    .references(() => mUsers.id, { onDelete: "cascade" }),
+  type: text("type").$type<AdapterAccountType>().notNull(),
+  provider: text("provider").notNull(),
+  providerAccountId: text("providerAccountId").notNull(),
+  refresh_token: text("refresh_token"),
+  access_token: text("access_token"),
+  expires_at: integer("expires_at"),
+  token_type: text("token_type"),
+  scope: text("scope"),
+  id_token: text("id_token"),
+  session_state: text("session_state"),
+}, (table) => ({
+  compoundKey: primaryKey({ columns: [table.provider, table.providerAccountId] }),
+}));
+
+export const pSessions = pgTable("p_sessions", {
+  sessionToken: text("sessionToken").primaryKey(),
+  userId: text("userId")
+    .notNull()
+    .references(() => mUsers.id, { onDelete: "cascade" }),
+  expires: timestamp("expires", { mode: "date" }).notNull(),
+});
+
+export const pVerificationTokens = pgTable("p_verification_tokens", {
+  identifier: text("identifier").notNull(),
+  token: text("token").notNull(),
+  expires: timestamp("expires", { mode: "date" }).notNull(),
+}, (table) => ({
+  compoundKey: primaryKey({ columns: [table.identifier, table.token] }),
+}));
+
+// -------------------------------------------------------------
+// 2. Business Masters (Prefix: m_)
+// -------------------------------------------------------------
+
+export const mCustomers = pgTable("m_customers", {
+  customerId: serial("customer_id").primaryKey(),
+  companyId: bigint("company_id", { mode: "bigint" })
+    .references(() => mCompanies.companyId)
+    .notNull(),
+  customerName: text("customer_name").notNull(),
+  gstNo: text("gst_no"),
+  phone: text("phone"),
+  email: text("email"),
+  address: text("address"),
+  openingBalance: numeric("opening_balance", { precision: 15, scale: 2 }).default("0.00").notNull(),
+  ...auditColumns,
+});
+
+export const mSuppliers = pgTable("m_suppliers", {
+  supplierId: serial("supplier_id").primaryKey(),
+  companyId: bigint("company_id", { mode: "bigint" })
+    .references(() => mCompanies.companyId)
+    .notNull(),
+  supplierName: text("supplier_name").notNull(),
+  gstNo: text("gst_no"),
+  phone: text("phone"),
+  email: text("email"),
+  address: text("address"),
+  openingBalance: numeric("opening_balance", { precision: 15, scale: 2 }).default("0.00").notNull(),
+  ...auditColumns,
+});
+
+export const mTaxRates = pgTable("m_tax_rates", {
+  taxRateId: serial("tax_rate_id").primaryKey(),
+  taxName: text("tax_name").notNull(),
+  taxPercent: numeric("tax_percent", { precision: 5, scale: 2 }).notNull(),
+  ...auditColumns,
+});
+
+export const mProducts = pgTable("m_products", {
+  productId: serial("product_id").primaryKey(),
+  companyId: bigint("company_id", { mode: "bigint" })
+    .references(() => mCompanies.companyId)
+    .notNull(),
+  productCode: text("product_code").notNull(),
+  productName: text("product_name").notNull(),
+  unit: text("unit").notNull(),
+  gstRateId: bigint("gst_rate_id", { mode: "bigint" })
+    .references(() => mTaxRates.taxRateId),
+  openingStockQty: numeric("opening_stock_qty", { precision: 15, scale: 4 }).default("0.0000").notNull(),
+  openingStockRate: numeric("opening_stock_rate", { precision: 15, scale: 2 }).default("0.00").notNull(),
+  ...auditColumns,
+});
+
+export const mLedgers = pgTable("m_ledgers", {
+  ledgerId: serial("ledger_id").primaryKey(),
+  companyId: bigint("company_id", { mode: "bigint" })
+    .references(() => mCompanies.companyId)
+    .notNull(),
+  ledgerName: text("ledger_name").notNull(),
+  ledgerType: text("ledger_type").notNull(), // e.g., 'cash', 'bank', 'customer', 'supplier', etc.
+  referenceId: bigint("reference_id", { mode: "bigint" }),
+  ...auditColumns,
+});
+
+// -------------------------------------------------------------
+// 3. Transactions (Prefix: t_)
+// -------------------------------------------------------------
+
+export const tVouchers = pgTable("t_vouchers", {
+  voucherId: serial("voucher_id").primaryKey(),
+  companyId: bigint("company_id", { mode: "bigint" })
+    .references(() => mCompanies.companyId)
+    .notNull(),
+  voucherNo: text("voucher_no").notNull(),
+  voucherType: text("voucher_type").notNull(), // 'sale', 'purchase', 'receipt', 'payment', 'journal'
+  voucherDate: date("voucher_date").notNull(),
+  partyId: bigint("party_id", { mode: "bigint" }),
+  remarks: text("remarks"),
+  status: text("status").default("draft").notNull(), // 'draft', 'posted', 'cancelled'
+  totalAmount: numeric("total_amount", { precision: 15, scale: 2 }).default("0.00").notNull(),
+  taxAmount: numeric("tax_amount", { precision: 15, scale: 2 }).default("0.00").notNull(),
+  netAmount: numeric("net_amount", { precision: 15, scale: 2 }).default("0.00").notNull(),
+  ...auditColumns,
+});
+
+export const tVoucherEntries = pgTable("t_voucher_entries", {
+  voucherEntryId: serial("voucher_entry_id").primaryKey(),
+  voucherId: bigint("voucher_id", { mode: "bigint" })
+    .references(() => tVouchers.voucherId)
+    .notNull(),
+  ledgerId: bigint("ledger_id", { mode: "bigint" })
+    .references(() => mLedgers.ledgerId)
+    .notNull(),
+  entryType: text("entry_type").notNull(), // 'debit', 'credit'
+  amount: numeric("amount", { precision: 15, scale: 2 }).notNull(),
+  ...auditColumns,
+});
+
+export const tStockMovements = pgTable("t_stock_movements", {
+  stockMovementId: serial("stock_movement_id").primaryKey(),
+  companyId: bigint("company_id", { mode: "bigint" })
+    .references(() => mCompanies.companyId)
+    .notNull(),
+  productId: bigint("product_id", { mode: "bigint" })
+    .references(() => mProducts.productId)
+    .notNull(),
+  voucherId: bigint("voucher_id", { mode: "bigint" })
+    .references(() => tVouchers.voucherId),
+  movementType: text("movement_type").notNull(), // 'purchase', 'sale', 'adjustment', 'opening'
+  quantity: numeric("quantity", { precision: 15, scale: 4 }).notNull(),
+  rate: numeric("rate", { precision: 15, scale: 2 }).notNull(),
+  amount: numeric("amount", { precision: 15, scale: 2 }).notNull(),
+  ...auditColumns,
+});
+
+export const tAuditLogs = pgTable("t_audit_logs", {
+  auditLogId: serial("audit_log_id").primaryKey(),
+  tableName: text("table_name").notNull(),
+  recordId: bigint("record_id", { mode: "bigint" }).notNull(),
+  actionType: text("action_type").notNull(), // 'create', 'update', 'delete', 'approve'
+  oldDataJson: jsonb("old_data_json"),
+  newDataJson: jsonb("new_data_json"),
+  createdOn: timestamp("created_on", { mode: "date" }).defaultNow().notNull(),
+  createdBy: bigint("created_by", { mode: "bigint" }),
+});

@@ -14,28 +14,20 @@ The system should preserve familiar accounting concepts while simplifying intera
 
 # Technology Stack
 
-## Frontend
-
+## Frontend & Backend
 * Next.js (App Router)
 * TypeScript
 * Tailwind CSS
 * shadcn/ui
 * shadcn multi-select component https://shadcn-multi-select-component.vercel.app/
+* NextAuth.js (Auth.js) for authentication
 
-## Backend
-
-* FastAPI
-* Python LTS
-* SQLAlchemy Core only
-* Raw SQL queries
-* Alembic migrations
-
-## Database
-
+## Database & ORM
 * PostgreSQL
+* Drizzle ORM
+* Drizzle Kit migrations
 
 ## Storage
-
 * S3-compatible object storage
 
 ---
@@ -967,69 +959,47 @@ approve
 
 ---
 
-# SQLAlchemy Strategy
+# Drizzle ORM & Database Strategy
 
-No ORM models.
+Define all schemas inside `lib/db/schema.ts` and import the client `db` from `lib/db/index.ts`.
 
-Use:
+Use standard Drizzle ORM query builders:
+```typescript
+import { db } from "@/lib/db";
+import { mCustomers } from "@/lib/db/schema";
+import { isNull } from "drizzle-orm";
 
-```python
-engine
-session
-text()
+const customers = await db
+  .select()
+  .from(mCustomers)
+  .where(isNull(mCustomers.deletedOn));
 ```
 
-Pattern:
-
-```python
-with engine.begin() as conn:
-    conn.execute(
-        text("""
-        select *
-        from m_customers
-        where deleted_on is null
-        """)
-    )
+Use Drizzle transactions for multi-step edits:
+```typescript
+await db.transaction(async (tx) => {
+  // Perform multiple database operations within a single transaction
+});
 ```
-
-Use transactions for:
-
-```text
-sales voucher save
-purchase voucher save
-receipt save
-payment save
-```
-
-Everything commits together.
 
 ---
 
 # Migration Strategy
 
-Use Alembic.
+Use Drizzle Kit.
 
 Structure:
-
 ```text
-backend/
-
-migrations/
-
-versions/
-
-0001_initial.py
-0002_roles.py
-0003_inventory.py
-0004_vouchers.py
+drizzle/
+  ├── meta/
+  └── 0000_initial.sql
+  └── 0001_roles.sql
 ```
 
 Rules:
-
-* Never edit old migration
-* Only add new migrations
-* Every release gets migration
-* Migration history must remain immutable
+* Never manually edit SQL files inside `drizzle/` folder.
+* Generate new migrations by running `npx drizzle-kit generate`.
+* Apply migrations to your DB by running `npx drizzle-kit migrate` (or `npx drizzle-kit push` for dev environments).
 
 ---
 
