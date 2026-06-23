@@ -30,7 +30,9 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <SessionProvider>{children}</SessionProvider>
+        <SessionProvider refetchInterval={0} refetchOnWindowFocus={false}>
+          {children}
+        </SessionProvider>
       </body>
     </html>
   );
