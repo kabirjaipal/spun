@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { mUsers } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 
-export type Role = "owner" | "data_entry";
+export type Role = "owner" | "company";
 
 export interface PageConfig {
   accessItem: string;
@@ -67,9 +67,11 @@ export function getStaticPermissionsForRole(role: Role): UserPermission[] {
     let c = false, r = false, u = false, d = false, e = false, a = false;
 
     if (role === "owner") {
-      c = r = u = d = e = a = true;
-    } else if (role === "data_entry") {
-      if (page.pageGroup !== "Administration") {
+      if (page.accessGroup === "owner") {
+        c = r = u = d = e = a = true;
+      }
+    } else if (role === "company") {
+      if (page.accessGroup === "company" && page.pageGroup !== "Administration") {
         r = true; // Can read Masters, Transactions, Inventory, Reports
         if (page.pageGroup === "Masters" || page.pageGroup === "Transactions") {
           c = u = true; // Can create and update reference data and vouchers

@@ -64,17 +64,17 @@ export async function POST(request: Request) {
       const salt = await bcrypt.genSalt(10);
       const passwordHash = await bcrypt.hash(password, salt);
       
-      // 3. Create user (explicitly set role to owner)
+      // 3. Create user as a company-level data entry user (not owner)
       const [newUser] = await tx.insert(mUsers).values({
         name,
         email,
         passwordHash,
         companyId: Number(targetCompanyId),
-        role: "owner",
+        role: "company",
         isActive: true,
       }).returning({ id: mUsers.id, name: mUsers.name, email: mUsers.email });
 
-      // Associate the company's creator fields with the newly created owner user
+      // Associate the company's creator fields with the newly created user
       await tx
         .update(mCompanies)
         .set({

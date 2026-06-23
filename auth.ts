@@ -96,7 +96,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.id = user.id;
         // companyId may be a BigInt (from DrizzleAdapter on OAuth) — always serialize to string
         token.companyId = user.companyId != null ? String(user.companyId) : null;
-        token.role = user.role || "data_entry";
+        token.role = user.role || "company";
         token.allowedPages = user.allowedPages || [];
       } else if (token.id) {
         // Query database to get the latest companyId and role so that the token stays updated
@@ -119,7 +119,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (session.user && token?.id) {
         session.user.id = token.id as string;
         session.user.companyId = token.companyId as string | null;
-        session.user.role = (token.role as string) || "data_entry";
+        session.user.role = (token.role as string) || "company";
         session.user.allowedPages = token.allowedPages as string[] || [];
       } else {
         return null as any;

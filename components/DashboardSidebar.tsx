@@ -26,6 +26,11 @@ export default function DashboardSidebar({
 }: DashboardSidebarProps) {
   const pathname = usePathname();
 
+  // Determine current page from permissions so the header shows the configured page title
+  const currentPage = permissions.find((p) => (p.pageUrl || "") && pathname.startsWith(p.pageUrl));
+  const headerTitle = currentPage ? currentPage.pageTitle : pathname;
+  const headerIcon = currentPage ? currentPage.pageIcon : "LayoutDashboard";
+
   // Helper for rendering icons dynamically
   const renderIcon = (iconName: string) => {
     const IconComponent = (Icons as any)[iconName] || Icons.HelpCircle;
@@ -60,11 +65,11 @@ export default function DashboardSidebar({
       <div className="flex h-16 flex-col justify-center border-b border-border px-4 bg-muted/20">
         <div className="flex items-center gap-2">
           <div className="flex h-7 w-7 items-center justify-center rounded bg-primary font-bold text-[13px] text-primary-foreground shadow-sm">
-            TX
+            {renderIcon(headerIcon)}
           </div>
           <div className="flex flex-col overflow-hidden">
             <span className="text-xs font-bold text-foreground uppercase tracking-widest leading-none">
-              Texora ERP
+              {headerTitle}
             </span>
             <span className="truncate text-[10px] text-muted-foreground mt-0.5 font-medium font-sans">
               {companyName.toUpperCase()}

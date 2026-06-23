@@ -10,6 +10,7 @@ import {
   date,
   jsonb,
   serial,
+  index,
 } from "drizzle-orm/pg-core";
 import type { AdapterAccountType } from "@auth/core/adapters";
 
@@ -27,15 +28,19 @@ const auditColumns = {
 // 1. NextAuth / Core Admin Tables (Prefix: m_ or p_)
 // -------------------------------------------------------------
 
+const companyId = serial("company_id").primaryKey();
 export const mCompanies = pgTable("m_companies", {
-  companyId: serial("company_id").primaryKey(),
+  id: companyId,
+  companyId,
   companyName: text("company_name").notNull(),
   gstNo: text("gst_no"),
   panNo: text("pan_no"),
   address: text("address"),
   financialYearStart: date("financial_year_start"),
   ...auditColumns,
-});
+}, (table) => ({
+  companyNameIdx: index("idx_m_companies_company_name").on(table.companyName),
+}));
 
 export const mUsers = pgTable("m_users", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
@@ -45,7 +50,7 @@ export const mUsers = pgTable("m_users", {
   image: text("image"),
   passwordHash: text("password_hash"),
   isActive: boolean("is_active").default(true).notNull(),
-  role: text("role").default("data_entry").notNull(),
+  role: text("role").default("company").notNull(),
   companyId: bigint("company_id", { mode: "number" }).references(() => mCompanies.companyId),
   ...auditColumns,
 });
@@ -88,8 +93,10 @@ export const pVerificationTokens = pgTable("p_verification_tokens", {
 // 2. Business Masters (Prefix: m_)
 // -------------------------------------------------------------
 
+const customerId = serial("customer_id").primaryKey();
 export const mCustomers = pgTable("m_customers", {
-  customerId: serial("customer_id").primaryKey(),
+  id: customerId,
+  customerId,
   companyId: bigint("company_id", { mode: "number" })
     .references(() => mCompanies.companyId)
     .notNull(),
@@ -100,10 +107,14 @@ export const mCustomers = pgTable("m_customers", {
   address: text("address"),
   openingBalance: numeric("opening_balance", { precision: 15, scale: 2 }).default("0.00").notNull(),
   ...auditColumns,
-});
+}, (table) => ({
+  companyIdIdx: index("idx_m_customers_company_id").on(table.companyId),
+}));
 
+const supplierId = serial("supplier_id").primaryKey();
 export const mSuppliers = pgTable("m_suppliers", {
-  supplierId: serial("supplier_id").primaryKey(),
+  id: supplierId,
+  supplierId,
   companyId: bigint("company_id", { mode: "number" })
     .references(() => mCompanies.companyId)
     .notNull(),
@@ -114,17 +125,25 @@ export const mSuppliers = pgTable("m_suppliers", {
   address: text("address"),
   openingBalance: numeric("opening_balance", { precision: 15, scale: 2 }).default("0.00").notNull(),
   ...auditColumns,
-});
+}, (table) => ({
+  companyIdIdx: index("idx_m_suppliers_company_id").on(table.companyId),
+}));
 
+const taxRateId = serial("tax_rate_id").primaryKey();
 export const mTaxRates = pgTable("m_tax_rates", {
-  taxRateId: serial("tax_rate_id").primaryKey(),
+  id: taxRateId,
+  taxRateId,
   taxName: text("tax_name").notNull(),
   taxPercent: numeric("tax_percent", { precision: 5, scale: 2 }).notNull(),
   ...auditColumns,
-});
+}, (table) => ({
+  taxNameIdx: index("idx_m_tax_rates_tax_name").on(table.taxName),
+}));
 
+const productId = serial("product_id").primaryKey();
 export const mProducts = pgTable("m_products", {
-  productId: serial("product_id").primaryKey(),
+  id: productId,
+  productId,
   companyId: bigint("company_id", { mode: "number" })
     .references(() => mCompanies.companyId)
     .notNull(),
@@ -136,10 +155,15 @@ export const mProducts = pgTable("m_products", {
   openingStockQty: numeric("opening_stock_qty", { precision: 15, scale: 4 }).default("0.0000").notNull(),
   openingStockRate: numeric("opening_stock_rate", { precision: 15, scale: 2 }).default("0.00").notNull(),
   ...auditColumns,
-});
+}, (table) => ({
+  companyIdIdx: index("idx_m_products_company_id").on(table.companyId),
+  gstRateIdIdx: index("idx_m_products_gst_rate_id").on(table.gstRateId),
+}));
 
+const ledgerId = serial("ledger_id").primaryKey();
 export const mLedgers = pgTable("m_ledgers", {
-  ledgerId: serial("ledger_id").primaryKey(),
+  id: ledgerId,
+  ledgerId,
   companyId: bigint("company_id", { mode: "number" })
     .references(() => mCompanies.companyId)
     .notNull(),
@@ -147,14 +171,19 @@ export const mLedgers = pgTable("m_ledgers", {
   ledgerType: text("ledger_type").notNull(), // e.g., 'cash', 'bank', 'customer', 'supplier', etc.
   referenceId: bigint("reference_id", { mode: "number" }),
   ...auditColumns,
-});
+}, (table) => ({
+  companyIdIdx: index("idx_m_ledgers_company_id").on(table.companyId),
+  referenceTypeIdx: index("idx_m_ledgers_reference_id_type").on(table.referenceId, table.ledgerType),
+}));
 
 // -------------------------------------------------------------
 // 3. Transactions (Prefix: t_)
 // -------------------------------------------------------------
 
+const voucherId = serial("voucher_id").primaryKey();
 export const tVouchers = pgTable("t_vouchers", {
-  voucherId: serial("voucher_id").primaryKey(),
+  id: voucherId,
+  voucherId,
   companyId: bigint("company_id", { mode: "number" })
     .references(() => mCompanies.companyId)
     .notNull(),
@@ -168,10 +197,15 @@ export const tVouchers = pgTable("t_vouchers", {
   taxAmount: numeric("tax_amount", { precision: 15, scale: 2 }).default("0.00").notNull(),
   netAmount: numeric("net_amount", { precision: 15, scale: 2 }).default("0.00").notNull(),
   ...auditColumns,
-});
+}, (table) => ({
+  companyIdIdx: index("idx_t_vouchers_company_id").on(table.companyId),
+  voucherTypeIdx: index("idx_t_vouchers_voucher_type").on(table.voucherType),
+}));
 
+const voucherEntryId = serial("voucher_entry_id").primaryKey();
 export const tVoucherEntries = pgTable("t_voucher_entries", {
-  voucherEntryId: serial("voucher_entry_id").primaryKey(),
+  id: voucherEntryId,
+  voucherEntryId,
   voucherId: bigint("voucher_id", { mode: "number" })
     .references(() => tVouchers.voucherId)
     .notNull(),
@@ -181,10 +215,15 @@ export const tVoucherEntries = pgTable("t_voucher_entries", {
   entryType: text("entry_type").notNull(), // 'debit', 'credit'
   amount: numeric("amount", { precision: 15, scale: 2 }).notNull(),
   ...auditColumns,
-});
+}, (table) => ({
+  voucherIdIdx: index("idx_t_voucher_entries_voucher_id").on(table.voucherId),
+  ledgerIdIdx: index("idx_t_voucher_entries_ledger_id").on(table.ledgerId),
+}));
 
+const stockMovementId = serial("stock_movement_id").primaryKey();
 export const tStockMovements = pgTable("t_stock_movements", {
-  stockMovementId: serial("stock_movement_id").primaryKey(),
+  id: stockMovementId,
+  stockMovementId,
   companyId: bigint("company_id", { mode: "number" })
     .references(() => mCompanies.companyId)
     .notNull(),
@@ -198,10 +237,15 @@ export const tStockMovements = pgTable("t_stock_movements", {
   rate: numeric("rate", { precision: 15, scale: 2 }).notNull(),
   amount: numeric("amount", { precision: 15, scale: 2 }).notNull(),
   ...auditColumns,
-});
+}, (table) => ({
+  companyIdIdx: index("idx_t_stock_movements_company_id").on(table.companyId),
+  productIdIdx: index("idx_t_stock_movements_product_id").on(table.productId),
+}));
 
+const auditLogId = serial("audit_log_id").primaryKey();
 export const tAuditLogs = pgTable("t_audit_logs", {
-  auditLogId: serial("audit_log_id").primaryKey(),
+  id: auditLogId,
+  auditLogId,
   tableName: text("table_name").notNull(),
   recordId: bigint("record_id", { mode: "number" }).notNull(),
   actionType: text("action_type").notNull(), // 'create', 'update', 'delete', 'approve'
@@ -209,6 +253,9 @@ export const tAuditLogs = pgTable("t_audit_logs", {
   newDataJson: jsonb("new_data_json"),
   createdOn: timestamp("created_on", { mode: "date" }).defaultNow().notNull(),
   createdBy: text("created_by"),
-});
+}, (table) => ({
+  tableNameIdx: index("idx_t_audit_logs_table_name").on(table.tableName),
+  actionTypeIdx: index("idx_t_audit_logs_action_type").on(table.actionType),
+}));
 
 
