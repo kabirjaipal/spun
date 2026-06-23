@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { mCompanies, mCustomers, mSuppliers, mProducts, mLedgers, mTaxRates } from "@/lib/db/schema";
 import { and, eq, isNull, sql } from "drizzle-orm";
+import SettingsClient from "./SettingsClient";
 
 export default async function SettingsPage() {
   const session = await auth();
@@ -14,6 +15,8 @@ export default async function SettingsPage() {
   const company = await db.query.mCompanies.findFirst({
     where: eq(mCompanies.companyId, companyId),
   });
+
+  if (!company) redirect("/setup-company");
 
   const [customerCount, supplierCount, productCount, ledgerCount, taxRateCount] = await Promise.all([
     db
@@ -38,60 +41,21 @@ export default async function SettingsPage() {
       .where(isNull(mTaxRates.deletedOn)),
   ]);
 
-  return (
-    <div className="space-y-6">
-      <div className="rounded-lg border border-border bg-card p-6 shadow-sm">
-        <h1 className="text-2xl font-bold text-foreground">Company Settings</h1>
-        <p className="text-sm text-muted-foreground">
-          View your company profile, financial year, and active master counts.
-        </p>
-      </div>
+  const companyDetails = {
+    companyId: company.companyId,
+    companyName: company.companyName,
+    gstNo: company.gstNo,
+    panNo: company.panNo,
+    address: company.address,
+  };
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-lg border border-border bg-card p-6 shadow-sm">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Company Profile</h2>
-          <div className="mt-4 space-y-4 text-sm text-foreground">
-            <div>
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Name</p>
-              <p>{company?.companyName || "Not configured"}</p>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">GSTIN</p>
-              <p>{company?.gstNo || "Not configured"}</p>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Address</p>
-              <p>{company?.address || "Not configured"}</p>
-            </div>
-          </div>
-        </div>
+  const counts = {
+    customers: customerCount[0]?.count ?? 0,
+    suppliers: supplierCount[0]?.count ?? 0,
+    products: productCount[0]?.count ?? 0,
+    ledgers: ledgerCount[0]?.count ?? 0,
+    taxRates: taxRateCount[0]?.count ?? 0,
+  };
 
-        <div className="rounded-lg border border-border bg-card p-6 shadow-sm">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Master Data Status</h2>
-          <div className="mt-4 grid gap-3 text-sm">
-            <div className="rounded-lg border border-border/50 bg-muted/10 p-4">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Customers</p>
-              <p className="mt-1 text-xl font-semibold text-foreground">{customerCount?.count ?? 0}</p>
-            </div>
-            <div className="rounded-lg border border-border/50 bg-muted/10 p-4">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Suppliers</p>
-              <p className="mt-1 text-xl font-semibold text-foreground">{supplierCount?.count ?? 0}</p>
-            </div>
-            <div className="rounded-lg border border-border/50 bg-muted/10 p-4">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Products</p>
-              <p className="mt-1 text-xl font-semibold text-foreground">{productCount?.count ?? 0}</p>
-            </div>
-            <div className="rounded-lg border border-border/50 bg-muted/10 p-4">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Ledgers</p>
-              <p className="mt-1 text-xl font-semibold text-foreground">{ledgerCount?.count ?? 0}</p>
-            </div>
-            <div className="rounded-lg border border-border/50 bg-muted/10 p-4">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Tax Rates</p>
-              <p className="mt-1 text-xl font-semibold text-foreground">{taxRateCount?.count ?? 0}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  return <SettingsClient company={companyDetails} counts={counts} />;
 }

@@ -3,6 +3,7 @@ import { mTaxRates } from "@/lib/db/schema";
 import { isNull } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { writeAuditLog } from "@/lib/audit";
 
 export async function GET() {
   const session = await auth();
@@ -26,10 +27,22 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "taxName and taxPercent are required" }, { status: 400 });
   }
 
-  const [row] = await db
-    .insert(mTaxRates)
-    .values({ taxName, taxPercent: String(taxPercent), createdBy: session.user.id, updatedBy: session.user.id })
-    .returning();
+  const [row] = await db.transaction(async (tx) => {
+    const [inserted] = await tx
+      .insert(mTaxRates)
+      .values({ taxName, taxPercent: String(taxPercent), createdBy: session.user.id, updatedBy: session.user.id })
+      .returning();
+
+    await writeAuditLog(tx, {
+      tableName: "m_tax_rates",
+      recordId: Number(inserted.taxRateId),
+      actionType: "create",
+      newDataJson: inserted,
+      createdBy: session.user.id,
+    });
+
+    return [inserted];
+  });
 
   return NextResponse.json(row, { status: 201 });
 }

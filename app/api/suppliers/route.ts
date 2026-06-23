@@ -3,6 +3,7 @@ import { mSuppliers, mLedgers } from "@/lib/db/schema";
 import { and, isNull, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { writeAuditLog } from "@/lib/audit";
 
 export async function GET() {
   const session = await auth();
@@ -44,6 +45,15 @@ export async function POST(request: Request) {
       referenceId: Number(s.supplierId),
       createdBy: userId,
       updatedBy: userId,
+    });
+
+    // Write audit log
+    await writeAuditLog(tx, {
+      tableName: "m_suppliers",
+      recordId: Number(s.supplierId),
+      actionType: "create",
+      newDataJson: s,
+      createdBy: userId,
     });
 
     return [s];

@@ -2,7 +2,7 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { mProducts, tStockMovements, tVouchers } from "@/lib/db/schema";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, desc } from "drizzle-orm";
 
 export default async function StockMovementsPage() {
   const session = await auth();
@@ -26,7 +26,7 @@ export default async function StockMovementsPage() {
     .leftJoin(mProducts, eq(tStockMovements.productId, mProducts.productId))
     .leftJoin(tVouchers, eq(tStockMovements.voucherId, tVouchers.voucherId))
     .where(and(eq(tStockMovements.companyId, companyId), isNull(mProducts.deletedOn)))
-    .orderBy(tStockMovements.createdOn, "desc")
+    .orderBy(desc(tStockMovements.createdOn))
     .limit(20);
 
   const totalIn = movements.reduce(

@@ -3,6 +3,7 @@ import { mProducts, mTaxRates } from "@/lib/db/schema";
 import { and, isNull, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { writeAuditLog } from "@/lib/audit";
 
 export async function GET() {
   const session = await auth();
@@ -44,20 +45,32 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "productCode, productName, and unit are required" }, { status: 400 });
   }
 
-  const [row] = await db
-    .insert(mProducts)
-    .values({
-      companyId,
-      productCode,
-      productName,
-      unit,
-      gstRateId: gstRateId ? Number(gstRateId) : null,
-      openingStockQty: String(openingStockQty ?? 0),
-      openingStockRate: String(openingStockRate ?? 0),
+  const [row] = await db.transaction(async (tx) => {
+    const [inserted] = await tx
+      .insert(mProducts)
+      .values({
+        companyId,
+        productCode,
+        productName,
+        unit,
+        gstRateId: gstRateId ? Number(gstRateId) : null,
+        openingStockQty: String(openingStockQty ?? 0),
+        openingStockRate: String(openingStockRate ?? 0),
+        createdBy: userId,
+        updatedBy: userId,
+      })
+      .returning();
+
+    await writeAuditLog(tx, {
+      tableName: "m_products",
+      recordId: Number(inserted.productId),
+      actionType: "create",
+      newDataJson: inserted,
       createdBy: userId,
-      updatedBy: userId,
-    })
-    .returning();
+    });
+
+    return [inserted];
+  });
 
   return NextResponse.json(row, { status: 201 });
 }

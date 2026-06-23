@@ -3,6 +3,7 @@ import { mSuppliers, mLedgers } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { writeAuditLog } from "@/lib/audit";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -15,6 +16,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const { supplierName, gstNo, phone, email, address, openingBalance } = await request.json();
 
   const [supplier] = await db.transaction(async (tx) => {
+    const oldS = await tx.query.mSuppliers.findFirst({
+      where: and(eq(mSuppliers.supplierId, Number(id)), eq(mSuppliers.companyId, companyId))
+    });
+
     const [s] = await tx
       .update(mSuppliers)
       .set({ supplierName, gstNo, phone, email, address, openingBalance: String(openingBalance), updatedBy: userId, updatedOn: new Date() })
@@ -26,6 +31,17 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         .update(mLedgers)
         .set({ ledgerName: supplierName, updatedBy: userId, updatedOn: new Date() })
         .where(and(eq(mLedgers.referenceId, Number(id)), eq(mLedgers.ledgerType, "supplier"), eq(mLedgers.companyId, companyId)));
+    }
+
+    if (s) {
+      await writeAuditLog(tx, {
+        tableName: "m_suppliers",
+        recordId: Number(id),
+        actionType: "update",
+        oldDataJson: oldS || null,
+        newDataJson: s,
+        createdBy: userId,
+      });
     }
 
     return [s];
@@ -45,6 +61,10 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
   const now = new Date();
 
   await db.transaction(async (tx) => {
+    const oldS = await tx.query.mSuppliers.findFirst({
+      where: and(eq(mSuppliers.supplierId, Number(id)), eq(mSuppliers.companyId, companyId))
+    });
+
     await tx
       .update(mSuppliers)
       .set({ deletedOn: now, deletedBy: userId })
@@ -54,6 +74,15 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
       .update(mLedgers)
       .set({ deletedOn: now, deletedBy: userId })
       .where(and(eq(mLedgers.referenceId, Number(id)), eq(mLedgers.ledgerType, "supplier"), eq(mLedgers.companyId, companyId)));
+
+    await writeAuditLog(tx, {
+      tableName: "m_suppliers",
+      recordId: Number(id),
+      actionType: "delete",
+      oldDataJson: oldS || null,
+      newDataJson: { deletedOn: now, deletedBy: userId },
+      createdBy: userId,
+    });
   });
 
   return NextResponse.json({ success: true });

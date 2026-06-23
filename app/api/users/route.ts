@@ -3,6 +3,7 @@ import { mUsers } from "@/lib/db/schema";
 import { eq, isNull } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
+import { writeAuditLog } from "@/lib/audit";
 
 // GET /api/users - List users
 export async function GET() {
@@ -13,6 +14,7 @@ export async function GET() {
         name: mUsers.name,
         email: mUsers.email,
         isActive: mUsers.isActive,
+        role: mUsers.role,
       })
       .from(mUsers)
       .where(isNull(mUsers.deletedOn));
@@ -30,7 +32,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { email, name, password } = body;
+    const { email, name, password, role } = body;
 
     if (!email || !name || !password) {
       return NextResponse.json(
@@ -55,19 +57,33 @@ export async function POST(request: Request) {
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
 
-    // Insert user using Drizzle ORM
-    const [newUser] = await db
-      .insert(mUsers)
-      .values({
-        email,
-        name,
-        passwordHash,
-      })
-      .returning({
-        id: mUsers.id,
-        name: mUsers.name,
-        email: mUsers.email,
+    // Insert user using Drizzle ORM inside transaction
+    const [newUser] = await db.transaction(async (tx) => {
+      const [inserted] = await tx
+        .insert(mUsers)
+        .values({
+          email,
+          name,
+          passwordHash,
+          role: role || "company",
+        })
+        .returning({
+          id: mUsers.id,
+          name: mUsers.name,
+          email: mUsers.email,
+          role: mUsers.role,
+        });
+
+      await writeAuditLog(tx, {
+        tableName: "m_users",
+        recordId: 0,
+        actionType: "create",
+        newDataJson: inserted,
+        createdBy: "system",
       });
+
+      return [inserted];
+    });
 
     return NextResponse.json(newUser, { status: 201 });
   } catch (error: any) {

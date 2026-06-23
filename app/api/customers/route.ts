@@ -3,6 +3,7 @@ import { mCustomers, mLedgers } from "@/lib/db/schema";
 import { and, isNull, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { writeAuditLog } from "@/lib/audit";
 
 export async function GET() {
   const session = await auth();
@@ -46,6 +47,15 @@ export async function POST(request: Request) {
       referenceId: Number(c.customerId),
       createdBy: userId,
       updatedBy: userId,
+    });
+
+    // Write audit log
+    await writeAuditLog(tx, {
+      tableName: "m_customers",
+      recordId: Number(c.customerId),
+      actionType: "create",
+      newDataJson: c,
+      createdBy: userId,
     });
 
     return [c];
