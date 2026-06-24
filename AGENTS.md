@@ -8,6 +8,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - **Mandatory Colors Only**: ALWAYS use semantic classes (`bg-primary`, `text-secondary`, `border-success`, `text-muted-foreground`, etc.). Enforce this strictly for custom code, layouts, and pages.
 - **Prohibited Colors**: DO NOT use hardcoded colors (`bg-blue-600`, `text-green-500`, `border-slate-200`, `dark:bg-zinc-900`, etc.).
 - **Theme Variables**: Refrain from using other custom styling palettes. Stick strictly to: `primary`, `secondary`, `success`, `warning`, `info`, `danger`, `muted`, `background`, `foreground`, `card`, `border`, `input`.
+- **No Arbitrary Values**: DO NOT use arbitrary Tailwind values for font sizes, spacing, or colors (e.g., `text-[11px]`, `text-[9px]`, `text-[#ffa500]`). Use standard Tailwind utility classes (e.g., `text-xs`, `text-sm`, `p-2`, `py-1.5`) to keep the design system consistent and clean.
 
 # shadcn Components Rule
 - **NEVER create shadcn components manually.** Always add them via the CLI: `npx shadcn@latest add <component>`.

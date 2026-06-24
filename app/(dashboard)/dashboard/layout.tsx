@@ -6,6 +6,7 @@ import { mCompanies } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { getUserPagePermissions } from "@/lib/permissions";
 import DashboardSidebar from "@/components/DashboardSidebar";
+import { Building2 } from "lucide-react";
 
 export default async function DashboardLayout({
   children,
@@ -48,14 +49,15 @@ export default async function DashboardLayout({
       {/* Main Content Area */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Header */}
-        <header className="flex h-16 items-center justify-between border-b border-border bg-card px-6">
-          <div className="flex items-center gap-4">
-            <h1 className="text-lg font-bold text-foreground uppercase tracking-wide">
-              Texora Accounting ERP
+        <header className="flex h-12 items-center justify-between border-b border-border bg-card px-6">
+          <div className="flex items-center gap-2.5">
+            <Building2 className="h-4 w-4 text-primary" />
+            <h1 className="text-sm font-bold text-foreground uppercase tracking-wider">
+              {companyName}
             </h1>
           </div>
-          <div className="text-xs text-muted-foreground">
-            FINANCIAL YEAR START: <span className="font-semibold text-foreground">APR 01</span>
+          <div className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">
+            FINANCIAL YEAR START: <span className="text-foreground">APR 01</span>
           </div>
         </header>
 
