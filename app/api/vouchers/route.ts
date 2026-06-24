@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { mLedgers, mProducts, mTaxRates, mCustomers, mSuppliers, tVouchers, tVoucherEntries, tStockMovements } from "@/lib/db/schema";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, desc } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { writeAuditLog } from "@/lib/audit";
@@ -312,4 +312,37 @@ export async function POST(request: Request) {
     console.error("Voucher error:", error);
     return NextResponse.json({ error: error.message || "Failed to create voucher" }, { status: 500 });
   }
+}
+
+export async function GET(request: Request) {
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session.user.companyId) return NextResponse.json({ error: "No company" }, { status: 400 });
+
+  const companyId = Number(session.user.companyId);
+  const { searchParams } = new URL(request.url);
+  const type = searchParams.get("type") ?? "sale";
+
+  const vouchers = await db
+    .select({
+      voucherId: tVouchers.voucherId,
+      voucherNo: tVouchers.voucherNo,
+      voucherDate: tVouchers.voucherDate,
+      voucherType: tVouchers.voucherType,
+      status: tVouchers.status,
+      totalAmount: tVouchers.totalAmount,
+      taxAmount: tVouchers.taxAmount,
+      netAmount: tVouchers.netAmount,
+      remarks: tVouchers.remarks,
+      partyId: tVouchers.partyId,
+      customerName: mCustomers.customerName,
+      customerGst: mCustomers.gstNo,
+      customerAddress: mCustomers.address,
+    })
+    .from(tVouchers)
+    .leftJoin(mCustomers, eq(tVouchers.partyId, mCustomers.customerId))
+    .where(and(eq(tVouchers.companyId, companyId), eq(tVouchers.voucherType, type), isNull(tVouchers.deletedOn)))
+    .orderBy(desc(tVouchers.voucherDate), desc(tVouchers.voucherId));
+
+  return NextResponse.json(vouchers);
 }

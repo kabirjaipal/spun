@@ -21,7 +21,7 @@ export default async function LedgerReportPage() {
       debit: sql<number>`coalesce(sum(case when ${tVoucherEntries.entryType} = 'debit' then ${tVoucherEntries.amount} else 0 end), 0)`,
       credit: sql<number>`coalesce(sum(case when ${tVoucherEntries.entryType} = 'credit' then ${tVoucherEntries.amount} else 0 end), 0)`,
       activityCount: sql<number>`count(${tVoucherEntries.voucherEntryId})`,
-      lastPosted: sql<Date>`max(${tVouchers.voucherDate})`,
+      lastPosted: sql<string>`max(${tVouchers.voucherDate})`,
     })
     .from(mLedgers)
     .leftJoin(tVoucherEntries, eq(mLedgers.ledgerId, tVoucherEntries.ledgerId))
@@ -52,7 +52,7 @@ export default async function LedgerReportPage() {
           keys={["ledgerName", "ledgerType", "debit", "credit", "activityCount", "lastPostedDate"]}
           rows={ledgers.map(l => ({
             ...l,
-            lastPostedDate: l.lastPosted ? l.lastPosted.toISOString().slice(0, 10) : "—"
+            lastPostedDate: l.lastPosted ?? "—"
           }))}
           canExport={canExport}
         />
@@ -86,7 +86,7 @@ export default async function LedgerReportPage() {
                   <td className="px-4 py-3 text-right text-foreground">₹{Number(ledger.credit ?? 0).toFixed(2)}</td>
                   <td className="px-4 py-3 text-right text-muted-foreground">{ledger.activityCount}</td>
                   <td className="px-4 py-3 text-right text-muted-foreground">
-                    {ledger.lastPosted ? ledger.lastPosted.toISOString().slice(0, 10) : "—"}
+                    {ledger.lastPosted ?? "—"}
                   </td>
                 </tr>
               ))

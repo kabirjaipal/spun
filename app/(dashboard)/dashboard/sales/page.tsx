@@ -1,8 +1,8 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { mCustomers, mProducts, mLedgers, mTaxRates, mCompanies } from "@/lib/db/schema";
-import { and, eq, isNull } from "drizzle-orm";
+import { mCustomers, mProducts, mLedgers, mTaxRates, mCompanies, tVouchers } from "@/lib/db/schema";
+import { and, eq, isNull, desc } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
 import SalesClient from "./SalesClient";
 
@@ -13,7 +13,7 @@ export default async function SalesPage() {
 
   const companyId = Number(session.user.companyId);
 
-  const [customers, products, ledgers, taxRates, company] = await Promise.all([
+  const [customers, products, ledgers, taxRates, company, pastVouchers] = await Promise.all([
     db
       .select()
       .from(mCustomers)
@@ -37,39 +37,71 @@ export default async function SalesPage() {
     db.query.mCompanies.findFirst({
       where: eq(mCompanies.companyId, companyId),
     }),
+    db
+      .select({
+        voucherId: tVouchers.voucherId,
+        voucherNo: tVouchers.voucherNo,
+        voucherDate: tVouchers.voucherDate,
+        status: tVouchers.status,
+        totalAmount: tVouchers.totalAmount,
+        taxAmount: tVouchers.taxAmount,
+        netAmount: tVouchers.netAmount,
+        remarks: tVouchers.remarks,
+        partyId: tVouchers.partyId,
+      })
+      .from(tVouchers)
+      .where(and(eq(tVouchers.companyId, companyId), eq(tVouchers.voucherType, "sale"), isNull(tVouchers.deletedOn)))
+      .orderBy(desc(tVouchers.voucherDate), desc(tVouchers.voucherId))
+      .limit(50),
   ]);
 
   const perms = getStaticPermissionsForRole(session.user.role as Role);
   const p = perms.find((x) => x.accessItem === "sales");
 
+  // Build customer map for past vouchers display
+  const customerMap = Object.fromEntries(
+    customers.map((c) => [c.customerId, { name: c.customerName, gstNo: c.gstNo, address: c.address }])
+  );
+
   return (
     <SalesClient
       company={company ? { companyName: company.companyName, gstNo: company.gstNo, address: company.address } : { companyName: "Texora Company" }}
-      customers={customers.map((customer) => ({
-        customerId: customer.customerId,
-        customerName: customer.customerName,
-        address: customer.address,
-        gstNo: customer.gstNo,
+      customers={customers.map((c) => ({
+        customerId: c.customerId,
+        customerName: c.customerName,
+        address: c.address,
+        gstNo: c.gstNo,
       }))}
-      products={products.map((product) => ({
-        productId: product.productId,
-        productName: product.productName,
-        productCode: product.productCode,
-        unit: product.unit,
-        gstRateId: product.gstRateId,
+      products={products.map((p) => ({
+        productId: p.productId,
+        productName: p.productName,
+        productCode: p.productCode,
+        unit: p.unit,
+        gstRateId: p.gstRateId,
       }))}
-      ledgers={ledgers.map((ledger) => ({
-        ledgerId: ledger.ledgerId,
-        ledgerName: ledger.ledgerName,
-        ledgerType: ledger.ledgerType,
-        referenceId: ledger.referenceId,
+      ledgers={ledgers.map((l) => ({
+        ledgerId: l.ledgerId,
+        ledgerName: l.ledgerName,
+        ledgerType: l.ledgerType,
+        referenceId: l.referenceId,
       }))}
-      taxRates={taxRates.map((rate) => ({
-        taxRateId: rate.taxRateId,
-        taxName: rate.taxName,
-        taxPercent: String(rate.taxPercent),
+      taxRates={taxRates.map((r) => ({
+        taxRateId: r.taxRateId,
+        taxName: r.taxName,
+        taxPercent: String(r.taxPercent),
       }))}
       canCreate={p?.c ?? false}
+      pastVouchers={pastVouchers.map((v) => ({
+        voucherId: v.voucherId,
+        voucherNo: v.voucherNo,
+        voucherDate: String(v.voucherDate),
+        status: v.status,
+        totalAmount: Number(v.totalAmount),
+        taxAmount: Number(v.taxAmount),
+        netAmount: Number(v.netAmount),
+        remarks: v.remarks,
+        party: v.partyId ? (customerMap[v.partyId] ?? null) : null,
+      }))}
     />
   );
 }
