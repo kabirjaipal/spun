@@ -1,29 +1,23 @@
 import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
-import { getToken } from "next-auth/jwt";
+import { auth } from "@/auth";
 
 export const config = {
-  matcher: [
-    "/dashboard/:path*",
-    "/setup-company",
-    "/login",
-    "/register",
-  ],
+  matcher: ["/dashboard/:path*", "/setup-company", "/login", "/register"],
 };
 
-export async function proxy(request: NextRequest) {
-  const token = await getToken({ req: request, secret: process.env.AUTH_SECRET });
+export const proxy = auth((request) => {
   const { pathname } = request.nextUrl;
 
   const isPublicRoute = ["/login", "/register"].includes(pathname);
   if (isPublicRoute) return NextResponse.next();
 
-  if (!token) {
+  if (!request.auth?.user?.id) {
     return NextResponse.redirect(new URL("/login", request.nextUrl));
   }
 
-  const isOwner = token.role === "owner";
-  const hasCompany = !!token.companyId;
+  const { user } = request.auth;
+  const isOwner = user.role === "owner";
+  const hasCompany = !!user.companyId;
 
   // Non-owners without a company must set one up first
   if (!isOwner && !hasCompany && pathname !== "/setup-company") {
@@ -44,15 +38,21 @@ export async function proxy(request: NextRequest) {
   // /dashboard (non-owner sub-pages) require page-level authorization
   if (pathname.startsWith("/dashboard/")) {
     // skip the owner sub-section and core profile page
-    if (!pathname.startsWith("/dashboard/owner") && pathname !== "/dashboard/my-profile") {
-      const allowedPages = (token.allowedPages as string[]) || [];
-      const isAllowed = allowedPages.some((pageUrl) => pathname.startsWith(pageUrl));
+    if (
+      !pathname.startsWith("/dashboard/owner") &&
+      pathname !== "/dashboard/my-profile"
+    ) {
+      const allowedPages = user.allowedPages || [];
+      const isAllowed = allowedPages.some((pageUrl) =>
+        pathname.startsWith(pageUrl),
+      );
       if (!isAllowed) {
-        const fallback = isOwner && !hasCompany ? "/dashboard/owner" : "/dashboard";
+        const fallback =
+          isOwner && !hasCompany ? "/dashboard/owner" : "/dashboard";
         return NextResponse.redirect(new URL(fallback, request.nextUrl));
       }
     }
   }
 
   return NextResponse.next();
-}
+});

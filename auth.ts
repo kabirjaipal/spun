@@ -1,7 +1,13 @@
 import NextAuth from "next-auth";
+import type { Provider } from "next-auth/providers";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import { db } from "@/lib/db";
-import { mUsers, pAccounts, pSessions, pVerificationTokens } from "@/lib/db/schema";
+import {
+  mUsers,
+  pAccounts,
+  pSessions,
+  pVerificationTokens,
+} from "@/lib/db/schema";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
@@ -26,6 +32,61 @@ declare module "next-auth" {
   }
 }
 
+const googleClientId =
+  process.env.AUTH_GOOGLE_ID ?? process.env.GOOGLE_CLIENT_ID;
+const googleClientSecret =
+  process.env.AUTH_GOOGLE_SECRET ?? process.env.GOOGLE_CLIENT_SECRET;
+
+const providers: Provider[] = [
+  ...(googleClientId && googleClientSecret
+    ? [
+        Google({
+          clientId: googleClientId,
+          clientSecret: googleClientSecret,
+        }),
+      ]
+    : []),
+  Credentials({
+    name: "Credentials",
+    credentials: {
+      email: { label: "Email", type: "email" },
+      password: { label: "Password", type: "password" },
+    },
+    async authorize(credentials) {
+      if (!credentials?.email || !credentials?.password) return null;
+
+      // Drizzle query using the schema mapping
+      const user = await db.query.mUsers.findFirst({
+        where: (users, { eq }) => eq(users.email, credentials.email as string),
+      });
+
+      if (!user || !user.passwordHash || !user.isActive) return null;
+
+      // Verify password using bcryptjs
+      const isValid = await bcrypt.compare(
+        credentials.password as string,
+        user.passwordHash,
+      );
+      if (!isValid) return null;
+
+      // Fetch page permissions (read = true)
+      const permissions = await getUserPagePermissions(user.id);
+      const allowedPages = permissions
+        .map((p) => p.pageUrl)
+        .filter((url): url is string => !!url);
+
+      return {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        companyId: user.companyId ? user.companyId.toString() : null,
+        role: user.role, // Use user's role from m_users table directly
+        allowedPages,
+      };
+    },
+  }),
+];
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: DrizzleAdapter(db, {
     usersTable: mUsers,
@@ -33,56 +94,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     sessionsTable: pSessions,
     verificationTokensTable: pVerificationTokens,
   }),
-  providers: [
-    Google({
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    }),
-    Credentials({
-      name: "Credentials",
-      credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" },
-      },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null;
-        
-        // Drizzle query using the schema mapping
-        const user = await db.query.mUsers.findFirst({
-          where: (users, { eq }) => eq(users.email, credentials.email as string),
-        });
-
-        if (!user || !user.passwordHash || !user.isActive) return null;
-
-        // Verify password using bcryptjs
-        const isValid = await bcrypt.compare(
-          credentials.password as string,
-          user.passwordHash
-        );
-        if (!isValid) return null;
-
-        // Fetch page permissions (read = true)
-        const permissions = await getUserPagePermissions(user.id);
-        const allowedPages = permissions.map((p) => p.pageUrl).filter((url): url is string => !!url);
-
-        return {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          companyId: user.companyId ? user.companyId.toString() : null,
-          role: user.role, // Use user's role from m_users table directly
-          allowedPages,
-        };
-      },
-    }),
-  ],
+  providers,
   session: {
     strategy: "jwt",
   },
-  // Ensure a stable secret is used in production — set NEXTAUTH_SECRET on Vercel
-  secret: process.env.AUTH_SECRET,
-  // Enforce secure cookies on production hosts
-  useSecureCookies: process.env.NODE_ENV === "production",
+  // Auth.js v5 recommends AUTH_SECRET. NEXTAUTH_SECRET is kept only as a legacy fallback.
+  secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
   trustHost: true,
   callbacks: {
     async signIn({ user }) {
@@ -104,7 +121,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const dest = new URL(url);
         // Only allow same-origin redirects
         if (dest.origin === baseUrl) return url;
-      } catch (e) {
+      } catch {
         // ignore invalid URLs
       }
       return baseUrl;
@@ -113,7 +130,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         token.id = user.id;
         // companyId may be a BigInt (from DrizzleAdapter on OAuth) — always serialize to string
-        token.companyId = user.companyId != null ? String(user.companyId) : null;
+        token.companyId =
+          user.companyId != null ? String(user.companyId) : null;
         token.role = user.role || "company";
         token.allowedPages = user.allowedPages || [];
       } else if (token.id) {
@@ -122,14 +140,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           where: eq(mUsers.id, token.id as string),
         });
         if (!dbUser || !dbUser.isActive) {
-          return null as any;
+          return null;
         }
         token.companyId = dbUser.companyId ? dbUser.companyId.toString() : null;
         token.role = dbUser.role;
-        
+
         // Fetch allowed pages
         const permissions = await getUserPagePermissions(dbUser.id);
-        token.allowedPages = permissions.map((p) => p.pageUrl).filter((url): url is string => !!url);
+        token.allowedPages = permissions
+          .map((p) => p.pageUrl)
+          .filter((url): url is string => !!url);
       }
       return token;
     },
@@ -138,9 +158,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.id = token.id as string;
         session.user.companyId = token.companyId as string | null;
         session.user.role = (token.role as string) || "company";
-        session.user.allowedPages = token.allowedPages as string[] || [];
+        session.user.allowedPages = (token.allowedPages as string[]) || [];
       } else {
-        return null as any;
+        return session;
       }
       return session;
     },
@@ -149,4 +169,3 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     signIn: "/login",
   },
 });
-
