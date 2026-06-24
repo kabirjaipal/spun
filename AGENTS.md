@@ -18,6 +18,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 # UI & UX Conventions
 - **Labels**: Always uppercase, small size, and semi-bold; placed directly above inputs (never side-by-side).
 - **Inputs**: Always use searchable selects instead of standard select. Use shadcn multi-select for associations.
+- **Buttons & Inputs Sizing**: ALWAYS use standard medium sizes for buttons and inputs on pages. Do NOT use `size="sm"`, `h-8`, or `text-xs` for controls, forms, or search bars. Keep buttons and inputs at their default medium size (`h-9` / `h-10` with `text-sm`) to maintain consistent readability and accessibility.
 - **Layout Flow**: Side-drawers (Sheets) for small configs. Full pages for voucher entry forms. Standard center dialog modals for destructive actions.
 - **RBAC**: Hide actions (Create, Edit, Delete, Export, Approve) based on permissions. Route protection redirects unauthorized views to `/access-denied`.
 

@@ -80,7 +80,7 @@ export default function TaxRatesClient({ initialData, canCreate, canUpdate, canD
             rows={data}
             canExport={canExport}
           />
-          {canCreate && <Button onClick={openCreate} size="sm">+ Add Tax Rate</Button>}
+          {canCreate && <Button onClick={openCreate}>+ Add Tax Rate</Button>}
         </div>
       </div>
 
@@ -142,8 +142,8 @@ export default function TaxRatesClient({ initialData, canCreate, canUpdate, canD
           </div>
 
           <SheetFooter>
-            <Button variant="outline" size="sm" onClick={() => setSheetOpen(false)}>Cancel</Button>
-            <Button size="sm" onClick={handleSave} disabled={saving || !form.taxName || !form.taxPercent}>
+            <Button variant="outline" onClick={() => setSheetOpen(false)}>Cancel</Button>
+            <Button onClick={handleSave} disabled={saving || !form.taxName || !form.taxPercent}>
               {saving ? "Saving..." : editing ? "Update" : "Create"}
             </Button>
           </SheetFooter>
@@ -160,8 +160,8 @@ export default function TaxRatesClient({ initialData, canCreate, canUpdate, canD
             Are you sure you want to delete <span className="font-semibold text-foreground">{deleteTarget?.taxName}</span>? This action cannot be undone.
           </p>
           <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setDeleteTarget(null)}>Cancel</Button>
-            <Button variant="destructive" size="sm" onClick={handleDelete}>Delete</Button>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleDelete}>Delete</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

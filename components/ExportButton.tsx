@@ -24,11 +24,10 @@ export default function ExportButton({
   return (
     <Button
       variant="outline"
-      size="sm"
       onClick={() => exportToCsv(filename, headers, keys, rows)}
-      className="flex items-center gap-1.5 h-8 text-xs bg-card hover:bg-accent border-border"
+      className="flex items-center gap-1.5 bg-card hover:bg-accent border-border"
     >
-      <Download className="h-3.5 w-3.5" />
+      <Download className="h-4 w-4" />
       <span>Export CSV</span>
     </Button>
   );

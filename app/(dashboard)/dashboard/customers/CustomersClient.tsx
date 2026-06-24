@@ -95,7 +95,7 @@ export default function CustomersClient({
           <p className="text-xs text-muted-foreground mt-0.5">{data.length} customer{data.length !== 1 ? "s" : ""}</p>
         </div>
         <div className="flex items-center gap-3">
-          <Input id="search-customers" placeholder="Search name, GST, phone..." value={search} onChange={(e) => setSearch(e.target.value)} className="h-8 w-60 text-xs" />
+          <Input id="search-customers" placeholder="Search name, GST, phone..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-60" />
           <ExportButton
             filename="customers.csv"
             headers={["Customer Name", "GSTIN", "Phone", "Email", "Address", "Opening Balance"]}
@@ -103,7 +103,7 @@ export default function CustomersClient({
             rows={filtered}
             canExport={canExport}
           />
-          {canCreate && <Button onClick={openCreate} size="sm">+ Add Customer</Button>}
+          {canCreate && <Button onClick={openCreate}>+ Add Customer</Button>}
         </div>
       </div>
 
@@ -168,8 +168,8 @@ export default function CustomersClient({
           </div>
 
           <SheetFooter>
-            <Button variant="outline" size="sm" onClick={() => setSheetOpen(false)}>Cancel</Button>
-            <Button size="sm" onClick={handleSave} disabled={saving || !form.customerName}>
+            <Button variant="outline" onClick={() => setSheetOpen(false)}>Cancel</Button>
+            <Button onClick={handleSave} disabled={saving || !form.customerName}>
               {saving ? "Saving..." : editing ? "Update" : "Create"}
             </Button>
           </SheetFooter>
@@ -181,8 +181,8 @@ export default function CustomersClient({
           <DialogHeader><DialogTitle className="text-sm font-bold uppercase">Delete Customer</DialogTitle></DialogHeader>
           <p className="text-sm text-muted-foreground">Delete <span className="font-semibold text-foreground">{deleteTarget?.customerName}</span>? Their ledger will also be removed.</p>
           <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setDeleteTarget(null)}>Cancel</Button>
-            <Button variant="destructive" size="sm" onClick={handleDelete}>Delete</Button>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleDelete}>Delete</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
