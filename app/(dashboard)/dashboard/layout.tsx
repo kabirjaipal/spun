@@ -17,6 +17,7 @@ export default async function DashboardLayout({
 
   // If no session, redirect to login (middleware should catch this, but safe fallback)
   if (!session?.user?.id) {
+    console.error("[DashboardLayout] auth() returned no session. session =", JSON.stringify(session));
     redirect("/login");
   }
 
