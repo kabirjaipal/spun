@@ -79,6 +79,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   session: {
     strategy: "jwt",
   },
+  // Ensure a stable secret is used in production — set NEXTAUTH_SECRET on Vercel
+  secret: process.env.AUTH_SECRET,
+  // Enforce secure cookies on production hosts
+  useSecureCookies: process.env.NODE_ENV === "production",
   trustHost: true,
   callbacks: {
     async signIn({ user }) {
@@ -91,6 +95,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
       }
       return true;
+    },
+    // Prevent open redirect / mismatched-host redirect loops by validating URLs
+    async redirect({ url, baseUrl }) {
+      try {
+        // Allow relative paths
+        if (url.startsWith("/")) return `${baseUrl}${url}`;
+        const dest = new URL(url);
+        // Only allow same-origin redirects
+        if (dest.origin === baseUrl) return url;
+      } catch (e) {
+        // ignore invalid URLs
+      }
+      return baseUrl;
     },
     async jwt({ token, user }) {
       if (user) {
