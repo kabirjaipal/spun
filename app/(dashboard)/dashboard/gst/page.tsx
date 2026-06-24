@@ -62,7 +62,7 @@ export default async function GstReportsPage() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-lg border border-border bg-card overflow-hidden shadow-sm">
-          <div className="border-b border-border/50 bg-muted/40 px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+          <div className="border-b border-border/50 bg-muted/40 px-4 py-3 text-xs font-bold uppercase tracking-wider text-muted-foreground">
             Voucher GST Summary
           </div>
           <table className="w-full text-sm">
@@ -91,7 +91,7 @@ export default async function GstReportsPage() {
         </div>
 
         <div className="rounded-lg border border-border bg-card overflow-hidden shadow-sm">
-          <div className="border-b border-border/50 bg-muted/40 px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+          <div className="border-b border-border/50 bg-muted/40 px-4 py-3 text-xs font-bold uppercase tracking-wider text-muted-foreground">
             Defined GST Rates
           </div>
           <table className="w-full text-sm">

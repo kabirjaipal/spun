@@ -136,17 +136,17 @@ export default function PaymentClient({
         <div className="rounded-lg border border-border bg-card p-5 shadow-sm space-y-4">
           <div className="grid gap-4 lg:grid-cols-3">
             <div className="space-y-2">
-              <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Voucher No</Label>
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Voucher No</Label>
               <Input value={voucherNo} onChange={(e) => setVoucherNo(e.target.value)} placeholder="PAY-001" />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Date</Label>
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Date</Label>
               <Input type="date" value={voucherDate} onChange={(e) => setVoucherDate(e.target.value)} />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Cash / Bank Account (Credit)</Label>
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Cash / Bank Account (Credit)</Label>
               <Select value={selectedLedger} onValueChange={setSelectedLedger}>
                 <SelectTrigger><SelectValue placeholder="Select ledger" /></SelectTrigger>
                 <SelectContent>
@@ -162,7 +162,7 @@ export default function PaymentClient({
 
           <div className="grid gap-4 lg:grid-cols-2">
             <div className="space-y-2">
-              <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Supplier (Debit)</Label>
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Supplier (Debit)</Label>
               <Select value={selectedSupplier} onValueChange={setSelectedSupplier}>
                 <SelectTrigger><SelectValue placeholder="Choose supplier" /></SelectTrigger>
                 <SelectContent>
@@ -176,13 +176,13 @@ export default function PaymentClient({
             </div>
 
             <div className="space-y-2">
-              <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Amount (₹)</Label>
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Amount (₹)</Label>
               <Input type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Remarks</Label>
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Remarks</Label>
             <Input value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Payment sent against purchase invoice" />
           </div>
         </div>
@@ -232,7 +232,7 @@ export default function PaymentClient({
 
       <div className="rounded-lg border border-border bg-card overflow-hidden shadow-sm">
         <table className="w-full text-sm">
-          <thead className="bg-muted/40 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+          <thead className="bg-muted/40 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">
             <tr>
               <th className="px-4 py-3">Voucher No</th>
               <th className="px-4 py-3">Date</th>

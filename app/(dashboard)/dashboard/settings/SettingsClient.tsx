@@ -86,22 +86,22 @@ export default function SettingsClient({
           <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Company Profile</h2>
           
           <div className="space-y-2">
-            <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Company Name</Label>
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Company Name</Label>
             <Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} required />
           </div>
 
           <div className="space-y-2">
-            <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">GSTIN</Label>
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">GSTIN</Label>
             <Input value={gstNo} onChange={(e) => setGstNo(e.target.value)} placeholder="24AAAAA0000A1Z5" />
           </div>
 
           <div className="space-y-2">
-            <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">PAN</Label>
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">PAN</Label>
             <Input value={panNo} onChange={(e) => setPanNo(e.target.value)} placeholder="ABCDE1234F" />
           </div>
 
           <div className="space-y-2">
-            <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Address</Label>
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Address</Label>
             <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Company Head Office" />
           </div>
 

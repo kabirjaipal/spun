@@ -130,22 +130,22 @@ export default function UsersClient({
           <h2 className="text-sm font-semibold uppercase tracking-wide text-foreground">Invite / Create User</h2>
           
           <div className="space-y-2">
-            <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Full Name</Label>
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Full Name</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Full Name" required />
           </div>
 
           <div className="space-y-2">
-            <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Email Address</Label>
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Email Address</Label>
             <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="user@company.com" required />
           </div>
 
           <div className="space-y-2">
-            <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Password</Label>
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Password</Label>
             <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required />
           </div>
 
           <div className="space-y-2">
-            <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">System Role</Label>
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">System Role</Label>
             <Select value={role} onValueChange={setRole}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -164,7 +164,7 @@ export default function UsersClient({
 
       <div className="rounded-lg border border-border bg-card overflow-hidden shadow-sm">
         <table className="w-full text-sm">
-          <thead className="bg-muted/40 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+          <thead className="bg-muted/40 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">
             <tr>
               <th className="px-4 py-3">Name</th>
               <th className="px-4 py-3">Email</th>
@@ -201,7 +201,7 @@ export default function UsersClient({
                     </span>
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wider ${
+                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold tracking-wider ${
                       user.isActive 
                         ? "bg-success/15 text-success border border-success/10" 
                         : "bg-danger/15 text-danger border border-danger/10"

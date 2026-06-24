@@ -80,7 +80,7 @@ export default async function ProfitLossPage() {
 
       <div className="rounded-lg border border-border bg-card overflow-hidden shadow-sm">
         <table className="w-full text-sm">
-          <thead className="bg-muted/40 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+          <thead className="bg-muted/40 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">
             <tr>
               <th className="px-4 py-3">Metric</th>
               <th className="px-4 py-3 text-right">Amount</th>

@@ -64,14 +64,14 @@ export default function DashboardSidebar({
       {/* Gateway Header */}
       <div className="flex h-16 flex-col justify-center border-b border-border px-4 bg-muted/20">
         <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded bg-primary font-bold text-[13px] text-primary-foreground shadow-sm">
+          <div className="flex h-7 w-7 items-center justify-center rounded bg-primary font-bold text-xs text-primary-foreground shadow-sm">
             {renderIcon(headerIcon)}
           </div>
           <div className="flex flex-col overflow-hidden">
             <span className="text-xs font-bold text-foreground uppercase tracking-widest leading-none">
               {headerTitle}
             </span>
-            <span className="truncate text-[10px] text-muted-foreground mt-0.5 font-medium font-sans">
+            <span className="truncate text-xs text-muted-foreground mt-0.5 font-medium font-sans">
               {companyName.toUpperCase()}
             </span>
           </div>
@@ -84,7 +84,7 @@ export default function DashboardSidebar({
         <div className="px-1">
           <Link
             href={dashboardHref}
-            className={`flex items-center gap-3 rounded px-2.5 py-1.5 font-semibold tracking-wide transition-colors ${
+            className={`flex items-center gap-3 rounded px-2.5 py-1.5 font-semibold tracking-wide transition-all duration-200 hover:translate-x-0.5 ${
               dashboardActive
                 ? "bg-primary text-primary-foreground shadow-sm"
                 : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
@@ -99,7 +99,7 @@ export default function DashboardSidebar({
         {/* Gateway Menu Panels */}
         {sortedGroupNames.map((groupName) => (
           <div key={groupName} className="space-y-0.5 border border-border/50 rounded-lg p-1 bg-muted/5">
-            <span className="block px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-muted-foreground/60 border-b border-border/20 mb-1">
+            <span className="block px-2 py-1 text-xs font-bold uppercase tracking-wider text-muted-foreground/60 border-b border-border/20 mb-1">
               {groupName}
             </span>
             <div className="space-y-0.5">
@@ -109,7 +109,7 @@ export default function DashboardSidebar({
                   <Link
                     key={item.accessItem}
                     href={item.pageUrl || "/dashboard"}
-                    className={`flex items-center gap-2.5 rounded px-2 py-1.5 font-semibold transition-colors ${
+                    className={`flex items-center gap-2.5 rounded px-2 py-1.5 font-semibold transition-all duration-200 hover:translate-x-0.5 ${
                       isActive
                         ? "bg-primary text-primary-foreground shadow-sm"
                         : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
@@ -131,17 +131,17 @@ export default function DashboardSidebar({
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-accent-foreground text-xs font-semibold shrink-0">
             {userName.charAt(0).toUpperCase()}
           </div>
-          <div className="flex flex-col overflow-hidden text-[10px]">
+          <div className="flex flex-col overflow-hidden text-xs">
             <span className="truncate font-bold text-foreground leading-tight">{userName}</span>
             <span className="truncate text-muted-foreground leading-none mt-0.5">{userEmail}</span>
-            <span className="mt-1 truncate text-[9px] uppercase text-primary font-extrabold tracking-wider">
+            <span className="mt-1 truncate text-xs uppercase text-primary font-extrabold tracking-wider">
               {role}
             </span>
           </div>
         </div>
         <button
           onClick={() => signOut({ callbackUrl: "/login" })}
-          className="flex w-full items-center justify-center gap-2 rounded border border-border bg-background px-3 py-1.5 text-[10px] font-bold text-muted-foreground hover:bg-accent hover:text-accent-foreground hover:border-accent transition-colors"
+          className="flex w-full items-center justify-center gap-2 rounded border border-border bg-background px-3 py-1.5 text-xs font-bold text-muted-foreground hover:bg-accent hover:text-accent-foreground hover:border-accent hover:shadow-sm active:scale-[0.98] transition-all duration-200"
         >
           <Icons.LogOut className="h-3.5 w-3.5" />
           <span>SIGN OUT</span>

@@ -162,7 +162,7 @@ export default async function DashboardPage() {
           >
             <div className="flex items-center justify-between">
               <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/75">
+                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground/75">
                   {stat.name}
                 </span>
                 <span className="mt-1 block text-2xl font-bold text-foreground">
@@ -211,7 +211,7 @@ export default async function DashboardPage() {
               </div>
             </div>
           </div>
-          <div className="mt-6 text-[10px] text-muted-foreground leading-normal">
+          <div className="mt-6 text-xs text-muted-foreground leading-normal">
             Texora maps accounts and inventory using Tally's fundamental voucher standards, modernizing form design and access speeds.
           </div>
         </div>
@@ -234,7 +234,7 @@ export default async function DashboardPage() {
               <span className="text-sm font-semibold text-foreground">
                 Create Customer
               </span>
-              <span className="block text-[10px] text-muted-foreground">Add new buyer ledger</span>
+              <span className="block text-xs text-muted-foreground">Add new buyer ledger</span>
             </div>
           </Link>
 
@@ -249,7 +249,7 @@ export default async function DashboardPage() {
               <span className="text-sm font-semibold text-foreground">
                 Add Stock Item
               </span>
-              <span className="block text-[10px] text-muted-foreground">Register new fabric product</span>
+              <span className="block text-xs text-muted-foreground">Register new fabric product</span>
             </div>
           </Link>
 
@@ -264,7 +264,7 @@ export default async function DashboardPage() {
               <span className="text-sm font-semibold text-foreground">
                 Sales Voucher
               </span>
-              <span className="block text-[10px] text-muted-foreground">Record a new fabric sale</span>
+              <span className="block text-xs text-muted-foreground">Record a new fabric sale</span>
             </div>
           </Link>
 
@@ -279,7 +279,7 @@ export default async function DashboardPage() {
               <span className="text-sm font-semibold text-foreground">
                 Ledger Report
               </span>
-              <span className="block text-[10px] text-muted-foreground">View statement of accounts</span>
+              <span className="block text-xs text-muted-foreground">View statement of accounts</span>
             </div>
           </Link>
         </div>

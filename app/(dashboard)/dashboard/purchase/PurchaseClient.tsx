@@ -215,7 +215,7 @@ export default function PurchaseClient({
       <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
         <div className="grid gap-4 lg:grid-cols-3">
           <div className="space-y-2">
-            <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Supplier</Label>
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Supplier</Label>
             <Select value={selectedSupplier} onValueChange={setSelectedSupplier}>
               <SelectTrigger>
                 <SelectValue placeholder="Choose supplier" />
@@ -231,18 +231,18 @@ export default function PurchaseClient({
           </div>
 
           <div className="space-y-2">
-            <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Voucher No</Label>
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Voucher No</Label>
             <Input value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} placeholder="PUR-001" />
           </div>
 
           <div className="space-y-2">
-            <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Date</Label>
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Date</Label>
             <Input type="date" value={voucherDate} onChange={(e) => setVoucherDate(e.target.value)} />
           </div>
         </div>
 
         <div className="mt-4 space-y-2">
-          <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Remarks</Label>
+          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Remarks</Label>
           <Input value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Purchase of yarn and fabric" />
         </div>
       </div>
@@ -264,7 +264,7 @@ export default function PurchaseClient({
             return (
               <div key={line.id} className="grid gap-4 lg:grid-cols-[2fr_1fr_1fr_1fr_auto] items-end border-b border-border/50 pb-4">
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Product</Label>
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Product</Label>
                   <Select value={line.productId} onValueChange={(value) => updateLine(line.id, "productId", value)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select product" />
@@ -280,7 +280,7 @@ export default function PurchaseClient({
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Ledger</Label>
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Ledger</Label>
                   <Select value={line.ledgerId} onValueChange={(value) => updateLine(line.id, "ledgerId", value)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select ledger" />
@@ -296,12 +296,12 @@ export default function PurchaseClient({
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Qty</Label>
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Qty</Label>
                   <Input type="number" min="0" step="0.01" value={line.quantity} onChange={(e) => updateLine(line.id, "quantity", e.target.value)} />
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Rate</Label>
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Rate</Label>
                   <Input type="number" min="0" step="0.01" value={line.rate} onChange={(e) => updateLine(line.id, "rate", e.target.value)} />
                 </div>
 

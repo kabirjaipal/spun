@@ -133,11 +133,11 @@ export default function PrintInvoiceModal({
             </div>
             <div className="text-right flex flex-col justify-between">
               <div>
-                <span className="text-gray-500 font-bold uppercase block text-[9px]">Invoice Number</span>
+                <span className="text-gray-500 font-bold uppercase block text-xs">Invoice Number</span>
                 <span className="text-sm font-extrabold font-mono mt-0.5 block">{voucher.voucherNo}</span>
               </div>
               <div className="mt-4">
-                <span className="text-gray-500 font-bold uppercase block text-[9px]">Date</span>
+                <span className="text-gray-500 font-bold uppercase block text-xs">Date</span>
                 <span className="text-sm font-extrabold font-mono mt-0.5 block">{voucher.voucherDate}</span>
               </div>
             </div>
@@ -145,7 +145,7 @@ export default function PrintInvoiceModal({
 
           {/* Billing Info */}
           <div className="border-b border-black py-4">
-            <span className="text-gray-500 font-bold uppercase text-[9px] block mb-1">
+            <span className="text-gray-500 font-bold uppercase text-xs block mb-1">
               {isSale ? "Bill To (Buyer)" : "Bill From (Seller)"}
             </span>
             <div className="text-sm font-bold uppercase">{party.name}</div>
@@ -156,7 +156,7 @@ export default function PrintInvoiceModal({
           {/* Invoice Table */}
           <table className="w-full border-collapse mt-4 text-left">
             <thead>
-              <tr className="border-b border-black text-[9px] font-bold uppercase tracking-wider text-gray-500">
+              <tr className="border-b border-black text-xs font-bold uppercase tracking-wider text-gray-500">
                 <th className="py-2">Item</th>
                 <th className="py-2 text-right">Quantity</th>
                 <th className="py-2 text-right">Rate</th>
@@ -169,7 +169,7 @@ export default function PrintInvoiceModal({
                 <tr key={idx} className="border-b border-gray-200">
                   <td className="py-3 pr-2">
                     <span className="font-semibold text-black block">{line.productName}</span>
-                    <span className="font-mono text-[9px] text-gray-500 block mt-0.5">{line.productCode}</span>
+                    <span className="font-mono text-xs text-gray-500 block mt-0.5">{line.productCode}</span>
                   </td>
                   <td className="py-3 text-right font-mono">{line.quantity.toFixed(2)} {line.unit}</td>
                   <td className="py-3 text-right font-mono">₹{line.rate.toFixed(2)}</td>
@@ -183,23 +183,23 @@ export default function PrintInvoiceModal({
           {/* Totals & Breakdown */}
           <div className="mt-6 grid grid-cols-2 gap-8 items-start">
             <div>
-              <span className="text-gray-500 font-bold uppercase text-[9px] block">Amount in Words</span>
+              <span className="text-gray-500 font-bold uppercase text-xs block">Amount in Words</span>
               <div className="mt-1 font-bold text-gray-800 leading-snug">{numberToWords(voucher.netAmount)}</div>
 
               {voucher.remarks && (
                 <div className="mt-4">
-                  <span className="text-gray-500 font-bold uppercase text-[9px] block">Remarks</span>
+                  <span className="text-gray-500 font-bold uppercase text-xs block">Remarks</span>
                   <div className="mt-1 font-medium text-gray-700 italic">{voucher.remarks}</div>
                 </div>
               )}
             </div>
             <div className="flex flex-col gap-2.5">
               <div className="flex justify-between border-b border-gray-200 pb-2">
-                <span className="font-bold text-gray-500 uppercase text-[9px]">Taxable Subtotal</span>
+                <span className="font-bold text-gray-500 uppercase text-xs">Taxable Subtotal</span>
                 <span className="font-bold font-mono">₹{voucher.totalAmount.toFixed(2)}</span>
               </div>
               <div className="flex justify-between border-b border-gray-200 pb-2">
-                <span className="font-bold text-gray-500 uppercase text-[9px]">GST Tax ({isSale ? "Collected" : "Paid"})</span>
+                <span className="font-bold text-gray-500 uppercase text-xs">GST Tax ({isSale ? "Collected" : "Paid"})</span>
                 <span className="font-bold font-mono">₹{voucher.taxAmount.toFixed(2)}</span>
               </div>
               <div className="flex justify-between pt-1 text-sm font-extrabold">
@@ -212,15 +212,15 @@ export default function PrintInvoiceModal({
           {/* Signature and T&C */}
           <div className="mt-12 pt-8 border-t border-gray-300 grid grid-cols-2 gap-4">
             <div>
-              <div className="font-bold uppercase text-[9px] text-gray-500 mb-1">Terms & Conditions</div>
-              <div className="text-[10px] text-gray-600 leading-snug">
+              <div className="font-bold uppercase text-xs text-gray-500 mb-1">Terms & Conditions</div>
+              <div className="text-xs text-gray-600 leading-snug">
                 1. Goods once sold will not be returned or exchanged.<br />
                 2. Subject to Surat jurisdiction only.
               </div>
             </div>
             <div className="text-right flex flex-col justify-between items-end min-h-[80px]">
-              <div className="font-bold uppercase text-[9px] text-gray-500">For {company.companyName}</div>
-              <div className="border-t border-black w-48 pt-1 text-center font-bold text-[9px] uppercase tracking-wider text-gray-500 mt-8">
+              <div className="font-bold uppercase text-xs text-gray-500">For {company.companyName}</div>
+              <div className="border-t border-black w-48 pt-1 text-center font-bold text-xs uppercase tracking-wider text-gray-500 mt-8">
                 Authorized Signatory
               </div>
             </div>

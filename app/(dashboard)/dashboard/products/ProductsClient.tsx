@@ -106,13 +106,13 @@ export default function ProductsClient({
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/40">
-              <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Code</th>
-              <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Name</th>
-              <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Unit</th>
-              <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground">GST</th>
-              <th className="px-4 py-2.5 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Opening Qty</th>
-              <th className="px-4 py-2.5 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Rate</th>
-              {(canUpdate || canDelete) && <th className="px-4 py-2.5 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Actions</th>}
+              <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Code</th>
+              <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Name</th>
+              <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Unit</th>
+              <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">GST</th>
+              <th className="px-4 py-2.5 text-right text-xs font-bold uppercase tracking-wider text-muted-foreground">Opening Qty</th>
+              <th className="px-4 py-2.5 text-right text-xs font-bold uppercase tracking-wider text-muted-foreground">Rate</th>
+              {(canUpdate || canDelete) && <th className="px-4 py-2.5 text-right text-xs font-bold uppercase tracking-wider text-muted-foreground">Actions</th>}
             </tr>
           </thead>
           <tbody>
@@ -147,22 +147,22 @@ export default function ProductsClient({
 
           <div className="flex-1 overflow-y-auto px-5 py-6 space-y-5">
             <div className="space-y-2">
-              <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Product Code</Label>
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Product Code</Label>
               <Input id="productCode" placeholder="FAB-001" value={form.productCode} onChange={(e) => setForm((f) => ({ ...f, productCode: e.target.value }))} />
             </div>
             <div className="space-y-2">
-              <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Product Name</Label>
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Product Name</Label>
               <Input id="productName" placeholder="Cotton Fabric 40s" value={form.productName} onChange={(e) => setForm((f) => ({ ...f, productName: e.target.value }))} />
             </div>
             <div className="space-y-2">
-              <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Unit</Label>
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Unit</Label>
               <Select value={form.unit} onValueChange={(v) => setForm((f) => ({ ...f, unit: v }))}>
                 <SelectTrigger id="unit"><SelectValue placeholder="Select unit" /></SelectTrigger>
                 <SelectContent>{UNITS.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">GST Rate</Label>
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">GST Rate</Label>
               <Select value={form.gstRateId} onValueChange={(v) => setForm((f) => ({ ...f, gstRateId: v }))}>
                 <SelectTrigger id="gstRateId"><SelectValue placeholder="Select GST rate" /></SelectTrigger>
                 <SelectContent>
@@ -173,11 +173,11 @@ export default function ProductsClient({
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Opening Qty</Label>
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Opening Qty</Label>
                 <Input id="openingStockQty" type="number" step={0.01} value={form.openingStockQty} onChange={(e) => setForm((f) => ({ ...f, openingStockQty: e.target.value }))} />
               </div>
               <div className="space-y-2">
-                <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Rate (₹)</Label>
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Rate (₹)</Label>
                 <Input id="openingStockRate" type="number" step={0.01} value={form.openingStockRate} onChange={(e) => setForm((f) => ({ ...f, openingStockRate: e.target.value }))} />
               </div>
             </div>

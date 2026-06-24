@@ -123,11 +123,11 @@ export default function LedgersClient({
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/40">
-              <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground">#</th>
-              <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Ledger Name</th>
-              <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Type</th>
-              <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Source</th>
-              {(canUpdate || canDelete) && <th className="px-4 py-2.5 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Actions</th>}
+              <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">#</th>
+              <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Ledger Name</th>
+              <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Type</th>
+              <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Source</th>
+              {(canUpdate || canDelete) && <th className="px-4 py-2.5 text-right text-xs font-bold uppercase tracking-wider text-muted-foreground">Actions</th>}
             </tr>
           </thead>
           <tbody>
@@ -141,7 +141,7 @@ export default function LedgersClient({
                   <td className="px-4 py-3 text-xs text-muted-foreground">{i + 1}</td>
                   <td className="px-4 py-3 font-medium text-foreground">{row.ledgerName}</td>
                   <td className="px-4 py-3">
-                    <span className={`inline-flex items-center rounded px-2 py-0.5 text-[10px] font-semibold uppercase ${badgeClass}`}>{row.ledgerType}</span>
+                    <span className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-semibold uppercase ${badgeClass}`}>{row.ledgerType}</span>
                   </td>
                   <td className="px-4 py-3 text-xs text-muted-foreground">{isManual(row) ? "Manual" : "Auto"}</td>
                   {(canUpdate || canDelete) && (
@@ -165,11 +165,11 @@ export default function LedgersClient({
 
           <div className="flex-1 overflow-y-auto px-5 py-6 space-y-5">
             <div className="space-y-2">
-              <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Ledger Name</Label>
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Ledger Name</Label>
               <Input id="ledgerName" placeholder="e.g. HDFC Bank Current A/c" value={form.ledgerName} onChange={(e) => setForm((f) => ({ ...f, ledgerName: e.target.value }))} />
             </div>
             <div className="space-y-2">
-              <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Ledger Type</Label>
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Ledger Type</Label>
               <Select value={form.ledgerType} onValueChange={(v) => setForm((f) => ({ ...f, ledgerType: v }))}>
                 <SelectTrigger id="ledgerType"><SelectValue placeholder="Select type" /></SelectTrigger>
                 <SelectContent>

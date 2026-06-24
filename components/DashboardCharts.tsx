@@ -58,7 +58,7 @@ export default function DashboardCharts({ data }: DashboardChartsProps) {
           <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground/75">
             MONTHLY ANALYSIS
           </h3>
-          <p className="text-[10px] text-muted-foreground mt-0.5">Comparison of Sales and Purchase Vouchers</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Comparison of Sales and Purchase Vouchers</p>
         </div>
         <div className="flex gap-4 text-xs font-semibold">
           <div className="flex items-center gap-1.5">
@@ -95,7 +95,7 @@ export default function DashboardCharts({ data }: DashboardChartsProps) {
                   x={paddingLeft - 8}
                   y={y + 3}
                   textAnchor="end"
-                  className="fill-muted-foreground text-[8px]"
+                  className="fill-muted-foreground text-xs"
                 >
                   ₹{(tick >= 100000 ? `${(tick / 100000).toFixed(1)}L` : tick >= 1000 ? `${(tick / 1000).toFixed(0)}k` : tick.toFixed(0))}
                 </text>
@@ -146,7 +146,7 @@ export default function DashboardCharts({ data }: DashboardChartsProps) {
                   x={xCenter}
                   y={paddingTop + chartHeight + 15}
                   textAnchor="middle"
-                  className="fill-muted-foreground text-[9px] font-semibold"
+                  className="fill-muted-foreground text-xs font-semibold"
                 >
                   {item.month}
                 </text>
@@ -181,7 +181,7 @@ export default function DashboardCharts({ data }: DashboardChartsProps) {
         {/* Hover Tooltip Overlay */}
         {hoveredIdx !== null && (
           <div
-            className="absolute bg-card border border-border rounded-lg shadow-lg p-2.5 text-[10px] space-y-1.5 z-10 font-sans text-foreground animate-fade-in"
+            className="absolute bg-card border border-border rounded-lg shadow-lg p-2.5 text-xs space-y-1.5 z-10 font-sans text-foreground animate-fade-in"
             style={{
               left: `${Math.max(
                 10,
@@ -194,7 +194,7 @@ export default function DashboardCharts({ data }: DashboardChartsProps) {
               width: "120px",
             }}
           >
-            <div className="font-bold border-b border-border/50 pb-1 text-center uppercase tracking-wider text-muted-foreground text-[9px]">
+            <div className="font-bold border-b border-border/50 pb-1 text-center uppercase tracking-wider text-muted-foreground text-xs">
               {data[hoveredIdx].month}
             </div>
             <div className="flex justify-between font-semibold">

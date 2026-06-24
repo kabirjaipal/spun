@@ -111,12 +111,12 @@ export default function CustomersClient({
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/40">
-              <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground">#</th>
-              <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Name</th>
-              <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground">GSTIN</th>
-              <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Phone</th>
-              <th className="px-4 py-2.5 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Opening Bal.</th>
-              {(canUpdate || canDelete) && <th className="px-4 py-2.5 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Actions</th>}
+              <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">#</th>
+              <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Name</th>
+              <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">GSTIN</th>
+              <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Phone</th>
+              <th className="px-4 py-2.5 text-right text-xs font-bold uppercase tracking-wider text-muted-foreground">Opening Bal.</th>
+              {(canUpdate || canDelete) && <th className="px-4 py-2.5 text-right text-xs font-bold uppercase tracking-wider text-muted-foreground">Actions</th>}
             </tr>
           </thead>
           <tbody>
@@ -132,7 +132,7 @@ export default function CustomersClient({
                 <td className="px-4 py-3 text-xs text-muted-foreground font-mono">{row.gstNo || "—"}</td>
                 <td className="px-4 py-3 text-xs text-muted-foreground">{row.phone || "—"}</td>
                 <td className="px-4 py-3 text-right">
-                  <Badge variant={Number(row.openingBalance) >= 0 ? "secondary" : "destructive"} className="text-[10px] font-mono">
+                  <Badge variant={Number(row.openingBalance) >= 0 ? "secondary" : "destructive"} className="text-xs font-mono">
                     ₹{Number(row.openingBalance).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                   </Badge>
                 </td>
@@ -157,12 +157,12 @@ export default function CustomersClient({
           <div className="flex-1 overflow-y-auto px-5 py-6 space-y-5">
             {FIELDS.map(({ id, label, placeholder }) => (
               <div key={id} className="space-y-2">
-                <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</Label>
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</Label>
                 <Input id={id} placeholder={placeholder} value={(form as any)[id]} onChange={(e) => setForm((f) => ({ ...f, [id]: e.target.value }))} />
               </div>
             ))}
             <div className="space-y-2">
-              <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Opening Balance (₹)</Label>
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Opening Balance (₹)</Label>
               <Input id="openingBalance" type="number" step={0.01} value={form.openingBalance} onChange={(e) => setForm((f) => ({ ...f, openingBalance: e.target.value }))} />
             </div>
           </div>

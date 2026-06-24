@@ -66,7 +66,7 @@ export default async function OwnerDashboardPage() {
           <div key={stat.name} className="overflow-hidden rounded-lg border border-border bg-card p-5 shadow-sm">
             <div className="flex items-center justify-between">
               <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/75">{stat.name}</span>
+                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground/75">{stat.name}</span>
                 <span className="mt-1 block text-2xl font-bold text-foreground">{stat.value}</span>
               </div>
               <div className={`rounded-lg p-2.5 ${stat.color}`}>{renderIcon(stat.icon, "h-5 w-5")}</div>
@@ -84,14 +84,14 @@ export default async function OwnerDashboardPage() {
               <div className="p-2 rounded bg-primary/10 text-primary group-hover:scale-105 transition-transform"><Icons.UserCheck size={18} /></div>
               <div>
                 <span className="text-sm font-semibold text-foreground">Manage Users</span>
-                <span className="block text-[10px] text-muted-foreground">View and configure system users</span>
+                <span className="block text-xs text-muted-foreground">View and configure system users</span>
               </div>
             </Link>
             <Link href="/masters/roles" className="flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:border-warning hover:bg-warning/5 transition-all group">
               <div className="p-2 rounded bg-warning/10 text-warning group-hover:scale-105 transition-transform"><Icons.ShieldAlert size={18} /></div>
               <div>
                 <span className="text-sm font-semibold text-foreground">Roles & Access</span>
-                <span className="block text-[10px] text-muted-foreground">Set user roles and permissions</span>
+                <span className="block text-xs text-muted-foreground">Set user roles and permissions</span>
               </div>
             </Link>
           </div>
@@ -114,7 +114,7 @@ export default async function OwnerDashboardPage() {
                       <tr key={log.auditLogId} className="hover:bg-muted/10 transition-colors">
                         <td className="px-4 py-2.5 font-medium">{log.tableName}</td>
                         <td className="px-4 py-2.5">
-                          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
                             log.actionType === "create" ? "bg-success/15 text-success" :
                             log.actionType === "update" ? "bg-info/15 text-info" : "bg-danger/15 text-danger"
                           }`}>
@@ -158,7 +158,7 @@ export default async function OwnerDashboardPage() {
               </div>
             </div>
           </div>
-          <div className="mt-6 text-[10px] text-muted-foreground leading-normal">
+          <div className="mt-6 text-xs text-muted-foreground leading-normal">
             You are signed in as a platform-wide system owner. You have full access to view, update, or manage system configuration, user role maps, and audit trails.
           </div>
         </div>

@@ -134,17 +134,17 @@ export default function ReceiptClient({
         <div className="rounded-lg border border-border bg-card p-5 shadow-sm space-y-4">
           <div className="grid gap-4 lg:grid-cols-3">
             <div className="space-y-2">
-              <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Voucher No</Label>
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Voucher No</Label>
               <Input value={voucherNo} onChange={(e) => setVoucherNo(e.target.value)} placeholder="RCPT-001" />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Date</Label>
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Date</Label>
               <Input type="date" value={voucherDate} onChange={(e) => setVoucherDate(e.target.value)} />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Cash / Bank Account (Debit)</Label>
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Cash / Bank Account (Debit)</Label>
               <Select value={selectedLedger} onValueChange={setSelectedLedger}>
                 <SelectTrigger><SelectValue placeholder="Select ledger" /></SelectTrigger>
                 <SelectContent>
@@ -160,7 +160,7 @@ export default function ReceiptClient({
 
           <div className="grid gap-4 lg:grid-cols-2">
             <div className="space-y-2">
-              <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Customer (Credit)</Label>
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Customer (Credit)</Label>
               <Select value={selectedCustomer} onValueChange={setSelectedCustomer}>
                 <SelectTrigger><SelectValue placeholder="Choose customer" /></SelectTrigger>
                 <SelectContent>
@@ -174,13 +174,13 @@ export default function ReceiptClient({
             </div>
 
             <div className="space-y-2">
-              <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Amount (₹)</Label>
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Amount (₹)</Label>
               <Input type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Remarks</Label>
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Remarks</Label>
             <Input value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Payment received against invoice" />
           </div>
         </div>
@@ -236,7 +236,7 @@ export default function ReceiptClient({
 
       <div className="rounded-lg border border-border bg-card overflow-hidden shadow-sm">
         <table className="w-full text-sm">
-          <thead className="bg-muted/40 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+          <thead className="bg-muted/40 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">
             <tr>
               <th className="px-4 py-3">Voucher No</th>
               <th className="px-4 py-3">Date</th>

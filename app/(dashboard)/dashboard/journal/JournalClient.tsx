@@ -174,18 +174,18 @@ export default function JournalClient({
         <div className="rounded-lg border border-border bg-card p-5 shadow-sm space-y-4">
           <div className="grid gap-4 lg:grid-cols-2">
             <div className="space-y-2">
-              <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Voucher No</Label>
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Voucher No</Label>
               <Input value={voucherNo} onChange={(e) => setVoucherNo(e.target.value)} placeholder="JV-001" />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Date</Label>
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Date</Label>
               <Input type="date" value={voucherDate} onChange={(e) => setVoucherDate(e.target.value)} />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Remarks</Label>
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Remarks</Label>
             <Input value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Year-end adjustment / depreciation" />
           </div>
         </div>
@@ -205,7 +205,7 @@ export default function JournalClient({
             {lines.map((line) => (
               <div key={line.id} className="grid gap-4 lg:grid-cols-[1fr_2fr_1fr_auto] items-end border-b border-border/30 pb-3">
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Type</Label>
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Type</Label>
                   <Select value={line.entryType} onValueChange={(value: "debit" | "credit") => updateLine(line.id, "entryType", value)}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -216,7 +216,7 @@ export default function JournalClient({
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Account Ledger</Label>
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Account Ledger</Label>
                   <Select value={line.ledgerId} onValueChange={(value) => updateLine(line.id, "ledgerId", value)}>
                     <SelectTrigger><SelectValue placeholder="Choose account" /></SelectTrigger>
                     <SelectContent>
@@ -230,7 +230,7 @@ export default function JournalClient({
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Amount (₹)</Label>
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Amount (₹)</Label>
                   <Input type="number" min="0" step="0.01" value={line.amount} onChange={(e) => updateLine(line.id, "amount", e.target.value)} />
                 </div>
 
@@ -293,7 +293,7 @@ export default function JournalClient({
 
       <div className="rounded-lg border border-border bg-card overflow-hidden shadow-sm">
         <table className="w-full text-sm">
-          <thead className="bg-muted/40 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+          <thead className="bg-muted/40 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">
             <tr>
               <th className="px-4 py-3">Voucher No</th>
               <th className="px-4 py-3">Date</th>
