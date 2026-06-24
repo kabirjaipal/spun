@@ -103,3 +103,32 @@
     @apply font-sans;
   }
 }
+
+@media print {
+  /* Hide scrollbars and elements outside of print area */
+  body, html, main, #root, [data-overlay-container] {
+    background: white !important;
+    color: black !important;
+  }
+  /* Hide sidebar, navigation, panels and modals background overlays */
+  aside, header, button, .no-print, [role="dialog"] > *:not(.print-container) {
+    display: none !important;
+  }
+  /* Focus solely on the print container */
+  .print-area {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    border: none !important;
+    background: white !important;
+    color: black !important;
+    z-index: 99999;
+  }
+  .print-area * {
+    visibility: visible;
+  }
+}

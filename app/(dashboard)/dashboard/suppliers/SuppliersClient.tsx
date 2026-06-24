@@ -8,6 +8,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/com
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Pencil, Trash2 } from "lucide-react";
+import ExportButton from "@/components/ExportButton";
 
 interface Supplier {
   supplierId: number;
@@ -29,12 +30,13 @@ const FIELDS = [
 ] as const;
 
 export default function SuppliersClient({
-  initialData, canCreate, canUpdate, canDelete,
+  initialData, canCreate, canUpdate, canDelete, canExport,
 }: {
   initialData: Supplier[];
   canCreate: boolean;
   canUpdate: boolean;
   canDelete: boolean;
+  canExport: boolean;
 }) {
   const [data, setData] = useState(initialData);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -89,6 +91,13 @@ export default function SuppliersClient({
         </div>
         <div className="flex items-center gap-3">
           <Input id="search-suppliers" placeholder="Search name, GST, phone..." value={search} onChange={(e) => setSearch(e.target.value)} className="h-8 w-60 text-xs" />
+          <ExportButton
+            filename="suppliers.csv"
+            headers={["Supplier Name", "GSTIN", "Phone", "Email", "Address", "Opening Balance"]}
+            keys={["supplierName", "gstNo", "phone", "email", "address", "openingBalance"]}
+            rows={filtered}
+            canExport={canExport}
+          />
           {canCreate && <Button onClick={openCreate} size="sm">+ Add Supplier</Button>}
         </div>
       </div>

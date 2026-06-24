@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { tVouchers } from "@/lib/db/schema";
 import { and, eq, isNull, sql } from "drizzle-orm";
+import ExportButton from "@/components/ExportButton";
+import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
 
 export default async function ProfitLossPage() {
   const session = await auth();
@@ -28,13 +30,33 @@ export default async function ProfitLossPage() {
   const grossProfit = revenue - costOfGoods;
   const netProfit = revenue - costOfGoods - expenses + otherIncome;
 
+  const perms = getStaticPermissionsForRole(session.user.role as Role);
+  const p = perms.find((x) => x.accessItem === "profit_loss");
+  const canExport = p?.e ?? false;
+
   return (
     <div className="space-y-6">
-      <div className="rounded-lg border border-border bg-card p-6 shadow-sm">
-        <h1 className="text-2xl font-bold text-foreground">Profit & Loss</h1>
-        <p className="text-sm text-muted-foreground">
-          Review revenue, cost, and cash performance for your company.
-        </p>
+      <div className="flex items-center justify-between gap-4 rounded-lg border border-border bg-card p-6 shadow-sm">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Profit & Loss</h1>
+          <p className="text-sm text-muted-foreground">
+            Review revenue, cost, and cash performance for your company.
+          </p>
+        </div>
+        <ExportButton
+          filename="profit_loss.csv"
+          headers={["Metric", "Amount"]}
+          keys={["label", "value"]}
+          rows={[
+            { label: "Sales Revenue", value: revenue },
+            { label: "Purchase Cost", value: costOfGoods },
+            { label: "Gross Profit", value: grossProfit },
+            { label: "Payments / Expenses", value: expenses },
+            { label: "Receipts / Other Income", value: otherIncome },
+            { label: "Net Profit", value: netProfit }
+          ]}
+          canExport={canExport}
+        />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-4">

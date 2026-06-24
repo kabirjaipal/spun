@@ -28,6 +28,7 @@ export default async function SuppliersPage() {
       canCreate={p?.c ?? false}
       canUpdate={p?.u ?? false}
       canDelete={p?.d ?? false}
+      canExport={p?.e ?? false}
     />
   );
 }

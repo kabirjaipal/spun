@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { mProducts, tStockMovements, tVouchers } from "@/lib/db/schema";
 import { and, eq, isNull, desc } from "drizzle-orm";
+import ExportButton from "@/components/ExportButton";
+import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
 
 export default async function StockMovementsPage() {
   const session = await auth();
@@ -38,13 +40,29 @@ export default async function StockMovementsPage() {
     0
   );
 
+  const perms = getStaticPermissionsForRole(session.user.role as Role);
+  const p = perms.find((x) => x.accessItem === "stock_movements");
+  const canExport = p?.e ?? false;
+
   return (
     <div className="space-y-6">
-      <div className="rounded-lg border border-border bg-card p-6 shadow-sm">
-        <h1 className="text-2xl font-bold text-foreground">Stock Movements</h1>
-        <p className="text-sm text-muted-foreground">
-          Track inventory movement by product, voucher, and movement type.
-        </p>
+      <div className="flex items-center justify-between gap-4 rounded-lg border border-border bg-card p-6 shadow-sm">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Stock Movements</h1>
+          <p className="text-sm text-muted-foreground">
+            Track inventory movement by product, voucher, and movement type.
+          </p>
+        </div>
+        <ExportButton
+          filename="stock_movements.csv"
+          headers={["Product Name", "Movement Type", "Quantity", "Rate", "Amount", "Voucher No", "Voucher Date"]}
+          keys={["productName", "movementType", "quantity", "rate", "amount", "voucherNo", "voucherDate"]}
+          rows={movements.map(m => ({
+            ...m,
+            voucherDate: m.voucherDate ? String(m.voucherDate) : ""
+          }))}
+          canExport={canExport}
+        />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">

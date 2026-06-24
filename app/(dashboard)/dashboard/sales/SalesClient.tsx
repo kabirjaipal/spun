@@ -7,10 +7,13 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2 } from "lucide-react";
+import PrintInvoiceModal from "@/components/PrintInvoiceModal";
 
 interface CustomerOption {
   customerId: number;
   customerName: string;
+  gstNo: string | null;
+  address: string | null;
 }
 
 interface ProductOption {
@@ -46,12 +49,14 @@ interface LineItem {
 const EMPTY_LINE: LineItem = { id: "", productId: "", ledgerId: "", quantity: "0", rate: "0", gstRateId: "" };
 
 export default function SalesClient({
+  company,
   customers,
   products,
   ledgers,
   taxRates,
   canCreate,
 }: {
+  company: { companyName: string; gstNo?: string | null; address?: string | null };
   customers: CustomerOption[];
   products: ProductOption[];
   ledgers: LedgerOption[];
@@ -65,6 +70,7 @@ export default function SalesClient({
   const [lineItems, setLineItems] = useState<LineItem[]>([{ ...EMPTY_LINE, id: crypto.randomUUID() }]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [printVoucher, setPrintVoucher] = useState<any>(null);
 
   const lineTotals = useMemo(() => {
     return lineItems.map((line) => {
@@ -144,11 +150,45 @@ export default function SalesClient({
         const json = await response.json();
         throw new Error(json.error || "Failed to create sales voucher.");
       }
-
+      const responseData = await response.json();
       setMessage("Sales voucher created successfully.");
       setInvoiceNo("");
       setRemarks("");
       setLineItems([{ ...EMPTY_LINE, id: crypto.randomUUID() }]);
+
+      // Capture for print modal
+      const customer = customers.find(c => String(c.customerId) === selectedCustomer);
+      setPrintVoucher({
+        voucher: {
+          voucherNo: body.voucherNo,
+          voucherDate: body.voucherDate,
+          voucherType: "sale",
+          remarks: remarks,
+          totalAmount: grandTotals.amount,
+          taxAmount: grandTotals.tax,
+          netAmount: grandTotals.total,
+        },
+        party: {
+          name: customer?.customerName || "Walk-in Customer",
+          gstNo: customer?.gstNo,
+          address: customer?.address,
+        },
+        lines: validLines.map(line => {
+          const prod = products.find(p => String(p.productId) === line.productId);
+          const tr = taxRates.find(t => String(t.taxRateId) === line.gstRateId);
+          const qty = Number(line.quantity) || 0;
+          const rt = Number(line.rate) || 0;
+          return {
+            productCode: prod?.productCode || "PROD",
+            productName: prod?.productName || "Product",
+            quantity: qty,
+            unit: prod?.unit || "MTR",
+            rate: rt,
+            amount: qty * rt,
+            gstPercent: Number(tr?.taxPercent || 0),
+          };
+        }),
+      });
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to save voucher.");
     } finally {
@@ -306,6 +346,16 @@ export default function SalesClient({
           {saving ? "Saving..." : "Save Sales Voucher"}
         </Button>
       </div>
+      {printVoucher && (
+        <PrintInvoiceModal
+          isOpen={!!printVoucher}
+          onClose={() => setPrintVoucher(null)}
+          company={company}
+          party={printVoucher.party}
+          voucher={printVoucher.voucher}
+          lines={printVoucher.lines}
+        />
+      )}
     </div>
   );
 }

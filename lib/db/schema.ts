@@ -28,10 +28,8 @@ const auditColumns = {
 // 1. NextAuth / Core Admin Tables (Prefix: m_ or p_)
 // -------------------------------------------------------------
 
-const companyId = serial("company_id").primaryKey();
 export const mCompanies = pgTable("m_companies", {
-  id: companyId,
-  companyId,
+  companyId: serial("company_id").primaryKey(),
   companyName: text("company_name").notNull(),
   gstNo: text("gst_no"),
   panNo: text("pan_no"),
@@ -93,10 +91,8 @@ export const pVerificationTokens = pgTable("p_verification_tokens", {
 // 2. Business Masters (Prefix: m_)
 // -------------------------------------------------------------
 
-const customerId = serial("customer_id").primaryKey();
 export const mCustomers = pgTable("m_customers", {
-  id: customerId,
-  customerId,
+  customerId: serial("customer_id").primaryKey(),
   companyId: bigint("company_id", { mode: "number" })
     .references(() => mCompanies.companyId)
     .notNull(),
@@ -111,10 +107,8 @@ export const mCustomers = pgTable("m_customers", {
   companyIdIdx: index("idx_m_customers_company_id").on(table.companyId),
 }));
 
-const supplierId = serial("supplier_id").primaryKey();
 export const mSuppliers = pgTable("m_suppliers", {
-  id: supplierId,
-  supplierId,
+  supplierId: serial("supplier_id").primaryKey(),
   companyId: bigint("company_id", { mode: "number" })
     .references(() => mCompanies.companyId)
     .notNull(),
@@ -129,10 +123,8 @@ export const mSuppliers = pgTable("m_suppliers", {
   companyIdIdx: index("idx_m_suppliers_company_id").on(table.companyId),
 }));
 
-const taxRateId = serial("tax_rate_id").primaryKey();
 export const mTaxRates = pgTable("m_tax_rates", {
-  id: taxRateId,
-  taxRateId,
+  taxRateId: serial("tax_rate_id").primaryKey(),
   taxName: text("tax_name").notNull(),
   taxPercent: numeric("tax_percent", { precision: 5, scale: 2 }).notNull(),
   ...auditColumns,
@@ -140,10 +132,8 @@ export const mTaxRates = pgTable("m_tax_rates", {
   taxNameIdx: index("idx_m_tax_rates_tax_name").on(table.taxName),
 }));
 
-const productId = serial("product_id").primaryKey();
 export const mProducts = pgTable("m_products", {
-  id: productId,
-  productId,
+  productId: serial("product_id").primaryKey(),
   companyId: bigint("company_id", { mode: "number" })
     .references(() => mCompanies.companyId)
     .notNull(),
@@ -160,10 +150,8 @@ export const mProducts = pgTable("m_products", {
   gstRateIdIdx: index("idx_m_products_gst_rate_id").on(table.gstRateId),
 }));
 
-const ledgerId = serial("ledger_id").primaryKey();
 export const mLedgers = pgTable("m_ledgers", {
-  id: ledgerId,
-  ledgerId,
+  ledgerId: serial("ledger_id").primaryKey(),
   companyId: bigint("company_id", { mode: "number" })
     .references(() => mCompanies.companyId)
     .notNull(),
@@ -180,10 +168,8 @@ export const mLedgers = pgTable("m_ledgers", {
 // 3. Transactions (Prefix: t_)
 // -------------------------------------------------------------
 
-const voucherId = serial("voucher_id").primaryKey();
 export const tVouchers = pgTable("t_vouchers", {
-  id: voucherId,
-  voucherId,
+  voucherId: serial("voucher_id").primaryKey(),
   companyId: bigint("company_id", { mode: "number" })
     .references(() => mCompanies.companyId)
     .notNull(),
@@ -202,10 +188,8 @@ export const tVouchers = pgTable("t_vouchers", {
   voucherTypeIdx: index("idx_t_vouchers_voucher_type").on(table.voucherType),
 }));
 
-const voucherEntryId = serial("voucher_entry_id").primaryKey();
 export const tVoucherEntries = pgTable("t_voucher_entries", {
-  id: voucherEntryId,
-  voucherEntryId,
+  voucherEntryId: serial("voucher_entry_id").primaryKey(),
   voucherId: bigint("voucher_id", { mode: "number" })
     .references(() => tVouchers.voucherId)
     .notNull(),
@@ -220,10 +204,8 @@ export const tVoucherEntries = pgTable("t_voucher_entries", {
   ledgerIdIdx: index("idx_t_voucher_entries_ledger_id").on(table.ledgerId),
 }));
 
-const stockMovementId = serial("stock_movement_id").primaryKey();
 export const tStockMovements = pgTable("t_stock_movements", {
-  id: stockMovementId,
-  stockMovementId,
+  stockMovementId: serial("stock_movement_id").primaryKey(),
   companyId: bigint("company_id", { mode: "number" })
     .references(() => mCompanies.companyId)
     .notNull(),
@@ -242,10 +224,8 @@ export const tStockMovements = pgTable("t_stock_movements", {
   productIdIdx: index("idx_t_stock_movements_product_id").on(table.productId),
 }));
 
-const auditLogId = serial("audit_log_id").primaryKey();
 export const tAuditLogs = pgTable("t_audit_logs", {
-  id: auditLogId,
-  auditLogId,
+  auditLogId: serial("audit_log_id").primaryKey(),
   tableName: text("table_name").notNull(),
   recordId: bigint("record_id", { mode: "number" }).notNull(),
   actionType: text("action_type").notNull(), // 'create', 'update', 'delete', 'approve'

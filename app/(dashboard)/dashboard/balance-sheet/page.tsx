@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { mLedgers, tVoucherEntries } from "@/lib/db/schema";
 import { and, eq, isNull, sql } from "drizzle-orm";
+import ExportButton from "@/components/ExportButton";
+import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
 
 export default async function BalanceSheetPage() {
   const session = await auth();
@@ -28,13 +30,29 @@ export default async function BalanceSheetPage() {
   const totalDebit = ledgers.reduce((sum, ledger) => sum + Number(ledger.debit ?? 0), 0);
   const totalCredit = ledgers.reduce((sum, ledger) => sum + Number(ledger.credit ?? 0), 0);
 
+  const perms = getStaticPermissionsForRole(session.user.role as Role);
+  const p = perms.find((x) => x.accessItem === "balance_sheet");
+  const canExport = p?.e ?? false;
+
   return (
     <div className="space-y-6">
-      <div className="rounded-lg border border-border bg-card p-6 shadow-sm">
-        <h1 className="text-2xl font-bold text-foreground">Balance Sheet</h1>
-        <p className="text-sm text-muted-foreground">
-          Review ledger positions for assets, liabilities, and equity.
-        </p>
+      <div className="flex items-center justify-between gap-4 rounded-lg border border-border bg-card p-6 shadow-sm">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Balance Sheet</h1>
+          <p className="text-sm text-muted-foreground">
+            Review ledger positions for assets, liabilities, and equity.
+          </p>
+        </div>
+        <ExportButton
+          filename="balance_sheet.csv"
+          headers={["Ledger Name", "Type", "Debit", "Credit", "Balance"]}
+          keys={["ledgerName", "ledgerType", "debit", "credit", "balance"]}
+          rows={ledgers.map(l => ({
+            ...l,
+            balance: Number(l.debit ?? 0) - Number(l.credit ?? 0)
+          }))}
+          canExport={canExport}
+        />
       </div>
 
       <div className="rounded-lg border border-border bg-card overflow-hidden shadow-sm">

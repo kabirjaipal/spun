@@ -73,6 +73,7 @@ export function getStaticPermissionsForRole(role: Role): UserPermission[] {
     } else if (role === "company") {
       if (page.accessGroup === "company" && page.pageGroup !== "Administration") {
         r = true; // Can read Masters, Transactions, Inventory, Reports
+        e = true; // Can export reports/masters
         if (page.pageGroup === "Masters" || page.pageGroup === "Transactions") {
           c = u = true; // Can create and update reference data and vouchers
         }

@@ -26,6 +26,7 @@ export default async function TaxRatesPage() {
       canCreate={p?.c ?? false}
       canUpdate={p?.u ?? false}
       canDelete={p?.d ?? false}
+      canExport={p?.e ?? false}
     />
   );
 }

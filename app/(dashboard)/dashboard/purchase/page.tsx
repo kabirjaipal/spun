@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { mSuppliers, mProducts, mLedgers, mTaxRates } from "@/lib/db/schema";
+import { mSuppliers, mProducts, mLedgers, mTaxRates, mCompanies } from "@/lib/db/schema";
 import { and, eq, isNull } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
 import PurchaseClient from "./PurchaseClient";
@@ -13,7 +13,7 @@ export default async function PurchasePage() {
 
   const companyId = Number(session.user.companyId);
 
-  const [suppliers, products, ledgers, taxRates] = await Promise.all([
+  const [suppliers, products, ledgers, taxRates, company] = await Promise.all([
     db
       .select()
       .from(mSuppliers)
@@ -34,6 +34,9 @@ export default async function PurchasePage() {
       .from(mTaxRates)
       .where(isNull(mTaxRates.deletedOn))
       .orderBy(mTaxRates.taxPercent),
+    db.query.mCompanies.findFirst({
+      where: eq(mCompanies.companyId, companyId),
+    }),
   ]);
 
   const perms = getStaticPermissionsForRole(session.user.role as Role);
@@ -41,9 +44,12 @@ export default async function PurchasePage() {
 
   return (
     <PurchaseClient
+      company={company ? { companyName: company.companyName, gstNo: company.gstNo, address: company.address } : { companyName: "Texora Company" }}
       suppliers={suppliers.map((supplier) => ({
         supplierId: supplier.supplierId,
         supplierName: supplier.supplierName,
+        address: supplier.address,
+        gstNo: supplier.gstNo,
       }))}
       products={products.map((product) => ({
         productId: product.productId,

@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { mLedgers, tVoucherEntries } from "@/lib/db/schema";
 import { and, eq, isNull, sql } from "drizzle-orm";
+import ExportButton from "@/components/ExportButton";
+import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
 
 export default async function TrialBalancePage() {
   const session = await auth();
@@ -28,13 +30,29 @@ export default async function TrialBalancePage() {
   const totalDebit = trialRows.reduce((sum, row) => sum + Number(row.debit ?? 0), 0);
   const totalCredit = trialRows.reduce((sum, row) => sum + Number(row.credit ?? 0), 0);
 
+  const perms = getStaticPermissionsForRole(session.user.role as Role);
+  const p = perms.find((x) => x.accessItem === "trial_balance");
+  const canExport = p?.e ?? false;
+
   return (
     <div className="space-y-6">
-      <div className="rounded-lg border border-border bg-card p-6 shadow-sm">
-        <h1 className="text-2xl font-bold text-foreground">Trial Balance</h1>
-        <p className="text-sm text-muted-foreground">
-          Verify that debit and credit totals remain in balance across your chart of accounts.
-        </p>
+      <div className="flex items-center justify-between gap-4 rounded-lg border border-border bg-card p-6 shadow-sm">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Trial Balance</h1>
+          <p className="text-sm text-muted-foreground">
+            Verify that debit and credit totals remain in balance across your chart of accounts.
+          </p>
+        </div>
+        <ExportButton
+          filename="trial_balance.csv"
+          headers={["Ledger Name", "Type", "Debit", "Credit", "Balance"]}
+          keys={["ledgerName", "ledgerType", "debit", "credit", "balance"]}
+          rows={trialRows.map(r => ({
+            ...r,
+            balance: Number(r.debit ?? 0) - Number(r.credit ?? 0)
+          }))}
+          canExport={canExport}
+        />
       </div>
 
       <div className="rounded-lg border border-border bg-card overflow-hidden shadow-sm">

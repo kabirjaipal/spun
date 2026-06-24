@@ -36,15 +36,12 @@ export async function POST(request: Request) {
       let targetCompanyId: number;
 
       if (existingCompany) {
-        // Check if there is an owner associated with this company
-        const existingOwner = await tx.query.mUsers.findFirst({
-          where: (users, { eq, and }) => and(
-            eq(users.companyId, Number(existingCompany.companyId)),
-            eq(users.role, "owner")
-          ),
+        // Check if there is any user associated with this company
+        const existingUser = await tx.query.mUsers.findFirst({
+          where: (users, { eq }) => eq(users.companyId, Number(existingCompany.companyId)),
         });
 
-        if (existingOwner) {
+        if (existingUser) {
           throw new Error("Company with this name already exists");
         }
 

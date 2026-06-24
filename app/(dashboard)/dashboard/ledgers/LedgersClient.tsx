@@ -8,6 +8,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/com
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Pencil, Trash2 } from "lucide-react";
+import ExportButton from "@/components/ExportButton";
 
 interface Ledger {
   ledgerId: number;
@@ -45,12 +46,13 @@ const TYPE_COLOR: Record<string, string> = {
 const EMPTY = { ledgerName: "", ledgerType: "" };
 
 export default function LedgersClient({
-  initialData, canCreate, canUpdate, canDelete,
+  initialData, canCreate, canUpdate, canDelete, canExport,
 }: {
   initialData: Ledger[];
   canCreate: boolean;
   canUpdate: boolean;
   canDelete: boolean;
+  canExport: boolean;
 }) {
   const [data, setData] = useState(initialData);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -106,6 +108,13 @@ export default function LedgersClient({
         </div>
         <div className="flex items-center gap-3">
           <Input id="search-ledgers" placeholder="Search name or type..." value={search} onChange={(e) => setSearch(e.target.value)} className="h-8 w-52 text-xs" />
+          <ExportButton
+            filename="ledgers.csv"
+            headers={["Ledger Name", "Type", "Source"]}
+            keys={["ledgerName", "ledgerType", "source"]}
+            rows={filtered.map(r => ({ ...r, source: isManual(r) ? "Manual" : "Auto" }))}
+            canExport={canExport}
+          />
           {canCreate && <Button onClick={openCreate} size="sm">+ Add Ledger</Button>}
         </div>
       </div>

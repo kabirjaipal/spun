@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { mLedgers, tVoucherEntries, tVouchers } from "@/lib/db/schema";
 import { and, eq, isNull, sql } from "drizzle-orm";
+import ExportButton from "@/components/ExportButton";
+import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
 
 export default async function LedgerReportPage() {
   const session = await auth();
@@ -31,13 +33,29 @@ export default async function LedgerReportPage() {
   const totalDebit = ledgers.reduce((sum, ledger) => sum + Number(ledger.debit ?? 0), 0);
   const totalCredit = ledgers.reduce((sum, ledger) => sum + Number(ledger.credit ?? 0), 0);
 
+  const perms = getStaticPermissionsForRole(session.user.role as Role);
+  const p = perms.find((x) => x.accessItem === "ledger_report");
+  const canExport = p?.e ?? false;
+
   return (
     <div className="space-y-6">
-      <div className="rounded-lg border border-border bg-card p-6 shadow-sm">
-        <h1 className="text-2xl font-bold text-foreground">Ledger Report</h1>
-        <p className="text-sm text-muted-foreground">
-          View ledger balances, posting frequency, and recent activity.
-        </p>
+      <div className="flex items-center justify-between gap-4 rounded-lg border border-border bg-card p-6 shadow-sm">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Ledger Report</h1>
+          <p className="text-sm text-muted-foreground">
+            View ledger balances, posting frequency, and recent activity.
+          </p>
+        </div>
+        <ExportButton
+          filename="ledger_report.csv"
+          headers={["Ledger Name", "Type", "Debit", "Credit", "Entries", "Last Posted"]}
+          keys={["ledgerName", "ledgerType", "debit", "credit", "activityCount", "lastPostedDate"]}
+          rows={ledgers.map(l => ({
+            ...l,
+            lastPostedDate: l.lastPosted ? l.lastPosted.toISOString().slice(0, 10) : "—"
+          }))}
+          canExport={canExport}
+        />
       </div>
 
       <div className="rounded-lg border border-border bg-card overflow-hidden shadow-sm">

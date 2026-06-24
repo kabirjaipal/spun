@@ -1,11 +1,12 @@
 import React from "react";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { mCustomers, mSuppliers, mProducts, mCompanies, mLedgers } from "@/lib/db/schema";
+import { mCustomers, mSuppliers, mProducts, mCompanies, mLedgers, tVouchers } from "@/lib/db/schema";
 import { eq, sql, isNull, and } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import * as Icons from "lucide-react";
 import Link from "next/link";
+import DashboardCharts from "@/components/DashboardCharts";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -58,6 +59,26 @@ export default async function DashboardPage() {
     .where(
       and(eq(mLedgers.companyId, companyIdVal), isNull(mLedgers.deletedOn))
     );
+
+  // Group monthly sales and purchases totals for chart analytics
+  const monthlyStats = await db
+    .select({
+      month: sql<string>`to_char(${tVouchers.voucherDate}, 'Mon YYYY')`,
+      sortKey: sql<string>`to_char(${tVouchers.voucherDate}, 'YYYY-MM')`,
+      sales: sql<number>`coalesce(sum(case when ${tVouchers.voucherType} = 'sale' then ${tVouchers.netAmount} else 0 end), 0)`,
+      purchases: sql<number>`coalesce(sum(case when ${tVouchers.voucherType} = 'purchase' then ${tVouchers.netAmount} else 0 end), 0)`,
+    })
+    .from(tVouchers)
+    .where(and(eq(tVouchers.companyId, companyIdVal), isNull(tVouchers.deletedOn)))
+    .groupBy(sql`to_char(${tVouchers.voucherDate}, 'Mon YYYY')`, sql`to_char(${tVouchers.voucherDate}, 'YYYY-MM')`)
+    .orderBy(sql`to_char(${tVouchers.voucherDate}, 'YYYY-MM')`)
+    .limit(6);
+
+  const chartData = monthlyStats.map((s) => ({
+    month: s.month || "Unknown",
+    sales: Number(s.sales || 0),
+    purchases: Number(s.purchases || 0),
+  }));
 
   const stats = [
     {
@@ -157,75 +178,11 @@ export default async function DashboardPage() {
         ))}
       </div>
 
-      {/* Main Grid: Info about other phases */}
+      {/* Main Grid: Charts & Configuration Status */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 rounded-lg border border-border bg-card p-6 shadow-sm space-y-4">
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground/75">
-            QUICK ACTIONS & NAVIGATION
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Link
-              href="/dashboard/customers"
-              className="flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:border-primary hover:bg-primary/5 transition-all group"
-            >
-              <div className="p-2 rounded bg-primary/10 text-primary group-hover:scale-105 transition-transform">
-                <Icons.UserPlus size={18} />
-              </div>
-              <div>
-                <span className="text-sm font-semibold text-foreground">
-                  Create Customer
-                </span>
-                <span className="block text-[10px] text-muted-foreground">Add new buyer ledger</span>
-              </div>
-            </Link>
-
-            <Link
-              href="/dashboard/products"
-              className="flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:border-warning hover:bg-warning/5 transition-all group"
-            >
-              <div className="p-2 rounded bg-warning/10 text-warning group-hover:scale-105 transition-transform">
-                <Icons.PlusSquare size={18} />
-              </div>
-              <div>
-                <span className="text-sm font-semibold text-foreground">
-                  Add Stock Item
-                </span>
-                <span className="block text-[10px] text-muted-foreground">Register new fabric product</span>
-              </div>
-            </Link>
-
-            <Link
-              href="/dashboard/sales"
-              className="flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:border-success hover:bg-success/5 transition-all group"
-            >
-              <div className="p-2 rounded bg-success/10 text-success group-hover:scale-105 transition-transform">
-                <Icons.Receipt size={18} />
-              </div>
-              <div>
-                <span className="text-sm font-semibold text-foreground">
-                  Sales Voucher
-                </span>
-                <span className="block text-[10px] text-muted-foreground">Record a new fabric sale</span>
-              </div>
-            </Link>
-
-            <Link
-              href="/dashboard/ledger-report"
-              className="flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:border-info hover:bg-info/5 transition-all group"
-            >
-              <div className="p-2 rounded bg-info/10 text-info group-hover:scale-105 transition-transform">
-                <Icons.FileText size={18} />
-              </div>
-              <div>
-                <span className="text-sm font-semibold text-foreground">
-                  Ledger Report
-                </span>
-                <span className="block text-[10px] text-muted-foreground">View statement of accounts</span>
-              </div>
-            </Link>
-          </div>
+        <div className="lg:col-span-2">
+          <DashboardCharts data={chartData} />
         </div>
-
         <div className="rounded-lg border border-border bg-card p-6 shadow-sm flex flex-col justify-between">
           <div className="space-y-4">
             <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground/75">
@@ -238,21 +195,93 @@ export default async function DashboardPage() {
               </div>
               <div className="flex items-center justify-between text-xs border-b border-border/30 pb-2">
                 <span className="text-muted-foreground">Phase 2: Masters (Ledgers)</span>
-                <span className="font-semibold text-muted-foreground/60">PENDING RUN</span>
+                <span className="font-bold text-success">COMPLETED</span>
               </div>
               <div className="flex items-center justify-between text-xs border-b border-border/30 pb-2">
                 <span className="text-muted-foreground">Phase 3: Voucher Engine</span>
-                <span className="font-semibold text-muted-foreground/60">PENDING RUN</span>
+                <span className="font-bold text-success">COMPLETED</span>
               </div>
               <div className="flex items-center justify-between text-xs border-b border-border/30 pb-2">
                 <span className="text-muted-foreground">Phase 4-5: Inventory & Reports</span>
-                <span className="font-semibold text-muted-foreground/60">PENDING RUN</span>
+                <span className="font-bold text-success">COMPLETED</span>
+              </div>
+              <div className="flex items-center justify-between text-xs border-b border-border/30 pb-2">
+                <span className="text-muted-foreground">Phase 6: Exports, Prints & Analytics</span>
+                <span className="font-bold text-success">COMPLETED</span>
               </div>
             </div>
           </div>
           <div className="mt-6 text-[10px] text-muted-foreground leading-normal">
             Texora maps accounts and inventory using Tally's fundamental voucher standards, modernizing form design and access speeds.
           </div>
+        </div>
+      </div>
+
+      {/* Quick Actions & Navigation */}
+      <div className="rounded-lg border border-border bg-card p-6 shadow-sm space-y-4">
+        <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground/75">
+          QUICK ACTIONS & NAVIGATION
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Link
+            href="/dashboard/customers"
+            className="flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:border-primary hover:bg-primary/5 transition-all group"
+          >
+            <div className="p-2 rounded bg-primary/10 text-primary group-hover:scale-105 transition-transform">
+              <Icons.UserPlus size={18} />
+            </div>
+            <div>
+              <span className="text-sm font-semibold text-foreground">
+                Create Customer
+              </span>
+              <span className="block text-[10px] text-muted-foreground">Add new buyer ledger</span>
+            </div>
+          </Link>
+
+          <Link
+            href="/dashboard/products"
+            className="flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:border-warning hover:bg-warning/5 transition-all group"
+          >
+            <div className="p-2 rounded bg-warning/10 text-warning group-hover:scale-105 transition-transform">
+              <Icons.PlusSquare size={18} />
+            </div>
+            <div>
+              <span className="text-sm font-semibold text-foreground">
+                Add Stock Item
+              </span>
+              <span className="block text-[10px] text-muted-foreground">Register new fabric product</span>
+            </div>
+          </Link>
+
+          <Link
+            href="/dashboard/sales"
+            className="flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:border-success hover:bg-success/5 transition-all group"
+          >
+            <div className="p-2 rounded bg-success/10 text-success group-hover:scale-105 transition-transform">
+              <Icons.Receipt size={18} />
+            </div>
+            <div>
+              <span className="text-sm font-semibold text-foreground">
+                Sales Voucher
+              </span>
+              <span className="block text-[10px] text-muted-foreground">Record a new fabric sale</span>
+            </div>
+          </Link>
+
+          <Link
+            href="/dashboard/ledger-report"
+            className="flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:border-info hover:bg-info/5 transition-all group"
+          >
+            <div className="p-2 rounded bg-info/10 text-info group-hover:scale-105 transition-transform">
+              <Icons.FileText size={18} />
+            </div>
+            <div>
+              <span className="text-sm font-semibold text-foreground">
+                Ledger Report
+              </span>
+              <span className="block text-[10px] text-muted-foreground">View statement of accounts</span>
+            </div>
+          </Link>
         </div>
       </div>
     </div>

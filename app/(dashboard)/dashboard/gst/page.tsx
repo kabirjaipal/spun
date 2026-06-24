@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { mTaxRates, tVouchers } from "@/lib/db/schema";
 import { and, eq, isNull, sql } from "drizzle-orm";
+import ExportButton from "@/components/ExportButton";
+import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
 
 export default async function GstReportsPage() {
   const session = await auth();
@@ -25,13 +27,26 @@ export default async function GstReportsPage() {
 
   const totalGst = taxSummary.reduce((sum, item) => sum + Number(item.taxAmount ?? 0), 0);
 
+  const perms = getStaticPermissionsForRole(session.user.role as Role);
+  const p = perms.find((x) => x.accessItem === "gst_reports");
+  const canExport = p?.e ?? false;
+
   return (
     <div className="space-y-6">
-      <div className="rounded-lg border border-border bg-card p-6 shadow-sm">
-        <h1 className="text-2xl font-bold text-foreground">GST Reports</h1>
-        <p className="text-sm text-muted-foreground">
-          View GST collection and payment details by voucher type.
-        </p>
+      <div className="flex items-center justify-between gap-4 rounded-lg border border-border bg-card p-6 shadow-sm">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">GST Reports</h1>
+          <p className="text-sm text-muted-foreground">
+            View GST collection and payment details by voucher type.
+          </p>
+        </div>
+        <ExportButton
+          filename="gst_reports.csv"
+          headers={["Voucher Type", "GST Amount"]}
+          keys={["voucherType", "taxAmount"]}
+          rows={taxSummary.map(r => ({ ...r, taxAmount: Number(r.taxAmount).toFixed(2) }))}
+          canExport={canExport}
+        />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">

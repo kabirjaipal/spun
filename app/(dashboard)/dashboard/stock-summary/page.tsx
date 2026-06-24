@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { mProducts, tStockMovements } from "@/lib/db/schema";
 import { and, eq, isNull, sql } from "drizzle-orm";
+import ExportButton from "@/components/ExportButton";
+import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
 
 export default async function StockSummaryPage() {
   const session = await auth();
@@ -27,13 +29,32 @@ export default async function StockSummaryPage() {
     .groupBy(mProducts.productId, mProducts.productName, mProducts.unit, mProducts.openingStockQty)
     .orderBy(mProducts.productName);
 
+  const perms = getStaticPermissionsForRole(session.user.role as Role);
+  const p = perms.find((x) => x.accessItem === "stock_summary");
+  const canExport = p?.e ?? false;
+
   return (
     <div className="space-y-6">
-      <div className="rounded-lg border border-border bg-card p-6 shadow-sm">
-        <h1 className="text-2xl font-bold text-foreground">Stock Summary</h1>
-        <p className="text-sm text-muted-foreground">
-          Inventory position across products, opening stock, inward and outward movements.
-        </p>
+      <div className="flex items-center justify-between gap-4 rounded-lg border border-border bg-card p-6 shadow-sm">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Stock Summary</h1>
+          <p className="text-sm text-muted-foreground">
+            Inventory position across products, opening stock, inward and outward movements.
+          </p>
+        </div>
+        <ExportButton
+          filename="stock_summary.csv"
+          headers={["Product Name", "Unit", "Opening Qty", "Total In", "Total Out", "Current Stock"]}
+          keys={["productName", "unit", "openingStockQty", "totalIn", "totalOut", "currentStock"]}
+          rows={summary.map(r => ({
+            ...r,
+            openingStockQty: Number(r.openingStockQty ?? 0).toFixed(2),
+            totalIn: Number(r.totalIn ?? 0).toFixed(2),
+            totalOut: Number(r.totalOut ?? 0).toFixed(2),
+            currentStock: Number(r.currentStock ?? 0).toFixed(2)
+          }))}
+          canExport={canExport}
+        />
       </div>
 
       <div className="rounded-lg border border-border bg-card overflow-hidden shadow-sm">

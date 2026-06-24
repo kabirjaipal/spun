@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Pencil, Trash2 } from "lucide-react";
+import ExportButton from "@/components/ExportButton";
 
 interface TaxRate {
   taxRateId: number;
@@ -19,9 +20,10 @@ interface Props {
   canCreate: boolean;
   canUpdate: boolean;
   canDelete: boolean;
+  canExport: boolean;
 }
 
-export default function TaxRatesClient({ initialData, canCreate, canUpdate, canDelete }: Props) {
+export default function TaxRatesClient({ initialData, canCreate, canUpdate, canDelete, canExport }: Props) {
   const [data, setData] = useState(initialData);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editing, setEditing] = useState<TaxRate | null>(null);
@@ -70,7 +72,16 @@ export default function TaxRatesClient({ initialData, canCreate, canUpdate, canD
           <h1 className="text-lg font-bold text-foreground uppercase tracking-wide">Tax Rates</h1>
           <p className="text-xs text-muted-foreground mt-0.5">{data.length} rate{data.length !== 1 ? "s" : ""} configured</p>
         </div>
-        {canCreate && <Button onClick={openCreate} size="sm">+ Add Tax Rate</Button>}
+        <div className="flex items-center gap-3">
+          <ExportButton
+            filename="tax_rates.csv"
+            headers={["Tax Name", "Rate (%)"]}
+            keys={["taxName", "taxPercent"]}
+            rows={data}
+            canExport={canExport}
+          />
+          {canCreate && <Button onClick={openCreate} size="sm">+ Add Tax Rate</Button>}
+        </div>
       </div>
 
       <div className="rounded-lg border border-border bg-card overflow-hidden">

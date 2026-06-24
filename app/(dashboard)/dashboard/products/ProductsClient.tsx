@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Pencil, Trash2 } from "lucide-react";
+import ExportButton from "@/components/ExportButton";
 
 interface TaxRate { taxRateId: number; taxName: string; taxPercent: string; }
 interface Product {
@@ -27,13 +28,14 @@ const EMPTY = { productCode: "", productName: "", unit: "", gstRateId: "", openi
 const UNITS = ["MTR", "KG", "PCS", "BOX", "ROLL", "SET", "PAIR", "LTR"];
 
 export default function ProductsClient({
-  initialData, taxRates, canCreate, canUpdate, canDelete,
+  initialData, taxRates, canCreate, canUpdate, canDelete, canExport,
 }: {
   initialData: Product[];
   taxRates: TaxRate[];
   canCreate: boolean;
   canUpdate: boolean;
   canDelete: boolean;
+  canExport: boolean;
 }) {
   const [data, setData] = useState(initialData);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -89,6 +91,13 @@ export default function ProductsClient({
         </div>
         <div className="flex items-center gap-3">
           <Input id="search-products" placeholder="Search name or code..." value={search} onChange={(e) => setSearch(e.target.value)} className="h-8 w-52 text-xs" />
+          <ExportButton
+            filename="products.csv"
+            headers={["Product Code", "Product Name", "Unit", "Opening Qty", "Opening Rate"]}
+            keys={["productCode", "productName", "unit", "openingStockQty", "openingStockRate"]}
+            rows={filtered}
+            canExport={canExport}
+          />
           {canCreate && <Button onClick={openCreate} size="sm">+ Add Product</Button>}
         </div>
       </div>
