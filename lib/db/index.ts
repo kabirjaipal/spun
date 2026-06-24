@@ -19,7 +19,7 @@ if (process.env.NODE_ENV === "production") {
     connectionString,
     max: 20,
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 2000,
+    connectionTimeoutMillis: 15000,
   });
   db = drizzle(pool, { schema });
 } else {
@@ -28,7 +28,7 @@ if (process.env.NODE_ENV === "production") {
       connectionString,
       max: 10,
       idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 2000,
+      connectionTimeoutMillis: 15000,
     });
   }
   pool = globalThis.pool;
