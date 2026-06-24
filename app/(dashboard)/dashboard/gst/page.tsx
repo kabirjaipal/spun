@@ -52,11 +52,11 @@ export default async function GstReportsPage() {
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
           <p className="text-xs uppercase tracking-wider text-muted-foreground">Total GST Amount</p>
-          <p className="mt-3 text-3xl font-bold text-foreground">₹{totalGst.toFixed(2)}</p>
+          <p className="mt-3 text-3xl font-bold text-foreground tabular-nums">₹{totalGst.toFixed(2)}</p>
         </div>
         <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
           <p className="text-xs uppercase tracking-wider text-muted-foreground">GST Rate Count</p>
-          <p className="mt-3 text-3xl font-bold text-foreground">{taxRates.length}</p>
+          <p className="mt-3 text-3xl font-bold text-foreground tabular-nums">{taxRates.length}</p>
         </div>
       </div>
 
@@ -76,7 +76,7 @@ export default async function GstReportsPage() {
               {taxSummary.map((row) => (
                 <tr key={row.voucherType} className="border-b border-border/50">
                   <td className="px-4 py-4 text-sm font-medium text-foreground">{row.voucherType}</td>
-                  <td className="px-4 py-4 text-right text-foreground">₹{Number(row.taxAmount ?? 0).toFixed(2)}</td>
+                  <td className="px-4 py-4 text-right text-foreground tabular-nums">₹{Number(row.taxAmount ?? 0).toFixed(2)}</td>
                 </tr>
               ))}
               {taxSummary.length === 0 && (
@@ -105,7 +105,7 @@ export default async function GstReportsPage() {
               {taxRates.map((rate) => (
                 <tr key={rate.taxRateId} className="border-b border-border/50">
                   <td className="px-4 py-4 text-sm font-medium text-foreground">{rate.taxName}</td>
-                  <td className="px-4 py-4 text-right text-foreground">{Number(rate.taxPercent).toFixed(2)}%</td>
+                  <td className="px-4 py-4 text-right text-foreground tabular-nums">{Number(rate.taxPercent).toFixed(2)}%</td>
                 </tr>
               ))}
               {taxRates.length === 0 && (

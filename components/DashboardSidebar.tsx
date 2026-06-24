@@ -55,7 +55,7 @@ export default function DashboardSidebar({
   const dashboardActive = pathname === dashboardHref;
 
   return (
-    <aside className="flex h-full w-64 flex-col border-r border-border bg-card text-card-foreground shrink-0 select-none">
+    <aside className="flex h-full w-64 flex-col rounded-lg border border-border bg-card text-card-foreground shrink-0 select-none shadow-sm">
       {/* Brand Header */}
       <div className="flex h-12 items-center gap-2.5 border-b border-border px-5">
         <div className="flex h-5 w-5 items-center justify-center rounded bg-primary text-primary-foreground font-black text-xs shadow-sm shrink-0">
@@ -67,12 +67,12 @@ export default function DashboardSidebar({
       </div>
 
       {/* Navigation Menu */}
-      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-4 font-sans text-xs">
+      <div className="flex-1 overflow-y-auto px-3 py-2.5 space-y-3 font-sans text-xs">
         {/* Dashboard Link always visible */}
         <div className="space-y-1">
           <Link
             href={dashboardHref}
-            className={`flex items-center gap-2.5 rounded-md px-3 py-2 font-medium transition-all duration-150 ${
+            className={`flex items-center gap-2.5 rounded-md px-3 py-1.5 font-medium transition-all duration-150 ${
               dashboardActive
                 ? "bg-primary text-primary-foreground shadow-sm font-semibold"
                 : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
@@ -85,7 +85,7 @@ export default function DashboardSidebar({
 
         {/* Gateway Menu Panels */}
         {sortedGroupNames.map((groupName) => (
-          <div key={groupName} className="space-y-1.5">
+          <div key={groupName} className="space-y-1">
             <span className="block px-3 py-0.5 text-xs font-bold uppercase tracking-wider text-muted-foreground/60">
               {groupName}
             </span>
@@ -96,7 +96,7 @@ export default function DashboardSidebar({
                   <Link
                     key={item.accessItem}
                     href={item.pageUrl || "/dashboard"}
-                    className={`flex items-center gap-2.5 rounded-md px-3 py-2 font-medium transition-all duration-150 ${
+                    className={`flex items-center gap-2.5 rounded-md px-3 py-1.5 font-medium transition-all duration-150 ${
                       isActive
                         ? "bg-primary text-primary-foreground shadow-sm font-semibold"
                         : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
@@ -114,12 +114,15 @@ export default function DashboardSidebar({
 
       {/* Sidebar Footer / User Profile & SignOut */}
       <div className="border-t border-border py-2 px-3 flex items-center justify-between gap-3 bg-muted/5">
-        <div className="flex items-center gap-2 overflow-hidden text-xs">
+        <Link
+          href="/dashboard/my-profile"
+          className="flex items-center gap-2 overflow-hidden text-xs hover:opacity-80 transition-opacity flex-1 min-w-0"
+        >
           <span className="truncate font-semibold text-foreground">{userName}</span>
-          <span className="rounded bg-secondary px-1.5 py-0.5 text-xs font-bold uppercase tracking-wider text-secondary-foreground shrink-0">
+          <span className="rounded bg-primary/10 px-1 py-0 text-xs font-semibold uppercase tracking-wider text-primary shrink-0 scale-90 origin-left">
             {role}
           </span>
-        </div>
+        </Link>
         <button
           onClick={() => signOut({ callbackUrl: "/login" })}
           title="Sign Out"

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,6 +12,7 @@ interface CompanyDetails {
   gstNo: string | null;
   panNo: string | null;
   address: string | null;
+  financialYearStart: string | null;
 }
 
 interface MasterCounts {
@@ -28,10 +30,12 @@ export default function SettingsClient({
   company: CompanyDetails;
   counts: MasterCounts;
 }) {
+  const router = useRouter();
   const [companyName, setCompanyName] = useState(company.companyName);
   const [gstNo, setGstNo] = useState(company.gstNo || "");
   const [panNo, setPanNo] = useState(company.panNo || "");
   const [address, setAddress] = useState(company.address || "");
+  const [financialYearStart, setFinancialYearStart] = useState(company.financialYearStart || "");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -49,7 +53,13 @@ export default function SettingsClient({
       const response = await fetch("/api/company", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ companyName, gstNo, panNo, address }),
+        body: JSON.stringify({
+          companyName,
+          gstNo,
+          panNo,
+          address,
+          financialYearStart,
+        }),
       });
 
       if (!response.ok) {
@@ -58,6 +68,7 @@ export default function SettingsClient({
       }
 
       setMessage("Company settings updated successfully!");
+      router.refresh();
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "Unable to update settings.");
     } finally {
@@ -98,6 +109,11 @@ export default function SettingsClient({
           <div className="space-y-2">
             <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">PAN</Label>
             <Input value={panNo} onChange={(e) => setPanNo(e.target.value)} placeholder="ABCDE1234F" />
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Financial Year Start</Label>
+            <Input type="date" value={financialYearStart} onChange={(e) => setFinancialYearStart(e.target.value)} required />
           </div>
 
           <div className="space-y-2">

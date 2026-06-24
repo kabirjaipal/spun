@@ -80,14 +80,14 @@ export default async function OwnerDashboardPage() {
         <div className="lg:col-span-2 rounded-lg border border-border bg-card p-6 shadow-sm space-y-4">
           <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground/75">ADMINISTRATIVE ACTIONS</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Link href="/masters/users" className="flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:border-primary hover:bg-primary/5 transition-all group">
+            <Link href="/dashboard/users" className="flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:border-primary hover:bg-primary/5 transition-all group">
               <div className="p-2 rounded bg-primary/10 text-primary group-hover:scale-105 transition-transform"><Icons.UserCheck size={18} /></div>
               <div>
                 <span className="text-sm font-semibold text-foreground">Manage Users</span>
                 <span className="block text-xs text-muted-foreground">View and configure system users</span>
               </div>
             </Link>
-            <Link href="/masters/roles" className="flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:border-warning hover:bg-warning/5 transition-all group">
+            <Link href="/dashboard/roles" className="flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:border-warning hover:bg-warning/5 transition-all group">
               <div className="p-2 rounded bg-warning/10 text-warning group-hover:scale-105 transition-transform"><Icons.ShieldAlert size={18} /></div>
               <div>
                 <span className="text-sm font-semibold text-foreground">Roles & Access</span>

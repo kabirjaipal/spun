@@ -40,8 +40,8 @@ export const ALL_PAGES: PageConfig[] = [
   { accessItem: "gst_reports", pageUrl: "/dashboard/gst", pageTitle: "GST Reports", pageIcon: "DollarSign", pageGroup: "Reports", accessGroup: "company" },
   
   // Administration
-  { accessItem: "users", pageUrl: "/masters/users", pageTitle: "Users List", pageIcon: "UserCheck", pageGroup: "Administration", accessGroup: "owner" },
-  { accessItem: "roles", pageUrl: "/masters/roles", pageTitle: "Roles & Access", pageIcon: "ShieldAlert", pageGroup: "Administration", accessGroup: "owner" },
+  { accessItem: "users", pageUrl: "/dashboard/users", pageTitle: "Users List", pageIcon: "UserCheck", pageGroup: "Administration", accessGroup: "owner" },
+  { accessItem: "roles", pageUrl: "/dashboard/roles", pageTitle: "Roles & Access", pageIcon: "ShieldAlert", pageGroup: "Administration", accessGroup: "owner" },
   { accessItem: "company_settings", pageUrl: "/dashboard/settings", pageTitle: "Company Settings", pageIcon: "Settings", pageGroup: "Administration", accessGroup: "company" }
 ];
 
@@ -71,11 +71,15 @@ export function getStaticPermissionsForRole(role: Role): UserPermission[] {
         c = r = u = d = e = a = true;
       }
     } else if (role === "company") {
-      if (page.accessGroup === "company" && page.pageGroup !== "Administration") {
-        r = true; // Can read Masters, Transactions, Inventory, Reports
-        e = true; // Can export reports/masters
-        if (page.pageGroup === "Masters" || page.pageGroup === "Transactions") {
-          c = u = true; // Can create and update reference data and vouchers
+      if (page.accessGroup === "company") {
+        if (page.accessItem === "company_settings") {
+          r = u = true; // Can read and edit company settings
+        } else if (page.pageGroup !== "Administration") {
+          r = true; // Can read Masters, Transactions, Inventory, Reports
+          e = true; // Can export reports/masters
+          if (page.pageGroup === "Masters" || page.pageGroup === "Transactions") {
+            c = u = true; // Can create and update reference data and vouchers
+          }
         }
       }
     }

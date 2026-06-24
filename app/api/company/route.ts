@@ -17,7 +17,7 @@ export async function PATCH(request: Request) {
   const companyId = Number(session.user.companyId);
   const userId = session.user.id;
   const body = await request.json();
-  const { companyName, gstNo, panNo, address } = body;
+  const { companyName, gstNo, panNo, address, financialYearStart } = body;
 
   if (!companyName) {
     return NextResponse.json({ error: "Company name is required" }, { status: 400 });
@@ -33,9 +33,10 @@ export async function PATCH(request: Request) {
         .update(mCompanies)
         .set({
           companyName,
-          gstNo: gstNo || null,
-          panNo: panNo || null,
+          gstNo: gstNo ? gstNo.trim().toUpperCase() : null,
+          panNo: panNo ? panNo.trim().toUpperCase() : null,
           address: address || null,
+          financialYearStart: financialYearStart || null,
           updatedBy: userId,
           updatedOn: new Date(),
         })

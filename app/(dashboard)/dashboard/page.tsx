@@ -2,7 +2,7 @@ import React from "react";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { mCustomers, mSuppliers, mProducts, mCompanies, mLedgers, tVouchers } from "@/lib/db/schema";
-import { eq, sql, isNull, and } from "drizzle-orm";
+import { eq, sql, isNull, and, desc } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import * as Icons from "lucide-react";
 import Link from "next/link";
@@ -31,48 +31,73 @@ export default async function DashboardPage() {
     redirect("/setup-company");
   }
 
-  // Query Statistics (respecting company tenant and soft deletes)
-  const [customersCount] = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(mCustomers)
-    .where(
-      and(eq(mCustomers.companyId, companyIdVal), isNull(mCustomers.deletedOn))
-    );
+  // Consolidated Database Queries in Parallel
+  const [
+    customersCountRaw,
+    suppliersCountRaw,
+    productsCountRaw,
+    ledgersCountRaw,
+    monthlyStats,
+    financialSummary,
+    recentVouchers,
+  ] = await Promise.all([
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(mCustomers)
+      .where(and(eq(mCustomers.companyId, companyIdVal), isNull(mCustomers.deletedOn))),
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(mSuppliers)
+      .where(and(eq(mSuppliers.companyId, companyIdVal), isNull(mSuppliers.deletedOn))),
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(mProducts)
+      .where(and(eq(mProducts.companyId, companyIdVal), isNull(mProducts.deletedOn))),
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(mLedgers)
+      .where(and(eq(mLedgers.companyId, companyIdVal), isNull(mLedgers.deletedOn))),
+    db
+      .select({
+        month: sql<string>`to_char(${tVouchers.voucherDate}, 'Mon YYYY')`,
+        sortKey: sql<string>`to_char(${tVouchers.voucherDate}, 'YYYY-MM')`,
+        sales: sql<number>`coalesce(sum(case when ${tVouchers.voucherType} = 'sale' then ${tVouchers.netAmount} else 0 end), 0)`,
+        purchases: sql<number>`coalesce(sum(case when ${tVouchers.voucherType} = 'purchase' then ${tVouchers.netAmount} else 0 end), 0)`,
+      })
+      .from(tVouchers)
+      .where(and(eq(tVouchers.companyId, companyIdVal), isNull(tVouchers.deletedOn)))
+      .groupBy(sql`to_char(${tVouchers.voucherDate}, 'Mon YYYY')`, sql`to_char(${tVouchers.voucherDate}, 'YYYY-MM')`)
+      .orderBy(sql`to_char(${tVouchers.voucherDate}, 'YYYY-MM')`)
+      .limit(6),
+    db
+      .select({
+        totalSales: sql<number>`coalesce(sum(case when ${tVouchers.voucherType} = 'sale' then ${tVouchers.netAmount} else 0 end), 0)`,
+        totalPurchases: sql<number>`coalesce(sum(case when ${tVouchers.voucherType} = 'purchase' then ${tVouchers.netAmount} else 0 end), 0)`,
+        totalReceipts: sql<number>`coalesce(sum(case when ${tVouchers.voucherType} = 'receipt' then ${tVouchers.netAmount} else 0 end), 0)`,
+        totalPayments: sql<number>`coalesce(sum(case when ${tVouchers.voucherType} = 'payment' then ${tVouchers.netAmount} else 0 end), 0)`,
+      })
+      .from(tVouchers)
+      .where(and(eq(tVouchers.companyId, companyIdVal), isNull(tVouchers.deletedOn))),
+    db
+      .select({
+        voucherId: tVouchers.voucherId,
+        voucherNo: tVouchers.voucherNo,
+        voucherDate: tVouchers.voucherDate,
+        voucherType: tVouchers.voucherType,
+        netAmount: tVouchers.netAmount,
+      })
+      .from(tVouchers)
+      .where(and(eq(tVouchers.companyId, companyIdVal), isNull(tVouchers.deletedOn)))
+      .orderBy(desc(tVouchers.voucherDate), desc(tVouchers.voucherId))
+      .limit(5),
+  ]);
 
-  const [suppliersCount] = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(mSuppliers)
-    .where(
-      and(eq(mSuppliers.companyId, companyIdVal), isNull(mSuppliers.deletedOn))
-    );
-
-  const [productsCount] = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(mProducts)
-    .where(
-      and(eq(mProducts.companyId, companyIdVal), isNull(mProducts.deletedOn))
-    );
-
-  const [ledgersCount] = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(mLedgers)
-    .where(
-      and(eq(mLedgers.companyId, companyIdVal), isNull(mLedgers.deletedOn))
-    );
-
-  // Group monthly sales and purchases totals for chart analytics
-  const monthlyStats = await db
-    .select({
-      month: sql<string>`to_char(${tVouchers.voucherDate}, 'Mon YYYY')`,
-      sortKey: sql<string>`to_char(${tVouchers.voucherDate}, 'YYYY-MM')`,
-      sales: sql<number>`coalesce(sum(case when ${tVouchers.voucherType} = 'sale' then ${tVouchers.netAmount} else 0 end), 0)`,
-      purchases: sql<number>`coalesce(sum(case when ${tVouchers.voucherType} = 'purchase' then ${tVouchers.netAmount} else 0 end), 0)`,
-    })
-    .from(tVouchers)
-    .where(and(eq(tVouchers.companyId, companyIdVal), isNull(tVouchers.deletedOn)))
-    .groupBy(sql`to_char(${tVouchers.voucherDate}, 'Mon YYYY')`, sql`to_char(${tVouchers.voucherDate}, 'YYYY-MM')`)
-    .orderBy(sql`to_char(${tVouchers.voucherDate}, 'YYYY-MM')`)
-    .limit(6);
+  const summary = financialSummary[0] || {
+    totalSales: 0,
+    totalPurchases: 0,
+    totalReceipts: 0,
+    totalPayments: 0,
+  };
 
   const chartData = monthlyStats.map((s) => ({
     month: s.month || "Unknown",
@@ -80,31 +105,36 @@ export default async function DashboardPage() {
     purchases: Number(s.purchases || 0),
   }));
 
+  const customersCount = customersCountRaw[0]?.count ?? 0;
+  const suppliersCount = suppliersCountRaw[0]?.count ?? 0;
+  const productsCount = productsCountRaw[0]?.count ?? 0;
+  const ledgersCount = ledgersCountRaw[0]?.count ?? 0;
+
   const stats = [
     {
       name: "CUSTOMERS",
-      value: Number(customersCount?.count || 0),
+      value: customersCount,
       icon: "Users",
       color: "text-primary bg-primary/10",
       description: "Active business customers",
     },
     {
       name: "SUPPLIERS",
-      value: Number(suppliersCount?.count || 0),
+      value: suppliersCount,
       icon: "Truck",
       color: "text-success bg-success/10",
       description: "Fabric and yarn suppliers",
     },
     {
       name: "PRODUCTS",
-      value: Number(productsCount?.count || 0),
+      value: productsCount,
       icon: "Package",
       color: "text-warning bg-warning/10",
       description: "Inventory stock items",
     },
     {
       name: "LEDGERS",
-      value: Number(ledgersCount?.count || 0),
+      value: ledgersCount,
       icon: "BookOpen",
       color: "text-info bg-info/10",
       description: "Chart of Accounts ledgers",
@@ -165,7 +195,7 @@ export default async function DashboardPage() {
                 <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground/75">
                   {stat.name}
                 </span>
-                <span className="mt-1 block text-2xl font-bold text-foreground">
+                <span className="mt-1 block text-2xl font-bold text-foreground font-mono">
                   {stat.value}
                 </span>
               </div>
@@ -178,110 +208,148 @@ export default async function DashboardPage() {
         ))}
       </div>
 
-      {/* Main Grid: Charts & Configuration Status */}
+      {/* Main Grid: Charts */}
+      <DashboardCharts data={chartData} />
+
+      {/* Main Grid: Recent Activity & Financial Summary */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <DashboardCharts data={chartData} />
+        {/* Recent Activity Table */}
+        <div className="lg:col-span-2 rounded-lg border border-border bg-card p-6 shadow-sm space-y-4">
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground/75">
+            RECENT TRANSACTIONS
+          </h3>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-left text-xs">
+              <thead>
+                <tr className="border-b border-border/80 text-muted-foreground font-semibold uppercase tracking-wider">
+                  <th className="py-2.5">Date</th>
+                  <th className="py-2.5">Voucher No</th>
+                  <th className="py-2.5">Type</th>
+                  <th className="py-2.5 text-right">Amount</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/40 font-medium">
+                {recentVouchers.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="py-8 text-center text-muted-foreground">
+                      No recent transactions found.
+                    </td>
+                  </tr>
+                ) : (
+                  recentVouchers.map((v) => {
+                    let badgeClass = "bg-primary/10 text-primary";
+                    if (v.voucherType === "sale") badgeClass = "bg-success/15 text-success font-semibold";
+                    else if (v.voucherType === "purchase") badgeClass = "bg-info/15 text-info font-semibold";
+                    else if (v.voucherType === "receipt") badgeClass = "bg-warning/15 text-warning font-semibold";
+                    else if (v.voucherType === "payment") badgeClass = "bg-danger/15 text-danger font-semibold";
+
+                    return (
+                      <tr key={v.voucherId} className="hover:bg-muted/5 transition-colors">
+                        <td className="py-2.5 text-muted-foreground font-mono">
+                          {v.voucherDate
+                            ? new Date(v.voucherDate).toLocaleDateString("en-IN", {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                              })
+                            : "-"}
+                        </td>
+                        <td className="py-2.5 text-foreground font-mono">{v.voucherNo}</td>
+                        <td className="py-2.5">
+                          <span className={`inline-flex rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wider ${badgeClass}`}>
+                            {v.voucherType}
+                          </span>
+                        </td>
+                        <td className="py-2.5 text-right font-mono tabular-nums text-foreground">
+                          ₹ {Number(v.netAmount).toLocaleString("en-IN", {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-        <div className="rounded-lg border border-border bg-card p-6 shadow-sm flex flex-col justify-between">
+
+        {/* Financial Performance Summary */}
+        <div className="rounded-lg border border-border bg-card p-6 shadow-sm space-y-5">
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground/75">
+            FINANCIAL PERFORMANCE
+          </h3>
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground/75">
-              ERP CONFIGURATION STATUS
-            </h3>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between text-xs border-b border-border/30 pb-2">
-                <span className="text-muted-foreground">Phase 1: Auth & Company</span>
-                <span className="font-bold text-success">COMPLETED</span>
+            <div className="flex items-center justify-between border-b border-border/30 pb-2">
+              <div className="space-y-0.5">
+                <p className="text-xs text-muted-foreground uppercase">Total Sales</p>
+                <p className="text-base font-bold text-foreground font-mono tabular-nums">
+                  ₹ {Number(summary.totalSales || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                </p>
               </div>
-              <div className="flex items-center justify-between text-xs border-b border-border/30 pb-2">
-                <span className="text-muted-foreground">Phase 2: Masters (Ledgers)</span>
-                <span className="font-bold text-success">COMPLETED</span>
+              <div className="rounded-lg bg-success/10 p-2 text-success">
+                <Icons.ArrowUpRight className="h-4 w-4" />
               </div>
-              <div className="flex items-center justify-between text-xs border-b border-border/30 pb-2">
-                <span className="text-muted-foreground">Phase 3: Voucher Engine</span>
-                <span className="font-bold text-success">COMPLETED</span>
+            </div>
+
+            <div className="flex items-center justify-between border-b border-border/30 pb-2">
+              <div className="space-y-0.5">
+                <p className="text-xs text-muted-foreground uppercase">Total Purchases</p>
+                <p className="text-base font-bold text-foreground font-mono tabular-nums">
+                  ₹ {Number(summary.totalPurchases || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                </p>
               </div>
-              <div className="flex items-center justify-between text-xs border-b border-border/30 pb-2">
-                <span className="text-muted-foreground">Phase 4-5: Inventory & Reports</span>
-                <span className="font-bold text-success">COMPLETED</span>
+              <div className="rounded-lg bg-info/10 p-2 text-info">
+                <Icons.ArrowDownLeft className="h-4 w-4" />
               </div>
-              <div className="flex items-center justify-between text-xs border-b border-border/30 pb-2">
-                <span className="text-muted-foreground">Phase 6: Exports, Prints & Analytics</span>
-                <span className="font-bold text-success">COMPLETED</span>
+            </div>
+
+            <div className="flex items-center justify-between border-b border-border/30 pb-2">
+              <div className="space-y-0.5">
+                <p className="text-xs text-muted-foreground uppercase">Total Receipts</p>
+                <p className="text-base font-bold text-foreground font-mono tabular-nums">
+                  ₹ {Number(summary.totalReceipts || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                </p>
               </div>
+              <div className="rounded-lg bg-warning/10 p-2 text-warning">
+                <Icons.Plus className="h-4 w-4" />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between border-b border-border/30 pb-2">
+              <div className="space-y-0.5">
+                <p className="text-xs text-muted-foreground uppercase">Total Payments</p>
+                <p className="text-base font-bold text-foreground font-mono tabular-nums">
+                  ₹ {Number(summary.totalPayments || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                </p>
+              </div>
+              <div className="rounded-lg bg-danger/10 p-2 text-danger">
+                <Icons.Minus className="h-4 w-4" />
+              </div>
+            </div>
+
+            {/* Net Book Position */}
+            <div className="rounded-lg border border-border/50 bg-muted/15 p-3 flex justify-between items-center mt-2">
+              <div>
+                <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wide">Net Book Position</p>
+                <p className="text-sm font-extrabold text-foreground font-mono tabular-nums mt-0.5">
+                  ₹ {Number((summary.totalSales || 0) - (summary.totalPurchases || 0)).toLocaleString("en-IN", {
+                    minimumFractionDigits: 2,
+                  })}
+                </p>
+              </div>
+              <span
+                className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${
+                  (summary.totalSales || 0) - (summary.totalPurchases || 0) >= 0
+                    ? "bg-success/15 text-success"
+                    : "bg-danger/15 text-danger"
+                }`}
+              >
+                {(summary.totalSales || 0) - (summary.totalPurchases || 0) >= 0 ? "Surplus" : "Deficit"}
+              </span>
             </div>
           </div>
-          <div className="mt-6 text-xs text-muted-foreground leading-normal">
-            Texora maps accounts and inventory using Tally's fundamental voucher standards, modernizing form design and access speeds.
-          </div>
-        </div>
-      </div>
-
-      {/* Quick Actions & Navigation */}
-      <div className="rounded-lg border border-border bg-card p-6 shadow-sm space-y-4">
-        <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground/75">
-          QUICK ACTIONS & NAVIGATION
-        </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Link
-            href="/dashboard/customers"
-            className="flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:border-primary hover:bg-primary/5 transition-all group"
-          >
-            <div className="p-2 rounded bg-primary/10 text-primary group-hover:scale-105 transition-transform">
-              <Icons.UserPlus size={18} />
-            </div>
-            <div>
-              <span className="text-sm font-semibold text-foreground">
-                Create Customer
-              </span>
-              <span className="block text-xs text-muted-foreground">Add new buyer ledger</span>
-            </div>
-          </Link>
-
-          <Link
-            href="/dashboard/products"
-            className="flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:border-warning hover:bg-warning/5 transition-all group"
-          >
-            <div className="p-2 rounded bg-warning/10 text-warning group-hover:scale-105 transition-transform">
-              <Icons.PlusSquare size={18} />
-            </div>
-            <div>
-              <span className="text-sm font-semibold text-foreground">
-                Add Stock Item
-              </span>
-              <span className="block text-xs text-muted-foreground">Register new fabric product</span>
-            </div>
-          </Link>
-
-          <Link
-            href="/dashboard/sales"
-            className="flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:border-success hover:bg-success/5 transition-all group"
-          >
-            <div className="p-2 rounded bg-success/10 text-success group-hover:scale-105 transition-transform">
-              <Icons.Receipt size={18} />
-            </div>
-            <div>
-              <span className="text-sm font-semibold text-foreground">
-                Sales Voucher
-              </span>
-              <span className="block text-xs text-muted-foreground">Record a new fabric sale</span>
-            </div>
-          </Link>
-
-          <Link
-            href="/dashboard/ledger-report"
-            className="flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:border-info hover:bg-info/5 transition-all group"
-          >
-            <div className="p-2 rounded bg-info/10 text-info group-hover:scale-105 transition-transform">
-              <Icons.FileText size={18} />
-            </div>
-            <div>
-              <span className="text-sm font-semibold text-foreground">
-                Ledger Report
-              </span>
-              <span className="block text-xs text-muted-foreground">View statement of accounts</span>
-            </div>
-          </Link>
         </div>
       </div>
     </div>

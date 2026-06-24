@@ -80,9 +80,9 @@ export default async function TrialBalancePage() {
                   <tr key={row.ledgerId} className="border-t border-border/50 hover:bg-muted/10 transition-colors">
                     <td className="px-4 py-3 font-medium text-foreground">{row.ledgerName}</td>
                     <td className="px-4 py-3 text-xs uppercase tracking-wide text-muted-foreground">{row.ledgerType}</td>
-                    <td className="px-4 py-3 text-right text-foreground">₹{Number(row.debit ?? 0).toFixed(2)}</td>
-                    <td className="px-4 py-3 text-right text-foreground">₹{Number(row.credit ?? 0).toFixed(2)}</td>
-                    <td className="px-4 py-3 text-right font-semibold text-foreground">₹{balance.toFixed(2)}</td>
+                    <td className="px-4 py-3 text-right text-foreground tabular-nums">₹{Number(row.debit ?? 0).toFixed(2)}</td>
+                    <td className="px-4 py-3 text-right text-foreground tabular-nums">₹{Number(row.credit ?? 0).toFixed(2)}</td>
+                    <td className="px-4 py-3 text-right font-semibold text-foreground tabular-nums">₹{balance.toFixed(2)}</td>
                   </tr>
                 );
               })
@@ -92,9 +92,9 @@ export default async function TrialBalancePage() {
             <tfoot className="bg-muted/10 text-sm font-semibold text-foreground">
               <tr>
                 <td colSpan={2} className="px-4 py-3">Totals</td>
-                <td className="px-4 py-3 text-right">₹{totalDebit.toFixed(2)}</td>
-                <td className="px-4 py-3 text-right">₹{totalCredit.toFixed(2)}</td>
-                <td className="px-4 py-3 text-right">₹{(totalDebit - totalCredit).toFixed(2)}</td>
+                <td className="px-4 py-3 text-right tabular-nums">₹{totalDebit.toFixed(2)}</td>
+                <td className="px-4 py-3 text-right tabular-nums">₹{totalCredit.toFixed(2)}</td>
+                <td className="px-4 py-3 text-right tabular-nums">₹{(totalDebit - totalCredit).toFixed(2)}</td>
               </tr>
             </tfoot>
           )}

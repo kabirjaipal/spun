@@ -5,7 +5,6 @@ import { getToken } from "next-auth/jwt";
 export const config = {
   matcher: [
     "/dashboard/:path*",
-    "/masters/:path*",
     "/setup-company",
     "/login",
     "/register",
@@ -43,9 +42,9 @@ export async function proxy(request: NextRequest) {
   }
 
   // /dashboard (non-owner sub-pages) require page-level authorization
-  if (pathname.startsWith("/dashboard/") || pathname.startsWith("/masters/")) {
-    // skip the owner sub-section — already handled above
-    if (!pathname.startsWith("/dashboard/owner")) {
+  if (pathname.startsWith("/dashboard/")) {
+    // skip the owner sub-section and core profile page
+    if (!pathname.startsWith("/dashboard/owner") && pathname !== "/dashboard/my-profile") {
       const allowedPages = (token.allowedPages as string[]) || [];
       const isAllowed = allowedPages.some((pageUrl) => pathname.startsWith(pageUrl));
       if (!isAllowed) {

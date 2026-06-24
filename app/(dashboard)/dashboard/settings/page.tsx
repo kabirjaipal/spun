@@ -47,6 +47,7 @@ export default async function SettingsPage() {
     gstNo: company.gstNo,
     panNo: company.panNo,
     address: company.address,
+    financialYearStart: company.financialYearStart,
   };
 
   const counts = {

@@ -12,7 +12,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { companyName, gstNo, address } = body;
+    const { companyName, gstNo, panNo, address, financialYearStart } = body;
 
     if (!companyName) {
       return NextResponse.json(
@@ -60,8 +60,10 @@ export async function POST(request: Request) {
         .insert(mCompanies)
         .values({
           companyName,
-          gstNo: gstNo || null,
+          gstNo: gstNo ? gstNo.trim().toUpperCase() : null,
+          panNo: panNo ? panNo.trim().toUpperCase() : null,
           address: address || null,
+          financialYearStart: financialYearStart || null,
           createdBy: session.user.id,
           updatedBy: session.user.id,
         })
