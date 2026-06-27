@@ -13,7 +13,12 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const { id } = await params;
   const companyId = Number(session.user.companyId);
   const userId = session.user.id;
-  const { supplierName, gstNo, phone, email, address, openingBalance } = await request.json();
+  const {
+    supplierName, gstNo, phone, email, address, openingBalance,
+    panNo, pincode, state, currencySymbol, nationName,
+    bankName, bankAccountName, accountNo, ifscCode, branchName, accountType,
+    gstApplicable, gstType, stateCode, city,
+  } = await request.json();
 
   const [supplier] = await db.transaction(async (tx) => {
     const oldS = await tx.query.mSuppliers.findFirst({
@@ -22,7 +27,31 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     const [s] = await tx
       .update(mSuppliers)
-      .set({ supplierName, gstNo, phone, email, address, openingBalance: String(openingBalance), updatedBy: userId, updatedOn: new Date() })
+      .set({
+        supplierName,
+        gstNo,
+        phone,
+        email,
+        address,
+        openingBalance: String(openingBalance),
+        panNo,
+        pincode,
+        state,
+        currencySymbol,
+        nationName,
+        bankName,
+        bankAccountName,
+        accountNo,
+        ifscCode,
+        branchName,
+        accountType,
+        gstApplicable: gstApplicable !== undefined ? !!gstApplicable : undefined,
+        gstType,
+        stateCode,
+        city,
+        updatedBy: userId,
+        updatedOn: new Date(),
+      })
       .where(and(eq(mSuppliers.supplierId, Number(id)), eq(mSuppliers.companyId, companyId)))
       .returning();
 

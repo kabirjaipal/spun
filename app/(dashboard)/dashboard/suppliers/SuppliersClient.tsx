@@ -4,11 +4,11 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, Building2, Landmark, MapPin, FileText, Phone, Mail, DollarSign, Globe, ArrowLeft } from "lucide-react";
 import ExportButton from "@/components/ExportButton";
+import { BANK_LIST } from "@/lib/banks";
 
 interface Supplier {
   supplierId: number;
@@ -18,16 +18,59 @@ interface Supplier {
   email: string | null;
   address: string | null;
   openingBalance: string;
+  panNo: string | null;
+  pincode: string | null;
+  state: string | null;
+  currencySymbol: string | null;
+  nationName: string | null;
+  bankName: string | null;
+  bankAccountName: string | null;
+  accountNo: string | null;
+  ifscCode: string | null;
+  branchName: string | null;
+  accountType: string | null;
+  gstApplicable: boolean | null;
+  gstType: string | null;
+  stateCode: string | null;
+  city: string | null;
 }
 
-const EMPTY = { supplierName: "", gstNo: "", phone: "", email: "", address: "", openingBalance: "0" };
-const FIELDS = [
-  { id: "supplierName", label: "Supplier Name", placeholder: "XYZ Fabrics Pvt Ltd" },
-  { id: "gstNo", label: "GSTIN", placeholder: "24XXXXX0000X1ZX" },
-  { id: "phone", label: "Phone", placeholder: "+91 98765 43210" },
-  { id: "email", label: "Email", placeholder: "supplier@example.com" },
-  { id: "address", label: "Address", placeholder: "Ring Road, Surat" },
-] as const;
+const CURRENCIES = [
+  { symbol: "₹", nation: "India", label: "₹ (INR - India)" },
+  { symbol: "$", nation: "United States", label: "$ (USD - USA)" },
+  { symbol: "£", nation: "United Kingdom", label: "£ (GBP - UK)" },
+  { symbol: "€", nation: "Eurozone", label: "€ (EUR - Euro)" },
+  { symbol: "¥", nation: "Japan", label: "¥ (JPY - Japan)" },
+  { symbol: "A$", nation: "Australia", label: "A$ (AUD - Australia)" },
+  { symbol: "C$", nation: "Canada", label: "C$ (CAD - Canada)" },
+  { symbol: "CHF", nation: "Switzerland", label: "CHF (Swiss Franc)" },
+  { symbol: "元", nation: "China", label: "元 (CNY - China)" },
+  { symbol: "AED", nation: "United Arab Emirates", label: "AED (UAE Dirham)" },
+];
+
+const EMPTY = {
+  supplierName: "",
+  gstNo: "",
+  phone: "",
+  email: "",
+  address: "",
+  openingBalance: "0",
+  panNo: "",
+  pincode: "",
+  state: "",
+  currencySymbol: "₹",
+  nationName: "India",
+  bankName: "",
+  bankAccountName: "",
+  accountNo: "",
+  ifscCode: "",
+  branchName: "",
+  accountType: "current",
+  gstApplicable: false,
+  gstType: "regular",
+  stateCode: "",
+  city: "",
+};
 
 export default function SuppliersClient({
   initialData, canCreate, canUpdate, canDelete, canExport,
@@ -39,12 +82,16 @@ export default function SuppliersClient({
   canExport: boolean;
 }) {
   const [data, setData] = useState(initialData);
-  const [sheetOpen, setSheetOpen] = useState(false);
+  const [isFormOpen, setIsFormOpen] = useState(false);
   const [editing, setEditing] = useState<Supplier | null>(null);
   const [form, setForm] = useState(EMPTY);
   const [deleteTarget, setDeleteTarget] = useState<Supplier | null>(null);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
+
+  const [selectedBankIndex, setSelectedBankIndex] = useState<number | null>(null);
+  const [customBankActive, setCustomBankActive] = useState(true);
+  const [customIfscActive, setCustomIfscActive] = useState(true);
 
   const filtered = data.filter((r) =>
     r.supplierName.toLowerCase().includes(search.toLowerCase()) ||
@@ -52,11 +99,51 @@ export default function SuppliersClient({
     (r.phone ?? "").includes(search)
   );
 
-  function openCreate() { setEditing(null); setForm(EMPTY); setSheetOpen(true); }
+  function openCreate() {
+    setEditing(null);
+    setForm(EMPTY);
+    setSelectedBankIndex(null);
+    setCustomBankActive(true);
+    setCustomIfscActive(true);
+    setIsFormOpen(true);
+  }
+
   function openEdit(row: Supplier) {
     setEditing(row);
-    setForm({ supplierName: row.supplierName, gstNo: row.gstNo ?? "", phone: row.phone ?? "", email: row.email ?? "", address: row.address ?? "", openingBalance: row.openingBalance });
-    setSheetOpen(true);
+    
+    const bankIndex = BANK_LIST.findIndex(b => b.bankName === row.bankName);
+    const isPreseededBank = bankIndex !== -1;
+    const isPreseededIfsc = isPreseededBank && BANK_LIST[bankIndex].branches.some(br => br.ifscCode === row.ifscCode);
+
+    setForm({
+      supplierName: row.supplierName,
+      gstNo: row.gstNo ?? "",
+      phone: row.phone ?? "",
+      email: row.email ?? "",
+      address: row.address ?? "",
+      openingBalance: row.openingBalance,
+      panNo: row.panNo ?? "",
+      pincode: row.pincode ?? "",
+      state: row.state ?? "",
+      currencySymbol: row.currencySymbol ?? "₹",
+      nationName: row.nationName ?? "India",
+      bankName: row.bankName ?? "",
+      bankAccountName: row.bankAccountName ?? "",
+      accountNo: row.accountNo ?? "",
+      ifscCode: row.ifscCode ?? "",
+      branchName: row.branchName ?? "",
+      accountType: row.accountType ?? "current",
+      gstApplicable: !!row.gstApplicable,
+      gstType: row.gstType ?? "regular",
+      stateCode: row.stateCode ?? "",
+      city: row.city ?? "",
+    });
+
+    setSelectedBankIndex(isPreseededBank ? bankIndex : null);
+    setCustomBankActive(!isPreseededBank);
+    setCustomIfscActive(!isPreseededIfsc);
+
+    setIsFormOpen(true);
   }
 
   async function handleSave() {
@@ -66,12 +153,19 @@ export default function SuppliersClient({
     const res = await fetch(url, {
       method: editing ? "PATCH" : "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, openingBalance: Number(form.openingBalance) }),
+      body: JSON.stringify({
+        ...form,
+        openingBalance: Number(form.openingBalance),
+        gstNo: form.gstApplicable ? form.gstNo : null,
+        stateCode: form.gstApplicable ? form.stateCode : null,
+        city: form.gstApplicable ? form.city : null,
+        gstType: form.gstApplicable ? form.gstType : null,
+      }),
     });
     const row = await res.json();
     if (editing) setData((d) => d.map((r) => (r.supplierId === editing.supplierId ? row : r)));
     else setData((d) => [...d, row]);
-    setSheetOpen(false);
+    setIsFormOpen(false);
     setSaving(false);
   }
 
@@ -80,6 +174,475 @@ export default function SuppliersClient({
     await fetch(`/api/suppliers/${deleteTarget.supplierId}`, { method: "DELETE" });
     setData((d) => d.filter((r) => r.supplierId !== deleteTarget.supplierId));
     setDeleteTarget(null);
+  }
+
+  if (isFormOpen) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" onClick={() => setIsFormOpen(false)} className="flex items-center gap-2">
+            <ArrowLeft className="h-4 w-4" />
+            <span>Back to list</span>
+          </Button>
+          <h1 className="text-xl font-bold text-foreground">
+            {editing ? `Edit Supplier: ${editing.supplierName}` : "Create New Supplier"}
+          </h1>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          {/* General Details & Taxation */}
+          <div className="space-y-6">
+            <div className="rounded-lg border border-border bg-card p-6 shadow-sm space-y-4">
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                <Building2 className="h-4 w-4" />
+                <span>General Details</span>
+              </h3>
+              
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="col-span-1 sm:col-span-2">
+                    <Label htmlFor="supplierName" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Supplier Name *</Label>
+                    <Input
+                      id="supplierName"
+                      type="text"
+                      required
+                      value={form.supplierName}
+                      onChange={(e) => setForm((f) => ({ ...f, supplierName: e.target.value }))}
+                      className="mt-1"
+                      placeholder="e.g. XYZ Fabrics Pvt Ltd"
+                    />
+                  </div>
+
+                  <div className="col-span-1 sm:col-span-2">
+                    <Label htmlFor="address" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Address</Label>
+                    <div className="relative mt-1">
+                      <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                        <MapPin className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <Input
+                        id="address"
+                        type="text"
+                        value={form.address}
+                        onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
+                        className="pl-10"
+                        placeholder="e.g. Ring Road, Surat"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="pincode" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Pincode</Label>
+                    <Input
+                      id="pincode"
+                      type="text"
+                      value={form.pincode}
+                      onChange={(e) => setForm((f) => ({ ...f, pincode: e.target.value }))}
+                      className="mt-1"
+                      placeholder="395003"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="state" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">State</Label>
+                    <Input
+                      id="state"
+                      type="text"
+                      value={form.state}
+                      onChange={(e) => setForm((f) => ({ ...f, state: e.target.value }))}
+                      className="mt-1"
+                      placeholder="Gujarat"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="phone" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Phone</Label>
+                    <div className="relative mt-1">
+                      <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                        <Phone className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <Input
+                        id="phone"
+                        type="text"
+                        value={form.phone}
+                        onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                        className="pl-10"
+                        placeholder="+91 98765 43210"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="email" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Email Address</Label>
+                    <div className="relative mt-1">
+                      <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                        <Mail className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <Input
+                        id="email"
+                        type="email"
+                        value={form.email}
+                        onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                        className="pl-10"
+                        placeholder="supplier@example.com"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="currencySymbol" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Currency Symbol</Label>
+                    <div className="relative mt-1">
+                      <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                        <DollarSign className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <select
+                        id="currencySymbol"
+                        value={form.currencySymbol}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const match = CURRENCIES.find((c) => c.symbol === val);
+                          setForm((f) => ({
+                            ...f,
+                            currencySymbol: val,
+                            nationName: match ? match.nation : f.nationName,
+                          }));
+                        }}
+                        className="w-full h-10 rounded-md border border-input bg-background pl-10 pr-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                      >
+                        {CURRENCIES.map((c) => (
+                          <option key={c.symbol} value={c.symbol}>
+                            {c.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="nationName" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Nation Name</Label>
+                    <div className="relative mt-1">
+                      <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                        <Globe className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <select
+                        id="nationName"
+                        value={form.nationName}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const match = CURRENCIES.find((c) => c.nation === val);
+                          setForm((f) => ({
+                            ...f,
+                            nationName: val,
+                            currencySymbol: match ? match.symbol : f.currencySymbol,
+                          }));
+                        }}
+                        className="w-full h-10 rounded-md border border-input bg-background pl-10 pr-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                      >
+                        {CURRENCIES.map((c) => (
+                          <option key={c.nation} value={c.nation}>
+                            {c.nation}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="col-span-1 sm:col-span-2">
+                    <Label htmlFor="openingBalance" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Opening Balance (₹)</Label>
+                    <Input
+                      id="openingBalance"
+                      type="number"
+                      step={0.01}
+                      value={form.openingBalance}
+                      onChange={(e) => setForm((f) => ({ ...f, openingBalance: e.target.value }))}
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-border bg-card p-6 shadow-sm space-y-4">
+              <div className="flex items-center justify-between border-b pb-2">
+                <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                  <Landmark className="h-4 w-4" />
+                  <span>GST & Taxation</span>
+                </h3>
+                <label className="flex items-center gap-2 cursor-pointer text-sm font-normal text-muted-foreground select-none">
+                  <input
+                    type="checkbox"
+                    checked={form.gstApplicable}
+                    onChange={(e) => setForm((f) => ({ ...f, gstApplicable: e.target.checked }))}
+                    className="h-4 w-4 rounded border-input text-primary focus:ring-primary bg-background"
+                  />
+                  GST Applicable
+                </label>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="panNo" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">PAN No.</Label>
+                  <div className="relative mt-1">
+                    <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                      <FileText className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <Input
+                      id="panNo"
+                      type="text"
+                      value={form.panNo}
+                      onChange={(e) => setForm((f) => ({ ...f, panNo: e.target.value }))}
+                      className="pl-10"
+                      placeholder="ABCDE1234F"
+                    />
+                  </div>
+                </div>
+
+                {form.gstApplicable && (
+                  <>
+                    <div>
+                      <Label htmlFor="gstNo" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">GSTIN *</Label>
+                      <div className="relative mt-1">
+                        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                          <Landmark className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                        <Input
+                          id="gstNo"
+                          type="text"
+                          required={form.gstApplicable}
+                          value={form.gstNo}
+                          onChange={(e) => setForm((f) => ({ ...f, gstNo: e.target.value }))}
+                          className="pl-10"
+                          placeholder="24AAAAB1234C1Z1"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="stateCode" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">State Code *</Label>
+                      <Input
+                        id="stateCode"
+                        type="text"
+                        required={form.gstApplicable}
+                        value={form.stateCode}
+                        onChange={(e) => setForm((f) => ({ ...f, stateCode: e.target.value }))}
+                        className="mt-1"
+                        placeholder="24"
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="city" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">City *</Label>
+                      <Input
+                        id="city"
+                        type="text"
+                        required={form.gstApplicable}
+                        value={form.city}
+                        onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
+                        className="mt-1"
+                        placeholder="Surat"
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="gstType" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Registration Type</Label>
+                      <select
+                        id="gstType"
+                        value={form.gstType}
+                        onChange={(e) => setForm((f) => ({ ...f, gstType: e.target.value }))}
+                        className="w-full h-10 mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                      >
+                        <option value="regular">Regular</option>
+                        <option value="composition">Composition</option>
+                        <option value="export">Export</option>
+                      </select>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Bank Details & Save Options */}
+          <div className="space-y-6 flex flex-col justify-between">
+            <div className="rounded-lg border border-border bg-card p-6 shadow-sm space-y-4">
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                <Landmark className="h-4 w-4" />
+                <span>Bank Account Information</span>
+              </h3>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Select Bank</Label>
+                  <select
+                    value={customBankActive ? "custom" : selectedBankIndex ?? ""}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === "custom") {
+                        setCustomBankActive(true);
+                        setCustomIfscActive(true);
+                        setSelectedBankIndex(null);
+                        setForm((f) => ({ ...f, bankName: "", ifscCode: "", branchName: "" }));
+                      } else {
+                        setCustomBankActive(false);
+                        setCustomIfscActive(false);
+                        const bankIndex = Number(val);
+                        const bank = BANK_LIST[bankIndex];
+                        setSelectedBankIndex(bankIndex);
+                        
+                        setForm((f) => ({
+                          ...f,
+                          bankName: bank.bankName,
+                          ifscCode: bank.branches.length > 0 ? bank.branches[0].ifscCode : "",
+                          branchName: bank.branches.length > 0 ? bank.branches[0].branchName : "",
+                        }));
+                      }
+                    }}
+                    className="w-full h-10 mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  >
+                    <option value="custom">Other / Custom Bank</option>
+                    {BANK_LIST.map((b, idx) => (
+                      <option key={b.bankName} value={idx}>
+                        {b.bankName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {customBankActive ? (
+                  <div>
+                    <Label htmlFor="bankName" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Bank Name</Label>
+                    <Input
+                      id="bankName"
+                      type="text"
+                      value={form.bankName}
+                      onChange={(e) => setForm((f) => ({ ...f, bankName: e.target.value }))}
+                      className="mt-1"
+                      placeholder="e.g. State Bank of India"
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Bank Name</Label>
+                    <span className="text-sm font-semibold text-foreground px-3 h-10 mt-1 flex items-center bg-muted/20 border rounded-md">
+                      {form.bankName}
+                    </span>
+                  </div>
+                )}
+
+                <div>
+                  <Label htmlFor="bankAccountName" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Account Name</Label>
+                  <Input
+                    id="bankAccountName"
+                    type="text"
+                    value={form.bankAccountName}
+                    onChange={(e) => setForm((f) => ({ ...f, bankAccountName: e.target.value }))}
+                    className="mt-1"
+                    placeholder="e.g. XYZ Fabrics Pvt Ltd"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="accountNo" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Account Number</Label>
+                  <Input
+                    id="accountNo"
+                    type="text"
+                    value={form.accountNo}
+                    onChange={(e) => setForm((f) => ({ ...f, accountNo: e.target.value }))}
+                    className="mt-1"
+                    placeholder="e.g. 123456789012"
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Select Branch / IFSC</Label>
+                  {customBankActive ? (
+                    <span className="text-sm text-muted-foreground px-3 h-10 mt-1 flex items-center bg-muted/10 border rounded-md select-none">
+                      Type custom details below
+                    </span>
+                  ) : (
+                    <select
+                      value={customIfscActive ? "custom" : BANK_LIST[selectedBankIndex!].branches.findIndex(b => b.ifscCode === form.ifscCode)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === "custom") {
+                          setCustomIfscActive(true);
+                          setForm((f) => ({ ...f, ifscCode: "", branchName: "" }));
+                        } else {
+                          setCustomIfscActive(false);
+                          const branchIndex = Number(val);
+                          const branch = BANK_LIST[selectedBankIndex!].branches[branchIndex];
+                          setForm((f) => ({
+                            ...f,
+                            ifscCode: branch.ifscCode,
+                            branchName: branch.branchName,
+                          }));
+                        }
+                      }}
+                      className="w-full h-10 mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    >
+                      {BANK_LIST[selectedBankIndex!].branches.map((b, idx) => (
+                        <option key={b.ifscCode} value={idx}>
+                          {b.branchName} ({b.ifscCode})
+                        </option>
+                      ))}
+                      <option value="custom">Other / Custom Branch</option>
+                    </select>
+                  )}
+                </div>
+
+                <div>
+                  <Label htmlFor="ifscCode" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">IFSC Code</Label>
+                  <Input
+                    id="ifscCode"
+                    type="text"
+                    disabled={!customIfscActive}
+                    value={form.ifscCode}
+                    onChange={(e) => setForm((f) => ({ ...f, ifscCode: e.target.value.toUpperCase() }))}
+                    className="mt-1"
+                    placeholder="e.g. SBIN0001234"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="branchName" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Branch Name</Label>
+                  <Input
+                    id="branchName"
+                    type="text"
+                    disabled={!customIfscActive}
+                    value={form.branchName}
+                    onChange={(e) => setForm((f) => ({ ...f, branchName: e.target.value }))}
+                    className="mt-1"
+                    placeholder="e.g. Ring Road Branch"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="accountType" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Account Type</Label>
+                  <select
+                    id="accountType"
+                    value={form.accountType}
+                    onChange={(e) => setForm((f) => ({ ...f, accountType: e.target.value }))}
+                    className="w-full h-10 mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  >
+                    <option value="current">Current Account</option>
+                    <option value="cc">CC Account</option>
+                    <option value="od">OD Account</option>
+                    <option value="saving">Saving Account</option>
+                    <option value="other">Other Account</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-4 pt-6 border-t justify-end">
+              <Button variant="outline" onClick={() => setIsFormOpen(false)}>Cancel</Button>
+              <Button onClick={handleSave} disabled={saving || !form.supplierName || (form.gstApplicable && (!form.gstNo || !form.stateCode || !form.city))}>
+                {saving ? "Saving..." : editing ? "Update Supplier" : "Create Supplier"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -142,34 +705,6 @@ export default function SuppliersClient({
           </tbody>
         </table>
       </div>
-
-      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent>
-          <SheetHeader>
-            <SheetTitle>{editing ? "Edit Supplier" : "New Supplier"}</SheetTitle>
-          </SheetHeader>
-
-          <div className="flex-1 overflow-y-auto px-5 py-6 space-y-5">
-            {FIELDS.map(({ id, label, placeholder }) => (
-              <div key={id} className="space-y-2">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</Label>
-                <Input id={id} placeholder={placeholder} value={(form as any)[id]} onChange={(e) => setForm((f) => ({ ...f, [id]: e.target.value }))} />
-              </div>
-            ))}
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Opening Balance (₹)</Label>
-              <Input id="openingBalance" type="number" step={0.01} value={form.openingBalance} onChange={(e) => setForm((f) => ({ ...f, openingBalance: e.target.value }))} />
-            </div>
-          </div>
-
-          <SheetFooter>
-            <Button variant="outline" onClick={() => setSheetOpen(false)}>Cancel</Button>
-            <Button onClick={handleSave} disabled={saving || !form.supplierName}>
-              {saving ? "Saving..." : editing ? "Update" : "Create"}
-            </Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
 
       <Dialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
         <DialogContent>

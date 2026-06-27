@@ -28,14 +28,44 @@ export async function POST(request: Request) {
 
   const companyId = Number(session.user.companyId);
   const userId = session.user.id;
-  const { supplierName, gstNo, phone, email, address, openingBalance } = await request.json();
+  const {
+    supplierName, gstNo, phone, email, address, openingBalance,
+    panNo, pincode, state, currencySymbol, nationName,
+    bankName, bankAccountName, accountNo, ifscCode, branchName, accountType,
+    gstApplicable, gstType, stateCode, city,
+  } = await request.json();
 
   if (!supplierName) return NextResponse.json({ error: "supplierName is required" }, { status: 400 });
 
   const [supplier] = await db.transaction(async (tx) => {
     const [s] = await tx
       .insert(mSuppliers)
-      .values({ companyId, supplierName, gstNo, phone, email, address, openingBalance: String(openingBalance ?? 0), createdBy: userId, updatedBy: userId })
+      .values({
+        companyId,
+        supplierName,
+        gstNo,
+        phone,
+        email,
+        address,
+        openingBalance: String(openingBalance ?? 0),
+        panNo,
+        pincode,
+        state,
+        currencySymbol,
+        nationName,
+        bankName,
+        bankAccountName,
+        accountNo,
+        ifscCode,
+        branchName,
+        accountType,
+        gstApplicable: !!gstApplicable,
+        gstType,
+        stateCode,
+        city,
+        createdBy: userId,
+        updatedBy: userId,
+      })
       .returning();
 
     await tx.insert(mLedgers).values({
