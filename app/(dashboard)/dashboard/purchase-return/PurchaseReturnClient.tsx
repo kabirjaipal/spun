@@ -85,13 +85,14 @@ export default function PurchaseReturnClient({
   taxRates,
   canCreate,
 }: {
-  company: { companyName: string; gstNo?: string | null; address?: string | null };
+  company: { companyName: string; gstNo?: string | null; address?: string | null; companyType?: string };
   suppliers: SupplierOption[];
   products: ProductOption[];
   ledgers: LedgerOption[];
   taxRates: TaxRateOption[];
   canCreate: boolean;
 }) {
+  const isTextile = company.companyType === "textiles";
   const [selectedSupplier, setSelectedSupplier] = useState("");
   const [voucherNo, setVoucherNo] = useState(""); // Debite Note / Purchase Return No
   const [voucherDate, setVoucherDate] = useState(new Date().toISOString().slice(0, 10));
@@ -183,7 +184,7 @@ export default function PurchaseReturnClient({
     return lineItems.map((line) => {
       const qty = Number(line.quantity) || 0;
       const rate = Number(line.rate) || 0;
-      const fold = Number(line.fold) || 100;
+      const fold = isTextile ? (Number(line.fold) || 100) : 100;
       const gstRatePercent = Number(line.gstRateId ? taxRates.find((t) => String(t.taxRateId) === line.gstRateId)?.taxPercent : 0) || 0;
 
       const amount = Math.round((qty * rate * fold / 100) * 100) / 100;
@@ -388,25 +389,27 @@ export default function PurchaseReturnClient({
         </div>
 
         {/* Logistics details */}
-        <div className="rounded-lg border border-border bg-card p-5 space-y-4 shadow-sm">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">Logistics & Shipping</h2>
+        {isTextile && (
+          <div className="rounded-lg border border-border bg-card p-5 space-y-4 shadow-sm">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">Logistics & Shipping</h2>
 
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold uppercase text-foreground">LR No.</Label>
-            <Input value={lrNo} onChange={(e) => setLrNo(e.target.value)} placeholder="Lorry Receipt No." className="h-9" />
-          </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase text-foreground">LR No.</Label>
+              <Input value={lrNo} onChange={(e) => setLrNo(e.target.value)} placeholder="Lorry Receipt No." className="h-9" />
+            </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">LR Date</Label>
-              <Input type="date" value={lrDate} onChange={(e) => setLrDate(e.target.value)} className="h-9" />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">Transport</Label>
-              <Input value={transport} onChange={(e) => setTransport(e.target.value)} placeholder="Transport Service" className="h-9" />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold uppercase text-foreground">LR Date</Label>
+                <Input type="date" value={lrDate} onChange={(e) => setLrDate(e.target.value)} className="h-9" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold uppercase text-foreground">Transport</Label>
+                <Input value={transport} onChange={(e) => setTransport(e.target.value)} placeholder="Transport Service" className="h-9" />
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Return Items Table */}
@@ -424,8 +427,8 @@ export default function PurchaseReturnClient({
                   <th className="py-2.5 px-2">Product Name</th>
                   <th className="py-2.5 px-2">Original Qty</th>
                   <th className="py-2.5 px-2">Return PCS</th>
-                  <th className="py-2.5 px-2">Return Qty (Mtr)</th>
-                  <th className="py-2.5 px-2">Fold %</th>
+                  <th className="py-2.5 px-2">Return Qty {isTextile ? "(Mtr)" : ""}</th>
+                  {isTextile && <th className="py-2.5 px-2">Fold %</th>}
                   <th className="py-2.5 px-2">Rate</th>
                   <th className="py-2.5 px-2 text-right">Taxable</th>
                   <th className="py-2.5 px-2 text-center w-12">Action</th>
@@ -439,7 +442,7 @@ export default function PurchaseReturnClient({
                       <td className="py-2 px-2 text-xs font-semibold text-muted-foreground">{line.invoiceNo}</td>
                       <td className="py-2 px-2 text-xs font-medium text-foreground">{line.productName}</td>
                       <td className="py-2 px-2 text-xs text-muted-foreground">
-                        {line.originalPcs} PCS / {line.originalQuantity} Mtr
+                        {line.originalPcs} PCS {isTextile ? `/ ${line.originalQuantity} Mtr` : `/ ${line.originalQuantity}`}
                       </td>
                       <td className="py-2 px-2">
                         <Input
@@ -457,14 +460,16 @@ export default function PurchaseReturnClient({
                           className="h-8 text-xs w-24"
                         />
                       </td>
-                      <td className="py-2 px-2">
-                        <Input
-                          type="number"
-                          value={line.fold}
-                          onChange={(e) => updateLine(line.id, "fold", e.target.value)}
-                          className="h-8 text-xs w-16"
-                        />
-                      </td>
+                      {isTextile && (
+                        <td className="py-2 px-2">
+                          <Input
+                            type="number"
+                            value={line.fold}
+                            onChange={(e) => updateLine(line.id, "fold", e.target.value)}
+                            className="h-8 text-xs w-16"
+                          />
+                        </td>
+                      )}
                       <td className="py-2 px-2">
                         <Input
                           type="number"

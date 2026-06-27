@@ -65,7 +65,7 @@ export default async function SalesPage() {
 
   return (
     <SalesClient
-      company={company ? { companyName: company.companyName, gstNo: company.gstNo, address: company.address } : { companyName: "Texora Company" }}
+      company={company ? { companyName: company.companyName, gstNo: company.gstNo, address: company.address, companyType: company.companyType } : { companyName: "Texora Company", companyType: "general" }}
       customers={customers.map((c) => ({
         customerId: c.customerId,
         customerName: c.customerName,

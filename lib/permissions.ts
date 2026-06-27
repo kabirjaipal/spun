@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { mUsers } from "@/lib/db/schema";
+import { mUsers, mCompanies } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 
 export type Role = "owner" | "company";
@@ -120,6 +120,16 @@ export async function getUserPagePermissions(userId: string): Promise<UserPermis
   // If user has no company associated, they only see pages in the "owner" accessGroup
   if (!user.companyId) {
     return permissions.filter((p) => p.accessGroup === "owner");
+  }
+
+  // Fetch company type to hide textile pages for general/diamond companies
+  const company = await db.query.mCompanies.findFirst({
+    where: eq(mCompanies.companyId, Number(user.companyId)),
+  });
+
+  if (company && company.companyType !== "textiles") {
+    const textileAccessItems = ["jobs", "mills", "job_outward", "job_inward", "mill_outward", "mill_inward", "lot_transfer"];
+    return permissions.filter((p) => !textileAccessItems.includes(p.accessItem));
   }
 
   return permissions;

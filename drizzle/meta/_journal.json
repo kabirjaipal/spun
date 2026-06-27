@@ -50,6 +50,13 @@
       "when": 1782549059455,
       "tag": "0006_familiar_the_hood",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1782549984427,
+      "tag": "0007_keen_silverclaw",
+      "breakpoints": true
     }
   ]
 }

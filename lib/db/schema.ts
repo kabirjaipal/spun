@@ -51,6 +51,8 @@ export const mCompanies = pgTable("m_companies", {
   stateCode: text("state_code"),
   city: text("city"),
   financialYearStart: date("financial_year_start"),
+  companyType: text("company_type").default("general").notNull(),
+  marketCategory: text("market_category"),
   ...auditColumns,
 }, (table) => ({
   companyNameIdx: index("idx_m_companies_company_name").on(table.companyName),

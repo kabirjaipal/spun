@@ -68,13 +68,15 @@ export default function PurchaseClient({
   taxRates,
   canCreate,
 }: {
-  company: { companyName: string; gstNo?: string | null; address?: string | null };
+  company: { companyName: string; gstNo?: string | null; address?: string | null; companyType?: string };
   suppliers: SupplierOption[];
   products: ProductOption[];
   ledgers: LedgerOption[];
   taxRates: TaxRateOption[];
   canCreate: boolean;
 }) {
+  const isTextile = company.companyType === "textiles";
+
   const [purchaseType, setPurchaseType] = useState<"grey" | "finished" | "consumable" | "other">("grey");
   const [selectedSupplier, setSelectedSupplier] = useState("");
   const [voucherNo, setVoucherNo] = useState("");
@@ -94,7 +96,7 @@ export default function PurchaseClient({
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [printVoucher, setPrintVoucher] = useState<any>(null);
-
+ 
   // Check if Interstate or Intrastate GST
   const isInterstate = useMemo(() => {
     const companyGst = company?.gstNo || "";
@@ -108,7 +110,7 @@ export default function PurchaseClient({
     return lineItems.map((line) => {
       const qty = Number(line.quantity) || 0;
       const rate = Number(line.rate) || 0;
-      const fold = Number(line.fold) || 100;
+      const fold = isTextile ? (Number(line.fold) || 100) : 100;
       const gstRatePercent = Number(line.gstRateId ? taxRates.find((t) => String(t.taxRateId) === line.gstRateId)?.taxPercent : 0) || 0;
       
       // Fold calculation: qty * rate * fold / 100
@@ -325,15 +327,19 @@ export default function PurchaseClient({
             </Select>
           </div>
 
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold uppercase text-foreground">Broker</Label>
-            <Input value={broker} onChange={(e) => setBroker(e.target.value)} placeholder="Broker Name" className="h-9" />
-          </div>
+          {isTextile && (
+            <>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold uppercase text-foreground">Broker</Label>
+                <Input value={broker} onChange={(e) => setBroker(e.target.value)} placeholder="Broker Name" className="h-9" />
+              </div>
 
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold uppercase text-foreground">Haste (Delivery Agent)</Label>
-            <Input value={haste} onChange={(e) => setHaste(e.target.value)} placeholder="Haste / Courier" className="h-9" />
-          </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold uppercase text-foreground">Haste (Delivery Agent)</Label>
+                <Input value={haste} onChange={(e) => setHaste(e.target.value)} placeholder="Haste / Courier" className="h-9" />
+              </div>
+            </>
+          )}
         </div>
 
         {/* Voucher Info */}
@@ -357,30 +363,32 @@ export default function PurchaseClient({
         </div>
 
         {/* Logistics details */}
-        <div className="rounded-lg border border-border bg-card p-5 space-y-4 shadow-sm">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">Logistics & Shipping</h2>
+        {isTextile && (
+          <div className="rounded-lg border border-border bg-card p-5 space-y-4 shadow-sm">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">Logistics & Shipping</h2>
 
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold uppercase text-foreground">LR No.</Label>
-            <Input value={lrNo} onChange={(e) => setLrNo(e.target.value)} placeholder="Lorry Receipt No." className="h-9" />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">LR Date</Label>
-              <Input type="date" value={lrDate} onChange={(e) => setLrDate(e.target.value)} className="h-9" />
+              <Label className="text-xs font-semibold uppercase text-foreground">LR No.</Label>
+              <Input value={lrNo} onChange={(e) => setLrNo(e.target.value)} placeholder="Lorry Receipt No." className="h-9" />
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">Transport</Label>
-              <Input value={transport} onChange={(e) => setTransport(e.target.value)} placeholder="Transport Service" className="h-9" />
-            </div>
-          </div>
 
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold uppercase text-foreground">Vehicle No.</Label>
-            <Input value={vehicleNo} onChange={(e) => setVehicleNo(e.target.value)} placeholder="e.g. GJ-05-XX-XXXX" className="h-9" />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold uppercase text-foreground">LR Date</Label>
+                <Input type="date" value={lrDate} onChange={(e) => setLrDate(e.target.value)} className="h-9" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold uppercase text-foreground">Transport</Label>
+                <Input value={transport} onChange={(e) => setTransport(e.target.value)} placeholder="Transport Service" className="h-9" />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase text-foreground">Vehicle No.</Label>
+              <Input value={vehicleNo} onChange={(e) => setVehicleNo(e.target.value)} placeholder="e.g. GJ-05-XX-XXXX" className="h-9" />
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Line Items Table */}
@@ -402,8 +410,8 @@ export default function PurchaseClient({
                 <th className="py-2 pr-4 w-[25%]">Product</th>
                 <th className="py-2 px-3 w-[20%]">Expense Ledger</th>
                 <th className="py-2 px-3 w-[8%] text-right">PCS</th>
-                <th className="py-2 px-3 w-[10%] text-right">Quantity (Mtr)</th>
-                <th className="py-2 px-3 w-[8%] text-right">Fold %</th>
+                <th className="py-2 px-3 w-[10%] text-right">{isTextile ? "Quantity (Mtr)" : "Quantity"}</th>
+                {isTextile && <th className="py-2 px-3 w-[8%] text-right">Fold %</th>}
                 <th className="py-2 px-3 w-[10%] text-right">Rate</th>
                 <th className="py-2 px-3 w-[10%]">GST Rate</th>
                 <th className="py-2 px-3 w-[12%] text-right">Net Taxable</th>
@@ -460,15 +468,17 @@ export default function PurchaseClient({
                         className="h-9 text-right font-medium"
                       />
                     </td>
-                    <td className="py-3 px-3">
-                      <Input
-                        type="number"
-                        step="0.1"
-                        value={line.fold}
-                        onChange={(e) => updateLine(line.id, "fold", e.target.value)}
-                        className="h-9 text-right text-muted-foreground"
-                      />
-                    </td>
+                    {isTextile && (
+                      <td className="py-3 px-3">
+                        <Input
+                          type="number"
+                          step="0.1"
+                          value={line.fold}
+                          onChange={(e) => updateLine(line.id, "fold", e.target.value)}
+                          className="h-9 text-right text-muted-foreground"
+                        />
+                      </td>
+                    )}
                     <td className="py-3 px-3">
                       <Input
                         type="number"

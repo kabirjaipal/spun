@@ -17,7 +17,21 @@ export async function PATCH(request: Request) {
   const companyId = Number(session.user.companyId);
   const userId = session.user.id;
   const body = await request.json();
-  const { companyName, gstNo, panNo, address, financialYearStart } = body;
+  const {
+    companyName,
+    gstNo,
+    panNo,
+    address,
+    financialYearStart,
+    companyType,
+    marketCategory,
+    bankName,
+    bankAccountName,
+    accountNo,
+    ifscCode,
+    branchName,
+    accountType,
+  } = body;
 
   if (!companyName) {
     return NextResponse.json({ error: "Company name is required" }, { status: 400 });
@@ -37,6 +51,14 @@ export async function PATCH(request: Request) {
           panNo: panNo ? panNo.trim().toUpperCase() : null,
           address: address || null,
           financialYearStart: financialYearStart || null,
+          companyType: companyType || "general",
+          marketCategory: marketCategory || null,
+          bankName: bankName || null,
+          bankAccountName: bankAccountName || null,
+          accountNo: accountNo || null,
+          ifscCode: ifscCode || null,
+          branchName: branchName || null,
+          accountType: accountType || null,
           updatedBy: userId,
           updatedOn: new Date(),
         })

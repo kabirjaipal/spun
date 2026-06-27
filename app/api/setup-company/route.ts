@@ -34,6 +34,8 @@ export async function POST(request: Request) {
       gstType,
       stateCode,
       city,
+      companyType,
+      marketCategory,
     } = body;
 
     if (!companyName) {
@@ -92,6 +94,8 @@ export async function POST(request: Request) {
             stateCode: stateCode || null,
             city: city || null,
             financialYearStart: financialYearStart || null,
+            companyType: companyType || "general",
+            marketCategory: marketCategory || null,
             updatedBy: session.user.id,
           })
           .where(eq(mCompanies.companyId, existingCompany.companyId));
@@ -124,6 +128,8 @@ export async function POST(request: Request) {
           stateCode: stateCode || null,
           city: city || null,
           financialYearStart: financialYearStart || null,
+          companyType: companyType || "general",
+          marketCategory: marketCategory || null,
           createdBy: session.user.id,
           updatedBy: session.user.id,
         })

@@ -44,7 +44,7 @@ export default async function PurchasePage() {
 
   return (
     <PurchaseClient
-      company={company ? { companyName: company.companyName, gstNo: company.gstNo, address: company.address } : { companyName: "Texora Company" }}
+      company={company ? { companyName: company.companyName, gstNo: company.gstNo, address: company.address, companyType: company.companyType } : { companyName: "Texora Company", companyType: "general" }}
       suppliers={suppliers.map((supplier) => ({
         supplierId: supplier.supplierId,
         supplierName: supplier.supplierName,

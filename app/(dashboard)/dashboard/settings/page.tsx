@@ -48,6 +48,14 @@ export default async function SettingsPage() {
     panNo: company.panNo,
     address: company.address,
     financialYearStart: company.financialYearStart,
+    companyType: company.companyType,
+    marketCategory: company.marketCategory,
+    bankName: company.bankName,
+    bankAccountName: company.bankAccountName,
+    accountNo: company.accountNo,
+    ifscCode: company.ifscCode,
+    branchName: company.branchName,
+    accountType: company.accountType,
   };
 
   const counts = {
