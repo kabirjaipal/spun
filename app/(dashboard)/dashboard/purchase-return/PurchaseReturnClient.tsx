@@ -15,10 +15,10 @@ interface SupplierOption {
   address: string | null;
 }
 
-interface ProductOption {
-  productId: number;
-  productName: string;
-  productCode: string;
+interface InventoryOption {
+  inventoryId: number;
+  inventoryName: string;
+  inventoryCode: string;
   unit: string;
   gstRateId: number | null;
 }
@@ -42,9 +42,9 @@ interface PurchaseInvoice {
   netAmount: string;
   lineItems: Array<{
     voucherItemId: number;
-    productId: number;
-    productName: string;
-    productCode: string;
+    inventoryId: number;
+    inventoryName: string;
+    inventoryCode: string;
     unit: string;
     ledgerId: number;
     hsnCode: string | null;
@@ -63,8 +63,8 @@ interface PurchaseInvoice {
 
 interface ReturnLineItem {
   id: string;
-  productId: string;
-  productName: string;
+  inventoryId: string;
+  inventoryName: string;
   ledgerId: string;
   hsnCode: string;
   pcs: string;
@@ -80,14 +80,14 @@ interface ReturnLineItem {
 export default function PurchaseReturnClient({
   company,
   suppliers,
-  products,
+  inventory,
   ledgers,
   taxRates,
   canCreate,
 }: {
   company: { companyName: string; gstNo?: string | null; address?: string | null; companyType?: string };
   suppliers: SupplierOption[];
-  products: ProductOption[];
+  inventory: InventoryOption[];
   ledgers: LedgerOption[];
   taxRates: TaxRateOption[];
   canCreate: boolean;
@@ -153,8 +153,8 @@ export default function PurchaseReturnClient({
       // Add lines from this invoice
       const newItems: ReturnLineItem[] = invoice.lineItems.map((line) => ({
         id: crypto.randomUUID(),
-        productId: String(line.productId),
-        productName: line.productName || "Product",
+        inventoryId: String(line.inventoryId),
+        inventoryName: line.inventoryName || "Item",
         ledgerId: String(line.ledgerId),
         hsnCode: line.hsnCode || "",
         pcs: String(line.pcs),
@@ -239,7 +239,7 @@ export default function PurchaseReturnClient({
       return;
     }
 
-    const validLines = lineItems.filter((line) => line.productId && Number(line.quantity) > 0 && Number(line.rate) >= 0);
+    const validLines = lineItems.filter((line) => line.inventoryId && Number(line.quantity) > 0 && Number(line.rate) >= 0);
     if (validLines.length === 0) {
       setMessage("Add at least one line item with valid quantity and rate.");
       return;
@@ -248,11 +248,11 @@ export default function PurchaseReturnClient({
     // Validate quantities do not exceed original inward quantity
     for (const line of validLines) {
       if (Number(line.quantity) > line.originalQuantity) {
-        setMessage(`Error: Quantity returned for product in invoice ${line.invoiceNo} exceeds original purchased quantity (${line.originalQuantity}).`);
+        setMessage(`Error: Quantity returned for item in invoice ${line.invoiceNo} exceeds original purchased quantity (${line.originalQuantity}).`);
         return;
       }
       if (Number(line.pcs || 0) > line.originalPcs) {
-        setMessage(`Error: PCS returned for product in invoice ${line.invoiceNo} exceeds original purchased PCS (${line.originalPcs}).`);
+        setMessage(`Error: PCS returned for item in invoice ${line.invoiceNo} exceeds original purchased PCS (${line.originalPcs}).`);
         return;
       }
     }
@@ -271,7 +271,7 @@ export default function PurchaseReturnClient({
         lrDate: lrDate || null,
         transport,
         lineItems: validLines.map((line) => ({
-          productId: Number(line.productId),
+          inventoryId: Number(line.inventoryId),
           ledgerId: Number(line.ledgerId),
           hsnCode: line.hsnCode,
           pcs: Number(line.pcs || 0),
@@ -424,7 +424,7 @@ export default function PurchaseReturnClient({
               <thead>
                 <tr className="border-b border-border text-[10px] uppercase font-bold text-muted-foreground">
                   <th className="py-2.5 px-2">Invoice No</th>
-                  <th className="py-2.5 px-2">Product Name</th>
+                  <th className="py-2.5 px-2">Item Name</th>
                   <th className="py-2.5 px-2">Original Qty</th>
                   <th className="py-2.5 px-2">Return PCS</th>
                   <th className="py-2.5 px-2">Return Qty {isTextile ? "(Mtr)" : ""}</th>
@@ -440,7 +440,7 @@ export default function PurchaseReturnClient({
                   return (
                     <tr key={line.id} className="hover:bg-muted/10">
                       <td className="py-2 px-2 text-xs font-semibold text-muted-foreground">{line.invoiceNo}</td>
-                      <td className="py-2 px-2 text-xs font-medium text-foreground">{line.productName}</td>
+                      <td className="py-2 px-2 text-xs font-medium text-foreground">{line.inventoryName}</td>
                       <td className="py-2 px-2 text-xs text-muted-foreground">
                         {line.originalPcs} PCS {isTextile ? `/ ${line.originalQuantity} Mtr` : `/ ${line.originalQuantity}`}
                       </td>

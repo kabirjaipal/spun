@@ -1,12 +1,12 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { mProducts, mTaxRates, mInventoryGroups, mInventoryCategories, mUnitsOfMeasurement } from "@/lib/db/schema";
+import { mInventory, mTaxRates, mInventoryGroups, mInventoryCategories, mUnitsOfMeasurement } from "@/lib/db/schema";
 import { and, isNull, eq } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
-import ProductsClient from "./ProductsClient";
+import InventoryClient from "./InventoryClient";
 
-export default async function ProductsPage() {
+export default async function InventoryPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
   if (!session.user.companyId) redirect("/setup-company");
@@ -16,29 +16,29 @@ export default async function ProductsPage() {
   const [rows, taxRates, inventoryGroups, inventoryCategories, unitsList] = await Promise.all([
     db
       .select({
-        productId: mProducts.productId,
-        productCode: mProducts.productCode,
-        productName: mProducts.productName,
-        unit: mProducts.unit,
-        gstRateId: mProducts.gstRateId,
-        openingStockQty: mProducts.openingStockQty,
-        openingStockRate: mProducts.openingStockRate,
+        inventoryId: mInventory.inventoryId,
+        inventoryCode: mInventory.inventoryCode,
+        inventoryName: mInventory.inventoryName,
+        unit: mInventory.unit,
+        gstRateId: mInventory.gstRateId,
+        openingStockQty: mInventory.openingStockQty,
+        openingStockRate: mInventory.openingStockRate,
         taxName: mTaxRates.taxName,
         taxPercent: mTaxRates.taxPercent,
-        hsnCode: mProducts.hsnCode,
-        inventoryGroupId: mProducts.inventoryGroupId,
-        inventoryCategoryId: mProducts.inventoryCategoryId,
-        gstType: mProducts.gstType,
-        gstPercent: mProducts.gstPercent,
-        isConsumable: mProducts.isConsumable,
-        consumeWithProductId: mProducts.consumeWithProductId,
-        consumptionRatio: mProducts.consumptionRatio,
-        shortagePercent: mProducts.shortagePercent,
+        hsnCode: mInventory.hsnCode,
+        inventoryGroupId: mInventory.inventoryGroupId,
+        inventoryCategoryId: mInventory.inventoryCategoryId,
+        gstType: mInventory.gstType,
+        gstPercent: mInventory.gstPercent,
+        isConsumable: mInventory.isConsumable,
+        consumeWithInventoryId: mInventory.consumeWithInventoryId,
+        consumptionRatio: mInventory.consumptionRatio,
+        shortagePercent: mInventory.shortagePercent,
       })
-      .from(mProducts)
-      .leftJoin(mTaxRates, eq(mProducts.gstRateId, mTaxRates.taxRateId))
-      .where(and(eq(mProducts.companyId, companyId), isNull(mProducts.deletedOn)))
-      .orderBy(mProducts.productName),
+      .from(mInventory)
+      .leftJoin(mTaxRates, eq(mInventory.gstRateId, mTaxRates.taxRateId))
+      .where(and(eq(mInventory.companyId, companyId), isNull(mInventory.deletedOn)))
+      .orderBy(mInventory.inventoryName),
     db.select().from(mTaxRates).where(isNull(mTaxRates.deletedOn)).orderBy(mTaxRates.taxPercent),
     db.select().from(mInventoryGroups).where(and(eq(mInventoryGroups.companyId, companyId), isNull(mInventoryGroups.deletedOn))).orderBy(mInventoryGroups.groupName),
     db.select().from(mInventoryCategories).where(and(eq(mInventoryCategories.companyId, companyId), isNull(mInventoryCategories.deletedOn))).orderBy(mInventoryCategories.categoryName),
@@ -46,10 +46,10 @@ export default async function ProductsPage() {
   ]);
 
   const perms = getStaticPermissionsForRole(session.user.role as Role);
-  const p = perms.find((x) => x.accessItem === "products");
+  const p = perms.find((x) => x.accessItem === "inventory");
 
   return (
-    <ProductsClient
+    <InventoryClient
       initialData={rows.map((r) => ({
         ...r,
         openingStockQty: String(r.openingStockQty),

@@ -1,1 +1,0 @@
-ALTER TABLE "t_vouchers" ADD COLUMN "bill_details" jsonb;

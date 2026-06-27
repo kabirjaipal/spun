@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { mJobs, mProducts, mLedgers, mTaxRates, mCompanies, tVouchers, tVoucherItems } from "@/lib/db/schema";
+import { mJobs, mInventory, mLedgers, mTaxRates, mCompanies, tVouchers, tVoucherItems } from "@/lib/db/schema";
 import { and, eq, isNull } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
 import JobInwardClient from "./JobInwardClient";
@@ -13,7 +13,7 @@ export default async function JobInwardPage() {
 
   const companyId = Number(session.user.companyId);
 
-  const [jobs, products, ledgers, taxRates, company, outwardVouchers, outwardItems] = await Promise.all([
+  const [jobs, inventory, ledgers, taxRates, company, outwardVouchers, outwardItems] = await Promise.all([
     db
       .select()
       .from(mJobs)
@@ -21,9 +21,9 @@ export default async function JobInwardPage() {
       .orderBy(mJobs.jobName),
     db
       .select()
-      .from(mProducts)
-      .where(and(eq(mProducts.companyId, companyId), isNull(mProducts.deletedOn)))
-      .orderBy(mProducts.productName),
+      .from(mInventory)
+      .where(and(eq(mInventory.companyId, companyId), isNull(mInventory.deletedOn)))
+      .orderBy(mInventory.inventoryName),
     db
       .select()
       .from(mLedgers)
@@ -51,7 +51,7 @@ export default async function JobInwardPage() {
       .select({
         voucherItemId: tVoucherItems.voucherItemId,
         voucherId: tVoucherItems.voucherId,
-        productId: tVoucherItems.productId,
+        inventoryId: tVoucherItems.inventoryId,
         ledgerId: tVoucherItems.ledgerId,
         hsnCode: tVoucherItems.hsnCode,
         pcs: tVoucherItems.pcs,
@@ -79,12 +79,12 @@ export default async function JobInwardPage() {
         address: job.address,
         gstNo: job.gstNo,
       }))}
-      products={products.map((product) => ({
-        productId: product.productId,
-        productName: product.productName,
-        productCode: product.productCode,
-        unit: product.unit,
-        gstRateId: product.gstRateId,
+      inventory={inventory.map((item) => ({
+        inventoryId: item.inventoryId,
+        inventoryName: item.inventoryName,
+        inventoryCode: item.inventoryCode,
+        unit: item.unit,
+        gstRateId: item.gstRateId,
       }))}
       ledgers={ledgers.map((ledger) => ({
         ledgerId: ledger.ledgerId,
@@ -106,7 +106,7 @@ export default async function JobInwardPage() {
       outwardItems={outwardItems.map((item) => ({
         voucherItemId: Number(item.voucherItemId),
         voucherId: Number(item.voucherId),
-        productId: Number(item.productId),
+        inventoryId: Number(item.inventoryId),
         ledgerId: Number(item.ledgerId),
         hsnCode: item.hsnCode,
         pcs: item.pcs,

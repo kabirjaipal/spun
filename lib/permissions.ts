@@ -17,7 +17,7 @@ export const ALL_PAGES: PageConfig[] = [
   // Masters
   { accessItem: "customers", pageUrl: "/dashboard/customers", pageTitle: "Customers", pageIcon: "Users", pageGroup: "Masters", accessGroup: "company" },
   { accessItem: "suppliers", pageUrl: "/dashboard/suppliers", pageTitle: "Suppliers", pageIcon: "Truck", pageGroup: "Masters", accessGroup: "company" },
-  { accessItem: "products", pageUrl: "/dashboard/products", pageTitle: "Products", pageIcon: "Package", pageGroup: "Masters", accessGroup: "company" },
+  { accessItem: "inventory", pageUrl: "/dashboard/inventory", pageTitle: "Inventory", pageIcon: "Package", pageGroup: "Masters", accessGroup: "company" },
   { accessItem: "inventory_categories", pageUrl: "/dashboard/inventory-categories", pageTitle: "Inventory Categories", pageIcon: "Layers", pageGroup: "Masters", accessGroup: "company" },
   { accessItem: "inventory_groups", pageUrl: "/dashboard/inventory-groups", pageTitle: "Inventory Groups", pageIcon: "Folder", pageGroup: "Masters", accessGroup: "company" },
   { accessItem: "units_of_measurement", pageUrl: "/dashboard/units-of-measurement", pageTitle: "Units of Measurement", pageIcon: "Scale", pageGroup: "Masters", accessGroup: "company" },

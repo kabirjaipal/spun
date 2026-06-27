@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { mProducts, mTaxRates } from "@/lib/db/schema";
+import { mInventory, mTaxRates } from "@/lib/db/schema";
 import { and, isNull, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
@@ -14,29 +14,29 @@ export async function GET() {
 
   const rows = await db
     .select({
-      productId: mProducts.productId,
-      productCode: mProducts.productCode,
-      productName: mProducts.productName,
-      unit: mProducts.unit,
-      gstRateId: mProducts.gstRateId,
-      openingStockQty: mProducts.openingStockQty,
-      openingStockRate: mProducts.openingStockRate,
+      inventoryId: mInventory.inventoryId,
+      inventoryCode: mInventory.inventoryCode,
+      inventoryName: mInventory.inventoryName,
+      unit: mInventory.unit,
+      gstRateId: mInventory.gstRateId,
+      openingStockQty: mInventory.openingStockQty,
+      openingStockRate: mInventory.openingStockRate,
       taxName: mTaxRates.taxName,
       taxPercent: mTaxRates.taxPercent,
-      hsnCode: mProducts.hsnCode,
-      inventoryGroupId: mProducts.inventoryGroupId,
-      inventoryCategoryId: mProducts.inventoryCategoryId,
-      gstType: mProducts.gstType,
-      gstPercent: mProducts.gstPercent,
-      isConsumable: mProducts.isConsumable,
-      consumeWithProductId: mProducts.consumeWithProductId,
-      consumptionRatio: mProducts.consumptionRatio,
-      shortagePercent: mProducts.shortagePercent,
+      hsnCode: mInventory.hsnCode,
+      inventoryGroupId: mInventory.inventoryGroupId,
+      inventoryCategoryId: mInventory.inventoryCategoryId,
+      gstType: mInventory.gstType,
+      gstPercent: mInventory.gstPercent,
+      isConsumable: mInventory.isConsumable,
+      consumeWithInventoryId: mInventory.consumeWithInventoryId,
+      consumptionRatio: mInventory.consumptionRatio,
+      shortagePercent: mInventory.shortagePercent,
     })
-    .from(mProducts)
-    .leftJoin(mTaxRates, eq(mProducts.gstRateId, mTaxRates.taxRateId))
-    .where(and(eq(mProducts.companyId, companyId), isNull(mProducts.deletedOn)))
-    .orderBy(mProducts.productName);
+    .from(mInventory)
+    .leftJoin(mTaxRates, eq(mInventory.gstRateId, mTaxRates.taxRateId))
+    .where(and(eq(mInventory.companyId, companyId), isNull(mInventory.deletedOn)))
+    .orderBy(mInventory.inventoryName);
 
   return NextResponse.json(rows);
 }
@@ -49,8 +49,8 @@ export async function POST(request: Request) {
   const companyId = Number(session.user.companyId);
   const userId = session.user.id;
   const {
-    productCode,
-    productName,
+    inventoryCode,
+    inventoryName,
     unit,
     gstRateId,
     openingStockQty,
@@ -61,22 +61,22 @@ export async function POST(request: Request) {
     gstType,
     gstPercent,
     isConsumable,
-    consumeWithProductId,
+    consumeWithInventoryId,
     consumptionRatio,
     shortagePercent,
   } = await request.json();
 
-  if (!productCode || !productName || !unit) {
-    return NextResponse.json({ error: "productCode, productName, and unit are required" }, { status: 400 });
+  if (!inventoryCode || !inventoryName || !unit) {
+    return NextResponse.json({ error: "inventoryCode, inventoryName, and unit are required" }, { status: 400 });
   }
 
   const [row] = await db.transaction(async (tx) => {
     const [inserted] = await tx
-      .insert(mProducts)
+      .insert(mInventory)
       .values({
         companyId,
-        productCode,
-        productName,
+        inventoryCode,
+        inventoryName,
         unit,
         gstRateId: gstRateId ? Number(gstRateId) : null,
         openingStockQty: String(openingStockQty ?? 0),
@@ -87,7 +87,7 @@ export async function POST(request: Request) {
         gstType: gstType || null,
         gstPercent: gstPercent ? String(gstPercent) : null,
         isConsumable: !!isConsumable,
-        consumeWithProductId: consumeWithProductId ? Number(consumeWithProductId) : null,
+        consumeWithInventoryId: consumeWithInventoryId ? Number(consumeWithInventoryId) : null,
         consumptionRatio: consumptionRatio ? String(consumptionRatio) : null,
         shortagePercent: shortagePercent ? String(shortagePercent) : null,
         createdBy: userId,
@@ -96,8 +96,8 @@ export async function POST(request: Request) {
       .returning();
 
     await writeAuditLog(tx, {
-      tableName: "m_products",
-      recordId: Number(inserted.productId),
+      tableName: "m_inventory",
+      recordId: Number(inserted.inventoryId),
       actionType: "create",
       newDataJson: inserted,
       createdBy: userId,

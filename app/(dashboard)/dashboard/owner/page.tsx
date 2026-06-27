@@ -1,7 +1,7 @@
 import React from "react";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { mCompanies, mProducts, tAuditLogs, mUsers } from "@/lib/db/schema";
+import { mCompanies, mInventory, tAuditLogs, mUsers } from "@/lib/db/schema";
 import { eq, sql, isNull } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import * as Icons from "lucide-react";
@@ -24,10 +24,10 @@ export default async function OwnerDashboardPage() {
     .from(mUsers)
     .where(eq(mUsers.isActive, true));
 
-  const [totalProductsCount] = await db
+  const [totalInventoryCount] = await db
     .select({ count: sql<number>`count(*)` })
-    .from(mProducts)
-    .where(isNull(mProducts.deletedOn));
+    .from(mInventory)
+    .where(isNull(mInventory.deletedOn));
 
   const [auditLogsCount] = await db
     .select({ count: sql<number>`count(*)` })
@@ -41,7 +41,7 @@ export default async function OwnerDashboardPage() {
   const stats = [
     { name: "COMPANIES", value: Number(companiesCount?.count || 0), icon: "Building2", color: "text-primary bg-primary/10", description: "Registered textile companies" },
     { name: "ACTIVE USERS", value: Number(usersCount?.count || 0), icon: "Users", color: "text-success bg-success/10", description: "Platform active user accounts" },
-    { name: "SYSTEM PRODUCTS", value: Number(totalProductsCount?.count || 0), icon: "Package", color: "text-warning bg-warning/10", description: "Registered product items" },
+    { name: "SYSTEM INVENTORY", value: Number(totalInventoryCount?.count || 0), icon: "Package", color: "text-warning bg-warning/10", description: "Registered inventory items" },
     { name: "AUDIT LOGS", value: Number(auditLogsCount?.count || 0), icon: "History", color: "text-info bg-info/10", description: "Recorded administrative events" },
   ];
 

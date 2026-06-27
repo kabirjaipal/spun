@@ -1,7 +1,7 @@
 import React from "react";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { mCustomers, mSuppliers, mProducts, mCompanies, mLedgers, tVouchers } from "@/lib/db/schema";
+import { mCustomers, mSuppliers, mInventory, mCompanies, mLedgers, tVouchers } from "@/lib/db/schema";
 import { eq, sql, isNull, and, desc } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import * as Icons from "lucide-react";
@@ -35,7 +35,7 @@ export default async function DashboardPage() {
   const [
     customersCountRaw,
     suppliersCountRaw,
-    productsCountRaw,
+    inventoryCountRaw,
     ledgersCountRaw,
     monthlyStats,
     financialSummary,
@@ -51,8 +51,8 @@ export default async function DashboardPage() {
       .where(and(eq(mSuppliers.companyId, companyIdVal), isNull(mSuppliers.deletedOn))),
     db
       .select({ count: sql<number>`count(*)` })
-      .from(mProducts)
-      .where(and(eq(mProducts.companyId, companyIdVal), isNull(mProducts.deletedOn))),
+      .from(mInventory)
+      .where(and(eq(mInventory.companyId, companyIdVal), isNull(mInventory.deletedOn))),
     db
       .select({ count: sql<number>`count(*)` })
       .from(mLedgers)
@@ -107,7 +107,7 @@ export default async function DashboardPage() {
 
   const customersCount = customersCountRaw[0]?.count ?? 0;
   const suppliersCount = suppliersCountRaw[0]?.count ?? 0;
-  const productsCount = productsCountRaw[0]?.count ?? 0;
+  const inventoryCount = inventoryCountRaw[0]?.count ?? 0;
   const ledgersCount = ledgersCountRaw[0]?.count ?? 0;
 
   const stats = [
@@ -126,8 +126,8 @@ export default async function DashboardPage() {
       description: "Fabric and yarn suppliers",
     },
     {
-      name: "PRODUCTS",
-      value: productsCount,
+      name: "INVENTORY",
+      value: inventoryCount,
       icon: "Package",
       color: "text-warning bg-warning/10",
       description: "Inventory stock items",

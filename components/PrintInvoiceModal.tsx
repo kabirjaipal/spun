@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Printer, Download, X } from "lucide-react";
 
 interface InvoiceLine {
-  productCode: string;
-  productName: string;
+  inventoryCode: string;
+  inventoryName: string;
   quantity: number;
   unit: string;
   rate: number;
@@ -101,8 +101,8 @@ export default function PrintInvoiceModal({ isOpen, onClose, company, party, vou
       table{width:100%;border-collapse:collapse;margin-bottom:20px}
       th{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#888;padding:8px 6px;border-bottom:2px solid #111;white-space:nowrap}
       td{padding:10px 6px;border-bottom:1px solid #eee;font-size:11px;vertical-align:top}
-      .product-name{font-weight:700;color:#111}
-      .product-code{font-family:monospace;font-size:10px;color:#888;margin-top:2px}
+      .inventory-name{font-weight:700;color:#111}
+      .inventory-code{font-family:monospace;font-size:10px;color:#888;margin-top:2px}
       .text-right{text-align:right}
       .mono{font-family:monospace}
       .totals-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:8px}
@@ -156,7 +156,7 @@ export default function PrintInvoiceModal({ isOpen, onClose, company, party, vou
         <tbody>${lines.map(l => {
       const gstAmt = (l.amount * l.gstPercent) / 100;
       return `<tr>
-            <td><div class="product-name">${l.productName}</div><div class="product-code">${l.productCode}</div></td>
+            <td><div class="inventory-name">${l.inventoryName}</div><div class="inventory-code">${l.inventoryCode}</div></td>
             <td class="text-right mono">${l.quantity.toFixed(2)} ${l.unit}</td>
             <td class="text-right mono">${fmt(l.rate)}</td>
             <td class="text-right mono">${l.gstPercent}%</td>
@@ -220,8 +220,8 @@ export default function PrintInvoiceModal({ isOpen, onClose, company, party, vou
       table{width:100%;border-collapse:collapse;margin-bottom:20px}
       th{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#888;padding:8px 6px;border-bottom:2px solid #111;white-space:nowrap}
       td{padding:10px 6px;border-bottom:1px solid #eee;font-size:11px;vertical-align:top}
-      .product-name{font-weight:700;color:#111}
-      .product-code{font-family:monospace;font-size:10px;color:#888;margin-top:2px}
+      .inventory-name{font-weight:700;color:#111}
+      .inventory-code{font-family:monospace;font-size:10px;color:#888;margin-top:2px}
       .text-right{text-align:right}
       .mono{font-family:monospace}
       .totals-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:8px}
@@ -276,7 +276,7 @@ export default function PrintInvoiceModal({ isOpen, onClose, company, party, vou
         <tbody>${lines.map(l => {
       const gstAmt = (l.amount * l.gstPercent) / 100;
       return `<tr>
-            <td><div class="product-name">${l.productName}</div><div class="product-code">${l.productCode}</div></td>
+            <td><div class="inventory-name">${l.inventoryName}</div><div class="inventory-code">${l.inventoryCode}</div></td>
             <td class="text-right mono">${l.quantity.toFixed(2)} ${l.unit}</td>
             <td class="text-right mono">${fmt(l.rate)}</td>
             <td class="text-right mono">${l.gstPercent}%</td>
@@ -394,8 +394,8 @@ export default function PrintInvoiceModal({ isOpen, onClose, company, party, vou
                   {lines.map((line, idx) => (
                     <tr key={idx} style={{ borderBottom: "1px solid #f0f0f0" }}>
                       <td style={{ padding: "10px 8px", verticalAlign: "top" }}>
-                        <div style={{ fontWeight: 700, color: "#111", fontSize: 12 }}>{line.productName}</div>
-                        <div style={{ fontFamily: "monospace", fontSize: 10, color: "#888", marginTop: 2 }}>{line.productCode}</div>
+                        <div style={{ fontWeight: 700, color: "#111", fontSize: 12 }}>{line.inventoryName}</div>
+                        <div style={{ fontFamily: "monospace", fontSize: 10, color: "#888", marginTop: 2 }}>{line.inventoryCode}</div>
                       </td>
                       <td style={{ padding: "10px 8px", textAlign: "right", fontFamily: "monospace", fontSize: 11, verticalAlign: "top", whiteSpace: "nowrap" }}>{line.quantity.toFixed(2)} {line.unit}</td>
                       <td style={{ padding: "10px 8px", textAlign: "right", fontFamily: "monospace", fontSize: 11, verticalAlign: "top", whiteSpace: "nowrap" }}>{fmt(line.rate)}</td>

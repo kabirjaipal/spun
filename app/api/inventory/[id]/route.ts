@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { mProducts } from "@/lib/db/schema";
+import { mInventory } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
@@ -14,8 +14,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const companyId = Number(session.user.companyId);
   const userId = session.user.id;
   const {
-    productCode,
-    productName,
+    inventoryCode,
+    inventoryName,
     unit,
     gstRateId,
     openingStockQty,
@@ -26,21 +26,21 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     gstType,
     gstPercent,
     isConsumable,
-    consumeWithProductId,
+    consumeWithInventoryId,
     consumptionRatio,
     shortagePercent,
   } = await request.json();
 
   const [row] = await db.transaction(async (tx) => {
-    const oldP = await tx.query.mProducts.findFirst({
-      where: and(eq(mProducts.productId, Number(id)), eq(mProducts.companyId, companyId))
+    const oldP = await tx.query.mInventory.findFirst({
+      where: and(eq(mInventory.inventoryId, Number(id)), eq(mInventory.companyId, companyId))
     });
 
     const [updated] = await tx
-      .update(mProducts)
+      .update(mInventory)
       .set({
-        productCode,
-        productName,
+        inventoryCode,
+        inventoryName,
         unit,
         gstRateId: gstRateId ? Number(gstRateId) : null,
         openingStockQty: String(openingStockQty),
@@ -51,18 +51,18 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         gstType: gstType || null,
         gstPercent: gstPercent ? String(gstPercent) : null,
         isConsumable: !!isConsumable,
-        consumeWithProductId: consumeWithProductId ? Number(consumeWithProductId) : null,
+        consumeWithInventoryId: consumeWithInventoryId ? Number(consumeWithInventoryId) : null,
         consumptionRatio: consumptionRatio ? String(consumptionRatio) : null,
         shortagePercent: shortagePercent ? String(shortagePercent) : null,
         updatedBy: userId,
         updatedOn: new Date(),
       })
-      .where(and(eq(mProducts.productId, Number(id)), eq(mProducts.companyId, companyId)))
+      .where(and(eq(mInventory.inventoryId, Number(id)), eq(mInventory.companyId, companyId)))
       .returning();
 
     if (updated) {
       await writeAuditLog(tx, {
-        tableName: "m_products",
+        tableName: "m_inventory",
         recordId: Number(id),
         actionType: "update",
         oldDataJson: oldP || null,
@@ -88,17 +88,17 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
   const now = new Date();
 
   await db.transaction(async (tx) => {
-    const oldP = await tx.query.mProducts.findFirst({
-      where: and(eq(mProducts.productId, Number(id)), eq(mProducts.companyId, companyId))
+    const oldP = await tx.query.mInventory.findFirst({
+      where: and(eq(mInventory.inventoryId, Number(id)), eq(mInventory.companyId, companyId))
     });
 
     await tx
-      .update(mProducts)
+      .update(mInventory)
       .set({ deletedOn: now, deletedBy: userId })
-      .where(and(eq(mProducts.productId, Number(id)), eq(mProducts.companyId, companyId)));
+      .where(and(eq(mInventory.inventoryId, Number(id)), eq(mInventory.companyId, companyId)));
 
     await writeAuditLog(tx, {
-      tableName: "m_products",
+      tableName: "m_inventory",
       recordId: Number(id),
       actionType: "delete",
       oldDataJson: oldP || null,

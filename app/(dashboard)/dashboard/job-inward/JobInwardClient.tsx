@@ -15,10 +15,10 @@ interface JobOption {
   gstNo: string | null;
 }
 
-interface ProductOption {
-  productId: number;
-  productName: string;
-  productCode: string;
+interface InventoryOption {
+  inventoryId: number;
+  inventoryName: string;
+  inventoryCode: string;
   unit: string;
   gstRateId: number | null;
 }
@@ -46,7 +46,7 @@ interface OutwardVoucher {
 interface OutwardItem {
   voucherItemId: number;
   voucherId: number;
-  productId: number;
+  inventoryId: number;
   ledgerId: number;
   hsnCode: string | null;
   pcs: number;
@@ -60,7 +60,7 @@ interface OutwardItem {
 
 interface LineItem {
   id: string;
-  productId: string;
+  inventoryId: string;
   ledgerId: string;
   hsnCode: string;
   outwardPcs: number;
@@ -77,7 +77,7 @@ interface LineItem {
 export default function JobInwardClient({
   company,
   jobs,
-  products,
+  inventory,
   ledgers,
   taxRates,
   outwardVouchers,
@@ -86,7 +86,7 @@ export default function JobInwardClient({
 }: {
   company: { companyName: string; gstNo?: string | null; address?: string | null };
   jobs: JobOption[];
-  products: ProductOption[];
+  inventory: InventoryOption[];
   ledgers: LedgerOption[];
   taxRates: TaxRateOption[];
   outwardVouchers: OutwardVoucher[];
@@ -131,7 +131,7 @@ export default function JobInwardClient({
     const matchedItems = outwardItems.filter((item) => item.voucherId === Number(selectedVoucherId));
     const itemsMapped = matchedItems.map((item) => ({
       id: crypto.randomUUID(),
-      productId: String(item.productId),
+      inventoryId: String(item.inventoryId),
       ledgerId: String(item.ledgerId),
       hsnCode: item.hsnCode || "",
       outwardPcs: item.pcs,
@@ -195,12 +195,12 @@ export default function JobInwardClient({
       items.map((item) => {
         if (item.id !== id) return item;
 
-        if (field === "productId") {
-          const prod = products.find((p) => String(p.productId) === value);
+        if (field === "inventoryId") {
+          const prod = inventory.find((p) => String(p.inventoryId) === value);
           return {
             ...item,
-            productId: value,
-            hsnCode: prod?.productCode || "",
+            inventoryId: value,
+            hsnCode: prod?.inventoryCode || "",
             gstRateId: prod?.gstRateId ? String(prod.gstRateId) : "",
           };
         }
@@ -215,7 +215,7 @@ export default function JobInwardClient({
       ...items,
       {
         id: crypto.randomUUID(),
-        productId: "",
+        inventoryId: "",
         ledgerId: "",
         hsnCode: "",
         outwardPcs: 0,
@@ -242,9 +242,9 @@ export default function JobInwardClient({
       return;
     }
 
-    const validLines = lineItems.filter((line) => line.productId && line.ledgerId);
+    const validLines = lineItems.filter((line) => line.inventoryId && line.ledgerId);
     if (validLines.length === 0) {
-      setMessage("Add at least one item with product and ledger specified.");
+      setMessage("Add at least one item with item and ledger specified.");
       return;
     }
 
@@ -274,7 +274,7 @@ export default function JobInwardClient({
         lineItems: validLines.map((line) => {
           const totals = lineTotals[lineItems.indexOf(line)];
           return {
-            productId: Number(line.productId),
+            inventoryId: Number(line.inventoryId),
             ledgerId: Number(line.ledgerId),
             hsnCode: line.hsnCode,
             pcs: Number(line.pcs || 0),
@@ -329,7 +329,7 @@ export default function JobInwardClient({
           address: selectedJobDetails?.address,
         },
         lines: validLines.map((line) => {
-          const prod = products.find((p) => String(p.productId) === line.productId);
+          const prod = inventory.find((p) => String(p.inventoryId) === line.inventoryId);
           const tr = taxRates.find((t) => String(t.taxRateId) === line.gstRateId);
           const qty = Number(line.quantity) || 0;
           const rt = Number(line.rate) || 0;
@@ -337,8 +337,8 @@ export default function JobInwardClient({
           const pcsVal = Number(line.pcs) || 0;
           const amt = line.jobRateType === "pcs" ? (pcsVal * rt) : (qty * rt * fd / 100);
           return {
-            productCode: prod?.productCode || "PROD",
-            productName: prod?.productName || "Product",
+            inventoryCode: prod?.inventoryCode || "PROD",
+            inventoryName: prod?.inventoryName || "Item",
             quantity: qty,
             unit: prod?.unit || "MTR",
             rate: rt,
@@ -469,7 +469,7 @@ export default function JobInwardClient({
           <table className="w-full text-left border-collapse min-w-[1100px]">
             <thead>
               <tr className="border-b border-border text-xs font-bold uppercase text-muted-foreground">
-                <th className="py-2 pr-2 w-[20%]">Product</th>
+                <th className="py-2 pr-2 w-[20%]">Item</th>
                 <th className="py-2 px-2 w-[15%]">Ledger</th>
                 <th className="py-2 px-2 w-[12%] text-center">Outward (PCS/Mtr)</th>
                 <th className="py-2 px-2 w-[8%]">Inward PCS</th>
@@ -494,14 +494,14 @@ export default function JobInwardClient({
                   return (
                     <tr key={line.id} className="hover:bg-muted/30">
                       <td className="py-3 pr-2">
-                        <Select value={line.productId} onValueChange={(v) => updateLine(line.id, "productId", v)}>
+                        <Select value={line.inventoryId} onValueChange={(v) => updateLine(line.id, "inventoryId", v)}>
                           <SelectTrigger className="h-9">
-                            <SelectValue placeholder="Select product" />
+                            <SelectValue placeholder="Select item" />
                           </SelectTrigger>
                           <SelectContent>
-                            {products.map((p) => (
-                              <SelectItem key={p.productId} value={String(p.productId)}>
-                                {p.productName} ({p.unit})
+                            {inventory.map((p) => (
+                              <SelectItem key={p.inventoryId} value={String(p.inventoryId)}>
+                                {p.inventoryName} ({p.unit})
                               </SelectItem>
                             ))}
                           </SelectContent>

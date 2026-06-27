@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { mCustomers, mProducts, mLedgers, mTaxRates, mCompanies, tVouchers } from "@/lib/db/schema";
+import { mCustomers, mInventory, mLedgers, mTaxRates, mCompanies, tVouchers } from "@/lib/db/schema";
 import { and, eq, isNull, desc } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
 import SalesClient from "./SalesClient";
@@ -13,7 +13,7 @@ export default async function SalesPage() {
 
   const companyId = Number(session.user.companyId);
 
-  const [customers, products, ledgers, taxRates, company, pastVouchers] = await Promise.all([
+  const [customers, inventory, ledgers, taxRates, company, pastVouchers] = await Promise.all([
     db
       .select()
       .from(mCustomers)
@@ -21,9 +21,9 @@ export default async function SalesPage() {
       .orderBy(mCustomers.customerName),
     db
       .select()
-      .from(mProducts)
-      .where(and(eq(mProducts.companyId, companyId), isNull(mProducts.deletedOn)))
-      .orderBy(mProducts.productName),
+      .from(mInventory)
+      .where(and(eq(mInventory.companyId, companyId), isNull(mInventory.deletedOn)))
+      .orderBy(mInventory.inventoryName),
     db
       .select()
       .from(mLedgers)
@@ -72,10 +72,10 @@ export default async function SalesPage() {
         address: c.address,
         gstNo: c.gstNo,
       }))}
-      products={products.map((p) => ({
-        productId: p.productId,
-        productName: p.productName,
-        productCode: p.productCode,
+      inventory={inventory.map((p) => ({
+        inventoryId: p.inventoryId,
+        inventoryName: p.inventoryName,
+        inventoryCode: p.inventoryCode,
         unit: p.unit,
         gstRateId: p.gstRateId,
       }))}

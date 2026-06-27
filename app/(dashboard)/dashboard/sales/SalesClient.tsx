@@ -16,10 +16,10 @@ interface CustomerOption {
   address: string | null;
 }
 
-interface ProductOption {
-  productId: number;
-  productName: string;
-  productCode: string;
+interface InventoryOption {
+  inventoryId: number;
+  inventoryName: string;
+  inventoryCode: string;
   unit: string;
   gstRateId: number | null;
 }
@@ -38,7 +38,7 @@ interface TaxRateOption {
 
 interface LineItem {
   id: string;
-  productId: string;
+  inventoryId: string;
   ledgerId: string;
   hsnCode: string;
   pcs: string;
@@ -62,7 +62,7 @@ interface PastVoucher {
 
 const EMPTY_LINE = (): LineItem => ({
   id: crypto.randomUUID(),
-  productId: "",
+  inventoryId: "",
   ledgerId: "",
   hsnCode: "",
   pcs: "0",
@@ -77,7 +77,7 @@ const fmt = (n: number) => `₹${n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, "
 export default function SalesClient({
   company,
   customers,
-  products,
+  inventory,
   ledgers,
   taxRates,
   canCreate,
@@ -85,7 +85,7 @@ export default function SalesClient({
 }: {
   company: { companyName: string; gstNo?: string | null; address?: string | null; companyType?: string };
   customers: CustomerOption[];
-  products: ProductOption[];
+  inventory: InventoryOption[];
   ledgers: LedgerOption[];
   taxRates: TaxRateOption[];
   canCreate: boolean;
@@ -168,13 +168,13 @@ export default function SalesClient({
       items.map((item) => {
         if (item.id !== id) return item;
 
-        // Auto-fill HSN and GST Rate when product changes
-        if (field === "productId") {
-          const prod = products.find((p) => String(p.productId) === value);
+        // Auto-fill HSN and GST Rate when item changes
+        if (field === "inventoryId") {
+          const prod = inventory.find((p) => String(p.inventoryId) === value);
           return {
             ...item,
-            productId: value,
-            hsnCode: prod?.productCode || "",
+            inventoryId: value,
+            hsnCode: prod?.inventoryCode || "",
             gstRateId: prod?.gstRateId ? String(prod.gstRateId) : "",
           };
         }
@@ -216,9 +216,9 @@ export default function SalesClient({
       return;
     }
 
-    const validLines = lineItems.filter((line) => line.productId && Number(line.quantity) >= 0 && Number(line.rate) >= 0 && line.ledgerId);
+    const validLines = lineItems.filter((line) => line.inventoryId && Number(line.quantity) >= 0 && Number(line.rate) >= 0 && line.ledgerId);
     if (validLines.length === 0) {
-      setMessage("Add at least one line item with product, ledger, quantity, and rate.");
+      setMessage("Add at least one line item with item, ledger, quantity, and rate.");
       return;
     }
 
@@ -242,7 +242,7 @@ export default function SalesClient({
         printRate: true,
         printAmount: true,
         lineItems: validLines.map((line) => ({
-          productId: Number(line.productId),
+          inventoryId: Number(line.inventoryId),
           ledgerId: Number(line.ledgerId),
           hsnCode: line.hsnCode,
           pcs: Number(line.pcs || 0),
@@ -284,14 +284,14 @@ export default function SalesClient({
 
       // Print setup
       const invoiceLines = validLines.map((line) => {
-        const prod = products.find((p) => String(p.productId) === line.productId);
+        const prod = inventory.find((p) => String(p.inventoryId) === line.inventoryId);
         const tr = taxRates.find((t) => String(t.taxRateId) === line.gstRateId);
         const qty = Number(line.quantity) || 0;
         const rt = Number(line.rate) || 0;
         const fd = Number(line.fold) || 100;
         return {
-          productCode: prod?.productCode || "PROD",
-          productName: prod?.productName || "Product",
+          inventoryCode: prod?.inventoryCode || "PROD",
+          inventoryName: prod?.inventoryName || "Item",
           quantity: qty,
           unit: prod?.unit || "MTR",
           rate: rt,
@@ -446,7 +446,7 @@ export default function SalesClient({
           <table className="w-full text-left border-collapse min-w-[900px]">
             <thead>
               <tr className="border-b border-border text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                <th className="py-2 pr-4 w-[25%]">Product</th>
+                <th className="py-2 pr-4 w-[25%]">Item</th>
                 <th className="py-2 px-3 w-[20%]">Revenue Ledger</th>
                 <th className="py-2 px-3 w-[8%] text-right">PCS</th>
                 <th className="py-2 px-3 w-[10%] text-right">{isTextile ? "Quantity (Mtr)" : "Quantity"}</th>
@@ -463,14 +463,14 @@ export default function SalesClient({
                 return (
                   <tr key={line.id} className="border-b border-border/40 hover:bg-muted/30">
                     <td className="py-3 pr-4">
-                      <Select value={line.productId} onValueChange={(val) => updateLine(line.id, "productId", val)}>
+                      <Select value={line.inventoryId} onValueChange={(val) => updateLine(line.id, "inventoryId", val)}>
                         <SelectTrigger className="h-9 w-full">
-                          <SelectValue placeholder="Select Product" />
+                          <SelectValue placeholder="Select Item" />
                         </SelectTrigger>
                         <SelectContent>
-                          {products.map((p) => (
-                            <SelectItem key={p.productId} value={String(p.productId)}>
-                              {p.productCode} — {p.productName}
+                          {inventory.map((p) => (
+                            <SelectItem key={p.inventoryId} value={String(p.inventoryId)}>
+                              {p.inventoryCode} — {p.inventoryName}
                             </SelectItem>
                           ))}
                         </SelectContent>

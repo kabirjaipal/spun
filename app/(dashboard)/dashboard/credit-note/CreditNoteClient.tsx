@@ -26,10 +26,10 @@ interface CustomerOption {
   gstNo: string | null;
 }
 
-interface ProductOption {
-  productId: number;
-  productName: string;
-  productCode: string;
+interface InventoryOption {
+  inventoryId: number;
+  inventoryName: string;
+  inventoryCode: string;
   unit: string;
   gstRateId: number | null;
 }
@@ -55,7 +55,7 @@ interface SalesInvoiceOption {
 
 interface LineItem {
   id: string;
-  productId: string;
+  inventoryId: string;
   ledgerId: string; // Sales return ledger
   hsnCode: string;
   pcs: string;
@@ -67,7 +67,7 @@ interface LineItem {
 
 const EMPTY_LINE = (): LineItem => ({
   id: crypto.randomUUID(),
-  productId: "",
+  inventoryId: "",
   ledgerId: "",
   hsnCode: "",
   pcs: "0",
@@ -81,7 +81,7 @@ export default function CreditNoteClient({
   initialNotes,
   company,
   customers,
-  products,
+  inventory,
   ledgers,
   taxRates,
   canCreate,
@@ -89,7 +89,7 @@ export default function CreditNoteClient({
   initialNotes: CreditNoteItem[];
   company: { companyName: string; gstNo?: string | null; address?: string | null };
   customers: CustomerOption[];
-  products: ProductOption[];
+  inventory: InventoryOption[];
   ledgers: LedgerOption[];
   taxRates: TaxRateOption[];
   canCreate: boolean;
@@ -177,12 +177,12 @@ export default function CreditNoteClient({
       items.map((item) => {
         if (item.id !== id) return item;
 
-        if (field === "productId") {
-          const prod = products.find((p) => String(p.productId) === value);
+        if (field === "inventoryId") {
+          const prod = inventory.find((p) => String(p.inventoryId) === value);
           return {
             ...item,
-            productId: value,
-            hsnCode: prod?.productCode || "",
+            inventoryId: value,
+            hsnCode: prod?.inventoryCode || "",
             gstRateId: prod?.gstRateId ? String(prod.gstRateId) : "",
           };
         }
@@ -207,9 +207,9 @@ export default function CreditNoteClient({
       return;
     }
 
-    const validLines = lineItems.filter((l) => l.productId && l.ledgerId && Number(l.quantity) > 0);
+    const validLines = lineItems.filter((l) => l.inventoryId && l.ledgerId && Number(l.quantity) > 0);
     if (validLines.length === 0) {
-      setMessage("At least one valid line with product, ledger, and quantity is required.");
+      setMessage("At least one valid line with item, ledger, and quantity is required.");
       return;
     }
 
@@ -227,7 +227,7 @@ export default function CreditNoteClient({
         remarks: invoiceVoucher ? `[AGAINST SALES BILL ${invoiceVoucher.voucherNo}] ${remarks}` : remarks,
         parentVoucherId: selectedInvoice ? Number(selectedInvoice) : null,
         lineItems: validLines.map((line) => ({
-          productId: Number(line.productId),
+          inventoryId: Number(line.inventoryId),
           ledgerId: Number(line.ledgerId),
           hsnCode: line.hsnCode,
           pcs: Number(line.pcs),
@@ -350,12 +350,12 @@ export default function CreditNoteClient({
                 return (
                   <div key={line.id} className="grid gap-3 grid-cols-1 md:grid-cols-[1.5fr_1.5fr_1fr_1fr_1fr_1fr_1fr_auto] items-end border-b border-border/20 pb-3">
                     <div className="space-y-2">
-                      <Label className="text-[10px] font-semibold uppercase text-muted-foreground">Product</Label>
-                      <Select value={line.productId} onValueChange={(val) => updateLine(line.id, "productId", val)}>
-                        <SelectTrigger><SelectValue placeholder="Product" /></SelectTrigger>
+                      <Label className="text-[10px] font-semibold uppercase text-muted-foreground">Item</Label>
+                      <Select value={line.inventoryId} onValueChange={(val) => updateLine(line.id, "inventoryId", val)}>
+                        <SelectTrigger><SelectValue placeholder="Item" /></SelectTrigger>
                         <SelectContent>
-                          {products.map((p) => (
-                            <SelectItem key={p.productId} value={String(p.productId)}>{p.productName}</SelectItem>
+                          {inventory.map((p) => (
+                            <SelectItem key={p.inventoryId} value={String(p.inventoryId)}>{p.inventoryName}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>

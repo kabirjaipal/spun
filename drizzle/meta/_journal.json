@@ -5,57 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1782227928755,
-      "tag": "0000_lazy_sunfire",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1782229318904,
-      "tag": "0001_fearless_xavin",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1782230333641,
-      "tag": "0002_third_nextwave",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1782545732754,
-      "tag": "0003_legal_dreadnoughts",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1782546883074,
-      "tag": "0004_tiresome_blizzard",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1782547552000,
-      "tag": "0005_white_kabuki",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1782549059455,
-      "tag": "0006_familiar_the_hood",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "7",
-      "when": 1782549984427,
-      "tag": "0007_keen_silverclaw",
+      "when": 1782588680045,
+      "tag": "0000_petite_skrulls",
       "breakpoints": true
     }
   ]

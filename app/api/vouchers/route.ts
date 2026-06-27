@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { mLedgers, mProducts, mTaxRates, mCustomers, mSuppliers, mJobs, mMills, mCompanies, tVouchers, tVoucherEntries, tStockMovements, tVoucherItems } from "@/lib/db/schema";
+import { mLedgers, mInventory, mTaxRates, mCustomers, mSuppliers, mJobs, mMills, mCompanies, tVouchers, tVoucherEntries, tStockMovements, tVoucherItems } from "@/lib/db/schema";
 import { and, eq, isNull, desc, sql, inArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
@@ -239,7 +239,7 @@ export async function POST(request: Request) {
         for (const line of processedLines) {
           await tx.insert(tVoucherItems).values({
             voucherId: voucherIdNum,
-            productId: Number(line.productId),
+            inventoryId: Number(line.inventoryId),
             ledgerId: Number(line.ledgerId),
             hsnCode: line.hsnCode || null,
             pcs: Number(line.pcs || 0),
@@ -283,11 +283,11 @@ export async function POST(request: Request) {
           }
 
           // Stock movements
-          const product = await tx.query.mProducts.findFirst({ where: eq(mProducts.productId, Number(line.productId)) });
-          if (product) {
+          const item = await tx.query.mInventory.findFirst({ where: eq(mInventory.inventoryId, Number(line.inventoryId)) });
+          if (item) {
             await tx.insert(tStockMovements).values({
               companyId,
-              productId: Number(product.productId),
+              inventoryId: Number(item.inventoryId),
               voucherId: voucherIdNum,
               movementType: voucherType === "sale" ? "sale" : "adjustment",
               quantity: String(voucherType === "sale" ? line.qty : -line.qty),
@@ -322,7 +322,7 @@ export async function POST(request: Request) {
         for (const line of processedLines) {
           await tx.insert(tVoucherItems).values({
             voucherId: voucherIdNum,
-            productId: Number(line.productId),
+            inventoryId: Number(line.inventoryId),
             ledgerId: Number(line.ledgerId),
             hsnCode: line.hsnCode || null,
             pcs: Number(line.pcs || 0),
@@ -367,11 +367,11 @@ export async function POST(request: Request) {
 
           // Stock movements (Only for standard trading purchases, not direct non-trading bills)
           if (voucherType !== "direct_bill") {
-            const product = await tx.query.mProducts.findFirst({ where: eq(mProducts.productId, Number(line.productId)) });
-            if (product) {
+            const item = await tx.query.mInventory.findFirst({ where: eq(mInventory.inventoryId, Number(line.inventoryId)) });
+            if (item) {
               await tx.insert(tStockMovements).values({
                 companyId,
-                productId: Number(product.productId),
+                inventoryId: Number(item.inventoryId),
                 voucherId: voucherIdNum,
                 movementType: voucherType === "purchase" ? "purchase" : "adjustment",
                 quantity: String(voucherType === "purchase" ? line.qty : -line.qty),
@@ -394,7 +394,7 @@ export async function POST(request: Request) {
         for (const line of processedLines) {
           await tx.insert(tVoucherItems).values({
             voucherId: voucherIdNum,
-            productId: Number(line.productId),
+            inventoryId: Number(line.inventoryId),
             ledgerId: Number(line.ledgerId),
             hsnCode: line.hsnCode || null,
             pcs: Number(line.pcs || 0),
@@ -414,8 +414,8 @@ export async function POST(request: Request) {
           });
 
           // Stock movements
-          const product = await tx.query.mProducts.findFirst({ where: eq(mProducts.productId, Number(line.productId)) });
-          if (product) {
+          const item = await tx.query.mInventory.findFirst({ where: eq(mInventory.inventoryId, Number(line.inventoryId)) });
+          if (item) {
             let movementTypeStr = "adjustment";
             let movementQty = line.qty;
 
@@ -429,7 +429,7 @@ export async function POST(request: Request) {
 
             await tx.insert(tStockMovements).values({
               companyId,
-              productId: Number(product.productId),
+              inventoryId: Number(item.inventoryId),
               voucherId: voucherIdNum,
               movementType: movementTypeStr,
               quantity: String(movementQty),
@@ -700,10 +700,10 @@ export async function GET(request: Request) {
       .select({
         voucherItemId: tVoucherItems.voucherItemId,
         voucherId: tVoucherItems.voucherId,
-        productId: tVoucherItems.productId,
-        productName: mProducts.productName,
-        productCode: mProducts.productCode,
-        unit: mProducts.unit,
+        inventoryId: tVoucherItems.inventoryId,
+        inventoryName: mInventory.inventoryName,
+        inventoryCode: mInventory.inventoryCode,
+        unit: mInventory.unit,
         ledgerId: tVoucherItems.ledgerId,
         hsnCode: tVoucherItems.hsnCode,
         pcs: tVoucherItems.pcs,
@@ -718,7 +718,7 @@ export async function GET(request: Request) {
         netAmount: tVoucherItems.netAmount,
       })
       .from(tVoucherItems)
-      .leftJoin(mProducts, eq(tVoucherItems.productId, mProducts.productId))
+      .leftJoin(mInventory, eq(tVoucherItems.inventoryId, mInventory.inventoryId))
       .where(and(isNull(tVoucherItems.deletedOn)));
 
     const itemsGrouped = items.reduce((acc: any, item) => {

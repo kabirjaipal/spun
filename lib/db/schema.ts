@@ -185,13 +185,13 @@ export const mUnitsOfMeasurement = pgTable("m_units_of_measurement", {
   companyIdIdx: index("idx_m_units_of_measurement_company_id").on(table.companyId),
 }));
 
-export const mProducts = pgTable("m_products", {
-  productId: serial("product_id").primaryKey(),
+export const mInventory = pgTable("m_inventory", {
+  inventoryId: serial("inventory_id").primaryKey(),
   companyId: bigint("company_id", { mode: "number" })
     .references(() => mCompanies.companyId)
     .notNull(),
-  productCode: text("product_code").notNull(),
-  productName: text("product_name").notNull(),
+  inventoryCode: text("inventory_code").notNull(),
+  inventoryName: text("inventory_name").notNull(),
   unit: text("unit").notNull(),
   gstRateId: bigint("gst_rate_id", { mode: "number" })
     .references(() => mTaxRates.taxRateId),
@@ -206,14 +206,14 @@ export const mProducts = pgTable("m_products", {
   gstType: text("gst_type"), // 'state', 'center'
   gstPercent: numeric("gst_percent", { precision: 5, scale: 2 }),
   isConsumable: boolean("is_consumable").default(false).notNull(),
-  consumeWithProductId: integer("consume_with_product_id"), // self reference ID
+  consumeWithInventoryId: integer("consume_with_inventory_id"), // self reference ID
   consumptionRatio: numeric("consumption_ratio", { precision: 15, scale: 4 }),
   shortagePercent: numeric("shortage_percent", { precision: 5, scale: 2 }),
 
   ...auditColumns,
 }, (table) => ({
-  companyIdIdx: index("idx_m_products_company_id").on(table.companyId),
-  gstRateIdIdx: index("idx_m_products_gst_rate_id").on(table.gstRateId),
+  companyIdIdx: index("idx_m_inventory_company_id").on(table.companyId),
+  gstRateIdIdx: index("idx_m_inventory_gst_rate_id").on(table.gstRateId),
 }));
 
 export const mJobs = pgTable("m_jobs", {
@@ -338,8 +338,8 @@ export const tVoucherItems = pgTable("t_voucher_items", {
   voucherId: bigint("voucher_id", { mode: "number" })
     .references(() => tVouchers.voucherId)
     .notNull(),
-  productId: bigint("product_id", { mode: "number" })
-    .references(() => mProducts.productId)
+  inventoryId: bigint("inventory_id", { mode: "number" })
+    .references(() => mInventory.inventoryId)
     .notNull(),
   ledgerId: bigint("ledger_id", { mode: "number" })
     .references(() => mLedgers.ledgerId)
@@ -363,7 +363,7 @@ export const tVoucherItems = pgTable("t_voucher_items", {
   ...auditColumns,
 }, (table) => ({
   voucherIdIdx: index("idx_t_voucher_items_voucher_id").on(table.voucherId),
-  productIdIdx: index("idx_t_voucher_items_product_id").on(table.productId),
+  inventoryIdIdx: index("idx_t_voucher_items_inventory_id").on(table.inventoryId),
 }));
 
 
@@ -388,8 +388,8 @@ export const tStockMovements = pgTable("t_stock_movements", {
   companyId: bigint("company_id", { mode: "number" })
     .references(() => mCompanies.companyId)
     .notNull(),
-  productId: bigint("product_id", { mode: "number" })
-    .references(() => mProducts.productId)
+  inventoryId: bigint("inventory_id", { mode: "number" })
+    .references(() => mInventory.inventoryId)
     .notNull(),
   voucherId: bigint("voucher_id", { mode: "number" })
     .references(() => tVouchers.voucherId),
@@ -400,7 +400,7 @@ export const tStockMovements = pgTable("t_stock_movements", {
   ...auditColumns,
 }, (table) => ({
   companyIdIdx: index("idx_t_stock_movements_company_id").on(table.companyId),
-  productIdIdx: index("idx_t_stock_movements_product_id").on(table.productId),
+  inventoryIdIdx: index("idx_t_stock_movements_inventory_id").on(table.inventoryId),
 }));
 
 export const tAuditLogs = pgTable("t_audit_logs", {

@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { mSuppliers, mProducts, mLedgers, mTaxRates, mCompanies, tVouchers } from "@/lib/db/schema";
+import { mSuppliers, mInventory, mLedgers, mTaxRates, mCompanies, tVouchers } from "@/lib/db/schema";
 import { and, eq, isNull, desc } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
 import DebitNoteClient from "./DebitNoteClient";
@@ -13,7 +13,7 @@ export default async function DebitNotePage() {
 
   const companyId = Number(session.user.companyId);
 
-  const [notes, suppliers, products, ledgers, taxRates, company] = await Promise.all([
+  const [notes, suppliers, inventory, ledgers, taxRates, company] = await Promise.all([
     db
       .select({
         voucherId: tVouchers.voucherId,
@@ -37,9 +37,9 @@ export default async function DebitNotePage() {
       .orderBy(mSuppliers.supplierName),
     db
       .select()
-      .from(mProducts)
-      .where(and(eq(mProducts.companyId, companyId), isNull(mProducts.deletedOn)))
-      .orderBy(mProducts.productName),
+      .from(mInventory)
+      .where(and(eq(mInventory.companyId, companyId), isNull(mInventory.deletedOn)))
+      .orderBy(mInventory.inventoryName),
     db
       .select()
       .from(mLedgers)
@@ -71,12 +71,12 @@ export default async function DebitNotePage() {
         address: s.address,
         gstNo: s.gstNo,
       }))}
-      products={products.map((product) => ({
-        productId: product.productId,
-        productName: product.productName,
-        productCode: product.productCode,
-        unit: product.unit,
-        gstRateId: product.gstRateId,
+      inventory={inventory.map((item) => ({
+        inventoryId: item.inventoryId,
+        inventoryName: item.inventoryName,
+        inventoryCode: item.inventoryCode,
+        unit: item.unit,
+        gstRateId: item.gstRateId,
       }))}
       ledgers={ledgers.map((ledger) => ({
         ledgerId: ledger.ledgerId,

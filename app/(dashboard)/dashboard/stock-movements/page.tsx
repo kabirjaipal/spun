@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { mProducts, tStockMovements, tVouchers } from "@/lib/db/schema";
+import { mInventory, tStockMovements, tVouchers } from "@/lib/db/schema";
 import { and, eq, isNull, desc } from "drizzle-orm";
 import ExportButton from "@/components/ExportButton";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
@@ -16,7 +16,7 @@ export default async function StockMovementsPage() {
   const movements = await db
     .select({
       stockMovementId: tStockMovements.stockMovementId,
-      productName: mProducts.productName,
+      inventoryName: mInventory.inventoryName,
       movementType: tStockMovements.movementType,
       quantity: tStockMovements.quantity,
       rate: tStockMovements.rate,
@@ -25,9 +25,9 @@ export default async function StockMovementsPage() {
       voucherDate: tVouchers.voucherDate,
     })
     .from(tStockMovements)
-    .leftJoin(mProducts, eq(tStockMovements.productId, mProducts.productId))
+    .leftJoin(mInventory, eq(tStockMovements.inventoryId, mInventory.inventoryId))
     .leftJoin(tVouchers, eq(tStockMovements.voucherId, tVouchers.voucherId))
-    .where(and(eq(tStockMovements.companyId, companyId), isNull(mProducts.deletedOn)))
+    .where(and(eq(tStockMovements.companyId, companyId), isNull(mInventory.deletedOn)))
     .orderBy(desc(tStockMovements.createdOn))
     .limit(20);
 
@@ -50,13 +50,13 @@ export default async function StockMovementsPage() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Stock Movements</h1>
           <p className="text-sm text-muted-foreground">
-            Track inventory movement by product, voucher, and movement type.
+            Track inventory movement by item, voucher, and movement type.
           </p>
         </div>
         <ExportButton
           filename="stock_movements.csv"
-          headers={["Product Name", "Movement Type", "Quantity", "Rate", "Amount", "Voucher No", "Voucher Date"]}
-          keys={["productName", "movementType", "quantity", "rate", "amount", "voucherNo", "voucherDate"]}
+          headers={["Item Name", "Movement Type", "Quantity", "Rate", "Amount", "Voucher No", "Voucher Date"]}
+          keys={["inventoryName", "movementType", "quantity", "rate", "amount", "voucherNo", "voucherDate"]}
           rows={movements.map(m => ({
             ...m,
             voucherDate: m.voucherDate ? String(m.voucherDate) : ""
@@ -84,7 +84,7 @@ export default async function StockMovementsPage() {
         <table className="w-full text-sm">
           <thead className="bg-muted/40 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">
             <tr>
-              <th className="px-4 py-3">Product</th>
+              <th className="px-4 py-3">Item</th>
               <th className="px-4 py-3">Movement</th>
               <th className="px-4 py-3 text-right">Qty</th>
               <th className="px-4 py-3 text-right">Rate</th>
@@ -102,7 +102,7 @@ export default async function StockMovementsPage() {
             ) : (
               movements.map((movement) => (
                 <tr key={movement.stockMovementId} className="border-t border-border/50 hover:bg-muted/10 transition-colors">
-                  <td className="px-4 py-3 font-medium text-foreground">{movement.productName || "Unknown product"}</td>
+                  <td className="px-4 py-3 font-medium text-foreground">{movement.inventoryName || "Unknown item"}</td>
                   <td className="px-4 py-3 text-xs uppercase tracking-wide text-muted-foreground">{movement.movementType}</td>
                   <td className="px-4 py-3 text-right text-foreground">{Number(movement.quantity ?? 0).toFixed(2)}</td>
                   <td className="px-4 py-3 text-right text-foreground">₹{Number(movement.rate ?? 0).toFixed(2)}</td>
