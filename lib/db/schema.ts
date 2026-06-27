@@ -148,6 +148,41 @@ export const mTaxRates = pgTable("m_tax_rates", {
   taxNameIdx: index("idx_m_tax_rates_tax_name").on(table.taxName),
 }));
 
+export const mInventoryGroups = pgTable("m_inventory_groups", {
+  inventoryGroupId: serial("inventory_group_id").primaryKey(),
+  companyId: bigint("company_id", { mode: "number" })
+    .references(() => mCompanies.companyId)
+    .notNull(),
+  groupName: text("group_name").notNull(), // Consumable or Selling
+  ...auditColumns,
+}, (table) => ({
+  companyIdIdx: index("idx_m_inventory_groups_company_id").on(table.companyId),
+}));
+
+export const mInventoryCategories = pgTable("m_inventory_categories", {
+  inventoryCategoryId: serial("inventory_category_id").primaryKey(),
+  companyId: bigint("company_id", { mode: "number" })
+    .references(() => mCompanies.companyId)
+    .notNull(),
+  categoryName: text("category_name").notNull(), // Cloth, Color, Chemical, etc.
+  ...auditColumns,
+}, (table) => ({
+  companyIdIdx: index("idx_m_inventory_categories_company_id").on(table.companyId),
+}));
+
+export const mUnitsOfMeasurement = pgTable("m_units_of_measurement", {
+  unitId: serial("unit_id").primaryKey(),
+  companyId: bigint("company_id", { mode: "number" })
+    .references(() => mCompanies.companyId)
+    .notNull(),
+  unitCode: text("unit_code").notNull(), // MTR, KG, PCS, etc.
+  unitName: text("unit_name").notNull(), // Meters, Kilograms, Pieces, etc.
+  isFixed: boolean("is_fixed").default(false).notNull(),
+  ...auditColumns,
+}, (table) => ({
+  companyIdIdx: index("idx_m_units_of_measurement_company_id").on(table.companyId),
+}));
+
 export const mProducts = pgTable("m_products", {
   productId: serial("product_id").primaryKey(),
   companyId: bigint("company_id", { mode: "number" })
@@ -160,11 +195,63 @@ export const mProducts = pgTable("m_products", {
     .references(() => mTaxRates.taxRateId),
   openingStockQty: numeric("opening_stock_qty", { precision: 15, scale: 4 }).default("0.0000").notNull(),
   openingStockRate: numeric("opening_stock_rate", { precision: 15, scale: 2 }).default("0.00").notNull(),
+  
+  hsnCode: text("hsn_code"),
+  inventoryGroupId: bigint("inventory_group_id", { mode: "number" })
+    .references(() => mInventoryGroups.inventoryGroupId),
+  inventoryCategoryId: bigint("inventory_category_id", { mode: "number" })
+    .references(() => mInventoryCategories.inventoryCategoryId),
+  gstType: text("gst_type"), // 'state', 'center'
+  gstPercent: numeric("gst_percent", { precision: 5, scale: 2 }),
+  isConsumable: boolean("is_consumable").default(false).notNull(),
+  consumeWithProductId: integer("consume_with_product_id"), // self reference ID
+  consumptionRatio: numeric("consumption_ratio", { precision: 15, scale: 4 }),
+  shortagePercent: numeric("shortage_percent", { precision: 5, scale: 2 }),
+
   ...auditColumns,
 }, (table) => ({
   companyIdIdx: index("idx_m_products_company_id").on(table.companyId),
   gstRateIdIdx: index("idx_m_products_gst_rate_id").on(table.gstRateId),
 }));
+
+export const mJobs = pgTable("m_jobs", {
+  jobId: serial("job_id").primaryKey(),
+  companyId: bigint("company_id", { mode: "number" })
+    .references(() => mCompanies.companyId)
+    .notNull(),
+  jobName: text("job_name").notNull(),
+  address: text("address"),
+  gstNo: text("gst_no"),
+  gstType: text("gst_type"), // 'regular', 'composition', 'unregistered'
+  city: text("city"),
+  stateCode: text("state_code"),
+  phone: text("phone"),
+  msmeRegistered: boolean("msme_registered").default(false).notNull(),
+  msmeType: text("msme_type"), // 'micro', 'small', 'medium', 'non_registered'
+  ...auditColumns,
+}, (table) => ({
+  companyIdIdx: index("idx_m_jobs_company_id").on(table.companyId),
+}));
+
+export const mMills = pgTable("m_mills", {
+  millId: serial("mill_id").primaryKey(),
+  companyId: bigint("company_id", { mode: "number" })
+    .references(() => mCompanies.companyId)
+    .notNull(),
+  millName: text("mill_name").notNull(),
+  address: text("address"),
+  gstNo: text("gst_no"),
+  gstType: text("gst_type"), // 'regular', 'composition', 'unregistered'
+  city: text("city"),
+  stateCode: text("state_code"),
+  phone: text("phone"),
+  msmeRegistered: boolean("msme_registered").default(false).notNull(),
+  msmeType: text("msme_type"), // 'micro', 'small', 'medium', 'non_registered'
+  ...auditColumns,
+}, (table) => ({
+  companyIdIdx: index("idx_m_mills_company_id").on(table.companyId),
+}));
+
 
 export const mLedgerGroups = pgTable("m_ledger_groups", {
   groupId: serial("group_id").primaryKey(),

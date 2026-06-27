@@ -29,6 +29,13 @@
       "when": 1782545732754,
       "tag": "0003_legal_dreadnoughts",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1782546883074,
+      "tag": "0004_tiresome_blizzard",
+      "breakpoints": true
     }
   ]
 }

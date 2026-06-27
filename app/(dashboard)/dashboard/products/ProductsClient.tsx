@@ -22,16 +22,47 @@ interface Product {
   openingStockRate: string;
   taxName?: string | null;
   taxPercent?: string | null;
+  hsnCode?: string | null;
+  inventoryGroupId?: number | null;
+  inventoryCategoryId?: number | null;
+  gstType?: string | null;
+  gstPercent?: string | null;
+  isConsumable: boolean;
+  consumeWithProductId?: number | null;
+  consumptionRatio?: string | null;
+  shortagePercent?: string | null;
 }
 
-const EMPTY = { productCode: "", productName: "", unit: "", gstRateId: "", openingStockQty: "0", openingStockRate: "0" };
-const UNITS = ["MTR", "KG", "PCS", "BOX", "ROLL", "SET", "PAIR", "LTR"];
+interface InventoryGroup { inventoryGroupId: number; groupName: string; }
+interface InventoryCategory { inventoryCategoryId: number; categoryName: string; }
+interface UnitOfMeasurement { unitId: number; unitCode: string; unitName: string; }
+
+const EMPTY = {
+  productCode: "",
+  productName: "",
+  unit: "",
+  gstRateId: "",
+  openingStockQty: "0",
+  openingStockRate: "0",
+  hsnCode: "",
+  inventoryGroupId: "",
+  inventoryCategoryId: "",
+  gstType: "state",
+  gstPercent: "0",
+  isConsumable: false,
+  consumeWithProductId: "",
+  consumptionRatio: "0",
+  shortagePercent: "0",
+};
 
 export default function ProductsClient({
-  initialData, taxRates, canCreate, canUpdate, canDelete, canExport,
+  initialData, taxRates, inventoryGroups, inventoryCategories, unitsList, canCreate, canUpdate, canDelete, canExport,
 }: {
   initialData: Product[];
   taxRates: TaxRate[];
+  inventoryGroups: InventoryGroup[];
+  inventoryCategories: InventoryCategory[];
+  unitsList: UnitOfMeasurement[];
   canCreate: boolean;
   canUpdate: boolean;
   canDelete: boolean;
@@ -53,7 +84,23 @@ export default function ProductsClient({
   function openCreate() { setEditing(null); setForm(EMPTY); setSheetOpen(true); }
   function openEdit(row: Product) {
     setEditing(row);
-    setForm({ productCode: row.productCode, productName: row.productName, unit: row.unit, gstRateId: row.gstRateId ? String(row.gstRateId) : "", openingStockQty: row.openingStockQty, openingStockRate: row.openingStockRate });
+    setForm({
+      productCode: row.productCode,
+      productName: row.productName,
+      unit: row.unit,
+      gstRateId: row.gstRateId ? String(row.gstRateId) : "",
+      openingStockQty: row.openingStockQty,
+      openingStockRate: row.openingStockRate,
+      hsnCode: row.hsnCode || "",
+      inventoryGroupId: row.inventoryGroupId ? String(row.inventoryGroupId) : "",
+      inventoryCategoryId: row.inventoryCategoryId ? String(row.inventoryCategoryId) : "",
+      gstType: row.gstType || "state",
+      gstPercent: row.gstPercent || "0",
+      isConsumable: row.isConsumable,
+      consumeWithProductId: row.consumeWithProductId ? String(row.consumeWithProductId) : "",
+      consumptionRatio: row.consumptionRatio || "0",
+      shortagePercent: row.shortagePercent || "0",
+    });
     setSheetOpen(true);
   }
 
@@ -64,11 +111,31 @@ export default function ProductsClient({
     const res = await fetch(url, {
       method: editing ? "PATCH" : "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, gstRateId: form.gstRateId ? Number(form.gstRateId) : null, openingStockQty: Number(form.openingStockQty), openingStockRate: Number(form.openingStockRate) }),
+      body: JSON.stringify({
+        ...form,
+        gstRateId: form.gstRateId ? Number(form.gstRateId) : null,
+        openingStockQty: Number(form.openingStockQty),
+        openingStockRate: Number(form.openingStockRate),
+        inventoryGroupId: form.inventoryGroupId ? Number(form.inventoryGroupId) : null,
+        inventoryCategoryId: form.inventoryCategoryId ? Number(form.inventoryCategoryId) : null,
+        consumeWithProductId: form.consumeWithProductId ? Number(form.consumeWithProductId) : null,
+        consumptionRatio: Number(form.consumptionRatio),
+        shortagePercent: Number(form.shortagePercent),
+        gstPercent: Number(form.gstPercent),
+      }),
     });
     const row = await res.json();
     const tax = taxRates.find((t) => t.taxRateId === Number(form.gstRateId));
-    const enriched = { ...row, taxName: tax?.taxName ?? null, taxPercent: tax?.taxPercent ?? null };
+    const enriched = {
+      ...row,
+      taxName: tax?.taxName ?? null,
+      taxPercent: tax?.taxPercent ?? null,
+      openingStockQty: String(row.openingStockQty),
+      openingStockRate: String(row.openingStockRate),
+      gstPercent: row.gstPercent ? String(row.gstPercent) : null,
+      consumptionRatio: row.consumptionRatio ? String(row.consumptionRatio) : null,
+      shortagePercent: row.shortagePercent ? String(row.shortagePercent) : null,
+    };
     if (editing) setData((d) => d.map((r) => (r.productId === editing.productId ? enriched : r)));
     else setData((d) => [...d, enriched]);
     setSheetOpen(false);
@@ -93,8 +160,8 @@ export default function ProductsClient({
           <Input id="search-products" placeholder="Search name or code..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-52" />
           <ExportButton
             filename="products.csv"
-            headers={["Product Code", "Product Name", "Unit", "Opening Qty", "Opening Rate"]}
-            keys={["productCode", "productName", "unit", "openingStockQty", "openingStockRate"]}
+            headers={["Product Code", "Product Name", "Unit", "Opening Qty", "Opening Rate", "Type"]}
+            keys={["productCode", "productName", "unit", "openingStockQty", "openingStockRate", "isConsumable"]}
             rows={filtered}
             canExport={canExport}
           />
@@ -108,8 +175,9 @@ export default function ProductsClient({
             <tr className="border-b border-border bg-muted/40">
               <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Code</th>
               <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Name</th>
+              <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Type</th>
               <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Unit</th>
-              <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">GST</th>
+              <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">GST Details</th>
               <th className="px-4 py-2.5 text-right text-xs font-bold uppercase tracking-wider text-muted-foreground">Opening Qty</th>
               <th className="px-4 py-2.5 text-right text-xs font-bold uppercase tracking-wider text-muted-foreground">Rate</th>
               {(canUpdate || canDelete) && <th className="px-4 py-2.5 text-right text-xs font-bold uppercase tracking-wider text-muted-foreground">Actions</th>}
@@ -117,14 +185,21 @@ export default function ProductsClient({
           </thead>
           <tbody>
             {filtered.length === 0 && (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-sm text-muted-foreground">{search ? "No products match." : "No products yet."}</td></tr>
+              <tr><td colSpan={8} className="px-4 py-8 text-center text-sm text-muted-foreground">{search ? "No products match." : "No products yet."}</td></tr>
             )}
             {filtered.map((row) => (
               <tr key={row.productId} className="border-b border-border/50 hover:bg-muted/20 transition-colors">
                 <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{row.productCode}</td>
                 <td className="px-4 py-3 font-medium text-foreground">{row.productName}</td>
+                <td className="px-4 py-3 text-xs">
+                  <Badge variant={row.isConsumable ? "secondary" : "default"}>
+                    {row.isConsumable ? "Consumable" : "Selling"}
+                  </Badge>
+                </td>
                 <td className="px-4 py-3 text-xs"><Badge variant="secondary">{row.unit}</Badge></td>
-                <td className="px-4 py-3 text-xs text-muted-foreground">{row.taxName ? `${row.taxName} (${row.taxPercent}%)` : "—"}</td>
+                <td className="px-4 py-3 text-xs text-muted-foreground">
+                  {row.gstType ? `${row.gstType.toUpperCase()} (${row.gstPercent}%)` : row.taxName ? `${row.taxName} (${row.taxPercent}%)` : "—"}
+                </td>
                 <td className="px-4 py-3 text-right text-xs text-foreground">{Number(row.openingStockQty).toFixed(2)}</td>
                 <td className="px-4 py-3 text-right text-xs text-foreground">₹{Number(row.openingStockRate).toFixed(2)}</td>
                 {(canUpdate || canDelete) && (
@@ -140,38 +215,132 @@ export default function ProductsClient({
       </div>
 
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent>
+        <SheetContent className="overflow-y-auto w-[420px] sm:w-[540px]">
           <SheetHeader>
             <SheetTitle>{editing ? "Edit Product" : "New Product"}</SheetTitle>
           </SheetHeader>
 
-          <div className="flex-1 overflow-y-auto px-5 py-6 space-y-5">
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Product Code</Label>
-              <Input id="productCode" placeholder="FAB-001" value={form.productCode} onChange={(e) => setForm((f) => ({ ...f, productCode: e.target.value }))} />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Product Name</Label>
-              <Input id="productName" placeholder="Cotton Fabric 40s" value={form.productName} onChange={(e) => setForm((f) => ({ ...f, productName: e.target.value }))} />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Unit</Label>
-              <Select value={form.unit} onValueChange={(v) => setForm((f) => ({ ...f, unit: v }))}>
-                <SelectTrigger id="unit"><SelectValue placeholder="Select unit" /></SelectTrigger>
-                <SelectContent>{UNITS.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">GST Rate</Label>
-              <Select value={form.gstRateId} onValueChange={(v) => setForm((f) => ({ ...f, gstRateId: v }))}>
-                <SelectTrigger id="gstRateId"><SelectValue placeholder="Select GST rate" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">None</SelectItem>
-                  {taxRates.map((t) => <SelectItem key={t.taxRateId} value={String(t.taxRateId)}>{t.taxName} ({t.taxPercent}%)</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="flex-1 px-1 py-6 space-y-4">
             <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Product Code</Label>
+                <Input id="productCode" placeholder="FAB-001" value={form.productCode} onChange={(e) => setForm((f) => ({ ...f, productCode: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Product Name</Label>
+                <Input id="productName" placeholder="Cotton Fabric 40s" value={form.productName} onChange={(e) => setForm((f) => ({ ...f, productName: e.target.value }))} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">HSN Code</Label>
+                <Input id="hsnCode" placeholder="e.g. 5208" value={form.hsnCode} onChange={(e) => setForm((f) => ({ ...f, hsnCode: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Unit</Label>
+                <Select value={form.unit} onValueChange={(v) => setForm((f) => ({ ...f, unit: v }))}>
+                  <SelectTrigger id="unit"><SelectValue placeholder="Select unit" /></SelectTrigger>
+                  <SelectContent>{unitsList.map((u) => <SelectItem key={u.unitCode} value={u.unitCode}>{u.unitCode} - {u.unitName}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Inventory Group</Label>
+                <Select value={form.inventoryGroupId} onValueChange={(v) => setForm((f) => ({ ...f, inventoryGroupId: v }))}>
+                  <SelectTrigger id="inventoryGroupId"><SelectValue placeholder="Select Group" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {inventoryGroups.map((g) => <SelectItem key={g.inventoryGroupId} value={String(g.inventoryGroupId)}>{g.groupName}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Inventory Category</Label>
+                <Select value={form.inventoryCategoryId} onValueChange={(v) => setForm((f) => ({ ...f, inventoryCategoryId: v }))}>
+                  <SelectTrigger id="inventoryCategoryId"><SelectValue placeholder="Select Category" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {inventoryCategories.map((c) => <SelectItem key={c.inventoryCategoryId} value={String(c.inventoryCategoryId)}>{c.categoryName}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="border-t border-border pt-4 space-y-4">
+              <Label className="text-xs font-bold uppercase tracking-wider text-foreground">GST & Tax Settings</Label>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold uppercase text-muted-foreground">GST Type</Label>
+                  <Select value={form.gstType} onValueChange={(v) => setForm((f) => ({ ...f, gstType: v }))}>
+                    <SelectTrigger id="gstType"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="state">State GST</SelectItem>
+                      <SelectItem value="center">Center GST</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold uppercase text-muted-foreground">GST %</Label>
+                  <Input id="gstPercent" type="number" step={0.01} value={form.gstPercent} onChange={(e) => setForm((f) => ({ ...f, gstPercent: e.target.value }))} />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold uppercase text-muted-foreground">Tally Tax Rate</Label>
+                  <Select value={form.gstRateId} onValueChange={(v) => setForm((f) => ({ ...f, gstRateId: v }))}>
+                    <SelectTrigger id="gstRateId"><SelectValue placeholder="Select rate" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      {taxRates.map((t) => <SelectItem key={t.taxRateId} value={String(t.taxRateId)}>{t.taxName} ({t.taxPercent}%)</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t border-border pt-4 space-y-4">
+              <Label className="text-xs font-bold uppercase tracking-wider text-foreground">Stock Type & Consumption</Label>
+              <div className="flex items-center gap-6 py-2">
+                <label className="flex items-center gap-2 text-sm font-medium text-foreground cursor-pointer">
+                  <input type="radio" name="isConsumable" checked={!form.isConsumable} onChange={() => setForm((f) => ({ ...f, isConsumable: false }))} className="w-4 h-4 accent-primary" />
+                  Selling Good
+                </label>
+                <label className="flex items-center gap-2 text-sm font-medium text-foreground cursor-pointer">
+                  <input type="radio" name="isConsumable" checked={form.isConsumable} onChange={() => setForm((f) => ({ ...f, isConsumable: true }))} className="w-4 h-4 accent-primary" />
+                  Consumable Good
+                </label>
+              </div>
+
+              {form.isConsumable && (
+                <div className="p-3 bg-muted/40 rounded-lg space-y-3">
+                  <div className="space-y-2">
+                    <Label className="text-xs font-semibold uppercase text-muted-foreground">Consume With (Associated Product)</Label>
+                    <Select value={form.consumeWithProductId} onValueChange={(v) => setForm((f) => ({ ...f, consumeWithProductId: v }))}>
+                      <SelectTrigger id="consumeWithProductId"><SelectValue placeholder="Select Product" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
+                        {data.filter((p) => p.productId !== editing?.productId).map((p) => (
+                          <SelectItem key={p.productId} value={String(p.productId)}>{p.productName} ({p.productCode})</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-xs font-semibold uppercase text-muted-foreground">Consumption Ratio</Label>
+                      <Input id="consumptionRatio" type="number" step={0.0001} placeholder="e.g. 3.0" value={form.consumptionRatio} onChange={(e) => setForm((f) => ({ ...f, consumptionRatio: e.target.value }))} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs font-semibold uppercase text-muted-foreground">Shortage Percentage (%)</Label>
+                      <Input id="shortagePercent" type="number" step={0.01} placeholder="e.g. 5" value={form.shortagePercent} onChange={(e) => setForm((f) => ({ ...f, shortagePercent: e.target.value }))} />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 border-t border-border pt-4">
               <div className="space-y-2">
                 <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Opening Qty</Label>
                 <Input id="openingStockQty" type="number" step={0.01} value={form.openingStockQty} onChange={(e) => setForm((f) => ({ ...f, openingStockQty: e.target.value }))} />
@@ -183,7 +352,7 @@ export default function ProductsClient({
             </div>
           </div>
 
-          <SheetFooter>
+          <SheetFooter className="mt-4">
             <Button variant="outline" onClick={() => setSheetOpen(false)}>Cancel</Button>
             <Button onClick={handleSave} disabled={saving || !form.productCode || !form.productName || !form.unit}>
               {saving ? "Saving..." : editing ? "Update" : "Create"}

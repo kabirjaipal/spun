@@ -13,7 +13,23 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const { id } = await params;
   const companyId = Number(session.user.companyId);
   const userId = session.user.id;
-  const { productCode, productName, unit, gstRateId, openingStockQty, openingStockRate } = await request.json();
+  const {
+    productCode,
+    productName,
+    unit,
+    gstRateId,
+    openingStockQty,
+    openingStockRate,
+    hsnCode,
+    inventoryGroupId,
+    inventoryCategoryId,
+    gstType,
+    gstPercent,
+    isConsumable,
+    consumeWithProductId,
+    consumptionRatio,
+    shortagePercent,
+  } = await request.json();
 
   const [row] = await db.transaction(async (tx) => {
     const oldP = await tx.query.mProducts.findFirst({
@@ -29,6 +45,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         gstRateId: gstRateId ? Number(gstRateId) : null,
         openingStockQty: String(openingStockQty),
         openingStockRate: String(openingStockRate),
+        hsnCode: hsnCode || null,
+        inventoryGroupId: inventoryGroupId ? Number(inventoryGroupId) : null,
+        inventoryCategoryId: inventoryCategoryId ? Number(inventoryCategoryId) : null,
+        gstType: gstType || null,
+        gstPercent: gstPercent ? String(gstPercent) : null,
+        isConsumable: !!isConsumable,
+        consumeWithProductId: consumeWithProductId ? Number(consumeWithProductId) : null,
+        consumptionRatio: consumptionRatio ? String(consumptionRatio) : null,
+        shortagePercent: shortagePercent ? String(shortagePercent) : null,
         updatedBy: userId,
         updatedOn: new Date(),
       })

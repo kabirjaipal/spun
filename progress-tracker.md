@@ -6,7 +6,7 @@ This document tracks our progress on the textile-specific enhancements defined i
 
 ## Progress Overview
 - Total Steps: 12
-- Completed Steps: 2/12 (16%)
+- Completed Steps: 11/12 (91%)
 
 ---
 
@@ -22,11 +22,11 @@ This document tracks our progress on the textile-specific enhancements defined i
 - [x] Support for Bank account details (Bank name, account name, account number, IFSC code, branch, account type).
 - [x] Simplified signup: User registers first with details, then completes full company registration at `/setup-company` page (avoiding duplicate entries).
 
-### [/] 3. Gateway & Masters Foundation
+### [x] 3. Gateway & Masters Foundation
 - [x] Ledger Master
 - [x] Group Master (default system groups auto-seeded, and CRUD interface implemented)
-- [ ] Inventory Master
-- [ ] Job Master / Mill Master
+- [x] Inventory Master
+- [x] Job Master / Mill Master
 
 ### [x] 4. Account Ledger Master (Create / Alter Ledger)
 - [x] Capture Short Name and Address
@@ -36,32 +36,32 @@ This document tracks our progress on the textile-specific enhancements defined i
 - [x] Capture Credit Days and Rate of Interest
 - [x] Capture TDS applicability and TDS Rate %
 
-### [ ] 5. Inventory Master (Groups, Categories, Units)
-- [ ] Create/alter inventory groups
-- [ ] Create/alter categories of inventory
-- [ ] Create/alter units of measurement (PCS, MTR, KGS, GRM, LTR, BOX)
+### [x] 5. Inventory Master (Groups, Categories, Units)
+- [x] Create/alter inventory groups
+- [x] Create/alter categories of inventory
+- [x] Create/alter units of measurement (PCS, MTR, KGS, GRM, LTR, BOX)
 
-### [ ] 6. Creation of Inventory (Products)
-- [ ] Capture Name, HSN code, Group, Categories
-- [ ] Capture GST Type (state/center) and GST Percentage
-- [ ] Capture Unit of Measurement
-- [ ] Consumable or Selling goods selection (radio button)
-- [ ] Consumption ratio (e.g. 1 meter cloth = 3 LTR color) & shortage percentage
+### [x] 6. Creation of Inventory (Products)
+- [x] Capture Name, HSN code, Group, Categories
+- [x] Capture GST Type (state/center) and GST Percentage
+- [x] Capture Unit of Measurement
+- [x] Consumable or Selling goods selection (radio button)
+- [x] Consumption ratio (e.g. 1 meter cloth = 3 LTR color) & shortage percentage
 
-### [ ] 7. Categories of Inventory
-- [ ] Category master creation/alteration UI (Cloth, Color, Chemical, etc.)
+### [x] 7. Categories of Inventory
+- [x] Category master creation/alteration UI (Cloth, Color, Chemical, etc.)
 
-### [ ] 8. Group of Inventory
-- [ ] Group master creation/alteration UI (Consumable / Selling)
+### [x] 8. Group of Inventory
+- [x] Group master creation/alteration UI (Consumable / Selling)
 
-### [ ] 9. Unit of Measurement
-- [ ] Unit master creation/alteration UI + default units validation
+### [x] 9. Unit of Measurement
+- [x] Unit master creation/alteration UI + default units validation
 
-### [ ] 10. Job Master
-- [ ] Party name, Address, GST No (auto-address), GST Type, City, State code, Phone, MSME status
+### [x] 10. Job Master
+- [x] Party name, Address, GST No (auto-address), GST Type, City, State code, Phone, MSME status
 
-### [ ] 11. Mill Master
-- [ ] Mill name, Address, GST No, GST Type, City, State code, Phone, MSME status
+### [x] 11. Mill Master
+- [x] Mill name, Address, GST No, GST Type, City, State code, Phone, MSME status
 
 ### [ ] 12. Transactions & Vouchers
 - [ ] **Purchase:**

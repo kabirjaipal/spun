@@ -23,6 +23,15 @@ export async function GET() {
       openingStockRate: mProducts.openingStockRate,
       taxName: mTaxRates.taxName,
       taxPercent: mTaxRates.taxPercent,
+      hsnCode: mProducts.hsnCode,
+      inventoryGroupId: mProducts.inventoryGroupId,
+      inventoryCategoryId: mProducts.inventoryCategoryId,
+      gstType: mProducts.gstType,
+      gstPercent: mProducts.gstPercent,
+      isConsumable: mProducts.isConsumable,
+      consumeWithProductId: mProducts.consumeWithProductId,
+      consumptionRatio: mProducts.consumptionRatio,
+      shortagePercent: mProducts.shortagePercent,
     })
     .from(mProducts)
     .leftJoin(mTaxRates, eq(mProducts.gstRateId, mTaxRates.taxRateId))
@@ -39,7 +48,23 @@ export async function POST(request: Request) {
 
   const companyId = Number(session.user.companyId);
   const userId = session.user.id;
-  const { productCode, productName, unit, gstRateId, openingStockQty, openingStockRate } = await request.json();
+  const {
+    productCode,
+    productName,
+    unit,
+    gstRateId,
+    openingStockQty,
+    openingStockRate,
+    hsnCode,
+    inventoryGroupId,
+    inventoryCategoryId,
+    gstType,
+    gstPercent,
+    isConsumable,
+    consumeWithProductId,
+    consumptionRatio,
+    shortagePercent,
+  } = await request.json();
 
   if (!productCode || !productName || !unit) {
     return NextResponse.json({ error: "productCode, productName, and unit are required" }, { status: 400 });
@@ -56,6 +81,15 @@ export async function POST(request: Request) {
         gstRateId: gstRateId ? Number(gstRateId) : null,
         openingStockQty: String(openingStockQty ?? 0),
         openingStockRate: String(openingStockRate ?? 0),
+        hsnCode: hsnCode || null,
+        inventoryGroupId: inventoryGroupId ? Number(inventoryGroupId) : null,
+        inventoryCategoryId: inventoryCategoryId ? Number(inventoryCategoryId) : null,
+        gstType: gstType || null,
+        gstPercent: gstPercent ? String(gstPercent) : null,
+        isConsumable: !!isConsumable,
+        consumeWithProductId: consumeWithProductId ? Number(consumeWithProductId) : null,
+        consumptionRatio: consumptionRatio ? String(consumptionRatio) : null,
+        shortagePercent: shortagePercent ? String(shortagePercent) : null,
         createdBy: userId,
         updatedBy: userId,
       })

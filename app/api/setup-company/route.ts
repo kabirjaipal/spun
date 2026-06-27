@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { mCompanies, mUsers, mLedgerGroups } from "@/lib/db/schema";
+import { mCompanies, mUsers, mLedgerGroups, mInventoryGroups, mUnitsOfMeasurement } from "@/lib/db/schema";
 import { auth } from "@/auth";
 import { eq, sql, and } from "drizzle-orm";
 import { NextResponse } from "next/server";
@@ -160,6 +160,37 @@ export async function POST(request: Request) {
           companyId: Number(newCompany.companyId),
           groupName,
           isSystem: true,
+          createdBy: session.user.id,
+          updatedBy: session.user.id,
+        }))
+      );
+
+      // Seed default inventory groups
+      const defaultInvGroups = ["Consumable", "Selling"];
+      await tx.insert(mInventoryGroups).values(
+        defaultInvGroups.map((groupName) => ({
+          companyId: Number(newCompany.companyId),
+          groupName,
+          createdBy: session.user.id,
+          updatedBy: session.user.id,
+        }))
+      );
+
+      // Seed default units of measurement
+      const defaultUnits = [
+        { code: "PCS", name: "Pieces" },
+        { code: "MTR", name: "Meters" },
+        { code: "KGS", name: "Kilograms" },
+        { code: "GRM", name: "Grams" },
+        { code: "LTR", name: "Liters" },
+        { code: "BOX", name: "BOX" },
+      ];
+      await tx.insert(mUnitsOfMeasurement).values(
+        defaultUnits.map((u) => ({
+          companyId: Number(newCompany.companyId),
+          unitCode: u.code,
+          unitName: u.name,
+          isFixed: true,
           createdBy: session.user.id,
           updatedBy: session.user.id,
         }))
