@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2, Printer } from "lucide-react";
 import PrintInvoiceModal from "@/components/PrintInvoiceModal";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 interface SupplierOption {
   supplierId: number;
@@ -46,6 +48,9 @@ interface LineItem {
   fold: string; // fold percentage (default 100)
   rate: string;
   gstRateId: string;
+  cgst: string;
+  sgst: string;
+  igst: string;
 }
 
 const EMPTY_LINE = (): LineItem => ({
@@ -58,7 +63,11 @@ const EMPTY_LINE = (): LineItem => ({
   fold: "100",
   rate: "0",
   gstRateId: "",
+  cgst: "",
+  sgst: "",
+  igst: "",
 });
+
 
 export default function PurchaseClient({
   company,
@@ -75,12 +84,90 @@ export default function PurchaseClient({
   taxRates: TaxRateOption[];
   canCreate: boolean;
 }) {
+  const router = useRouter();
   const isTextile = company.companyType === "textiles";
+
+  // Dialog States for inline creation
+  const [showPartyModal, setShowPartyModal] = useState(false);
+  const [partyForm, setPartyForm] = useState({ supplierName: "", gstNo: "", address: "", phone: "", email: "" });
+  const [partySaving, setPartySaving] = useState(false);
+
+  const [showBrokerModal, setShowBrokerModal] = useState(false);
+  const [brokerForm, setBrokerForm] = useState({ ledgerName: "", ledgerType: "other" });
+  const [brokerSaving, setBrokerSaving] = useState(false);
+
+  const [showHasteModal, setShowHasteModal] = useState(false);
+  const [hasteForm, setHasteForm] = useState({ inventoryName: "", inventoryCode: "", unit: "PCS" });
+  const [hasteSaving, setHasteSaving] = useState(false);
+
+  async function handleCreateParty() {
+    if (!partyForm.supplierName) return;
+    setPartySaving(true);
+    try {
+      const res = await fetch("/api/suppliers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...partyForm, openingBalance: 0 }),
+      });
+      if (res.ok) {
+        setShowPartyModal(false);
+        router.push("/dashboard/suppliers");
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setPartySaving(false);
+    }
+  }
+
+  async function handleCreateBroker() {
+    if (!brokerForm.ledgerName) return;
+    setBrokerSaving(true);
+    try {
+      const res = await fetch("/api/ledgers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...brokerForm }),
+      });
+      if (res.ok) {
+        setShowBrokerModal(false);
+        router.push("/dashboard/ledgers");
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setBrokerSaving(false);
+    }
+  }
+
+  async function handleCreateHaste() {
+    if (!hasteForm.inventoryName || !hasteForm.inventoryCode) return;
+    setHasteSaving(true);
+    try {
+      const res = await fetch("/api/inventory", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...hasteForm, openingStockQty: 0, openingStockRate: 0 }),
+      });
+      if (res.ok) {
+        setShowHasteModal(false);
+        router.push("/dashboard/inventory");
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setHasteSaving(false);
+    }
+  }
+
 
   const [purchaseType, setPurchaseType] = useState<"grey" | "finished" | "consumable" | "other">("grey");
   const [selectedSupplier, setSelectedSupplier] = useState("");
   const [voucherNo, setVoucherNo] = useState("");
   const [voucherDate, setVoucherDate] = useState(new Date().toISOString().slice(0, 10));
+  const [invoiceNo, setInvoiceNo] = useState("");
+  const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().slice(0, 10));
+  const [goodsName, setGoodsName] = useState("");
   
   // Textile-specific logistics fields
   const [broker, setBroker] = useState("");
@@ -117,20 +204,26 @@ export default function PurchaseClient({
       const amount = Math.round((qty * rate * fold / 100) * 100) / 100;
       const totalTax = Math.round((amount * gstRatePercent) / 100 * 100) / 100;
       
-      let cgst = 0;
-      let sgst = 0;
-      let igst = 0;
+      let defaultCgst = 0;
+      let defaultSgst = 0;
+      let defaultIgst = 0;
 
       if (isInterstate) {
-        igst = totalTax;
+        defaultIgst = totalTax;
       } else {
-        cgst = Math.round((totalTax / 2) * 100) / 100;
-        sgst = Math.round((totalTax - cgst) * 100) / 100;
+        defaultCgst = Math.round((totalTax / 2) * 100) / 100;
+        defaultSgst = Math.round((totalTax - defaultCgst) * 100) / 100;
       }
 
-      return { amount, cgst, sgst, igst, totalTax, net: amount + totalTax };
+      const cgst = line.cgst !== "" ? (Number(line.cgst) || 0) : defaultCgst;
+      const sgst = line.sgst !== "" ? (Number(line.sgst) || 0) : defaultSgst;
+      const igst = line.igst !== "" ? (Number(line.igst) || 0) : defaultIgst;
+
+      const totalTaxVal = cgst + sgst + igst;
+
+      return { amount, cgst, sgst, igst, totalTax: totalTaxVal, net: amount + totalTaxVal };
     });
-  }, [lineItems, taxRates, isInterstate]);
+  }, [lineItems, taxRates, isInterstate, isTextile]);
 
   const grandTotals = useMemo(() => {
     return lineTotals.reduce(
@@ -179,7 +272,7 @@ export default function PurchaseClient({
   async function handleSubmit() {
     if (!canCreate) return;
     if (!selectedSupplier || !voucherNo) {
-      setMessage("Select supplier and enter voucher number.");
+      setMessage("Select name and enter voucher number.");
       return;
     }
 
@@ -197,6 +290,9 @@ export default function PurchaseClient({
         voucherType: "purchase",
         voucherNo,
         voucherDate,
+        invoiceNo,
+        invoiceDate: invoiceDate || null,
+        goodsName,
         partyId: Number(selectedSupplier),
         remarks: remarks || `Purchase - ${purchaseType.toUpperCase()}`,
         broker,
@@ -208,16 +304,22 @@ export default function PurchaseClient({
         personName,
         printRate: true,
         printAmount: true,
-        lineItems: validLines.map((line) => ({
-          inventoryId: Number(line.inventoryId),
-          ledgerId: Number(line.ledgerId),
-          hsnCode: line.hsnCode,
-          pcs: Number(line.pcs || 0),
-          quantity: Number(line.quantity),
-          fold: Number(line.fold || 100),
-          rate: Number(line.rate),
-          gstRateId: line.gstRateId ? Number(line.gstRateId) : null,
-        })),
+        lineItems: validLines.map((line) => {
+          const totals = lineTotals[lineItems.indexOf(line)];
+          return {
+            inventoryId: Number(line.inventoryId),
+            ledgerId: Number(line.ledgerId),
+            hsnCode: line.hsnCode,
+            pcs: Number(line.pcs || 0),
+            quantity: Number(line.quantity),
+            fold: Number(line.fold || 100),
+            rate: Number(line.rate),
+            gstRateId: line.gstRateId ? Number(line.gstRateId) : null,
+            cgst: totals?.cgst || 0,
+            sgst: totals?.sgst || 0,
+            igst: totals?.igst || 0,
+          };
+        }),
       };
 
       const response = await fetch("/api/vouchers", {
@@ -233,6 +335,8 @@ export default function PurchaseClient({
 
       setMessage("Purchase voucher created successfully.");
       setVoucherNo("");
+      setInvoiceNo("");
+      setGoodsName("");
       setRemarks("");
       setBroker("");
       setHaste("");
@@ -254,7 +358,7 @@ export default function PurchaseClient({
           netAmount: grandTotals.total,
         },
         party: {
-          name: supplier?.supplierName || "Supplier",
+          name: supplier?.supplierName || "Name",
           gstNo: supplier?.gstNo,
           address: supplier?.address,
         },
@@ -284,7 +388,7 @@ export default function PurchaseClient({
   }
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto p-2">
+    <div className="space-y-6 container mx-auto p-2">
       {/* Top Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
@@ -308,87 +412,129 @@ export default function PurchaseClient({
       {/* Main Form Fields */}
       <div className="grid gap-6 md:grid-cols-3">
         {/* Supplier & Main Details */}
-        <div className="rounded-lg border border-border bg-card p-5 space-y-4 shadow-sm">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">Party Details</h2>
+        {/* Party & Document Details */}
+        <div className="md:col-span-2 rounded-lg border border-border bg-card p-5 space-y-4 shadow-sm">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">Party & Document Details</h2>
           
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold uppercase text-foreground">Supplier</Label>
-            <Select value={selectedSupplier} onValueChange={setSelectedSupplier}>
-              <SelectTrigger className="h-9">
-                <SelectValue placeholder="Choose supplier" />
-              </SelectTrigger>
-              <SelectContent>
-                {suppliers.map((s) => (
-                  <SelectItem key={s.supplierId} value={String(s.supplierId)}>
-                    {s.supplierName} {s.gstNo ? `(${s.gstNo})` : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Party Name */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold uppercase text-foreground">Name</Label>
+                <button type="button" onClick={() => setShowPartyModal(true)} className="text-[10px] font-bold text-primary hover:underline uppercase">+ New Party</button>
+              </div>
+              <Select value={selectedSupplier} onValueChange={setSelectedSupplier}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="Choose name" />
+                </SelectTrigger>
+                <SelectContent>
+                  {suppliers.map((s) => (
+                    <SelectItem key={s.supplierId} value={String(s.supplierId)}>
+                      {s.supplierName} {s.gstNo ? `(${s.gstNo})` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-          {isTextile && (
-            <>
-              <div className="space-y-1.5">
+            {/* Remarks */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase text-foreground">Remarks</Label>
+              <Input value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Voucher descriptions" className="h-9" />
+            </div>
+
+            {/* Voucher / Sr No & Voucher Date */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase text-foreground">Voucher / Sr No.</Label>
+              <Input value={voucherNo} onChange={(e) => setVoucherNo(e.target.value)} placeholder="e.g. SR-1001" className="h-9" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase text-foreground">Voucher Date</Label>
+              <Input type="date" value={voucherDate} onChange={(e) => setVoucherDate(e.target.value)} className="h-9" />
+            </div>
+
+            {/* Invoice Number & Invoice Date */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase text-foreground">Invoice Number</Label>
+              <Input value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} placeholder="e.g. INV-2025" className="h-9" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase text-foreground">Invoice Date</Label>
+              <Input type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} className="h-9" />
+            </div>
+
+            {/* Name of Goods Purchased */}
+            <div className="space-y-1.5 md:col-span-2">
+              <Label className="text-xs font-semibold uppercase text-foreground">Name of Goods Purchased</Label>
+              <Input value={goodsName} onChange={(e) => setGoodsName(e.target.value)} placeholder="e.g. Cotton fabric, Polyester yarn, Chemicals" className="h-9" />
+            </div>
+
+            {/* Broker & Haste */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
                 <Label className="text-xs font-semibold uppercase text-foreground">Broker</Label>
-                <Input value={broker} onChange={(e) => setBroker(e.target.value)} placeholder="Broker Name" className="h-9" />
+                <button type="button" onClick={() => setShowBrokerModal(true)} className="text-[10px] font-bold text-primary hover:underline uppercase">+ New Broker</button>
               </div>
+              <Select value={broker} onValueChange={setBroker}>
+                <SelectTrigger className="h-9 w-full">
+                  <SelectValue placeholder="Choose Broker" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ledgers.map((l) => (
+                    <SelectItem key={l.ledgerId} value={l.ledgerName}>
+                      {l.ledgerName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-              <div className="space-y-1.5">
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
                 <Label className="text-xs font-semibold uppercase text-foreground">Haste (Delivery Agent)</Label>
-                <Input value={haste} onChange={(e) => setHaste(e.target.value)} placeholder="Haste / Courier" className="h-9" />
+                <button type="button" onClick={() => setShowHasteModal(true)} className="text-[10px] font-bold text-primary hover:underline uppercase">+ New Haste</button>
               </div>
-            </>
-          )}
-        </div>
-
-        {/* Voucher Info */}
-        <div className="rounded-lg border border-border bg-card p-5 space-y-4 shadow-sm">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">Document Details</h2>
-
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold uppercase text-foreground">Invoice / Sr No.</Label>
-            <Input value={voucherNo} onChange={(e) => setVoucherNo(e.target.value)} placeholder="e.g. INV-1020" className="h-9" />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold uppercase text-foreground">Voucher Date</Label>
-            <Input type="date" value={voucherDate} onChange={(e) => setVoucherDate(e.target.value)} className="h-9" />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold uppercase text-foreground">Remarks</Label>
-            <Input value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Voucher descriptions" className="h-9" />
+              <Select value={haste} onValueChange={setHaste}>
+                <SelectTrigger className="h-9 w-full">
+                  <SelectValue placeholder="Choose Haste" />
+                </SelectTrigger>
+                <SelectContent>
+                  {inventory.map((inv) => (
+                    <SelectItem key={inv.inventoryId} value={inv.inventoryName}>
+                      {inv.inventoryName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
 
         {/* Logistics details */}
-        {isTextile && (
-          <div className="rounded-lg border border-border bg-card p-5 space-y-4 shadow-sm">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">Logistics & Shipping</h2>
+        <div className="rounded-lg border border-border bg-card p-5 space-y-4 shadow-sm">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">Logistics & Shipping</h2>
 
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold uppercase text-foreground">LR No.</Label>
+            <Input value={lrNo} onChange={(e) => setLrNo(e.target.value)} placeholder="Lorry Receipt No." className="h-9" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">LR No.</Label>
-              <Input value={lrNo} onChange={(e) => setLrNo(e.target.value)} placeholder="Lorry Receipt No." className="h-9" />
+              <Label className="text-xs font-semibold uppercase text-foreground">LR Date</Label>
+              <Input type="date" value={lrDate} onChange={(e) => setLrDate(e.target.value)} className="h-9" />
             </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold uppercase text-foreground">LR Date</Label>
-                <Input type="date" value={lrDate} onChange={(e) => setLrDate(e.target.value)} className="h-9" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold uppercase text-foreground">Transport</Label>
-                <Input value={transport} onChange={(e) => setTransport(e.target.value)} placeholder="Transport Service" className="h-9" />
-              </div>
-            </div>
-
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">Vehicle No.</Label>
-              <Input value={vehicleNo} onChange={(e) => setVehicleNo(e.target.value)} placeholder="e.g. GJ-05-XX-XXXX" className="h-9" />
+              <Label className="text-xs font-semibold uppercase text-foreground">Transport</Label>
+              <Input value={transport} onChange={(e) => setTransport(e.target.value)} placeholder="Transport Service" className="h-9" />
             </div>
           </div>
-        )}
+
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold uppercase text-foreground">Vehicle No.</Label>
+            <Input value={vehicleNo} onChange={(e) => setVehicleNo(e.target.value)} placeholder="e.g. GJ-05-XX-XXXX" className="h-9" />
+          </div>
+        </div>
       </div>
 
       {/* Line Items Table */}
@@ -404,38 +550,64 @@ export default function PurchaseClient({
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[900px]">
+          <table className="w-full text-left border-collapse min-w-[1200px]">
             <thead>
               <tr className="border-b border-border text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                <th className="py-2 pr-4 w-[25%]">Item</th>
-                <th className="py-2 px-3 w-[20%]">Expense Ledger</th>
-                <th className="py-2 px-3 w-[8%] text-right">PCS</th>
-                <th className="py-2 px-3 w-[10%] text-right">{isTextile ? "Quantity (Mtr)" : "Quantity"}</th>
-                {isTextile && <th className="py-2 px-3 w-[8%] text-right">Fold %</th>}
-                <th className="py-2 px-3 w-[10%] text-right">Rate</th>
-                <th className="py-2 px-3 w-[10%]">GST Rate</th>
-                <th className="py-2 px-3 w-[12%] text-right">Net Taxable</th>
-                <th className="py-2 pl-4 w-[5%]"></th>
+                <th className="py-2 pr-4 w-[18%]">Item</th>
+                <th className="py-2 px-3 w-[10%]">HSN Code</th>
+                <th className="py-2 px-3 w-[15%]">Expense Ledger</th>
+                <th className="py-2 px-3 w-[6%] text-right">PCS</th>
+                <th className="py-2 px-3 w-[8%] text-right">{isTextile ? "Qty (Mtr)" : "Qty"}</th>
+                <th className="py-2 px-3 w-[6%]">Unit</th>
+                {isTextile && <th className="py-2 px-3 w-[6%] text-right">Fold %</th>}
+                <th className="py-2 px-3 w-[8%] text-right">Rate</th>
+                <th className="py-2 px-3 w-[8%]">GST Rate</th>
+                <th className="py-2 px-3 w-[9%] text-right">Taxable</th>
+                <th className="py-2 px-3 w-[7%] text-right">CGST</th>
+                <th className="py-2 px-3 w-[7%] text-right">SGST</th>
+                <th className="py-2 px-3 w-[7%] text-right">IGST</th>
+                <th className="py-2 px-3 w-[9%] text-right">Net Amt</th>
+                <th className="py-2 pl-4 w-[4%]"></th>
               </tr>
             </thead>
             <tbody>
               {lineItems.map((line, index) => {
                 const totals = lineTotals[index];
+                const itemProd = inventory.find((p) => String(p.inventoryId) === line.inventoryId);
                 return (
                   <tr key={line.id} className="border-b border-border/40 hover:bg-muted/30">
                     <td className="py-3 pr-4">
-                      <Select value={line.inventoryId} onValueChange={(val) => updateLine(line.id, "inventoryId", val)}>
-                        <SelectTrigger className="h-9 w-full">
-                          <SelectValue placeholder="Select Item" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {inventory.map((p) => (
-                            <SelectItem key={p.inventoryId} value={String(p.inventoryId)}>
-                              {p.inventoryCode} — {p.inventoryName}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <div className="space-y-1">
+                        <Select value={line.inventoryId} onValueChange={(val) => updateLine(line.id, "inventoryId", val)}>
+                          <SelectTrigger className="h-9 w-full">
+                            <SelectValue placeholder="Select Item" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {inventory.map((p) => (
+                              <SelectItem key={p.inventoryId} value={String(p.inventoryId)}>
+                                {p.inventoryCode} — {p.inventoryName}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <div className="text-right">
+                          <button
+                            type="button"
+                            onClick={() => router.push("/dashboard/inventory")}
+                            className="text-[9px] font-bold text-primary hover:underline uppercase"
+                          >
+                            + New Item
+                          </button>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-3 px-3">
+                      <Input
+                        value={line.hsnCode}
+                        onChange={(e) => updateLine(line.id, "hsnCode", e.target.value)}
+                        className="h-9 w-full"
+                        placeholder="HSN Code"
+                      />
                     </td>
                     <td className="py-3 px-3">
                       <Select value={line.ledgerId} onValueChange={(val) => updateLine(line.id, "ledgerId", val)}>
@@ -467,6 +639,9 @@ export default function PurchaseClient({
                         onChange={(e) => updateLine(line.id, "quantity", e.target.value)}
                         className="h-9 text-right font-medium"
                       />
+                    </td>
+                    <td className="py-3 px-3 text-xs text-muted-foreground font-medium">
+                      {itemProd?.unit || "—"}
                     </td>
                     {isTextile && (
                       <td className="py-3 px-3">
@@ -502,8 +677,41 @@ export default function PurchaseClient({
                         </SelectContent>
                       </Select>
                     </td>
-                    <td className="py-3 px-3 text-right font-bold text-foreground">
+                    <td className="py-3 px-3 text-right font-semibold text-foreground">
                       ₹{totals?.amount.toFixed(2)}
+                    </td>
+                    <td className="py-3 px-3">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder={totals?.cgst.toFixed(2)}
+                        value={line.cgst || ""}
+                        onChange={(e) => updateLine(line.id, "cgst", e.target.value)}
+                        className="h-9 text-right font-medium w-20 ml-auto"
+                      />
+                    </td>
+                    <td className="py-3 px-3">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder={totals?.sgst.toFixed(2)}
+                        value={line.sgst || ""}
+                        onChange={(e) => updateLine(line.id, "sgst", e.target.value)}
+                        className="h-9 text-right font-medium w-20 ml-auto"
+                      />
+                    </td>
+                    <td className="py-3 px-3">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder={totals?.igst.toFixed(2)}
+                        value={line.igst || ""}
+                        onChange={(e) => updateLine(line.id, "igst", e.target.value)}
+                        className="h-9 text-right font-medium w-20 ml-auto"
+                      />
+                    </td>
+                    <td className="py-3 px-3 text-right font-bold text-foreground">
+                      ₹{totals?.net.toFixed(2)}
                     </td>
                     <td className="py-3 pl-4 text-center">
                       <Button
@@ -520,58 +728,16 @@ export default function PurchaseClient({
                 );
               })}
             </tbody>
+
           </table>
         </div>
       </div>
 
-      {/* Invoice Summary and Tax Details */}
-      <div className="grid gap-6 md:grid-cols-3">
-        <div className="md:col-span-2 rounded-lg border border-border bg-card p-5 space-y-3 shadow-sm">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">GST Tax Breakdown</h2>
-          
-          <div className="grid grid-cols-3 gap-4 pt-1">
-            <div className="rounded border border-border/60 bg-muted/20 p-3 text-center">
-              <div className="text-[10px] uppercase font-bold text-muted-foreground">CGST Total</div>
-              <div className="mt-1 text-base font-bold text-foreground">₹{grandTotals.cgst.toFixed(2)}</div>
-            </div>
-            <div className="rounded border border-border/60 bg-muted/20 p-3 text-center">
-              <div className="text-[10px] uppercase font-bold text-muted-foreground">SGST Total</div>
-              <div className="mt-1 text-base font-bold text-foreground">₹{grandTotals.sgst.toFixed(2)}</div>
-            </div>
-            <div className="rounded border border-border/60 bg-muted/20 p-3 text-center">
-              <div className="text-[10px] uppercase font-bold text-muted-foreground">IGST Total</div>
-              <div className="mt-1 text-base font-bold text-foreground">₹{grandTotals.igst.toFixed(2)}</div>
-            </div>
-          </div>
-          <p className="text-[10px] text-muted-foreground italic text-center">
-            * Real-time tax splits determined automatically based on state settings.
-          </p>
-        </div>
-
-        <div className="rounded-lg border border-border bg-card p-5 space-y-4 shadow-sm">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">Summary</h2>
-
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Taxable Value:</span>
-              <span className="font-semibold">₹{grandTotals.amount.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Total GST:</span>
-              <span className="font-semibold text-warning">₹{grandTotals.tax.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between border-t border-border pt-2 text-base font-bold text-foreground">
-              <span>Grand Total:</span>
-              <span className="text-primary">₹{grandTotals.total.toFixed(2)}</span>
-            </div>
-          </div>
-
-          <div className="pt-2">
-            <Button onClick={handleSubmit} disabled={saving || !canCreate} className="w-full h-10 font-bold uppercase">
-              {saving ? "Saving Voucher..." : "Save Invoice"}
-            </Button>
-          </div>
-        </div>
+      {/* Save Invoice Button */}
+      <div className="flex justify-end pt-4">
+        <Button onClick={handleSubmit} disabled={saving || !canCreate} className="h-10 px-8 font-bold uppercase">
+          {saving ? "Saving Voucher..." : "Save Invoice"}
+        </Button>
       </div>
 
       {message && <div className="rounded-lg border border-border bg-muted/65 p-4 text-sm text-center font-medium text-foreground">{message}</div>}
@@ -586,6 +752,111 @@ export default function PurchaseClient({
           lines={printVoucher.lines}
         />
       )}
+
+      {/* Modals for inline creation */}
+      <Dialog open={showPartyModal} onOpenChange={setShowPartyModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-sm font-bold uppercase">New Party / Supplier</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase text-foreground">Name</Label>
+              <Input
+                placeholder="e.g. Acme Fabrics"
+                value={partyForm.supplierName}
+                onChange={(e) => setPartyForm({ ...partyForm, supplierName: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase text-foreground">GSTIN</Label>
+              <Input
+                placeholder="24XXXXX0000X1ZX"
+                value={partyForm.gstNo}
+                onChange={(e) => setPartyForm({ ...partyForm, gstNo: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase text-foreground">Address</Label>
+              <Input
+                placeholder="Address Details"
+                value={partyForm.address}
+                onChange={(e) => setPartyForm({ ...partyForm, address: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPartyModal(false)}>Cancel</Button>
+            <Button onClick={handleCreateParty} disabled={partySaving || !partyForm.supplierName}>
+              {partySaving ? "Saving..." : "Create"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showBrokerModal} onOpenChange={setShowBrokerModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-sm font-bold uppercase">New Broker Ledger</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase text-foreground">Ledger Name</Label>
+              <Input
+                placeholder="Broker Ledger Name"
+                value={brokerForm.ledgerName}
+                onChange={(e) => setBrokerForm({ ...brokerForm, ledgerName: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowBrokerModal(false)}>Cancel</Button>
+            <Button onClick={handleCreateBroker} disabled={brokerSaving || !brokerForm.ledgerName}>
+              {brokerSaving ? "Saving..." : "Create"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showHasteModal} onOpenChange={setShowHasteModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-sm font-bold uppercase">New Haste (Inventory Item)</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase text-foreground">Item Name</Label>
+              <Input
+                placeholder="Haste Name"
+                value={hasteForm.inventoryName}
+                onChange={(e) => setHasteForm({ ...hasteForm, inventoryName: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase text-foreground">Item Code</Label>
+              <Input
+                placeholder="Code"
+                value={hasteForm.inventoryCode}
+                onChange={(e) => setHasteForm({ ...hasteForm, inventoryCode: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase text-foreground">Unit</Label>
+              <Input
+                placeholder="PCS / MTR"
+                value={hasteForm.unit}
+                onChange={(e) => setHasteForm({ ...hasteForm, unit: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowHasteModal(false)}>Cancel</Button>
+            <Button onClick={handleCreateHaste} disabled={hasteSaving || !hasteForm.inventoryName || !hasteForm.inventoryCode}>
+              {hasteSaving ? "Saving..." : "Create"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

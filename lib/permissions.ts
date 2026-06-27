@@ -31,6 +31,7 @@ export const ALL_PAGES: PageConfig[] = [
   // Transactions
   { accessItem: "sales", pageUrl: "/dashboard/sales", pageTitle: "Sales", pageIcon: "FileSpreadsheet", pageGroup: "Transactions", accessGroup: "company" },
   { accessItem: "purchase", pageUrl: "/dashboard/purchase", pageTitle: "Purchase", pageIcon: "ShoppingCart", pageGroup: "Transactions", accessGroup: "company" },
+  { accessItem: "purchase_return", pageUrl: "/dashboard/purchase-return", pageTitle: "Purchase Return", pageIcon: "ShoppingBag", pageGroup: "Transactions", accessGroup: "company" },
   { accessItem: "job_outward", pageUrl: "/dashboard/job-outward", pageTitle: "Job Outward", pageIcon: "ArrowUpRight", pageGroup: "Transactions", accessGroup: "company" },
   { accessItem: "job_inward", pageUrl: "/dashboard/job-inward", pageTitle: "Job Inward", pageIcon: "ArrowDownLeft", pageGroup: "Transactions", accessGroup: "company" },
   { accessItem: "mill_outward", pageUrl: "/dashboard/mill-outward", pageTitle: "Mill Outward", pageIcon: "ArrowUpRight", pageGroup: "Transactions", accessGroup: "company" },

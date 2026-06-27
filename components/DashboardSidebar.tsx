@@ -204,7 +204,9 @@ export default function DashboardSidebar({
               )}
               <div className="space-y-0.5">
                 {groups[groupName].map((item) => {
-                  const isActive = pathname.startsWith(item.pageUrl || "");
+                  const isActive = item.pageUrl === "/dashboard/purchase"
+                    ? pathname === "/dashboard/purchase"
+                    : pathname.startsWith(item.pageUrl || "");
                   return (
                     <Link
                       key={item.accessItem}

@@ -75,6 +75,9 @@ interface ReturnLineItem {
   rate: string;
   gstRateId: string;
   invoiceNo: string;
+  cgst: string;
+  sgst: string;
+  igst: string;
 }
 
 export default function PurchaseReturnClient({
@@ -165,6 +168,9 @@ export default function PurchaseReturnClient({
         rate: String(line.rate),
         gstRateId: String(line.gstRateId || ""),
         invoiceNo: invoice.voucherNo,
+        cgst: "",
+        sgst: "",
+        igst: "",
       }));
       setLineItems((items) => [...items, ...newItems]);
     }
@@ -190,20 +196,26 @@ export default function PurchaseReturnClient({
       const amount = Math.round((qty * rate * fold / 100) * 100) / 100;
       const totalTax = Math.round((amount * gstRatePercent) / 100 * 100) / 100;
 
-      let cgst = 0;
-      let sgst = 0;
-      let igst = 0;
+      let defaultCgst = 0;
+      let defaultSgst = 0;
+      let defaultIgst = 0;
 
       if (isInterstate) {
-        igst = totalTax;
+        defaultIgst = totalTax;
       } else {
-        cgst = Math.round((totalTax / 2) * 100) / 100;
-        sgst = Math.round((totalTax - cgst) * 100) / 100;
+        defaultCgst = Math.round((totalTax / 2) * 100) / 100;
+        defaultSgst = Math.round((totalTax - defaultCgst) * 100) / 100;
       }
 
-      return { amount, cgst, sgst, igst, totalTax, net: amount + totalTax };
+      const cgst = line.cgst !== "" ? (Number(line.cgst) || 0) : defaultCgst;
+      const sgst = line.sgst !== "" ? (Number(line.sgst) || 0) : defaultSgst;
+      const igst = line.igst !== "" ? (Number(line.igst) || 0) : defaultIgst;
+
+      const totalTaxVal = cgst + sgst + igst;
+
+      return { amount, cgst, sgst, igst, totalTax: totalTaxVal, net: amount + totalTaxVal };
     });
-  }, [lineItems, taxRates, isInterstate]);
+  }, [lineItems, taxRates, isInterstate, isTextile]);
 
   const grandTotals = useMemo(() => {
     return lineTotals.reduce(
@@ -270,16 +282,22 @@ export default function PurchaseReturnClient({
         lrNo,
         lrDate: lrDate || null,
         transport,
-        lineItems: validLines.map((line) => ({
-          inventoryId: Number(line.inventoryId),
-          ledgerId: Number(line.ledgerId),
-          hsnCode: line.hsnCode,
-          pcs: Number(line.pcs || 0),
-          quantity: Number(line.quantity),
-          fold: Number(line.fold || 100),
-          rate: Number(line.rate),
-          gstRateId: line.gstRateId ? Number(line.gstRateId) : null,
-        })),
+        lineItems: validLines.map((line) => {
+          const totals = lineTotals[lineItems.indexOf(line)];
+          return {
+            inventoryId: Number(line.inventoryId),
+            ledgerId: Number(line.ledgerId),
+            hsnCode: line.hsnCode,
+            pcs: Number(line.pcs || 0),
+            quantity: Number(line.quantity),
+            fold: Number(line.fold || 100),
+            rate: Number(line.rate),
+            gstRateId: line.gstRateId ? Number(line.gstRateId) : null,
+            cgst: totals?.cgst || 0,
+            sgst: totals?.sgst || 0,
+            igst: totals?.igst || 0,
+          };
+        }),
       };
 
       const response = await fetch("/api/vouchers", {
@@ -309,7 +327,7 @@ export default function PurchaseReturnClient({
   }
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto p-2">
+    <div className="space-y-6 container mx-auto p-2">
       {/* Top Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
@@ -320,96 +338,90 @@ export default function PurchaseReturnClient({
 
       {/* Main Form Fields */}
       <div className="grid gap-6 md:grid-cols-3">
-        {/* Supplier & Invoice Selection */}
-        <div className="rounded-lg border border-border bg-card p-5 space-y-4 shadow-sm">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">Party & Invoices</h2>
+        {/* Party, Invoices & Document Details */}
+        <div className="md:col-span-2 rounded-lg border border-border bg-card p-5 space-y-4 shadow-sm">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">Party, Invoices & Document Details</h2>
           
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold uppercase text-foreground">Supplier</Label>
-            <Select value={selectedSupplier} onValueChange={setSelectedSupplier}>
-              <SelectTrigger className="h-9">
-                <SelectValue placeholder="Choose supplier" />
-              </SelectTrigger>
-              <SelectContent>
-                {suppliers.map((s) => (
-                  <SelectItem key={s.supplierId} value={String(s.supplierId)}>
-                    {s.supplierName} {s.gstNo ? `(${s.gstNo})` : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {selectedSupplier && (
-            <div className="space-y-2 pt-2">
-              <Label className="text-xs font-semibold uppercase text-foreground">Select Invoices</Label>
-              {loadingInvoices ? (
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Loader2 className="h-3 w-3 animate-spin" /> Loading invoices...
-                </div>
-              ) : invoices.length === 0 ? (
-                <p className="text-xs text-muted-foreground italic">No purchase invoices found for this supplier.</p>
-              ) : (
-                <div className="max-h-36 overflow-y-auto space-y-2 border border-border rounded p-2 bg-muted/10">
-                  {invoices.map((inv) => (
-                    <label key={inv.voucherId} className="flex items-center gap-2 text-xs text-foreground cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={selectedInvoiceIds.includes(inv.voucherId)}
-                        onChange={() => handleToggleInvoice(inv)}
-                        className="rounded border-border text-primary focus:ring-primary h-3.5 w-3.5"
-                      />
-                      <span>{inv.voucherNo} ({new Date(inv.voucherDate).toLocaleDateString()}) - ₹{Number(inv.netAmount).toFixed(2)}</span>
-                    </label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase text-foreground">Supplier (Party)</Label>
+              <Select value={selectedSupplier} onValueChange={setSelectedSupplier}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="Choose supplier" />
+                </SelectTrigger>
+                <SelectContent>
+                  {suppliers.map((s) => (
+                    <SelectItem key={s.supplierId} value={String(s.supplierId)}>
+                      {s.supplierName} {s.gstNo ? `(${s.gstNo})` : ""}
+                    </SelectItem>
                   ))}
-                </div>
-              )}
+                </SelectContent>
+              </Select>
             </div>
-          )}
-        </div>
 
-        {/* Voucher Info */}
-        <div className="rounded-lg border border-border bg-card p-5 space-y-4 shadow-sm">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">Document Details</h2>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase text-foreground">Remarks</Label>
+              <Input value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Return reasons" className="h-9" />
+            </div>
 
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold uppercase text-foreground">DR. Note / PR No.</Label>
-            <Input value={voucherNo} onChange={(e) => setVoucherNo(e.target.value)} placeholder="e.g. PR-001" className="h-9" />
-          </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase text-foreground">DR. Note / PR No.</Label>
+              <Input value={voucherNo} onChange={(e) => setVoucherNo(e.target.value)} placeholder="e.g. PR-001" className="h-9" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase text-foreground">Return Date</Label>
+              <Input type="date" value={voucherDate} onChange={(e) => setVoucherDate(e.target.value)} className="h-9" />
+            </div>
 
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold uppercase text-foreground">Return Date</Label>
-            <Input type="date" value={voucherDate} onChange={(e) => setVoucherDate(e.target.value)} className="h-9" />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold uppercase text-foreground">Remarks</Label>
-            <Input value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Return reasons" className="h-9" />
+            {selectedSupplier && (
+              <div className="space-y-2 pt-2 md:col-span-2">
+                <Label className="text-xs font-semibold uppercase text-foreground font-bold">Select Invoices (Multiple Returns Allowed)</Label>
+                {loadingInvoices ? (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Loader2 className="h-3 w-3 animate-spin" /> Loading invoices...
+                  </div>
+                ) : invoices.length === 0 ? (
+                  <p className="text-xs text-muted-foreground italic">No purchase invoices found for this supplier.</p>
+                ) : (
+                  <div className="max-h-36 overflow-y-auto space-y-2 border border-border rounded p-2 bg-muted/10">
+                    {invoices.map((inv) => (
+                      <label key={inv.voucherId} className="flex items-center gap-2 text-xs text-foreground cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedInvoiceIds.includes(inv.voucherId)}
+                          onChange={() => handleToggleInvoice(inv)}
+                          className="rounded border-border text-primary focus:ring-primary h-3.5 w-3.5"
+                        />
+                        <span>{inv.voucherNo} ({new Date(inv.voucherDate).toLocaleDateString()}) - ₹{Number(inv.netAmount).toFixed(2)}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
         {/* Logistics details */}
-        {isTextile && (
-          <div className="rounded-lg border border-border bg-card p-5 space-y-4 shadow-sm">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">Logistics & Shipping</h2>
+        <div className="rounded-lg border border-border bg-card p-5 space-y-4 shadow-sm">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">Logistics & Shipping</h2>
 
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold uppercase text-foreground">LR No.</Label>
+            <Input value={lrNo} onChange={(e) => setLrNo(e.target.value)} placeholder="Lorry Receipt No." className="h-9" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">LR No.</Label>
-              <Input value={lrNo} onChange={(e) => setLrNo(e.target.value)} placeholder="Lorry Receipt No." className="h-9" />
+              <Label className="text-xs font-semibold uppercase text-foreground">LR Date</Label>
+              <Input type="date" value={lrDate} onChange={(e) => setLrDate(e.target.value)} className="h-9" />
             </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold uppercase text-foreground">LR Date</Label>
-                <Input type="date" value={lrDate} onChange={(e) => setLrDate(e.target.value)} className="h-9" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold uppercase text-foreground">Transport</Label>
-                <Input value={transport} onChange={(e) => setTransport(e.target.value)} placeholder="Transport Service" className="h-9" />
-              </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase text-foreground">Transport</Label>
+              <Input value={transport} onChange={(e) => setTransport(e.target.value)} placeholder="Transport Service" className="h-9" />
             </div>
           </div>
-        )}
+        </div>
       </div>
 
       {/* Return Items Table */}
@@ -420,66 +432,119 @@ export default function PurchaseReturnClient({
           <p className="text-xs text-muted-foreground italic text-center py-6">Select one or more purchase invoices to populate return items.</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[900px]">
+            <table className="w-full text-left border-collapse min-w-[1200px]">
               <thead>
                 <tr className="border-b border-border text-[10px] uppercase font-bold text-muted-foreground">
-                  <th className="py-2.5 px-2">Invoice No</th>
-                  <th className="py-2.5 px-2">Item Name</th>
-                  <th className="py-2.5 px-2">Original Qty</th>
-                  <th className="py-2.5 px-2">Return PCS</th>
-                  <th className="py-2.5 px-2">Return Qty {isTextile ? "(Mtr)" : ""}</th>
-                  {isTextile && <th className="py-2.5 px-2">Fold %</th>}
-                  <th className="py-2.5 px-2">Rate</th>
-                  <th className="py-2.5 px-2 text-right">Taxable</th>
+                  <th className="py-2.5 px-2 w-[10%]">Invoice No</th>
+                  <th className="py-2.5 px-2 w-[18%]">Item Name</th>
+                  <th className="py-2.5 px-2 w-[10%]">HSN Code</th>
+                  <th className="py-2.5 px-2 w-[12%]">Original Qty</th>
+                  <th className="py-2.5 px-2 w-[6%] text-right">Return PCS</th>
+                  <th className="py-2.5 px-2 w-[8%] text-right">Return Qty {isTextile ? "(Mtr)" : ""}</th>
+                  <th className="py-2.5 px-2 w-[6%]">Unit</th>
+                  {isTextile && <th className="py-2.5 px-2 w-[6%] text-right">Fold %</th>}
+                  <th className="py-2.5 px-2 w-[8%] text-right">Rate</th>
+                  <th className="py-2.5 px-2 w-[9%] text-right">Taxable</th>
+                  <th className="py-2.5 px-2 w-[7%] text-right">CGST</th>
+                  <th className="py-2.5 px-2 w-[7%] text-right">SGST</th>
+                  <th className="py-2.5 px-2 w-[7%] text-right">IGST</th>
+                  <th className="py-2.5 px-2 w-[9%] text-right">Net Amt</th>
                   <th className="py-2.5 px-2 text-center w-12">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60">
                 {lineItems.map((line, idx) => {
-                  const totals = lineTotals[idx] || { amount: 0 };
+                  const totals = lineTotals[idx] || { amount: 0, cgst: 0, sgst: 0, igst: 0, net: 0 };
                   return (
                     <tr key={line.id} className="hover:bg-muted/10">
                       <td className="py-2 px-2 text-xs font-semibold text-muted-foreground">{line.invoiceNo}</td>
                       <td className="py-2 px-2 text-xs font-medium text-foreground">{line.inventoryName}</td>
+                      <td className="py-2 px-2">
+                        <Input
+                          value={line.hsnCode || ""}
+                          onChange={(e) => updateLine(line.id, "hsnCode", e.target.value)}
+                          className="h-8 text-xs w-full"
+                          placeholder="HSN Code"
+                        />
+                      </td>
                       <td className="py-2 px-2 text-xs text-muted-foreground">
                         {line.originalPcs} PCS {isTextile ? `/ ${line.originalQuantity} Mtr` : `/ ${line.originalQuantity}`}
                       </td>
                       <td className="py-2 px-2">
                         <Input
                           type="number"
-                          value={line.pcs}
+                          value={line.pcs || ""}
                           onChange={(e) => updateLine(line.id, "pcs", e.target.value)}
-                          className="h-8 text-xs w-20"
+                          className="h-8 text-xs text-right w-full"
                         />
                       </td>
                       <td className="py-2 px-2">
                         <Input
                           type="number"
-                          value={line.quantity}
+                          step="0.01"
+                          value={line.quantity || ""}
                           onChange={(e) => updateLine(line.id, "quantity", e.target.value)}
-                          className="h-8 text-xs w-24"
+                          className="h-8 text-xs text-right w-full"
                         />
+                      </td>
+                      <td className="py-2 px-2 text-xs text-muted-foreground font-medium">
+                        {inventory.find((p) => String(p.inventoryId) === line.inventoryId)?.unit || "—"}
                       </td>
                       {isTextile && (
                         <td className="py-2 px-2">
                           <Input
                             type="number"
-                            value={line.fold}
+                            step="0.1"
+                            value={line.fold || ""}
                             onChange={(e) => updateLine(line.id, "fold", e.target.value)}
-                            className="h-8 text-xs w-16"
+                            className="h-8 text-xs text-right w-full"
                           />
                         </td>
                       )}
                       <td className="py-2 px-2">
                         <Input
                           type="number"
-                          value={line.rate}
+                          step="0.01"
+                          value={line.rate || ""}
                           onChange={(e) => updateLine(line.id, "rate", e.target.value)}
-                          className="h-8 text-xs w-24"
+                          className="h-8 text-xs text-right w-full"
                         />
                       </td>
                       <td className="py-2 px-2 text-xs font-semibold text-right text-foreground">
                         ₹{totals.amount.toFixed(2)}
+                      </td>
+                      <td className="py-2 px-2">
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder={totals.cgst.toFixed(2)}
+                          value={line.cgst || ""}
+                          onChange={(e) => updateLine(line.id, "cgst", e.target.value)}
+                          className="h-8 text-xs text-right w-full"
+                        />
+                      </td>
+                      <td className="py-2 px-2">
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder={totals.sgst.toFixed(2)}
+                          value={line.sgst || ""}
+                          onChange={(e) => updateLine(line.id, "sgst", e.target.value)}
+                          className="h-8 text-xs text-right w-full"
+                        />
+                      </td>
+                      <td className="py-2 px-2">
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder={totals.igst.toFixed(2)}
+                          value={line.igst || ""}
+                          onChange={(e) => updateLine(line.id, "igst", e.target.value)}
+                          className="h-8 text-xs text-right w-full"
+                        />
+                      </td>
+                      <td className="py-2 px-2 text-xs font-bold text-right text-foreground">
+                        ₹{totals.net.toFixed(2)}
                       </td>
                       <td className="py-2 px-2 text-center">
                         <Button
@@ -500,51 +565,11 @@ export default function PurchaseReturnClient({
         )}
       </div>
 
-      {/* Invoice Summary and Tax Details */}
-      <div className="grid gap-6 md:grid-cols-3">
-        <div className="md:col-span-2 rounded-lg border border-border bg-card p-5 space-y-3 shadow-sm">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">GST Tax Breakdown</h2>
-          
-          <div className="grid grid-cols-3 gap-4 pt-1">
-            <div className="rounded border border-border/60 bg-muted/20 p-3 text-center">
-              <div className="text-[10px] uppercase font-bold text-muted-foreground">CGST Total</div>
-              <div className="mt-1 text-base font-bold text-foreground">₹{grandTotals.cgst.toFixed(2)}</div>
-            </div>
-            <div className="rounded border border-border/60 bg-muted/20 p-3 text-center">
-              <div className="text-[10px] uppercase font-bold text-muted-foreground">SGST Total</div>
-              <div className="mt-1 text-base font-bold text-foreground">₹{grandTotals.sgst.toFixed(2)}</div>
-            </div>
-            <div className="rounded border border-border/60 bg-muted/20 p-3 text-center">
-              <div className="text-[10px] uppercase font-bold text-muted-foreground">IGST Total</div>
-              <div className="mt-1 text-base font-bold text-foreground">₹{grandTotals.igst.toFixed(2)}</div>
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-lg border border-border bg-card p-5 space-y-4 shadow-sm">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">Summary</h2>
-
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Taxable Value:</span>
-              <span className="font-semibold">₹{grandTotals.amount.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Total GST:</span>
-              <span className="font-semibold text-warning">₹{grandTotals.tax.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between border-t border-border pt-2 text-base font-bold text-foreground">
-              <span>Grand Total:</span>
-              <span className="text-primary">₹{grandTotals.total.toFixed(2)}</span>
-            </div>
-          </div>
-
-          <div className="pt-2">
-            <Button onClick={handleSubmit} disabled={saving || !canCreate} className="w-full h-10 font-bold uppercase">
-              {saving ? "Saving Return..." : "Save Purchase Return"}
-            </Button>
-          </div>
-        </div>
+      {/* Save Return Button */}
+      <div className="flex justify-end pt-4">
+        <Button onClick={handleSubmit} disabled={saving || !canCreate} className="h-10 px-8 font-bold uppercase">
+          {saving ? "Saving Return..." : "Save Purchase Return"}
+        </Button>
       </div>
 
       {message && <div className="rounded-lg border border-border bg-muted/65 p-4 text-sm text-center font-medium text-foreground">{message}</div>}

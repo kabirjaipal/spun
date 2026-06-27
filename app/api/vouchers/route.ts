@@ -21,6 +21,9 @@ export async function POST(request: Request) {
     voucherType,
     voucherNo,
     voucherDate,
+    invoiceNo,
+    invoiceDate,
+    goodsName,
     partyId,
     remarks,
     lineItems,
@@ -110,11 +113,11 @@ export async function POST(request: Request) {
           // Fold formula: quantity * rate * fold / 100
           const taxableAmount = Math.round((qty * rate * fold / 100) * 100) / 100;
 
-          let cgst = 0;
-          let sgst = 0;
-          let igst = 0;
+          let cgst = line.cgst !== undefined ? Number(line.cgst) : 0;
+          let sgst = line.sgst !== undefined ? Number(line.sgst) : 0;
+          let igst = line.igst !== undefined ? Number(line.igst) : 0;
 
-          if (line.gstRateId) {
+          if (line.gstRateId && line.cgst === undefined && line.sgst === undefined && line.igst === undefined) {
             const taxRate = await tx.query.mTaxRates.findFirst({ where: eq(mTaxRates.taxRateId, Number(line.gstRateId)) });
             if (taxRate) {
               const taxPercent = Number(taxRate.taxPercent || 0);
@@ -177,7 +180,7 @@ export async function POST(request: Request) {
           totalAmount: String(computedTotal),
           taxAmount: String(computedTax),
           netAmount: String(computedNet),
-          broker: broker || null,
+           broker: broker || null,
           haste: haste || null,
           lrNo: lrNo || null,
           lrDate: lrDate ? String(lrDate) : null,
@@ -185,6 +188,9 @@ export async function POST(request: Request) {
           vehicleNo: vehicleNo || null,
           personName: personName || null,
           lotNo: lotNo || null,
+          invoiceNo: invoiceNo || null,
+          invoiceDate: invoiceDate ? String(invoiceDate) : null,
+          goodsName: goodsName || null,
           printRate: printRate,
           printAmount: printAmount,
           parentVoucherId: parentVoucherId ? Number(parentVoucherId) : null,

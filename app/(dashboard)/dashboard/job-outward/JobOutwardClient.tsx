@@ -81,7 +81,7 @@ export default function JobOutwardClient({
   const [selectedJob, setSelectedJob] = useState("");
   const [voucherNo, setVoucherNo] = useState("");
   const [voucherDate, setVoucherDate] = useState(new Date().toISOString().slice(0, 10));
-  
+
   const [broker, setBroker] = useState("");
   const [haste, setHaste] = useState("");
   const [lrNo, setLrNo] = useState("");
@@ -94,7 +94,7 @@ export default function JobOutwardClient({
 
   const [printRate, setPrintRate] = useState(true);
   const [printAmount, setPrintAmount] = useState(true);
-  
+
   const [lineItems, setLineItems] = useState<LineItem[]>([EMPTY_LINE()]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -110,11 +110,11 @@ export default function JobOutwardClient({
       const qty = Number(line.quantity) || 0;
       const rate = Number(line.rate) || 0;
       const fold = Number(line.fold) || 100;
-      
+
       // Amount formula: if jobRateType is 'pcs', then pcs * rate. If 'mtr', then qty * rate * fold / 100.
       const multiplier = line.jobRateType === "pcs" ? pcs : (qty * fold / 100);
       const amount = Math.round((multiplier * rate) * 100) / 100;
-      
+
       const gstRatePercent = Number(line.gstRateId ? taxRates.find((t) => String(t.taxRateId) === line.gstRateId)?.taxPercent : 0) || 0;
       const totalTax = Math.round((amount * gstRatePercent) / 100 * 100) / 100;
 
@@ -280,7 +280,7 @@ export default function JobOutwardClient({
   }
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto p-2">
+    <div className="space-y-6 container mx-auto p-2">
       {/* Top Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
@@ -294,7 +294,7 @@ export default function JobOutwardClient({
         {/* Job Worker & Main Details */}
         <div className="rounded-lg border border-border bg-card p-5 space-y-4 shadow-sm">
           <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">Party Details</h2>
-          
+
           <div className="space-y-1.5">
             <Label className="text-xs font-semibold uppercase text-foreground">Job Party</Label>
             <Select value={selectedJob} onValueChange={setSelectedJob}>
