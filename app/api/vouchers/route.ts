@@ -513,8 +513,20 @@ export async function GET(request: Request) {
   const companyId = Number(session.user.companyId);
   const { searchParams } = new URL(request.url);
   const type = searchParams.get("type") ?? "sale";
+  const partyId = searchParams.get("partyId");
+  const includeItems = searchParams.get("includeItems") === "true";
 
-  const vouchers = await db
+  const conditions = [
+    eq(tVouchers.companyId, companyId),
+    eq(tVouchers.voucherType, type),
+    isNull(tVouchers.deletedOn),
+  ];
+
+  if (partyId) {
+    conditions.push(eq(tVouchers.partyId, Number(partyId)));
+  }
+
+  const query = db
     .select({
       voucherId: tVouchers.voucherId,
       voucherNo: tVouchers.voucherNo,
@@ -529,11 +541,60 @@ export async function GET(request: Request) {
       customerName: mCustomers.customerName,
       customerGst: mCustomers.gstNo,
       customerAddress: mCustomers.address,
+      supplierName: mSuppliers.supplierName,
+      supplierGst: mSuppliers.gstNo,
+      supplierAddress: mSuppliers.address,
     })
     .from(tVouchers)
     .leftJoin(mCustomers, eq(tVouchers.partyId, mCustomers.customerId))
-    .where(and(eq(tVouchers.companyId, companyId), eq(tVouchers.voucherType, type), isNull(tVouchers.deletedOn)))
+    .leftJoin(mSuppliers, eq(tVouchers.partyId, mSuppliers.supplierId))
+    .where(and(...conditions))
     .orderBy(desc(tVouchers.voucherDate), desc(tVouchers.voucherId));
+
+  const vouchers = await query;
+
+  if (includeItems && vouchers.length > 0) {
+    const voucherIds = vouchers.map((v) => Number(v.voucherId));
+    // Fetch items for these vouchers
+    const items = await db
+      .select({
+        voucherItemId: tVoucherItems.voucherItemId,
+        voucherId: tVoucherItems.voucherId,
+        productId: tVoucherItems.productId,
+        productName: mProducts.productName,
+        productCode: mProducts.productCode,
+        unit: mProducts.unit,
+        ledgerId: tVoucherItems.ledgerId,
+        hsnCode: tVoucherItems.hsnCode,
+        pcs: tVoucherItems.pcs,
+        quantity: tVoucherItems.quantity,
+        fold: tVoucherItems.fold,
+        rate: tVoucherItems.rate,
+        gstRateId: tVoucherItems.gstRateId,
+        taxableAmount: tVoucherItems.taxableAmount,
+        cgst: tVoucherItems.cgst,
+        sgst: tVoucherItems.sgst,
+        igst: tVoucherItems.igst,
+        netAmount: tVoucherItems.netAmount,
+      })
+      .from(tVoucherItems)
+      .leftJoin(mProducts, eq(tVoucherItems.productId, mProducts.productId))
+      .where(and(isNull(tVoucherItems.deletedOn)));
+
+    const itemsGrouped = items.reduce((acc: any, item) => {
+      const vId = Number(item.voucherId);
+      if (!acc[vId]) acc[vId] = [];
+      acc[vId].push(item);
+      return acc;
+    }, {});
+
+    const vouchersWithItems = vouchers.map((v) => ({
+      ...v,
+      lineItems: itemsGrouped[Number(v.voucherId)] || [],
+    }));
+
+    return NextResponse.json(vouchersWithItems);
+  }
 
   return NextResponse.json(vouchers);
 }

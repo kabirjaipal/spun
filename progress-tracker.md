@@ -64,13 +64,13 @@ This document tracks our progress on the textile-specific enhancements defined i
 - [x] Mill name, Address, GST No, GST Type, City, State code, Phone, MSME status
 
 ### [ ] 12. Transactions & Vouchers
-- [/] **Purchase:**
+- [x] **Purchase:**
   - [x] Grey, Finished, Consumable, Other purchases
   - [x] Interface fields (Party, invoice/sr number, broker, haste, LR details, transport)
   - [x] Items table with fold calculation: `Quantity * Rate * fold / 100`
   - [x] SGST, CGST, IGST totals
-- [ ] **Purchase Return:**
-  - [ ] Return against multiple purchase invoices
+- [x] **Purchase Return:**
+  - [x] Return against multiple purchase invoices
 - [ ] **Job Work:**
   - [ ] Job Outward (Party, lot no, vehicle no, job type, job rate selection, etc.)
   - [ ] Job Inward (Shortage calculations, lot-wise matching)
