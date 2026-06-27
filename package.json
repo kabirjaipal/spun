@@ -10,7 +10,7 @@
     "lint": "eslint",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:reset": "drizzle-kit push"
+    "db:reset": "npx tsx --env-file=.env scripts/reset-db.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.2",
