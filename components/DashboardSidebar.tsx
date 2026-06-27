@@ -87,7 +87,15 @@ export default function DashboardSidebar({
 
   // Group permissions by pageGroup
   const groups = permissions
-    .filter((p) => p.accessItem !== "ledger_groups" && p.accessItem !== "ledgers" && p.accessItem !== "jobs" && p.accessItem !== "mills")
+    .filter((p) => 
+      p.accessItem !== "ledger_groups" && 
+      p.accessItem !== "ledgers" && 
+      p.accessItem !== "jobs" && 
+      p.accessItem !== "mills" &&
+      p.accessItem !== "inventory_categories" &&
+      p.accessItem !== "inventory_groups" &&
+      p.accessItem !== "units_of_measurement"
+    )
     .reduce((acc, curr) => {
       const groupName = curr.pageGroup || "Other";
       if (!acc[groupName]) acc[groupName] = [];

@@ -69,9 +69,6 @@ export default function GatewayClient({
     <div className="flex flex-col md:flex-row gap-6 h-full min-h-[500px]">
       {/* Left panel / sections */}
       <div className="w-full md:w-64 shrink-0 flex flex-col gap-2 border-r border-border pr-0 md:pr-4">
-        <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-4 px-2">
-          Master Sections
-        </h2>
         <div className="flex flex-row md:flex-col gap-1 overflow-x-auto md:overflow-x-visible pb-2 md:pb-0">
           {sections.map((section) => {
             const Icon = section.icon;

@@ -17,15 +17,15 @@ interface UnitOfMeasurement {
 }
 
 interface Props {
-  initialData: UnitOfMeasurement[];
+  data: UnitOfMeasurement[];
+  setData: React.Dispatch<React.SetStateAction<UnitOfMeasurement[]>>;
   canCreate: boolean;
   canUpdate: boolean;
   canDelete: boolean;
   canExport: boolean;
 }
 
-export default function UnitsOfMeasurementClient({ initialData, canCreate, canUpdate, canDelete, canExport }: Props) {
-  const [data, setData] = useState(initialData);
+export default function UnitsOfMeasurementClient({ data, setData, canCreate, canUpdate, canDelete, canExport }: Props) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editing, setEditing] = useState<UnitOfMeasurement | null>(null);
   const [form, setForm] = useState({ unitCode: "", unitName: "" });
@@ -181,7 +181,7 @@ export default function UnitsOfMeasurementClient({ initialData, canCreate, canUp
       <Dialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-sm font-bold uppercase">Delete Unit</DialogTitle>
+            <DialogTitle className="text-sm font-bold uppercase text-danger">Delete Unit</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
             Are you sure you want to delete <span className="font-semibold text-foreground">{deleteTarget?.unitCode} - {deleteTarget?.unitName}</span>?

@@ -9,55 +9,55 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Pencil, Trash2 } from "lucide-react";
 import ExportButton from "@/components/ExportButton";
 
-interface InventoryGroup {
-  inventoryGroupId: number;
-  groupName: string;
+interface InventoryCategory {
+  inventoryCategoryId: number;
+  categoryName: string;
 }
 
 interface Props {
-  initialData: InventoryGroup[];
+  data: InventoryCategory[];
+  setData: React.Dispatch<React.SetStateAction<InventoryCategory[]>>;
   canCreate: boolean;
   canUpdate: boolean;
   canDelete: boolean;
   canExport: boolean;
 }
 
-export default function InventoryGroupsClient({ initialData, canCreate, canUpdate, canDelete, canExport }: Props) {
-  const [data, setData] = useState(initialData);
+export default function InventoryCategoriesClient({ data, setData, canCreate, canUpdate, canDelete, canExport }: Props) {
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [editing, setEditing] = useState<InventoryGroup | null>(null);
-  const [form, setForm] = useState({ groupName: "" });
-  const [deleteTarget, setDeleteTarget] = useState<InventoryGroup | null>(null);
+  const [editing, setEditing] = useState<InventoryCategory | null>(null);
+  const [form, setForm] = useState({ categoryName: "" });
+  const [deleteTarget, setDeleteTarget] = useState<InventoryCategory | null>(null);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
 
   const filtered = data.filter((r) =>
-    r.groupName.toLowerCase().includes(search.toLowerCase())
+    r.categoryName.toLowerCase().includes(search.toLowerCase())
   );
 
   function openCreate() {
     setEditing(null);
-    setForm({ groupName: "" });
+    setForm({ categoryName: "" });
     setSheetOpen(true);
   }
 
-  function openEdit(row: InventoryGroup) {
+  function openEdit(row: InventoryCategory) {
     setEditing(row);
-    setForm({ groupName: row.groupName });
+    setForm({ categoryName: row.categoryName });
     setSheetOpen(true);
   }
 
   async function handleSave() {
-    if (!form.groupName.trim()) return;
+    if (!form.categoryName.trim()) return;
     setSaving(true);
-    const url = editing ? `/api/inventory-groups/${editing.inventoryGroupId}` : "/api/inventory-groups";
+    const url = editing ? `/api/inventory-categories/${editing.inventoryCategoryId}` : "/api/inventory-categories";
     const res = await fetch(url, {
       method: editing ? "PATCH" : "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ groupName: form.groupName.trim() }),
+      body: JSON.stringify({ categoryName: form.categoryName.trim() }),
     });
     const row = await res.json();
-    if (editing) setData((d) => d.map((r) => (r.inventoryGroupId === editing.inventoryGroupId ? row : r)));
+    if (editing) setData((d) => d.map((r) => (r.inventoryCategoryId === editing.inventoryCategoryId ? row : r)));
     else setData((d) => [...d, row]);
     setSheetOpen(false);
     setSaving(false);
@@ -65,8 +65,8 @@ export default function InventoryGroupsClient({ initialData, canCreate, canUpdat
 
   async function handleDelete() {
     if (!deleteTarget) return;
-    await fetch(`/api/inventory-groups/${deleteTarget.inventoryGroupId}`, { method: "DELETE" });
-    setData((d) => d.filter((r) => r.inventoryGroupId !== deleteTarget.inventoryGroupId));
+    await fetch(`/api/inventory-categories/${deleteTarget.inventoryCategoryId}`, { method: "DELETE" });
+    setData((d) => d.filter((r) => r.inventoryCategoryId !== deleteTarget.inventoryCategoryId));
     setDeleteTarget(null);
   }
 
@@ -74,19 +74,19 @@ export default function InventoryGroupsClient({ initialData, canCreate, canUpdat
     <>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-lg font-bold text-foreground uppercase tracking-wide">Inventory Groups</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">{data.length} group{data.length !== 1 ? "s" : ""} configured</p>
+          <h1 className="text-lg font-bold text-foreground uppercase tracking-wide">Inventory Categories</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">{data.length} categor{data.length !== 1 ? "ies" : "y"} configured</p>
         </div>
         <div className="flex items-center gap-3">
-          <Input placeholder="Search group..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-52" />
+          <Input placeholder="Search category..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-52" />
           <ExportButton
-            filename="inventory_groups.csv"
-            headers={["Group Name"]}
-            keys={["groupName"]}
+            filename="inventory_categories.csv"
+            headers={["Category Name"]}
+            keys={["categoryName"]}
             rows={filtered}
             canExport={canExport}
           />
-          {canCreate && <Button onClick={openCreate}>+ Add Group</Button>}
+          {canCreate && <Button onClick={openCreate}>+ Add Category</Button>}
         </div>
       </div>
 
@@ -95,18 +95,18 @@ export default function InventoryGroupsClient({ initialData, canCreate, canUpdat
           <thead>
             <tr className="border-b border-border bg-muted/40">
               <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">#</th>
-              <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Group Name</th>
+              <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Category Name</th>
               {(canUpdate || canDelete) && <th className="px-4 py-2.5 text-right text-xs font-bold uppercase tracking-wider text-muted-foreground">Actions</th>}
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 && (
-              <tr><td colSpan={3} className="px-4 py-8 text-center text-sm text-muted-foreground">No groups found.</td></tr>
+              <tr><td colSpan={3} className="px-4 py-8 text-center text-sm text-muted-foreground">No categories found.</td></tr>
             )}
             {filtered.map((row, i) => (
-              <tr key={row.inventoryGroupId} className="border-b border-border/50 hover:bg-muted/20 transition-colors">
+              <tr key={row.inventoryCategoryId} className="border-b border-border/50 hover:bg-muted/20 transition-colors">
                 <td className="px-4 py-3 text-xs text-muted-foreground">{i + 1}</td>
-                <td className="px-4 py-3 font-medium text-foreground">{row.groupName}</td>
+                <td className="px-4 py-3 font-medium text-foreground">{row.categoryName}</td>
                 {(canUpdate || canDelete) && (
                   <td className="px-4 py-3 text-right space-x-2">
                     {canUpdate && (
@@ -130,19 +130,19 @@ export default function InventoryGroupsClient({ initialData, canCreate, canUpdat
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent>
           <SheetHeader>
-            <SheetTitle>{editing ? "Edit Group" : "New Group"}</SheetTitle>
+            <SheetTitle>{editing ? "Edit Category" : "New Category"}</SheetTitle>
           </SheetHeader>
 
           <div className="flex-1 overflow-y-auto px-5 py-6 space-y-5">
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Group Name</Label>
-              <Input id="groupName" placeholder="e.g. Consumable, Selling" value={form.groupName} onChange={(e) => setForm((f) => ({ ...f, groupName: e.target.value }))} />
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Category Name</Label>
+              <Input id="categoryName" placeholder="e.g. Cloth, Color" value={form.categoryName} onChange={(e) => setForm((f) => ({ ...f, categoryName: e.target.value }))} />
             </div>
           </div>
 
           <SheetFooter>
             <Button variant="outline" onClick={() => setSheetOpen(false)}>Cancel</Button>
-            <Button onClick={handleSave} disabled={saving || !form.groupName.trim()}>
+            <Button onClick={handleSave} disabled={saving || !form.categoryName.trim()}>
               {saving ? "Saving..." : editing ? "Update" : "Create"}
             </Button>
           </SheetFooter>
@@ -151,12 +151,8 @@ export default function InventoryGroupsClient({ initialData, canCreate, canUpdat
 
       <Dialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="text-sm font-bold uppercase">Delete Group</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            Are you sure you want to delete <span className="font-semibold text-foreground">{deleteTarget?.groupName}</span>?
-          </p>
+          <DialogHeader><DialogTitle className="text-sm font-bold uppercase text-danger">Delete Category</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">Delete category <span className="font-semibold text-foreground">{deleteTarget?.categoryName}</span>?</p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancel</Button>
             <Button variant="destructive" onClick={handleDelete}>Delete</Button>

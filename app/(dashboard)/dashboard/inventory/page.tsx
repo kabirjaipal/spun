@@ -47,6 +47,9 @@ export default async function InventoryPage() {
 
   const perms = getStaticPermissionsForRole(session.user.role as Role);
   const p = perms.find((x) => x.accessItem === "inventory");
+  const pg = perms.find((x) => x.accessItem === "inventory_groups");
+  const pc = perms.find((x) => x.accessItem === "inventory_categories");
+  const pu = perms.find((x) => x.accessItem === "units_of_measurement");
 
   return (
     <InventoryClient
@@ -62,10 +65,32 @@ export default async function InventoryPage() {
       inventoryGroups={inventoryGroups}
       inventoryCategories={inventoryCategories}
       unitsList={unitsList}
-      canCreate={p?.c ?? false}
-      canUpdate={p?.u ?? false}
-      canDelete={p?.d ?? false}
-      canExport={p?.e ?? false}
+      permissions={{
+        inventory: {
+          c: p?.c ?? false,
+          u: p?.u ?? false,
+          d: p?.d ?? false,
+          e: p?.e ?? false,
+        },
+        groups: {
+          c: pg?.c ?? false,
+          u: pg?.u ?? false,
+          d: pg?.d ?? false,
+          e: pg?.e ?? false,
+        },
+        categories: {
+          c: pc?.c ?? false,
+          u: pc?.u ?? false,
+          d: pc?.d ?? false,
+          e: pc?.e ?? false,
+        },
+        units: {
+          c: pu?.c ?? false,
+          u: pu?.u ?? false,
+          d: pu?.d ?? false,
+          e: pu?.e ?? false,
+        },
+      }}
     />
   );
 }
