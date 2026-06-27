@@ -25,6 +25,7 @@ export const ALL_PAGES: PageConfig[] = [
   { accessItem: "mills", pageUrl: "/dashboard/mills", pageTitle: "Mill Master", pageIcon: "Building", pageGroup: "Masters", accessGroup: "company" },
   { accessItem: "ledgers", pageUrl: "/dashboard/ledgers", pageTitle: "Ledgers", pageIcon: "BookOpen", pageGroup: "Masters", accessGroup: "company" },
   { accessItem: "ledger_groups", pageUrl: "/dashboard/ledger-groups", pageTitle: "Ledger Groups", pageIcon: "FolderTree", pageGroup: "Masters", accessGroup: "company" },
+  { accessItem: "gateway", pageUrl: "/dashboard/gateway", pageTitle: "Gateway", pageIcon: "LayoutGrid", pageGroup: "Masters", accessGroup: "company" },
   { accessItem: "tax_rates", pageUrl: "/dashboard/tax-rates", pageTitle: "Tax Rates", pageIcon: "Percent", pageGroup: "Masters", accessGroup: "company" },
   
   // Transactions

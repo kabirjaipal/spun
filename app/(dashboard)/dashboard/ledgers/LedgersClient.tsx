@@ -218,11 +218,6 @@ export default function LedgersClient({
             }))}
             canExport={canExport}
           />
-          <Link href="/dashboard/ledger-groups">
-            <Button variant="outline" className="flex items-center gap-2">
-              <FolderTree className="h-4 w-4" /> Manage Groups
-            </Button>
-          </Link>
           {canCreate && <Button onClick={openCreate}>+ Add Ledger</Button>}
         </div>
       </div>

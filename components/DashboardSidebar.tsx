@@ -87,7 +87,7 @@ export default function DashboardSidebar({
 
   // Group permissions by pageGroup
   const groups = permissions
-    .filter((p) => p.accessItem !== "ledger_groups")
+    .filter((p) => p.accessItem !== "ledger_groups" && p.accessItem !== "ledgers" && p.accessItem !== "jobs" && p.accessItem !== "mills")
     .reduce((acc, curr) => {
       const groupName = curr.pageGroup || "Other";
       if (!acc[groupName]) acc[groupName] = [];
