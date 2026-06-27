@@ -12,11 +12,39 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const { id } = await params;
   const companyId = Number(session.user.companyId);
   const userId = session.user.id;
-  const { ledgerName, ledgerType } = await request.json();
+  const {
+    ledgerName,
+    ledgerType,
+    shortName,
+    address,
+    groupId,
+    gstNo,
+    msmeType,
+    panNo,
+    isTdsApplicable,
+    tdsRate,
+    creditDays,
+    rateOfInterest,
+  } = await request.json();
 
   const [row] = await db
     .update(mLedgers)
-    .set({ ledgerName, ledgerType, updatedBy: userId, updatedOn: new Date() })
+    .set({
+      ledgerName,
+      ledgerType,
+      shortName: shortName || null,
+      address: address || null,
+      groupId: groupId ? Number(groupId) : null,
+      gstNo: gstNo || null,
+      msmeType: msmeType || null,
+      panNo: panNo || null,
+      isTdsApplicable: !!isTdsApplicable,
+      tdsRate: tdsRate ? String(tdsRate) : "0.00",
+      creditDays: creditDays ? Number(creditDays) : 0,
+      rateOfInterest: rateOfInterest ? String(rateOfInterest) : "0.00",
+      updatedBy: userId,
+      updatedOn: new Date(),
+    })
     .where(and(eq(mLedgers.ledgerId, Number(id)), eq(mLedgers.companyId, companyId)))
     .returning();
 

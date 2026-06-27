@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { mLedgers } from "@/lib/db/schema";
+import { mLedgers, mLedgerGroups } from "@/lib/db/schema";
 import { and, isNull, eq } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
 import LedgersClient from "./LedgersClient";
@@ -19,12 +19,34 @@ export default async function LedgersPage() {
     .where(and(eq(mLedgers.companyId, companyId), isNull(mLedgers.deletedOn)))
     .orderBy(mLedgers.ledgerName);
 
+  const groups = await db
+    .select()
+    .from(mLedgerGroups)
+    .where(and(eq(mLedgerGroups.companyId, companyId), isNull(mLedgerGroups.deletedOn)))
+    .orderBy(mLedgerGroups.groupName);
+
   const perms = getStaticPermissionsForRole(session.user.role as Role);
   const p = perms.find((x) => x.accessItem === "ledgers");
 
   return (
     <LedgersClient
-      initialData={rows.map((r) => ({ ledgerId: r.ledgerId, ledgerName: r.ledgerName, ledgerType: r.ledgerType, referenceId: r.referenceId }))}
+      initialData={rows.map((r) => ({
+        ledgerId: r.ledgerId,
+        ledgerName: r.ledgerName,
+        ledgerType: r.ledgerType,
+        referenceId: r.referenceId,
+        shortName: r.shortName,
+        address: r.address,
+        groupId: r.groupId,
+        gstNo: r.gstNo,
+        msmeType: r.msmeType,
+        panNo: r.panNo,
+        isTdsApplicable: r.isTdsApplicable,
+        tdsRate: r.tdsRate,
+        creditDays: r.creditDays,
+        rateOfInterest: r.rateOfInterest,
+      }))}
+      groups={groups}
       canCreate={p?.c ?? false}
       canUpdate={p?.u ?? false}
       canDelete={p?.d ?? false}

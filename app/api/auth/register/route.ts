@@ -1,17 +1,16 @@
 import { db } from "@/lib/db";
-import { mCompanies, mUsers } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { mUsers } from "@/lib/db/schema";
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { email, name, password, companyName, gstNo, address } = body;
+    const { email, name, password } = body;
     
-    if (!email || !name || !password || !companyName) {
+    if (!email || !name || !password) {
       return NextResponse.json(
-        { error: "Missing required fields: email, name, password, companyName" },
+        { error: "Missing required fields: email, name, password" },
         { status: 400 }
       );
     }
@@ -27,64 +26,20 @@ export async function POST(request: Request) {
       );
     }
     
-    const result = await db.transaction(async (tx) => {
-      // Check if a company with the same name already exists (case-insensitive)
-      const existingCompany = await tx.query.mCompanies.findFirst({
-        where: (companies, { eq, sql }) => eq(sql`lower(${companies.companyName})`, companyName.toLowerCase()),
-      });
-
-      let targetCompanyId: number;
-
-      if (existingCompany) {
-        // Check if there is any user associated with this company
-        const existingUser = await tx.query.mUsers.findFirst({
-          where: (users, { eq }) => eq(users.companyId, Number(existingCompany.companyId)),
-        });
-
-        if (existingUser) {
-          throw new Error("Company with this name already exists");
-        }
-
-        targetCompanyId = existingCompany.companyId;
-      } else {
-        // Create company
-        const [newCompany] = await tx.insert(mCompanies).values({
-          companyName,
-          gstNo: gstNo || null,
-          address: address || null,
-        }).returning({ companyId: mCompanies.companyId });
-
-        targetCompanyId = newCompany.companyId;
-      }
-      
-      // 2. Hash password
-      const salt = await bcrypt.genSalt(10);
-      const passwordHash = await bcrypt.hash(password, salt);
-      
-      // 3. Create user as a company-level data entry user (not owner)
-      const [newUser] = await tx.insert(mUsers).values({
-        name,
-        email,
-        passwordHash,
-        companyId: Number(targetCompanyId),
-        role: "company",
-        isActive: true,
-      }).returning({ id: mUsers.id, name: mUsers.name, email: mUsers.email });
-
-      // Associate the company's creator fields with the newly created user
-      await tx
-        .update(mCompanies)
-        .set({
-          createdBy: newUser.id,
-          updatedBy: newUser.id,
-        })
-        .where(eq(mCompanies.companyId, targetCompanyId));
-      
-      return { user: newUser, companyId: targetCompanyId };
-    });
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(password, salt);
+    
+    // Create user (no company associated initially, they will setup company next)
+    const [newUser] = await db.insert(mUsers).values({
+      name,
+      email,
+      passwordHash,
+      role: "company",
+      isActive: true,
+    }).returning({ id: mUsers.id, name: mUsers.name, email: mUsers.email });
     
     return NextResponse.json(
-      { message: "Registration successful", user: result.user, companyId: result.companyId },
+      { message: "Registration successful", user: newUser },
       { status: 201 }
     );
   } catch (error: any) {

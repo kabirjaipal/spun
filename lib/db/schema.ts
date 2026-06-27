@@ -34,6 +34,22 @@ export const mCompanies = pgTable("m_companies", {
   gstNo: text("gst_no"),
   panNo: text("pan_no"),
   address: text("address"),
+  pincode: text("pincode"),
+  state: text("state"),
+  phone: text("phone"),
+  email: text("email"),
+  currencySymbol: text("currency_symbol"),
+  nationName: text("nation_name"),
+  bankName: text("bank_name"),
+  bankAccountName: text("bank_account_name"),
+  accountNo: text("account_no"),
+  ifscCode: text("ifsc_code"),
+  branchName: text("branch_name"),
+  accountType: text("account_type"), // 'saving', 'current', 'cc', 'od', 'other'
+  gstApplicable: boolean("gst_applicable").default(false).notNull(),
+  gstType: text("gst_type"), // 'regular', 'composition', 'export'
+  stateCode: text("state_code"),
+  city: text("city"),
   financialYearStart: date("financial_year_start"),
   ...auditColumns,
 }, (table) => ({
@@ -150,12 +166,36 @@ export const mProducts = pgTable("m_products", {
   gstRateIdIdx: index("idx_m_products_gst_rate_id").on(table.gstRateId),
 }));
 
+export const mLedgerGroups = pgTable("m_ledger_groups", {
+  groupId: serial("group_id").primaryKey(),
+  companyId: bigint("company_id", { mode: "number" })
+    .references(() => mCompanies.companyId)
+    .notNull(),
+  groupName: text("group_name").notNull(),
+  parentGroupId: integer("parent_group_id"),
+  isSystem: boolean("is_system").default(false).notNull(),
+  ...auditColumns,
+}, (table) => ({
+  companyIdIdx: index("idx_m_ledger_groups_company_id").on(table.companyId),
+}));
+
 export const mLedgers = pgTable("m_ledgers", {
   ledgerId: serial("ledger_id").primaryKey(),
   companyId: bigint("company_id", { mode: "number" })
     .references(() => mCompanies.companyId)
     .notNull(),
   ledgerName: text("ledger_name").notNull(),
+  shortName: text("short_name"),
+  address: text("address"),
+  groupId: bigint("group_id", { mode: "number" })
+    .references(() => mLedgerGroups.groupId),
+  gstNo: text("gst_no"),
+  msmeType: text("msme_type"), // 'registered_micro', 'registered_small', 'registered_medium', 'unregistered'
+  panNo: text("pan_no"),
+  isTdsApplicable: boolean("is_tds_applicable").default(false).notNull(),
+  tdsRate: numeric("tds_rate", { precision: 5, scale: 2 }).default("0.00").notNull(),
+  creditDays: integer("credit_days").default(0).notNull(),
+  rateOfInterest: numeric("rate_of_interest", { precision: 5, scale: 2 }).default("0.00").notNull(),
   ledgerType: text("ledger_type").notNull(), // e.g., 'cash', 'bank', 'customer', 'supplier', etc.
   referenceId: bigint("reference_id", { mode: "number" }),
   ...auditColumns,

@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { mCompanies, mUsers } from "@/lib/db/schema";
+import { mCompanies, mUsers, mLedgerGroups } from "@/lib/db/schema";
 import { auth } from "@/auth";
 import { eq, sql, and } from "drizzle-orm";
 import { NextResponse } from "next/server";
@@ -12,7 +12,29 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { companyName, gstNo, panNo, address, financialYearStart } = body;
+    const {
+      companyName,
+      gstNo,
+      panNo,
+      address,
+      financialYearStart,
+      pincode,
+      state,
+      phone,
+      email,
+      currencySymbol,
+      nationName,
+      bankName,
+      bankAccountName,
+      accountNo,
+      ifscCode,
+      branchName,
+      accountType,
+      gstApplicable,
+      gstType,
+      stateCode,
+      city,
+    } = body;
 
     if (!companyName) {
       return NextResponse.json(
@@ -46,10 +68,32 @@ export async function POST(request: Request) {
           })
           .where(eq(mUsers.id, session.user.id));
 
-        // Update the company's updatedBy field to track this action
+        // Update the company details
         await tx
           .update(mCompanies)
-          .set({ updatedBy: session.user.id })
+          .set({
+            gstNo: gstNo ? gstNo.trim().toUpperCase() : null,
+            panNo: panNo ? panNo.trim().toUpperCase() : null,
+            address: address || null,
+            pincode: pincode || null,
+            state: state || null,
+            phone: phone || null,
+            email: email || null,
+            currencySymbol: currencySymbol || null,
+            nationName: nationName || null,
+            bankName: bankName || null,
+            bankAccountName: bankAccountName || null,
+            accountNo: accountNo || null,
+            ifscCode: ifscCode || null,
+            branchName: branchName || null,
+            accountType: accountType || null,
+            gstApplicable: !!gstApplicable,
+            gstType: gstType || null,
+            stateCode: stateCode || null,
+            city: city || null,
+            financialYearStart: financialYearStart || null,
+            updatedBy: session.user.id,
+          })
           .where(eq(mCompanies.companyId, existingCompany.companyId));
 
         return existingCompany;
@@ -63,11 +107,63 @@ export async function POST(request: Request) {
           gstNo: gstNo ? gstNo.trim().toUpperCase() : null,
           panNo: panNo ? panNo.trim().toUpperCase() : null,
           address: address || null,
+          pincode: pincode || null,
+          state: state || null,
+          phone: phone || null,
+          email: email || null,
+          currencySymbol: currencySymbol || null,
+          nationName: nationName || null,
+          bankName: bankName || null,
+          bankAccountName: bankAccountName || null,
+          accountNo: accountNo || null,
+          ifscCode: ifscCode || null,
+          branchName: branchName || null,
+          accountType: accountType || null,
+          gstApplicable: !!gstApplicable,
+          gstType: gstType || null,
+          stateCode: stateCode || null,
+          city: city || null,
           financialYearStart: financialYearStart || null,
           createdBy: session.user.id,
           updatedBy: session.user.id,
         })
         .returning({ companyId: mCompanies.companyId });
+
+      // Seed default ledger groups
+      const defaultGroups = [
+        "Capital Account",
+        "Sales Account",
+        "Purchase Account",
+        "Bank Account",
+        "Stock in Hand",
+        "Sales Return",
+        "Purchase Return",
+        "Direct Expenses",
+        "Indirect Income",
+        "Profit & Loss",
+        "Unsecured Loans",
+        "Secured Loans",
+        "Deposits & Advance Assets",
+        "Fixed Assets",
+        "Investment",
+        "Loan (Assets)",
+        "Preliminary Expenses",
+        "Cash in Hand",
+        "Provisions",
+        "Sundry Debtors",
+        "Sundry Creditors",
+        "Suspense Account"
+      ];
+
+      await tx.insert(mLedgerGroups).values(
+        defaultGroups.map((groupName) => ({
+          companyId: Number(newCompany.companyId),
+          groupName,
+          isSystem: true,
+          createdBy: session.user.id,
+          updatedBy: session.user.id,
+        }))
+      );
 
       // 2. Associate user with company and assign role
       await tx

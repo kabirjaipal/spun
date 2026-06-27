@@ -9,9 +9,6 @@ export default function RegisterForm() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [companyName, setCompanyName] = useState("");
-  const [gstNo, setGstNo] = useState("");
-  const [address, setAddress] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -29,9 +26,6 @@ export default function RegisterForm() {
           email,
           name,
           password,
-          companyName,
-          gstNo: gstNo || undefined,
-          address: address || undefined,
         }),
       });
 
@@ -51,7 +45,8 @@ export default function RegisterForm() {
       if (loginRes?.error) {
         setError("Account created, but automatic sign-in failed. Please login manually.");
       } else {
-        router.push("/dashboard");
+        // Redirect to setup company page directly
+        router.push("/setup-company");
         router.refresh();
       }
     } catch (err: any) {
@@ -63,7 +58,7 @@ export default function RegisterForm() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/30 px-4 py-12 sm:px-6 lg:px-8">
-      <div className="w-full max-w-lg space-y-8 rounded-xl border border-border bg-card p-8 shadow-sm">
+      <div className="w-full max-w-md space-y-8 rounded-xl border border-border bg-card p-8 shadow-sm">
         <div className="text-center">
           <div className="inline-flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-xl font-bold text-primary-foreground shadow-sm">
             T
@@ -94,42 +89,40 @@ export default function RegisterForm() {
               USER DETAILS
             </h3>
             
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <label
-                  htmlFor="name"
-                  className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1"
-                >
-                  FULL NAME
-                </label>
-                <input
-                  id="name"
-                  type="text"
-                  required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                  placeholder="John Doe"
-                />
-              </div>
+            <div>
+              <label
+                htmlFor="name"
+                className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1"
+              >
+                FULL NAME
+              </label>
+              <input
+                id="name"
+                type="text"
+                required
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                placeholder="John Doe"
+              />
+            </div>
 
-              <div>
-                <label
-                  htmlFor="email"
-                  className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1"
-                >
-                  EMAIL ADDRESS
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                  placeholder="john@example.com"
-                />
-              </div>
+            <div>
+              <label
+                htmlFor="email"
+                className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1"
+              >
+                EMAIL ADDRESS
+              </label>
+              <input
+                id="email"
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                placeholder="john@example.com"
+              />
             </div>
 
             <div>
@@ -145,67 +138,9 @@ export default function RegisterForm() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                 placeholder="••••••••"
               />
-            </div>
-
-            <h3 className="text-sm font-semibold text-foreground border-b border-border/50 pt-4 pb-2">
-              COMPANY DETAILS
-            </h3>
-
-            <div>
-              <label
-                htmlFor="companyName"
-                className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1"
-              >
-                COMPANY NAME
-              </label>
-              <input
-                id="companyName"
-                type="text"
-                required
-                value={companyName}
-                onChange={(e) => setCompanyName(e.target.value)}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                placeholder="Acme Fabrics Pvt Ltd"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <label
-                  htmlFor="gstNo"
-                  className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1"
-                >
-                  GSTIN (OPTIONAL)
-                </label>
-                <input
-                  id="gstNo"
-                  type="text"
-                  value={gstNo}
-                  onChange={(e) => setGstNo(e.target.value)}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                  placeholder="24AAAAB1234C1Z1"
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="address"
-                  className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1"
-                >
-                  ADDRESS (OPTIONAL)
-                </label>
-                <input
-                  id="address"
-                  type="text"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                  placeholder="Surat, Gujarat, India"
-                />
-              </div>
             </div>
           </div>
 
@@ -213,9 +148,9 @@ export default function RegisterForm() {
             <button
               type="submit"
               disabled={loading}
-              className="flex w-full justify-center rounded-md bg-primary px-3 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="flex w-full h-10 justify-center items-center rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground shadow-sm hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {loading ? "Registering..." : "REGISTER COMPANY"}
+              {loading ? "Registering..." : "CONTINUE TO SETUP COMPANY"}
             </button>
           </div>
 
@@ -228,8 +163,8 @@ export default function RegisterForm() {
           <div>
             <button
               type="button"
-              onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
-              className="flex w-full justify-center items-center gap-2 rounded-md border border-border bg-secondary px-3 py-2.5 text-sm font-semibold text-secondary-foreground shadow-sm hover:opacity-90 transition-opacity"
+              onClick={() => signIn("google", { callbackUrl: "/setup-company" })}
+              className="flex w-full h-10 justify-center items-center gap-2 rounded-md border border-border bg-secondary px-3 py-2 text-sm font-semibold text-secondary-foreground shadow-sm hover:opacity-90 transition-opacity"
             >
               <svg className="h-4 w-4" viewBox="0 0 24 24" width="24" height="24" xmlns="http://www.w3.org/2000/svg">
                 <g transform="matrix(1, 0, 0, 1, 0, 0)">

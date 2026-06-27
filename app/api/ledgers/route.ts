@@ -27,7 +27,20 @@ export async function POST(request: Request) {
 
   const companyId = Number(session.user.companyId);
   const userId = session.user.id;
-  const { ledgerName, ledgerType } = await request.json();
+  const {
+    ledgerName,
+    ledgerType,
+    shortName,
+    address,
+    groupId,
+    gstNo,
+    msmeType,
+    panNo,
+    isTdsApplicable,
+    tdsRate,
+    creditDays,
+    rateOfInterest,
+  } = await request.json();
 
   if (!ledgerName || !ledgerType) {
     return NextResponse.json({ error: "ledgerName and ledgerType are required" }, { status: 400 });
@@ -35,7 +48,23 @@ export async function POST(request: Request) {
 
   const [row] = await db
     .insert(mLedgers)
-    .values({ companyId, ledgerName, ledgerType, createdBy: userId, updatedBy: userId })
+    .values({
+      companyId,
+      ledgerName,
+      ledgerType,
+      shortName: shortName || null,
+      address: address || null,
+      groupId: groupId ? Number(groupId) : null,
+      gstNo: gstNo || null,
+      msmeType: msmeType || null,
+      panNo: panNo || null,
+      isTdsApplicable: !!isTdsApplicable,
+      tdsRate: tdsRate ? String(tdsRate) : "0.00",
+      creditDays: creditDays ? Number(creditDays) : 0,
+      rateOfInterest: rateOfInterest ? String(rateOfInterest) : "0.00",
+      createdBy: userId,
+      updatedBy: userId,
+    })
     .returning();
 
   return NextResponse.json(row, { status: 201 });
