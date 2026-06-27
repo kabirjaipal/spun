@@ -74,9 +74,9 @@ This document tracks our progress on the textile-specific enhancements defined i
 - [ ] **Job Work:**
   - [x] Job Outward (Party, lot no, vehicle no, job type, job rate selection, etc.)
   - [x] Job Inward (Shortage calculations, lot-wise matching)
-- [ ] **Mill:**
-  - [ ] Mill Outward (Quality, PCS, meter, rate, amount)
-  - [ ] Mill Inward (Shortage matching outward-inward, lot status completion)
+- [x] **Mill:**
+  - [x] Mill Outward (Quality, PCS, meter, rate, amount)
+  - [x] Mill Inward (Shortage matching outward-inward, lot status completion)
 - [x] **Sales:**
   - [x] Grey, Finished, and Other sales layout with broker, haste, transport, items table and GST details
 - [ ] **Payment & Receipt:**
