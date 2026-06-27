@@ -28,7 +28,6 @@ interface LedgerOption {
   ledgerId: number;
   ledgerName: string;
   ledgerType: string;
-  referenceId: number | null;
 }
 
 interface TaxRateOption {
@@ -41,7 +40,10 @@ interface LineItem {
   id: string;
   productId: string;
   ledgerId: string;
-  quantity: string;
+  hsnCode: string;
+  pcs: string;
+  quantity: string; // meters / quantity
+  fold: string; // fold percentage (default 100)
   rate: string;
   gstRateId: string;
 }
@@ -58,7 +60,17 @@ interface PastVoucher {
   party: { name: string; gstNo: string | null; address: string | null } | null;
 }
 
-const EMPTY_LINE: LineItem = { id: "", productId: "", ledgerId: "", quantity: "0", rate: "0", gstRateId: "" };
+const EMPTY_LINE = (): LineItem => ({
+  id: crypto.randomUUID(),
+  productId: "",
+  ledgerId: "",
+  hsnCode: "",
+  pcs: "0",
+  quantity: "0",
+  fold: "100",
+  rate: "0",
+  gstRateId: "",
+});
 
 const fmt = (n: number) => `₹${n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
 
@@ -79,36 +91,104 @@ export default function SalesClient({
   canCreate: boolean;
   pastVouchers: PastVoucher[];
 }) {
+  const [salesType, setSalesType] = useState<"grey" | "finished" | "other">("grey");
   const [selectedCustomer, setSelectedCustomer] = useState("");
   const [invoiceNo, setInvoiceNo] = useState("");
   const [voucherDate, setVoucherDate] = useState(new Date().toISOString().slice(0, 10));
+  
+  // Textile-specific logistics fields
+  const [broker, setBroker] = useState("");
+  const [haste, setHaste] = useState("");
+  const [lrNo, setLrNo] = useState("");
+  const [lrDate, setLrDate] = useState("");
+  const [transport, setTransport] = useState("");
   const [remarks, setRemarks] = useState("");
-  const [lineItems, setLineItems] = useState<LineItem[]>([{ ...EMPTY_LINE, id: crypto.randomUUID() }]);
+  const [vehicleNo, setVehicleNo] = useState("");
+  const [personName, setPersonName] = useState("");
+
+  const [lineItems, setLineItems] = useState<LineItem[]>([EMPTY_LINE()]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [printVoucher, setPrintVoucher] = useState<any>(null);
   const [pastVouchers, setPastVouchers] = useState<PastVoucher[]>(initialPastVouchers);
 
+  // Check if Interstate or Intrastate GST
+  const isInterstate = useMemo(() => {
+    const companyGst = company?.gstNo || "";
+    const customer = customers.find((c) => String(c.customerId) === selectedCustomer);
+    const customerGst = customer?.gstNo || "";
+    if (!companyGst || !customerGst) return false;
+    return companyGst.slice(0, 2) !== customerGst.slice(0, 2);
+  }, [company, selectedCustomer, customers]);
+
   const lineTotals = useMemo(() => {
     return lineItems.map((line) => {
-      const quantity = Number(line.quantity) || 0;
+      const qty = Number(line.quantity) || 0;
       const rate = Number(line.rate) || 0;
-      const gstRate = Number(line.gstRateId ? taxRates.find((t) => String(t.taxRateId) === line.gstRateId)?.taxPercent : 0) || 0;
-      const amount = quantity * rate;
-      const tax = Math.round((amount * gstRate) / 100 * 100) / 100;
-      return { amount, tax, total: amount + tax };
+      const fold = Number(line.fold) || 100;
+      const gstRatePercent = Number(line.gstRateId ? taxRates.find((t) => String(t.taxRateId) === line.gstRateId)?.taxPercent : 0) || 0;
+      
+      // Fold calculation: qty * rate * fold / 100
+      const amount = Math.round((qty * rate * fold / 100) * 100) / 100;
+      const totalTax = Math.round((amount * gstRatePercent) / 100 * 100) / 100;
+      
+      let cgst = 0;
+      let sgst = 0;
+      let igst = 0;
+
+      if (isInterstate) {
+        igst = totalTax;
+      } else {
+        cgst = Math.round((totalTax / 2) * 100) / 100;
+        sgst = Math.round((totalTax - cgst) * 100) / 100;
+      }
+
+      return { amount, cgst, sgst, igst, totalTax, net: amount + totalTax };
     });
-  }, [lineItems, taxRates]);
+  }, [lineItems, taxRates, isInterstate]);
 
   const grandTotals = useMemo(() => {
     return lineTotals.reduce(
-      (acc, item) => ({ amount: acc.amount + item.amount, tax: acc.tax + item.tax, total: acc.total + item.total }),
-      { amount: 0, tax: 0, total: 0 }
+      (acc, item) => ({
+        amount: acc.amount + item.amount,
+        cgst: acc.cgst + item.cgst,
+        sgst: acc.sgst + item.sgst,
+        igst: acc.igst + item.igst,
+        tax: acc.tax + item.totalTax,
+        total: acc.total + item.net,
+      }),
+      { amount: 0, cgst: 0, sgst: 0, igst: 0, tax: 0, total: 0 }
     );
   }, [lineTotals]);
 
   function updateLine(id: string, field: keyof LineItem, value: string) {
-    setLineItems((items) => items.map((item) => item.id === id ? { ...item, [field]: value } : item));
+    setLineItems((items) =>
+      items.map((item) => {
+        if (item.id !== id) return item;
+
+        // Auto-fill HSN and GST Rate when product changes
+        if (field === "productId") {
+          const prod = products.find((p) => String(p.productId) === value);
+          return {
+            ...item,
+            productId: value,
+            hsnCode: prod?.productCode || "",
+            gstRateId: prod?.gstRateId ? String(prod.gstRateId) : "",
+          };
+        }
+
+        return { ...item, [field]: value };
+      })
+    );
+  }
+
+  function addLine() {
+    setLineItems((items) => [...items, EMPTY_LINE()]);
+  }
+
+  function removeLine(id: string) {
+    if (lineItems.length === 1) return;
+    setLineItems((items) => items.filter((item) => item.id !== id));
   }
 
   function openReprint(v: PastVoucher) {
@@ -123,20 +203,20 @@ export default function SalesClient({
         netAmount: v.netAmount,
       },
       party: v.party ?? { name: "Walk-in Customer", gstNo: null, address: null },
-      lines: [], // no line-level detail in list view
+      lines: [], // No line-level details in summary repressing
     });
   }
 
   async function handleSubmit() {
     if (!canCreate) return;
     if (!selectedCustomer || !invoiceNo) {
-      setMessage("Select customer and voucher number.");
+      setMessage("Select customer and enter invoice/voucher number.");
       return;
     }
 
-    const validLines = lineItems.filter((line) => line.productId && Number(line.quantity) > 0 && Number(line.rate) >= 0);
+    const validLines = lineItems.filter((line) => line.productId && Number(line.quantity) >= 0 && Number(line.rate) >= 0 && line.ledgerId);
     if (validLines.length === 0) {
-      setMessage("Add at least one line item with quantity and rate.");
+      setMessage("Add at least one line item with product, ledger, quantity, and rate.");
       return;
     }
 
@@ -149,15 +229,25 @@ export default function SalesClient({
         voucherNo: invoiceNo,
         voucherDate,
         partyId: Number(selectedCustomer),
-        remarks,
-        lineItems: validLines.map((line, index) => ({
-          ledgerId: Number(line.ledgerId),
+        remarks: remarks || `Sales - ${salesType.toUpperCase()}`,
+        broker,
+        haste,
+        lrNo,
+        lrDate: lrDate || null,
+        transport,
+        vehicleNo,
+        personName,
+        printRate: true,
+        printAmount: true,
+        lineItems: validLines.map((line) => ({
           productId: Number(line.productId),
+          ledgerId: Number(line.ledgerId),
+          hsnCode: line.hsnCode,
+          pcs: Number(line.pcs || 0),
           quantity: Number(line.quantity),
+          fold: Number(line.fold || 100),
           rate: Number(line.rate),
           gstRateId: line.gstRateId ? Number(line.gstRateId) : null,
-          entryType: "debit",
-          sequence: index + 1,
         })),
       };
 
@@ -169,7 +259,7 @@ export default function SalesClient({
 
       if (!response.ok) {
         const json = await response.json();
-        throw new Error(json.error || "Failed to create sales voucher.");
+        throw new Error(json.error || "Failed to save sales voucher.");
       }
 
       const responseData = await response.json();
@@ -184,25 +274,27 @@ export default function SalesClient({
         totalAmount: grandTotals.amount,
         taxAmount: grandTotals.tax,
         netAmount: grandTotals.total,
-        remarks,
+        remarks: body.remarks,
         party: customer ? { name: customer.customerName, gstNo: customer.gstNo, address: customer.address } : null,
       };
 
-      // Prepend to list and open invoice sheet
       setPastVouchers((prev) => [newVoucher, ...prev]);
 
+      // Print setup
       const invoiceLines = validLines.map((line) => {
         const prod = products.find((p) => String(p.productId) === line.productId);
         const tr = taxRates.find((t) => String(t.taxRateId) === line.gstRateId);
         const qty = Number(line.quantity) || 0;
         const rt = Number(line.rate) || 0;
+        const fd = Number(line.fold) || 100;
         return {
           productCode: prod?.productCode || "PROD",
           productName: prod?.productName || "Product",
           quantity: qty,
           unit: prod?.unit || "MTR",
           rate: rt,
-          amount: qty * rt,
+          fold: fd,
+          amount: Math.round((qty * rt * fd / 100) * 100) / 100,
           gstPercent: Number(tr?.taxPercent || 0),
         };
       });
@@ -215,7 +307,12 @@ export default function SalesClient({
 
       setInvoiceNo("");
       setRemarks("");
-      setLineItems([{ ...EMPTY_LINE, id: crypto.randomUUID() }]);
+      setBroker("");
+      setHaste("");
+      setLrNo("");
+      setLrDate("");
+      setTransport("");
+      setLineItems([EMPTY_LINE()]);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to save voucher.");
     } finally {
@@ -224,171 +321,297 @@ export default function SalesClient({
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
+    <div className="space-y-6 max-w-7xl mx-auto p-2">
+      {/* Top Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-lg font-bold text-foreground uppercase tracking-wide">Sales Voucher</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">Create a sales voucher for your textile business.</p>
+          <h1 className="text-xl font-bold tracking-tight text-foreground uppercase">Sales Invoice Entry</h1>
+          <p className="text-sm text-muted-foreground">Record textile sales, fold calculations, and dispatch logistics.</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Badge variant="secondary">Sale</Badge>
-          <Badge variant="secondary">Transaction</Badge>
+        <div className="flex items-center gap-2">
+          {(["grey", "finished", "other"] as const).map((type) => (
+            <Button
+              key={type}
+              variant={salesType === type ? "default" : "outline"}
+              onClick={() => setSalesType(type)}
+              className="text-xs uppercase font-semibold h-8"
+            >
+              {type} Sales
+            </Button>
+          ))}
         </div>
       </div>
 
-      {/* Entry Form */}
-      <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
-        <div className="grid gap-4 lg:grid-cols-3">
-          <div className="space-y-2">
-            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Customer</Label>
+      {/* Main Form Fields */}
+      <div className="grid gap-6 md:grid-cols-3">
+        {/* Customer & Main Details */}
+        <div className="rounded-lg border border-border bg-card p-5 space-y-4 shadow-sm">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">Party Details</h2>
+          
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold uppercase text-foreground">Customer</Label>
             <Select value={selectedCustomer} onValueChange={setSelectedCustomer}>
-              <SelectTrigger><SelectValue placeholder="Choose customer" /></SelectTrigger>
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder="Choose customer" />
+              </SelectTrigger>
               <SelectContent>
-                {customers.map((customer) => (
-                  <SelectItem key={customer.customerId} value={String(customer.customerId)}>
-                    {customer.customerName}
+                {customers.map((c) => (
+                  <SelectItem key={c.customerId} value={String(c.customerId)}>
+                    {c.customerName} {c.gstNo ? `(${c.gstNo})` : ""}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Voucher No</Label>
-            <Input value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} placeholder="INV-001" />
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold uppercase text-foreground">Broker</Label>
+            <Input value={broker} onChange={(e) => setBroker(e.target.value)} placeholder="Broker Name" className="h-9" />
           </div>
 
-          <div className="space-y-2">
-            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Date</Label>
-            <Input type="date" value={voucherDate} onChange={(e) => setVoucherDate(e.target.value)} />
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold uppercase text-foreground">Haste (Delivery Agent)</Label>
+            <Input value={haste} onChange={(e) => setHaste(e.target.value)} placeholder="Haste / Courier" className="h-9" />
           </div>
         </div>
 
-        <div className="mt-4 space-y-2">
-          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Remarks</Label>
-          <Input value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Sale of fabric goods" />
+        {/* Voucher Info */}
+        <div className="rounded-lg border border-border bg-card p-5 space-y-4 shadow-sm">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">Document Details</h2>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold uppercase text-foreground">Invoice No.</Label>
+            <Input value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} placeholder="e.g. INV-1020" className="h-9" />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold uppercase text-foreground">Voucher Date</Label>
+            <Input type="date" value={voucherDate} onChange={(e) => setVoucherDate(e.target.value)} className="h-9" />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold uppercase text-foreground">Remarks</Label>
+            <Input value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Voucher descriptions" className="h-9" />
+          </div>
+        </div>
+
+        {/* Logistics details */}
+        <div className="rounded-lg border border-border bg-card p-5 space-y-4 shadow-sm">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">Logistics & Dispatch</h2>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold uppercase text-foreground">LR No.</Label>
+            <Input value={lrNo} onChange={(e) => setLrNo(e.target.value)} placeholder="Lorry Receipt No." className="h-9" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase text-foreground">LR Date</Label>
+              <Input type="date" value={lrDate} onChange={(e) => setLrDate(e.target.value)} className="h-9" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase text-foreground">Transport</Label>
+              <Input value={transport} onChange={(e) => setTransport(e.target.value)} placeholder="Transport Service" className="h-9" />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold uppercase text-foreground">Vehicle No.</Label>
+            <Input value={vehicleNo} onChange={(e) => setVehicleNo(e.target.value)} placeholder="e.g. GJ-05-XX-XXXX" className="h-9" />
+          </div>
         </div>
       </div>
 
-      {/* Line Items */}
-      <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
-        <div className="flex items-center justify-between gap-4 mb-4">
+      {/* Line Items Table */}
+      <div className="rounded-lg border border-border bg-card p-5 shadow-sm space-y-4">
+        <div className="flex items-center justify-between border-b border-border pb-3">
           <div>
-            <h2 className="text-sm font-semibold text-foreground">Line Items</h2>
-            <p className="text-xs text-muted-foreground">Add product lines and tax details.</p>
+            <h2 className="text-sm font-bold text-foreground uppercase tracking-wide">Sales Items & Fabric details</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">Input PCS count, main meters (Qty), and fold percentage.</p>
           </div>
-          <Button variant="outline" size="sm" onClick={() => setLineItems((items) => [...items, { ...EMPTY_LINE, id: crypto.randomUUID() }])}>
-            <Plus className="h-3.5 w-3.5" /> Add Item
+          <Button variant="outline" size="sm" onClick={addLine} className="h-8 text-xs font-semibold uppercase">
+            <Plus className="h-3.5 w-3.5 mr-1" /> Add Line Item
           </Button>
         </div>
 
-        <div className="space-y-4">
-          {lineItems.map((line, index) => {
-            const totals = lineTotals[index];
-            return (
-              <div key={line.id} className="grid gap-4 lg:grid-cols-[2fr_1fr_1fr_1fr_auto] items-end border-b border-border/50 pb-4">
-                <div className="space-y-2">
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Product</Label>
-                  <Select value={line.productId} onValueChange={(value) => updateLine(line.id, "productId", value)}>
-                    <SelectTrigger><SelectValue placeholder="Select product" /></SelectTrigger>
-                    <SelectContent>
-                      {products.map((product) => (
-                        <SelectItem key={product.productId} value={String(product.productId)}>
-                          {product.productCode} — {product.productName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Ledger</Label>
-                  <Select value={line.ledgerId} onValueChange={(value) => updateLine(line.id, "ledgerId", value)}>
-                    <SelectTrigger><SelectValue placeholder="Select ledger" /></SelectTrigger>
-                    <SelectContent>
-                      {ledgers.map((ledger) => (
-                        <SelectItem key={ledger.ledgerId} value={String(ledger.ledgerId)}>
-                          {ledger.ledgerName} ({ledger.ledgerType})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Qty</Label>
-                  <Input type="number" min="0" step="0.01" value={line.quantity} onChange={(e) => updateLine(line.id, "quantity", e.target.value)} />
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Rate</Label>
-                  <Input type="number" min="0" step="0.01" value={line.rate} onChange={(e) => updateLine(line.id, "rate", e.target.value)} />
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">GST Rate</Label>
-                  <Select value={line.gstRateId} onValueChange={(value) => updateLine(line.id, "gstRateId", value)}>
-                    <SelectTrigger><SelectValue placeholder="Select tax" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">None</SelectItem>
-                      {taxRates.map((rate) => (
-                        <SelectItem key={rate.taxRateId} value={String(rate.taxRateId)}>
-                          {rate.taxName} ({rate.taxPercent}%)
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="flex flex-col items-end gap-2">
-                  <div className="text-right text-xs text-muted-foreground">Total</div>
-                  <div className="text-sm font-bold text-foreground">{fmt(totals.total)}</div>
-                  <Button variant="ghost" size="icon-sm" onClick={() => setLineItems((items) => items.filter((item) => item.id !== line.id))} className="text-danger hover:bg-danger/10">
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              </div>
-            );
-          })}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse min-w-[900px]">
+            <thead>
+              <tr className="border-b border-border text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                <th className="py-2 pr-4 w-[25%]">Product</th>
+                <th className="py-2 px-3 w-[20%]">Revenue Ledger</th>
+                <th className="py-2 px-3 w-[8%] text-right">PCS</th>
+                <th className="py-2 px-3 w-[10%] text-right">Quantity (Mtr)</th>
+                <th className="py-2 px-3 w-[8%] text-right">Fold %</th>
+                <th className="py-2 px-3 w-[10%] text-right">Rate</th>
+                <th className="py-2 px-3 w-[10%]">GST Rate</th>
+                <th className="py-2 px-3 w-[12%] text-right">Net Taxable</th>
+                <th className="py-2 pl-4 w-[5%]"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {lineItems.map((line, index) => {
+                const totals = lineTotals[index];
+                return (
+                  <tr key={line.id} className="border-b border-border/40 hover:bg-muted/30">
+                    <td className="py-3 pr-4">
+                      <Select value={line.productId} onValueChange={(val) => updateLine(line.id, "productId", val)}>
+                        <SelectTrigger className="h-9 w-full">
+                          <SelectValue placeholder="Select Product" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {products.map((p) => (
+                            <SelectItem key={p.productId} value={String(p.productId)}>
+                              {p.productCode} — {p.productName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </td>
+                    <td className="py-3 px-3">
+                      <Select value={line.ledgerId} onValueChange={(val) => updateLine(line.id, "ledgerId", val)}>
+                        <SelectTrigger className="h-9 w-full">
+                          <SelectValue placeholder="Select Ledger" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ledgers.map((l) => (
+                            <SelectItem key={l.ledgerId} value={String(l.ledgerId)}>
+                              {l.ledgerName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </td>
+                    <td className="py-3 px-3">
+                      <Input
+                        type="number"
+                        value={line.pcs}
+                        onChange={(e) => updateLine(line.id, "pcs", e.target.value)}
+                        className="h-9 text-right"
+                      />
+                    </td>
+                    <td className="py-3 px-3">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={line.quantity}
+                        onChange={(e) => updateLine(line.id, "quantity", e.target.value)}
+                        className="h-9 text-right font-medium"
+                      />
+                    </td>
+                    <td className="py-3 px-3">
+                      <Input
+                        type="number"
+                        step="0.1"
+                        value={line.fold}
+                        onChange={(e) => updateLine(line.id, "fold", e.target.value)}
+                        className="h-9 text-right text-muted-foreground"
+                      />
+                    </td>
+                    <td className="py-3 px-3">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={line.rate}
+                        onChange={(e) => updateLine(line.id, "rate", e.target.value)}
+                        className="h-9 text-right font-semibold"
+                      />
+                    </td>
+                    <td className="py-3 px-3">
+                      <Select value={line.gstRateId} onValueChange={(val) => updateLine(line.id, "gstRateId", val)}>
+                        <SelectTrigger className="h-9 w-full">
+                          <SelectValue placeholder="Tax %" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {taxRates.map((t) => (
+                            <SelectItem key={t.taxRateId} value={String(t.taxRateId)}>
+                              {t.taxName} ({t.taxPercent}%)
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </td>
+                    <td className="py-3 px-3 text-right font-bold text-foreground">
+                      ₹{totals?.amount.toFixed(2)}
+                    </td>
+                    <td className="py-3 pl-4 text-center">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeLine(line.id)}
+                        disabled={lineItems.length === 1}
+                        className="text-danger hover:bg-danger/10 hover:text-danger h-8 w-8"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </div>
 
-      {/* Totals */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-lg border border-border bg-card p-4">
-          <div className="text-xs text-muted-foreground uppercase tracking-wider">Amount</div>
-          <div className="mt-2 text-xl font-bold text-foreground">{fmt(grandTotals.amount)}</div>
+      {/* Invoice Summary and Tax Details */}
+      <div className="grid gap-6 md:grid-cols-3">
+        <div className="md:col-span-2 rounded-lg border border-border bg-card p-5 space-y-3 shadow-sm">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">GST Tax Breakdown</h2>
+          
+          <div className="grid grid-cols-3 gap-4 pt-1">
+            <div className="rounded border border-border/60 bg-muted/20 p-3 text-center">
+              <div className="text-[10px] uppercase font-bold text-muted-foreground">CGST Total</div>
+              <div className="mt-1 text-base font-bold text-foreground">₹{grandTotals.cgst.toFixed(2)}</div>
+            </div>
+            <div className="rounded border border-border/60 bg-muted/20 p-3 text-center">
+              <div className="text-[10px] uppercase font-bold text-muted-foreground">SGST Total</div>
+              <div className="mt-1 text-base font-bold text-foreground">₹{grandTotals.sgst.toFixed(2)}</div>
+            </div>
+            <div className="rounded border border-border/60 bg-muted/20 p-3 text-center">
+              <div className="text-[10px] uppercase font-bold text-muted-foreground">IGST Total</div>
+              <div className="mt-1 text-base font-bold text-foreground">₹{grandTotals.igst.toFixed(2)}</div>
+            </div>
+          </div>
+          <p className="text-[10px] text-muted-foreground italic text-center">
+            * Real-time tax splits determined automatically based on state settings.
+          </p>
         </div>
-        <div className="rounded-lg border border-border bg-card p-4">
-          <div className="text-xs text-muted-foreground uppercase tracking-wider">Tax</div>
-          <div className="mt-2 text-xl font-bold text-foreground">{fmt(grandTotals.tax)}</div>
-        </div>
-        <div className="rounded-lg border border-border bg-card p-4">
-          <div className="text-xs text-muted-foreground uppercase tracking-wider">Net Total</div>
-          <div className="mt-2 text-xl font-bold text-foreground">{fmt(grandTotals.total)}</div>
+
+        <div className="rounded-lg border border-border bg-card p-5 space-y-4 shadow-sm">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">Summary</h2>
+
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Taxable Value:</span>
+              <span className="font-semibold">₹{grandTotals.amount.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Total GST:</span>
+              <span className="font-semibold text-warning">₹{grandTotals.tax.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between border-t border-border pt-2 text-base font-bold text-foreground">
+              <span>Grand Total:</span>
+              <span className="text-primary">₹{grandTotals.total.toFixed(2)}</span>
+            </div>
+          </div>
+
+          <div className="pt-2">
+            <Button onClick={handleSubmit} disabled={saving || !canCreate} className="w-full h-10 font-bold uppercase">
+              {saving ? "Saving Voucher..." : "Save Sales Invoice"}
+            </Button>
+          </div>
         </div>
       </div>
 
-      {message && (
-        <div className={`rounded-lg border p-4 text-sm ${message.includes("success") ? "border-success/30 bg-success/10 text-success" : "border-border bg-muted/50 text-muted-foreground"}`}>
-          {message}
-        </div>
-      )}
-
-      <div className="flex justify-end">
-        <Button onClick={handleSubmit} disabled={saving || !canCreate}>
-          {saving ? "Saving..." : "Save Sales Voucher"}
-        </Button>
-      </div>
+      {message && <div className="rounded-lg border border-border bg-muted/65 p-4 text-sm text-center font-medium text-foreground">{message}</div>}
 
       {/* Past Vouchers List */}
       <div className="rounded-lg border border-border bg-card overflow-hidden shadow-sm">
         <div className="flex items-center gap-3 px-5 py-4 border-b border-border">
           <FileText className="h-4 w-4 text-muted-foreground" />
           <div>
-            <h2 className="text-sm font-semibold text-foreground">Sales History</h2>
-            <p className="text-xs text-muted-foreground">Last 50 posted sales vouchers</p>
+            <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">Sales History</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">Last 50 posted sales vouchers</p>
           </div>
         </div>
 
@@ -397,48 +620,49 @@ export default function SalesClient({
             No sales vouchers yet. Create your first sale above.
           </div>
         ) : (
-          <table className="w-full text-sm">
-            <thead className="bg-muted/40 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              <tr>
-                <th className="px-4 py-3">Voucher No</th>
-                <th className="px-4 py-3">Date</th>
-                <th className="px-4 py-3">Customer</th>
-                <th className="px-4 py-3">Remarks</th>
-                <th className="px-4 py-3 text-right">Taxable</th>
-                <th className="px-4 py-3 text-right">GST</th>
-                <th className="px-4 py-3 text-right">Net Total</th>
-                <th className="px-4 py-3 text-center">Status</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody>
-              {pastVouchers.map((v) => (
-                <tr key={v.voucherId} className="border-t border-border/50 hover:bg-muted/10 transition-colors">
-                  <td className="px-4 py-3 font-mono font-semibold text-foreground">{v.voucherNo}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{v.voucherDate}</td>
-                  <td className="px-4 py-3 text-foreground">{v.party?.name ?? "—"}</td>
-                  <td className="px-4 py-3 text-muted-foreground italic text-xs max-w-[160px] truncate">{v.remarks || "—"}</td>
-                  <td className="px-4 py-3 text-right font-mono text-foreground">{fmt(v.totalAmount)}</td>
-                  <td className="px-4 py-3 text-right font-mono text-muted-foreground">{fmt(v.taxAmount)}</td>
-                  <td className="px-4 py-3 text-right font-mono font-bold text-foreground">{fmt(v.netAmount)}</td>
-                  <td className="px-4 py-3 text-center">
-                    <Badge variant={v.status === "posted" ? "default" : "secondary"} className="text-xs capitalize">
-                      {v.status}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <Button variant="ghost" size="icon-sm" title="Preview Invoice" onClick={() => openReprint(v)}>
-                      <Eye className="h-3.5 w-3.5" />
-                    </Button>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[900px]">
+              <thead className="bg-muted/40 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border">
+                <tr>
+                  <th className="px-4 py-3">Voucher No</th>
+                  <th className="px-4 py-3">Date</th>
+                  <th className="px-4 py-3">Customer</th>
+                  <th className="px-4 py-3">Remarks</th>
+                  <th className="px-4 py-3 text-right">Taxable</th>
+                  <th className="px-4 py-3 text-right">GST</th>
+                  <th className="px-4 py-3 text-right">Net Total</th>
+                  <th className="px-4 py-3 text-center">Status</th>
+                  <th className="px-4 py-3" />
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {pastVouchers.map((v) => (
+                  <tr key={v.voucherId} className="border-b border-border/40 hover:bg-muted/10 transition-colors">
+                    <td className="px-4 py-3 font-mono font-semibold text-foreground">{v.voucherNo}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{v.voucherDate}</td>
+                    <td className="px-4 py-3 text-foreground font-medium">{v.party?.name ?? "—"}</td>
+                    <td className="px-4 py-3 text-muted-foreground italic text-xs max-w-[160px] truncate">{v.remarks || "—"}</td>
+                    <td className="px-4 py-3 text-right font-mono text-foreground">{fmt(v.totalAmount)}</td>
+                    <td className="px-4 py-3 text-right font-mono text-muted-foreground">{fmt(v.taxAmount)}</td>
+                    <td className="px-4 py-3 text-right font-mono font-bold text-foreground">{fmt(v.netAmount)}</td>
+                    <td className="px-4 py-3 text-center">
+                      <Badge variant={v.status === "posted" ? "secondary" : "outline"} className="text-xs uppercase font-semibold">
+                        {v.status}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <Button variant="ghost" size="icon" title="Preview Invoice" onClick={() => openReprint(v)} className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
-      {/* Invoice Sheet */}
       {printVoucher && (
         <PrintInvoiceModal
           isOpen={!!printVoucher}

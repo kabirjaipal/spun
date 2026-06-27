@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { mLedgers, mProducts, mTaxRates, mCustomers, mSuppliers, tVouchers, tVoucherEntries, tStockMovements } from "@/lib/db/schema";
+import { mLedgers, mProducts, mTaxRates, mCustomers, mSuppliers, tVouchers, tVoucherEntries, tStockMovements, tVoucherItems } from "@/lib/db/schema";
 import { and, eq, isNull, desc } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
@@ -17,7 +17,27 @@ export async function POST(request: Request) {
   const userId = session.user.id;
   const companyId = Number(session.user.companyId);
   const body = await request.json();
-  const { voucherType, voucherNo, voucherDate, partyId, remarks, lineItems, cashBankLedgerId, totalAmount } = body;
+  const {
+    voucherType,
+    voucherNo,
+    voucherDate,
+    partyId,
+    remarks,
+    lineItems,
+    cashBankLedgerId,
+    totalAmount,
+    broker,
+    haste,
+    lrNo,
+    lrDate,
+    transport,
+    vehicleNo,
+    personName,
+    lotNo,
+    printRate = true,
+    printAmount = true,
+    parentVoucherId
+  } = body;
 
   if (!voucherType || !voucherNo || !voucherDate) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -25,22 +45,95 @@ export async function POST(request: Request) {
 
   try {
     const [voucher] = await db.transaction(async (tx) => {
+      // Determine interstate vs intrastate GST based on GSTIN prefix
+      const company = await tx.query.mCompanies.findFirst({
+        where: eq(mLedgers.companyId, companyId),
+      });
+      const companyGst = company?.gstNo || "";
+      let partyGstNo = "";
+
+      if (partyId) {
+        if (voucherType === "sale" || voucherType === "credit_note" || voucherType === "debit_note") {
+          const cust = await tx.query.mCustomers.findFirst({
+            where: eq(mCustomers.customerId, Number(partyId)),
+          });
+          partyGstNo = cust?.gstNo || "";
+        } else if (voucherType === "purchase" || voucherType === "job_outward" || voucherType === "job_inward" || voucherType === "mill_outward" || voucherType === "mill_inward") {
+          const supp = await tx.query.mSuppliers.findFirst({
+            where: eq(mSuppliers.supplierId, Number(partyId)),
+          });
+          partyGstNo = supp?.gstNo || "";
+        }
+      }
+
+      const isInterstate = companyGst && partyGstNo && companyGst.slice(0, 2) !== partyGstNo.slice(0, 2);
+
       // Calculate totals based on voucher type
       let computedTotal = 0;
       let computedTax = 0;
       let computedNet = 0;
 
-      if (voucherType === "sale" || voucherType === "purchase") {
+      const processedLines: any[] = [];
+
+      if (
+        voucherType === "sale" ||
+        voucherType === "purchase" ||
+        voucherType === "credit_note" ||
+        voucherType === "debit_note" ||
+        voucherType === "job_outward" ||
+        voucherType === "job_inward" ||
+        voucherType === "mill_outward" ||
+        voucherType === "mill_inward"
+      ) {
         if (!Array.isArray(lineItems) || lineItems.length === 0) {
-          throw new Error("Line items are required for sales and purchases");
+          throw new Error("Line items are required for this voucher type");
         }
-        computedTotal = lineItems.reduce((sum: number, line: any) => sum + ((Number(line.quantity) || 0) * (Number(line.rate) || 0)), 0);
-        computedTax = lineItems.reduce((sum: number, line: any) => {
-          const amount = (Number(line.quantity) || 0) * (Number(line.rate) || 0);
-          const gstRate = Number(line.gstRateId || 0);
-          return sum + Math.round((amount * gstRate) / 100 * 100) / 100;
-        }, 0);
-        computedNet = computedTotal + computedTax;
+
+        for (const line of lineItems) {
+          const qty = Number(line.quantity) || 0;
+          const rate = Number(line.rate) || 0;
+          const fold = Number(line.fold !== undefined ? line.fold : 100) || 100;
+          
+          // Fold formula: quantity * rate * fold / 100
+          const taxableAmount = Math.round((qty * rate * fold / 100) * 100) / 100;
+
+          let cgst = 0;
+          let sgst = 0;
+          let igst = 0;
+
+          if (line.gstRateId) {
+            const taxRate = await tx.query.mTaxRates.findFirst({ where: eq(mTaxRates.taxRateId, Number(line.gstRateId)) });
+            if (taxRate) {
+              const taxPercent = Number(taxRate.taxPercent || 0);
+              const totalTax = Math.round((taxableAmount * taxPercent) / 100 * 100) / 100;
+              if (isInterstate) {
+                igst = totalTax;
+              } else {
+                cgst = Math.round((totalTax / 2) * 100) / 100;
+                sgst = Math.round((totalTax - cgst) * 100) / 100;
+              }
+            }
+          }
+
+          const lineTax = cgst + sgst + igst;
+          const lineNet = taxableAmount + lineTax;
+
+          computedTotal += taxableAmount;
+          computedTax += lineTax;
+          computedNet += lineNet;
+
+          processedLines.push({
+            ...line,
+            qty,
+            rate,
+            fold,
+            taxableAmount,
+            cgst,
+            sgst,
+            igst,
+            lineNet,
+          });
+        }
       } else if (voucherType === "receipt" || voucherType === "payment") {
         computedTotal = Number(totalAmount || 0);
         computedNet = computedTotal;
@@ -71,6 +164,18 @@ export async function POST(request: Request) {
           totalAmount: String(computedTotal),
           taxAmount: String(computedTax),
           netAmount: String(computedNet),
+          broker: broker || null,
+          haste: haste || null,
+          lrNo: lrNo || null,
+          lrDate: lrDate ? String(lrDate) : null,
+          transport: transport || null,
+          vehicleNo: vehicleNo || null,
+          personName: personName || null,
+          lotNo: lotNo || null,
+          printRate: printRate,
+          printAmount: printAmount,
+          parentVoucherId: parentVoucherId ? Number(parentVoucherId) : null,
+          cashBankLedgerId: cashBankLedgerId ? Number(cashBankLedgerId) : null,
           createdBy: userId,
           updatedBy: userId,
         })
@@ -99,8 +204,8 @@ export async function POST(request: Request) {
         return ledger;
       };
 
-      // Insert Entries
-      if (voucherType === "sale") {
+      // Insert Entries and Stock Movements
+      if (voucherType === "sale" || voucherType === "credit_note") {
         // 1. Debit Customer Ledger
         const customerLedger = await tx.query.mLedgers.findFirst({
           where: and(eq(mLedgers.referenceId, Number(partyId)), eq(mLedgers.ledgerType, "customer"), eq(mLedgers.companyId, companyId), isNull(mLedgers.deletedOn))
@@ -110,43 +215,57 @@ export async function POST(request: Request) {
         await tx.insert(tVoucherEntries).values({
           voucherId: voucherIdNum,
           ledgerId: Number(customerLedger.ledgerId),
-          entryType: "debit",
+          entryType: voucherType === "sale" ? "debit" : "credit",
           amount: String(computedNet),
           createdBy: userId,
           updatedBy: userId,
         });
 
-        // 2. Credit Sales / Tax ledgers
-        for (const line of lineItems) {
-          const amount = (Number(line.quantity) || 0) * (Number(line.rate) || 0);
-          // Credit Revenue/Sales Account
-          await tx.insert(tVoucherEntries).values({
+        // 2. Insert item details, ledger postings, and stock movements
+        for (const line of processedLines) {
+          await tx.insert(tVoucherItems).values({
             voucherId: voucherIdNum,
+            productId: Number(line.productId),
             ledgerId: Number(line.ledgerId),
-            entryType: "credit",
-            amount: String(amount),
+            hsnCode: line.hsnCode || null,
+            pcs: Number(line.pcs || 0),
+            quantity: String(line.qty),
+            fold: String(line.fold),
+            rate: String(line.rate),
+            gstRateId: line.gstRateId ? Number(line.gstRateId) : null,
+            taxableAmount: String(line.taxableAmount),
+            cgst: String(line.cgst),
+            sgst: String(line.sgst),
+            igst: String(line.igst),
+            netAmount: String(line.lineNet),
+            jobType: line.jobType || null,
+            jobRateType: line.jobRateType || null,
             createdBy: userId,
             updatedBy: userId,
           });
 
-          // Credit Tax Ledger if GST is applicable
-          if (line.gstRateId) {
-            const taxRate = await tx.query.mTaxRates.findFirst({ where: eq(mTaxRates.taxRateId, Number(line.gstRateId)) });
-            if (taxRate) {
-              const taxPercent = Number(taxRate.taxPercent || 0);
-              const taxAmount = Math.round((amount * taxPercent) / 100 * 100) / 100;
-              if (taxAmount > 0) {
-                const taxLedger = await getOrCreateTaxLedger();
-                await tx.insert(tVoucherEntries).values({
-                  voucherId: voucherIdNum,
-                  ledgerId: Number(taxLedger.ledgerId),
-                  entryType: "credit",
-                  amount: String(taxAmount),
-                  createdBy: userId,
-                  updatedBy: userId,
-                });
-              }
-            }
+          // Credit / Debit Revenue Account
+          await tx.insert(tVoucherEntries).values({
+            voucherId: voucherIdNum,
+            ledgerId: Number(line.ledgerId),
+            entryType: voucherType === "sale" ? "credit" : "debit",
+            amount: String(line.taxableAmount),
+            createdBy: userId,
+            updatedBy: userId,
+          });
+
+          // Tax Ledger Entries
+          const taxLedger = await getOrCreateTaxLedger();
+          const totalLineTax = line.cgst + line.sgst + line.igst;
+          if (totalLineTax > 0) {
+            await tx.insert(tVoucherEntries).values({
+              voucherId: voucherIdNum,
+              ledgerId: Number(taxLedger.ledgerId),
+              entryType: voucherType === "sale" ? "credit" : "debit",
+              amount: String(totalLineTax),
+              createdBy: userId,
+              updatedBy: userId,
+            });
           }
 
           // Stock movements
@@ -156,16 +275,16 @@ export async function POST(request: Request) {
               companyId,
               productId: Number(product.productId),
               voucherId: voucherIdNum,
-              movementType: "sale",
-              quantity: String(Number(line.quantity) || 0),
-              rate: String(Number(line.rate) || 0),
-              amount: String(amount),
+              movementType: voucherType === "sale" ? "sale" : "adjustment",
+              quantity: String(voucherType === "sale" ? line.qty : -line.qty),
+              rate: String(line.rate),
+              amount: String(line.taxableAmount),
               createdBy: userId,
               updatedBy: userId,
             });
           }
         }
-      } else if (voucherType === "purchase") {
+      } else if (voucherType === "purchase" || voucherType === "debit_note") {
         // 1. Credit Supplier Ledger
         const supplierLedger = await tx.query.mLedgers.findFirst({
           where: and(eq(mLedgers.referenceId, Number(partyId)), eq(mLedgers.ledgerType, "supplier"), eq(mLedgers.companyId, companyId), isNull(mLedgers.deletedOn))
@@ -175,43 +294,57 @@ export async function POST(request: Request) {
         await tx.insert(tVoucherEntries).values({
           voucherId: voucherIdNum,
           ledgerId: Number(supplierLedger.ledgerId),
-          entryType: "credit",
+          entryType: voucherType === "purchase" ? "credit" : "debit",
           amount: String(computedNet),
           createdBy: userId,
           updatedBy: userId,
         });
 
-        // 2. Debit Purchase / Tax ledgers
-        for (const line of lineItems) {
-          const amount = (Number(line.quantity) || 0) * (Number(line.rate) || 0);
-          // Debit Purchase/Expense Account
-          await tx.insert(tVoucherEntries).values({
+        // 2. Insert item details, ledger postings, and stock movements
+        for (const line of processedLines) {
+          await tx.insert(tVoucherItems).values({
             voucherId: voucherIdNum,
+            productId: Number(line.productId),
             ledgerId: Number(line.ledgerId),
-            entryType: "debit",
-            amount: String(amount),
+            hsnCode: line.hsnCode || null,
+            pcs: Number(line.pcs || 0),
+            quantity: String(line.qty),
+            fold: String(line.fold),
+            rate: String(line.rate),
+            gstRateId: line.gstRateId ? Number(line.gstRateId) : null,
+            taxableAmount: String(line.taxableAmount),
+            cgst: String(line.cgst),
+            sgst: String(line.sgst),
+            igst: String(line.igst),
+            netAmount: String(line.lineNet),
+            jobType: line.jobType || null,
+            jobRateType: line.jobRateType || null,
             createdBy: userId,
             updatedBy: userId,
           });
 
-          // Debit Tax Ledger if GST is applicable
-          if (line.gstRateId) {
-            const taxRate = await tx.query.mTaxRates.findFirst({ where: eq(mTaxRates.taxRateId, Number(line.gstRateId)) });
-            if (taxRate) {
-              const taxPercent = Number(taxRate.taxPercent || 0);
-              const taxAmount = Math.round((amount * taxPercent) / 100 * 100) / 100;
-              if (taxAmount > 0) {
-                const taxLedger = await getOrCreateTaxLedger();
-                await tx.insert(tVoucherEntries).values({
-                  voucherId: voucherIdNum,
-                  ledgerId: Number(taxLedger.ledgerId),
-                  entryType: "debit",
-                  amount: String(taxAmount),
-                  createdBy: userId,
-                  updatedBy: userId,
-                });
-              }
-            }
+          // Debit / Credit Expense Account
+          await tx.insert(tVoucherEntries).values({
+            voucherId: voucherIdNum,
+            ledgerId: Number(line.ledgerId),
+            entryType: voucherType === "purchase" ? "debit" : "credit",
+            amount: String(line.taxableAmount),
+            createdBy: userId,
+            updatedBy: userId,
+          });
+
+          // Tax Ledger Entries
+          const taxLedger = await getOrCreateTaxLedger();
+          const totalLineTax = line.cgst + line.sgst + line.igst;
+          if (totalLineTax > 0) {
+            await tx.insert(tVoucherEntries).values({
+              voucherId: voucherIdNum,
+              ledgerId: Number(taxLedger.ledgerId),
+              entryType: voucherType === "purchase" ? "debit" : "credit",
+              amount: String(totalLineTax),
+              createdBy: userId,
+              updatedBy: userId,
+            });
           }
 
           // Stock movements
@@ -221,10 +354,67 @@ export async function POST(request: Request) {
               companyId,
               productId: Number(product.productId),
               voucherId: voucherIdNum,
-              movementType: "purchase",
-              quantity: String(Number(line.quantity) || 0),
-              rate: String(Number(line.rate) || 0),
-              amount: String(amount),
+              movementType: voucherType === "purchase" ? "purchase" : "adjustment",
+              quantity: String(voucherType === "purchase" ? line.qty : -line.qty),
+              rate: String(line.rate),
+              amount: String(line.taxableAmount),
+              createdBy: userId,
+              updatedBy: userId,
+            });
+          }
+        }
+      } else if (
+        voucherType === "job_outward" ||
+        voucherType === "job_inward" ||
+        voucherType === "mill_outward" ||
+        voucherType === "mill_inward"
+      ) {
+        // Job work and mill movements. These represent stock transfers/adjustments.
+        // We write to tVoucherItems and record stock movements without ledger double-entries.
+        for (const line of processedLines) {
+          await tx.insert(tVoucherItems).values({
+            voucherId: voucherIdNum,
+            productId: Number(line.productId),
+            ledgerId: Number(line.ledgerId),
+            hsnCode: line.hsnCode || null,
+            pcs: Number(line.pcs || 0),
+            quantity: String(line.qty),
+            fold: String(line.fold),
+            rate: String(line.rate),
+            gstRateId: line.gstRateId ? Number(line.gstRateId) : null,
+            taxableAmount: String(line.taxableAmount),
+            cgst: String(line.cgst),
+            sgst: String(line.sgst),
+            igst: String(line.igst),
+            netAmount: String(line.lineNet),
+            jobType: line.jobType || null,
+            jobRateType: line.jobRateType || null,
+            createdBy: userId,
+            updatedBy: userId,
+          });
+
+          // Stock movements
+          const product = await tx.query.mProducts.findFirst({ where: eq(mProducts.productId, Number(line.productId)) });
+          if (product) {
+            let movementTypeStr = "adjustment";
+            let movementQty = line.qty;
+
+            if (voucherType === "job_outward" || voucherType === "mill_outward") {
+              // Outward sends raw/grey stock out
+              movementQty = -line.qty;
+            } else {
+              // Inward returns finished stock in
+              movementQty = line.qty;
+            }
+
+            await tx.insert(tStockMovements).values({
+              companyId,
+              productId: Number(product.productId),
+              voucherId: voucherIdNum,
+              movementType: movementTypeStr,
+              quantity: String(movementQty),
+              rate: String(line.rate),
+              amount: String(line.taxableAmount),
               createdBy: userId,
               updatedBy: userId,
             });
@@ -313,6 +503,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message || "Failed to create voucher" }, { status: 500 });
   }
 }
+
 
 export async function GET(request: Request) {
   const session = await auth();

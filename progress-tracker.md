@@ -64,11 +64,11 @@ This document tracks our progress on the textile-specific enhancements defined i
 - [x] Mill name, Address, GST No, GST Type, City, State code, Phone, MSME status
 
 ### [ ] 12. Transactions & Vouchers
-- [ ] **Purchase:**
-  - [ ] Grey, Finished, Consumable, Other purchases
-  - [ ] Interface fields (Party, invoice/sr number, broker, haste, LR details, transport)
-  - [ ] Items table with fold calculation: `Quantity * Rate * fold / 100`
-  - [ ] SGST, CGST, IGST totals
+- [/] **Purchase:**
+  - [x] Grey, Finished, Consumable, Other purchases
+  - [x] Interface fields (Party, invoice/sr number, broker, haste, LR details, transport)
+  - [x] Items table with fold calculation: `Quantity * Rate * fold / 100`
+  - [x] SGST, CGST, IGST totals
 - [ ] **Purchase Return:**
   - [ ] Return against multiple purchase invoices
 - [ ] **Job Work:**
@@ -77,8 +77,8 @@ This document tracks our progress on the textile-specific enhancements defined i
 - [ ] **Mill:**
   - [ ] Mill Outward (Quality, PCS, meter, rate, amount)
   - [ ] Mill Inward (Shortage matching outward-inward, lot status completion)
-- [ ] **Sales:**
-  - [ ] Grey, Finished, and Other sales layout with broker, haste, transport, items table and GST details
+- [x] **Sales:**
+  - [x] Grey, Finished, and Other sales layout with broker, haste, transport, items table and GST details
 - [ ] **Payment & Receipt:**
   - [ ] Outstanding bill selection
   - [ ] Days and Interest calculations

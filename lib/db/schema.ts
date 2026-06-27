@@ -301,7 +301,7 @@ export const tVouchers = pgTable("t_vouchers", {
     .references(() => mCompanies.companyId)
     .notNull(),
   voucherNo: text("voucher_no").notNull(),
-  voucherType: text("voucher_type").notNull(), // 'sale', 'purchase', 'receipt', 'payment', 'journal'
+  voucherType: text("voucher_type").notNull(), // 'sale', 'purchase', 'receipt', 'payment', 'journal', 'job_outward', 'job_inward', 'mill_outward', 'mill_inward', 'credit_note', 'debit_note'
   voucherDate: date("voucher_date").notNull(),
   partyId: bigint("party_id", { mode: "number" }),
   remarks: text("remarks"),
@@ -309,11 +309,60 @@ export const tVouchers = pgTable("t_vouchers", {
   totalAmount: numeric("total_amount", { precision: 15, scale: 2 }).default("0.00").notNull(),
   taxAmount: numeric("tax_amount", { precision: 15, scale: 2 }).default("0.00").notNull(),
   netAmount: numeric("net_amount", { precision: 15, scale: 2 }).default("0.00").notNull(),
+  
+  // Textile fields
+  broker: text("broker"),
+  haste: text("haste"),
+  lrNo: text("lr_no"),
+  lrDate: date("lr_date"),
+  transport: text("transport"),
+  vehicleNo: text("vehicle_no"),
+  personName: text("person_name"),
+  lotNo: text("lot_no"),
+  printRate: boolean("print_rate").default(true).notNull(),
+  printAmount: boolean("print_amount").default(true).notNull(),
+  parentVoucherId: bigint("parent_voucher_id", { mode: "number" }),
+  cashBankLedgerId: bigint("cash_bank_ledger_id", { mode: "number" }).references(() => mLedgers.ledgerId),
+
   ...auditColumns,
 }, (table) => ({
   companyIdIdx: index("idx_t_vouchers_company_id").on(table.companyId),
   voucherTypeIdx: index("idx_t_vouchers_voucher_type").on(table.voucherType),
 }));
+
+export const tVoucherItems = pgTable("t_voucher_items", {
+  voucherItemId: serial("voucher_item_id").primaryKey(),
+  voucherId: bigint("voucher_id", { mode: "number" })
+    .references(() => tVouchers.voucherId)
+    .notNull(),
+  productId: bigint("product_id", { mode: "number" })
+    .references(() => mProducts.productId)
+    .notNull(),
+  ledgerId: bigint("ledger_id", { mode: "number" })
+    .references(() => mLedgers.ledgerId)
+    .notNull(),
+  hsnCode: text("hsn_code"),
+  pcs: integer("pcs").default(0).notNull(),
+  quantity: numeric("quantity", { precision: 15, scale: 4 }).default("0.0000").notNull(), // meters or main quantity
+  fold: numeric("fold", { precision: 5, scale: 2 }).default("100.00").notNull(), // fold percentage
+  rate: numeric("rate", { precision: 15, scale: 2 }).notNull(),
+  gstRateId: bigint("gst_rate_id", { mode: "number" }).references(() => mTaxRates.taxRateId),
+  taxableAmount: numeric("taxable_amount", { precision: 15, scale: 2 }).notNull(),
+  cgst: numeric("cgst", { precision: 15, scale: 2 }).default("0.00").notNull(),
+  sgst: numeric("sgst", { precision: 15, scale: 2 }).default("0.00").notNull(),
+  igst: numeric("igst", { precision: 15, scale: 2 }).default("0.00").notNull(),
+  netAmount: numeric("net_amount", { precision: 15, scale: 2 }).notNull(),
+
+  // Job / Mill specific columns
+  jobType: text("job_type"),
+  jobRateType: text("job_rate_type"), // 'pcs', 'mtr'
+
+  ...auditColumns,
+}, (table) => ({
+  voucherIdIdx: index("idx_t_voucher_items_voucher_id").on(table.voucherId),
+  productIdIdx: index("idx_t_voucher_items_product_id").on(table.productId),
+}));
+
 
 export const tVoucherEntries = pgTable("t_voucher_entries", {
   voucherEntryId: serial("voucher_entry_id").primaryKey(),
