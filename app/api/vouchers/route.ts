@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { mLedgers, mProducts, mTaxRates, mCustomers, mSuppliers, tVouchers, tVoucherEntries, tStockMovements, tVoucherItems } from "@/lib/db/schema";
+import { mLedgers, mProducts, mTaxRates, mCustomers, mSuppliers, mJobs, mMills, mCompanies, tVouchers, tVoucherEntries, tStockMovements, tVoucherItems } from "@/lib/db/schema";
 import { and, eq, isNull, desc } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
@@ -47,7 +47,7 @@ export async function POST(request: Request) {
     const [voucher] = await db.transaction(async (tx) => {
       // Determine interstate vs intrastate GST based on GSTIN prefix
       const company = await tx.query.mCompanies.findFirst({
-        where: eq(mLedgers.companyId, companyId),
+        where: eq(mCompanies.companyId, companyId),
       });
       const companyGst = company?.gstNo || "";
       let partyGstNo = "";
@@ -58,11 +58,21 @@ export async function POST(request: Request) {
             where: eq(mCustomers.customerId, Number(partyId)),
           });
           partyGstNo = cust?.gstNo || "";
-        } else if (voucherType === "purchase" || voucherType === "job_outward" || voucherType === "job_inward" || voucherType === "mill_outward" || voucherType === "mill_inward") {
+        } else if (voucherType === "purchase") {
           const supp = await tx.query.mSuppliers.findFirst({
             where: eq(mSuppliers.supplierId, Number(partyId)),
           });
           partyGstNo = supp?.gstNo || "";
+        } else if (voucherType === "job_outward" || voucherType === "job_inward") {
+          const job = await tx.query.mJobs.findFirst({
+            where: eq(mJobs.jobId, Number(partyId)),
+          });
+          partyGstNo = job?.gstNo || "";
+        } else if (voucherType === "mill_outward" || voucherType === "mill_inward") {
+          const mill = await tx.query.mMills.findFirst({
+            where: eq(mMills.millId, Number(partyId)),
+          });
+          partyGstNo = mill?.gstNo || "";
         }
       }
 
@@ -544,10 +554,18 @@ export async function GET(request: Request) {
       supplierName: mSuppliers.supplierName,
       supplierGst: mSuppliers.gstNo,
       supplierAddress: mSuppliers.address,
+      jobName: mJobs.jobName,
+      jobGst: mJobs.gstNo,
+      jobAddress: mJobs.address,
+      millName: mMills.millName,
+      millGst: mMills.gstNo,
+      millAddress: mMills.address,
     })
     .from(tVouchers)
     .leftJoin(mCustomers, eq(tVouchers.partyId, mCustomers.customerId))
     .leftJoin(mSuppliers, eq(tVouchers.partyId, mSuppliers.supplierId))
+    .leftJoin(mJobs, eq(tVouchers.partyId, mJobs.jobId))
+    .leftJoin(mMills, eq(tVouchers.partyId, mMills.millId))
     .where(and(...conditions))
     .orderBy(desc(tVouchers.voucherDate), desc(tVouchers.voucherId));
 

@@ -72,8 +72,8 @@ This document tracks our progress on the textile-specific enhancements defined i
 - [x] **Purchase Return:**
   - [x] Return against multiple purchase invoices
 - [ ] **Job Work:**
-  - [ ] Job Outward (Party, lot no, vehicle no, job type, job rate selection, etc.)
-  - [ ] Job Inward (Shortage calculations, lot-wise matching)
+  - [x] Job Outward (Party, lot no, vehicle no, job type, job rate selection, etc.)
+  - [x] Job Inward (Shortage calculations, lot-wise matching)
 - [ ] **Mill:**
   - [ ] Mill Outward (Quality, PCS, meter, rate, amount)
   - [ ] Mill Inward (Shortage matching outward-inward, lot status completion)
