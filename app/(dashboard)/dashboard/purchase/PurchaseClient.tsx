@@ -85,7 +85,7 @@ export default function PurchaseClient({
   canCreate: boolean;
 }) {
   const router = useRouter();
-  const isTextile = company.companyType === "textiles";
+
 
   // Dialog States for inline creation
   const [showPartyModal, setShowPartyModal] = useState(false);
@@ -161,7 +161,7 @@ export default function PurchaseClient({
   }
 
 
-  const [purchaseType, setPurchaseType] = useState<"grey" | "finished" | "consumable" | "other">("grey");
+  const purchaseType = "purchase";
   const [selectedSupplier, setSelectedSupplier] = useState("");
   const [voucherNo, setVoucherNo] = useState("");
   const [voucherDate, setVoucherDate] = useState(new Date().toISOString().slice(0, 10));
@@ -197,7 +197,7 @@ export default function PurchaseClient({
     return lineItems.map((line) => {
       const qty = Number(line.quantity) || 0;
       const rate = Number(line.rate) || 0;
-      const fold = isTextile ? (Number(line.fold) || 100) : 100;
+      const fold = 100;
       const gstRatePercent = Number(line.gstRateId ? taxRates.find((t) => String(t.taxRateId) === line.gstRateId)?.taxPercent : 0) || 0;
       
       // Fold calculation: qty * rate * fold / 100
@@ -223,7 +223,7 @@ export default function PurchaseClient({
 
       return { amount, cgst, sgst, igst, totalTax: totalTaxVal, net: amount + totalTaxVal };
     });
-  }, [lineItems, taxRates, isInterstate, isTextile]);
+  }, [lineItems, taxRates, isInterstate]);
 
   const grandTotals = useMemo(() => {
     return lineTotals.reduce(
@@ -294,7 +294,7 @@ export default function PurchaseClient({
         invoiceDate: invoiceDate || null,
         goodsName,
         partyId: Number(selectedSupplier),
-        remarks: remarks || `Purchase - ${purchaseType.toUpperCase()}`,
+        remarks: remarks || "Purchase",
         broker,
         haste,
         lrNo,
@@ -395,18 +395,7 @@ export default function PurchaseClient({
           <h1 className="text-xl font-bold tracking-tight text-foreground uppercase">Purchase Invoice Entry</h1>
           <p className="text-sm text-muted-foreground">Record textile purchases, fold calculations, and logistics details.</p>
         </div>
-        <div className="flex items-center gap-2">
-          {(["grey", "finished", "consumable", "other"] as const).map((type) => (
-            <Button
-              key={type}
-              variant={purchaseType === type ? "default" : "outline"}
-              onClick={() => setPurchaseType(type)}
-              className="text-xs uppercase font-semibold h-8"
-            >
-              {type} Purchase
-            </Button>
-          ))}
-        </div>
+
       </div>
 
       {/* Main Form Fields */}
@@ -557,9 +546,8 @@ export default function PurchaseClient({
                 <th className="py-2 px-3 w-[10%]">HSN Code</th>
                 <th className="py-2 px-3 w-[15%]">Expense Ledger</th>
                 <th className="py-2 px-3 w-[6%] text-right">PCS</th>
-                <th className="py-2 px-3 w-[8%] text-right">{isTextile ? "Qty (Mtr)" : "Qty"}</th>
+                <th className="py-2 px-3 w-[8%] text-right">Qty</th>
                 <th className="py-2 px-3 w-[6%]">Unit</th>
-                {isTextile && <th className="py-2 px-3 w-[6%] text-right">Fold %</th>}
                 <th className="py-2 px-3 w-[8%] text-right">Rate</th>
                 <th className="py-2 px-3 w-[8%]">GST Rate</th>
                 <th className="py-2 px-3 w-[9%] text-right">Taxable</th>
@@ -643,17 +631,7 @@ export default function PurchaseClient({
                     <td className="py-3 px-3 text-xs text-muted-foreground font-medium">
                       {itemProd?.unit || "—"}
                     </td>
-                    {isTextile && (
-                      <td className="py-3 px-3">
-                        <Input
-                          type="number"
-                          step="0.1"
-                          value={line.fold}
-                          onChange={(e) => updateLine(line.id, "fold", e.target.value)}
-                          className="h-9 text-right text-muted-foreground"
-                        />
-                      </td>
-                    )}
+
                     <td className="py-3 px-3">
                       <Input
                         type="number"

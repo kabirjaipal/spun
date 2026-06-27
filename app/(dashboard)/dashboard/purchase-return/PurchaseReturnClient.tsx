@@ -95,7 +95,7 @@ export default function PurchaseReturnClient({
   taxRates: TaxRateOption[];
   canCreate: boolean;
 }) {
-  const isTextile = company.companyType === "textiles";
+
   const [selectedSupplier, setSelectedSupplier] = useState("");
   const [voucherNo, setVoucherNo] = useState(""); // Debite Note / Purchase Return No
   const [voucherDate, setVoucherDate] = useState(new Date().toISOString().slice(0, 10));
@@ -190,7 +190,7 @@ export default function PurchaseReturnClient({
     return lineItems.map((line) => {
       const qty = Number(line.quantity) || 0;
       const rate = Number(line.rate) || 0;
-      const fold = isTextile ? (Number(line.fold) || 100) : 100;
+      const fold = 100;
       const gstRatePercent = Number(line.gstRateId ? taxRates.find((t) => String(t.taxRateId) === line.gstRateId)?.taxPercent : 0) || 0;
 
       const amount = Math.round((qty * rate * fold / 100) * 100) / 100;
@@ -215,7 +215,7 @@ export default function PurchaseReturnClient({
 
       return { amount, cgst, sgst, igst, totalTax: totalTaxVal, net: amount + totalTaxVal };
     });
-  }, [lineItems, taxRates, isInterstate, isTextile]);
+  }, [lineItems, taxRates, isInterstate]);
 
   const grandTotals = useMemo(() => {
     return lineTotals.reduce(
@@ -440,9 +440,8 @@ export default function PurchaseReturnClient({
                   <th className="py-2.5 px-2 w-[10%]">HSN Code</th>
                   <th className="py-2.5 px-2 w-[12%]">Original Qty</th>
                   <th className="py-2.5 px-2 w-[6%] text-right">Return PCS</th>
-                  <th className="py-2.5 px-2 w-[8%] text-right">Return Qty {isTextile ? "(Mtr)" : ""}</th>
+                  <th className="py-2.5 px-2 w-[8%] text-right">Return Qty</th>
                   <th className="py-2.5 px-2 w-[6%]">Unit</th>
-                  {isTextile && <th className="py-2.5 px-2 w-[6%] text-right">Fold %</th>}
                   <th className="py-2.5 px-2 w-[8%] text-right">Rate</th>
                   <th className="py-2.5 px-2 w-[9%] text-right">Taxable</th>
                   <th className="py-2.5 px-2 w-[7%] text-right">CGST</th>
@@ -468,7 +467,7 @@ export default function PurchaseReturnClient({
                         />
                       </td>
                       <td className="py-2 px-2 text-xs text-muted-foreground">
-                        {line.originalPcs} PCS {isTextile ? `/ ${line.originalQuantity} Mtr` : `/ ${line.originalQuantity}`}
+                        {line.originalPcs} PCS / {line.originalQuantity}
                       </td>
                       <td className="py-2 px-2">
                         <Input
@@ -490,17 +489,7 @@ export default function PurchaseReturnClient({
                       <td className="py-2 px-2 text-xs text-muted-foreground font-medium">
                         {inventory.find((p) => String(p.inventoryId) === line.inventoryId)?.unit || "—"}
                       </td>
-                      {isTextile && (
-                        <td className="py-2 px-2">
-                          <Input
-                            type="number"
-                            step="0.1"
-                            value={line.fold || ""}
-                            onChange={(e) => updateLine(line.id, "fold", e.target.value)}
-                            className="h-8 text-xs text-right w-full"
-                          />
-                        </td>
-                      )}
+
                       <td className="py-2 px-2">
                         <Input
                           type="number"

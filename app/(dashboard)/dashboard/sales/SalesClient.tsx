@@ -91,7 +91,7 @@ export default function SalesClient({
   canCreate: boolean;
   pastVouchers: PastVoucher[];
 }) {
-  const isTextile = company.companyType === "textiles";
+
 
   const [salesType, setSalesType] = useState<"grey" | "finished" | "other">("grey");
   const [selectedCustomer, setSelectedCustomer] = useState("");
@@ -127,7 +127,7 @@ export default function SalesClient({
     return lineItems.map((line) => {
       const qty = Number(line.quantity) || 0;
       const rate = Number(line.rate) || 0;
-      const fold = isTextile ? (Number(line.fold) || 100) : 100;
+      const fold = 100;
       const gstRatePercent = Number(line.gstRateId ? taxRates.find((t) => String(t.taxRateId) === line.gstRateId)?.taxPercent : 0) || 0;
       
       // Fold calculation: qty * rate * fold / 100
@@ -366,19 +366,7 @@ export default function SalesClient({
             </Select>
           </div>
 
-          {isTextile && (
-            <>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold uppercase text-foreground">Broker</Label>
-                <Input value={broker} onChange={(e) => setBroker(e.target.value)} placeholder="Broker Name" className="h-9" />
-              </div>
 
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold uppercase text-foreground">Haste (Delivery Agent)</Label>
-                <Input value={haste} onChange={(e) => setHaste(e.target.value)} placeholder="Haste / Courier" className="h-9" />
-              </div>
-            </>
-          )}
         </div>
 
         {/* Voucher Info */}
@@ -402,7 +390,6 @@ export default function SalesClient({
         </div>
 
         {/* Logistics details */}
-        {isTextile && (
           <div className="rounded-lg border border-border bg-card p-5 space-y-4 shadow-sm">
             <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">Logistics & Dispatch</h2>
 
@@ -427,7 +414,6 @@ export default function SalesClient({
               <Input value={vehicleNo} onChange={(e) => setVehicleNo(e.target.value)} placeholder="e.g. GJ-05-XX-XXXX" className="h-9" />
             </div>
           </div>
-        )}
       </div>
 
       {/* Line Items Table */}
@@ -449,8 +435,7 @@ export default function SalesClient({
                 <th className="py-2 pr-4 w-[25%]">Item</th>
                 <th className="py-2 px-3 w-[20%]">Revenue Ledger</th>
                 <th className="py-2 px-3 w-[8%] text-right">PCS</th>
-                <th className="py-2 px-3 w-[10%] text-right">{isTextile ? "Quantity (Mtr)" : "Quantity"}</th>
-                {isTextile && <th className="py-2 px-3 w-[8%] text-right">Fold %</th>}
+                <th className="py-2 px-3 w-[10%] text-right">Quantity</th>
                 <th className="py-2 px-3 w-[10%] text-right">Rate</th>
                 <th className="py-2 px-3 w-[10%]">GST Rate</th>
                 <th className="py-2 px-3 w-[12%] text-right">Net Taxable</th>
@@ -507,17 +492,7 @@ export default function SalesClient({
                         className="h-9 text-right font-medium"
                       />
                     </td>
-                    {isTextile && (
-                      <td className="py-3 px-3">
-                        <Input
-                          type="number"
-                          step="0.1"
-                          value={line.fold}
-                          onChange={(e) => updateLine(line.id, "fold", e.target.value)}
-                          className="h-9 text-right text-muted-foreground"
-                        />
-                      </td>
-                    )}
+
                     <td className="py-3 px-3">
                       <Input
                         type="number"
@@ -563,54 +538,11 @@ export default function SalesClient({
         </div>
       </div>
 
-      {/* Invoice Summary and Tax Details */}
-      <div className="grid gap-6 md:grid-cols-3">
-        <div className="md:col-span-2 rounded-lg border border-border bg-card p-5 space-y-3 shadow-sm">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">GST Tax Breakdown</h2>
-          
-          <div className="grid grid-cols-3 gap-4 pt-1">
-            <div className="rounded border border-border/60 bg-muted/20 p-3 text-center">
-              <div className="text-[10px] uppercase font-bold text-muted-foreground">CGST Total</div>
-              <div className="mt-1 text-base font-bold text-foreground">₹{grandTotals.cgst.toFixed(2)}</div>
-            </div>
-            <div className="rounded border border-border/60 bg-muted/20 p-3 text-center">
-              <div className="text-[10px] uppercase font-bold text-muted-foreground">SGST Total</div>
-              <div className="mt-1 text-base font-bold text-foreground">₹{grandTotals.sgst.toFixed(2)}</div>
-            </div>
-            <div className="rounded border border-border/60 bg-muted/20 p-3 text-center">
-              <div className="text-[10px] uppercase font-bold text-muted-foreground">IGST Total</div>
-              <div className="mt-1 text-base font-bold text-foreground">₹{grandTotals.igst.toFixed(2)}</div>
-            </div>
-          </div>
-          <p className="text-[10px] text-muted-foreground italic text-center">
-            * Real-time tax splits determined automatically based on state settings.
-          </p>
-        </div>
-
-        <div className="rounded-lg border border-border bg-card p-5 space-y-4 shadow-sm">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">Summary</h2>
-
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Taxable Value:</span>
-              <span className="font-semibold">₹{grandTotals.amount.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Total GST:</span>
-              <span className="font-semibold text-warning">₹{grandTotals.tax.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between border-t border-border pt-2 text-base font-bold text-foreground">
-              <span>Grand Total:</span>
-              <span className="text-primary">₹{grandTotals.total.toFixed(2)}</span>
-            </div>
-          </div>
-
-          <div className="pt-2">
-            <Button onClick={handleSubmit} disabled={saving || !canCreate} className="w-full h-10 font-bold uppercase">
-              {saving ? "Saving Voucher..." : "Save Sales Invoice"}
-            </Button>
-          </div>
-        </div>
+      {/* Save Button */}
+      <div className="flex justify-end pt-2">
+        <Button onClick={handleSubmit} disabled={saving || !canCreate} className="h-10 font-bold uppercase px-8">
+          {saving ? "Saving Voucher..." : "Save Sales Invoice"}
+        </Button>
       </div>
 
       {message && <div className="rounded-lg border border-border bg-muted/65 p-4 text-sm text-center font-medium text-foreground">{message}</div>}
