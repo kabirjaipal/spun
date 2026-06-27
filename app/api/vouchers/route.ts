@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { mLedgers, mProducts, mTaxRates, mCustomers, mSuppliers, mJobs, mMills, mCompanies, tVouchers, tVoucherEntries, tStockMovements, tVoucherItems } from "@/lib/db/schema";
-import { and, eq, isNull, desc } from "drizzle-orm";
+import { and, eq, isNull, desc, sql, inArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { writeAuditLog } from "@/lib/audit";
@@ -36,7 +36,9 @@ export async function POST(request: Request) {
     lotNo,
     printRate = true,
     printAmount = true,
-    parentVoucherId
+    parentVoucherId,
+    billDetails,
+    isReversal
   } = body;
 
   if (!voucherType || !voucherNo || !voucherDate) {
@@ -93,7 +95,8 @@ export async function POST(request: Request) {
         voucherType === "job_outward" ||
         voucherType === "job_inward" ||
         voucherType === "mill_outward" ||
-        voucherType === "mill_inward"
+        voucherType === "mill_inward" ||
+        voucherType === "direct_bill"
       ) {
         if (!Array.isArray(lineItems) || lineItems.length === 0) {
           throw new Error("Line items are required for this voucher type");
@@ -186,6 +189,7 @@ export async function POST(request: Request) {
           printAmount: printAmount,
           parentVoucherId: parentVoucherId ? Number(parentVoucherId) : null,
           cashBankLedgerId: cashBankLedgerId ? Number(cashBankLedgerId) : null,
+          billDetails: billDetails || null,
           createdBy: userId,
           updatedBy: userId,
         })
@@ -294,17 +298,21 @@ export async function POST(request: Request) {
             });
           }
         }
-      } else if (voucherType === "purchase" || voucherType === "debit_note") {
+      } else if (voucherType === "purchase" || voucherType === "debit_note" || voucherType === "direct_bill") {
         // 1. Credit Supplier Ledger
         const supplierLedger = await tx.query.mLedgers.findFirst({
           where: and(eq(mLedgers.referenceId, Number(partyId)), eq(mLedgers.ledgerType, "supplier"), eq(mLedgers.companyId, companyId), isNull(mLedgers.deletedOn))
         });
         if (!supplierLedger) throw new Error("Supplier ledger not found");
 
+        const supplierEntryType = (voucherType === "purchase" || voucherType === "direct_bill") ? "credit" : "debit";
+        const expenseEntryType = (voucherType === "purchase" || voucherType === "direct_bill") ? "debit" : "credit";
+        const taxEntryType = (voucherType === "purchase" || voucherType === "direct_bill") ? "debit" : "credit";
+
         await tx.insert(tVoucherEntries).values({
           voucherId: voucherIdNum,
           ledgerId: Number(supplierLedger.ledgerId),
-          entryType: voucherType === "purchase" ? "credit" : "debit",
+          entryType: supplierEntryType,
           amount: String(computedNet),
           createdBy: userId,
           updatedBy: userId,
@@ -333,11 +341,11 @@ export async function POST(request: Request) {
             updatedBy: userId,
           });
 
-          // Debit / Credit Expense Account
+          // Expense Account Entry
           await tx.insert(tVoucherEntries).values({
             voucherId: voucherIdNum,
             ledgerId: Number(line.ledgerId),
-            entryType: voucherType === "purchase" ? "debit" : "credit",
+            entryType: expenseEntryType,
             amount: String(line.taxableAmount),
             createdBy: userId,
             updatedBy: userId,
@@ -350,27 +358,29 @@ export async function POST(request: Request) {
             await tx.insert(tVoucherEntries).values({
               voucherId: voucherIdNum,
               ledgerId: Number(taxLedger.ledgerId),
-              entryType: voucherType === "purchase" ? "debit" : "credit",
+              entryType: taxEntryType,
               amount: String(totalLineTax),
               createdBy: userId,
               updatedBy: userId,
             });
           }
 
-          // Stock movements
-          const product = await tx.query.mProducts.findFirst({ where: eq(mProducts.productId, Number(line.productId)) });
-          if (product) {
-            await tx.insert(tStockMovements).values({
-              companyId,
-              productId: Number(product.productId),
-              voucherId: voucherIdNum,
-              movementType: voucherType === "purchase" ? "purchase" : "adjustment",
-              quantity: String(voucherType === "purchase" ? line.qty : -line.qty),
-              rate: String(line.rate),
-              amount: String(line.taxableAmount),
-              createdBy: userId,
-              updatedBy: userId,
-            });
+          // Stock movements (Only for standard trading purchases, not direct non-trading bills)
+          if (voucherType !== "direct_bill") {
+            const product = await tx.query.mProducts.findFirst({ where: eq(mProducts.productId, Number(line.productId)) });
+            if (product) {
+              await tx.insert(tStockMovements).values({
+                companyId,
+                productId: Number(product.productId),
+                voucherId: voucherIdNum,
+                movementType: voucherType === "purchase" ? "purchase" : "adjustment",
+                quantity: String(voucherType === "purchase" ? line.qty : -line.qty),
+                rate: String(line.rate),
+                amount: String(line.taxableAmount),
+                createdBy: userId,
+                updatedBy: userId,
+              });
+            }
           }
         }
       } else if (
@@ -437,21 +447,24 @@ export async function POST(request: Request) {
         });
         if (!customerLedger) throw new Error("Customer ledger not found");
 
-        // Debit cash/bank
+        const bankEntryType = isReversal ? "credit" : "debit";
+        const customerEntryType = isReversal ? "debit" : "credit";
+
+        // Bank Entry
         await tx.insert(tVoucherEntries).values({
           voucherId: voucherIdNum,
           ledgerId: Number(cashBankLedgerId),
-          entryType: "debit",
+          entryType: bankEntryType,
           amount: String(computedTotal),
           createdBy: userId,
           updatedBy: userId,
         });
 
-        // Credit customer
+        // Customer Entry
         await tx.insert(tVoucherEntries).values({
           voucherId: voucherIdNum,
           ledgerId: Number(customerLedger.ledgerId),
-          entryType: "credit",
+          entryType: customerEntryType,
           amount: String(computedTotal),
           createdBy: userId,
           updatedBy: userId,
@@ -463,21 +476,24 @@ export async function POST(request: Request) {
         });
         if (!supplierLedger) throw new Error("Supplier ledger not found");
 
-        // Credit cash/bank
+        const bankEntryType = isReversal ? "debit" : "credit";
+        const supplierEntryType = isReversal ? "credit" : "debit";
+
+        // Bank Entry
         await tx.insert(tVoucherEntries).values({
           voucherId: voucherIdNum,
           ledgerId: Number(cashBankLedgerId),
-          entryType: "credit",
+          entryType: bankEntryType,
           amount: String(computedTotal),
           createdBy: userId,
           updatedBy: userId,
         });
 
-        // Debit supplier
+        // Supplier Entry
         await tx.insert(tVoucherEntries).values({
           voucherId: voucherIdNum,
           ledgerId: Number(supplierLedger.ledgerId),
-          entryType: "debit",
+          entryType: supplierEntryType,
           amount: String(computedTotal),
           createdBy: userId,
           updatedBy: userId,
@@ -526,6 +542,101 @@ export async function GET(request: Request) {
   const partyId = searchParams.get("partyId");
   const includeItems = searchParams.get("includeItems") === "true";
 
+  if (type === "outstanding") {
+    if (!partyId) return NextResponse.json({ error: "partyId is required" }, { status: 400 });
+    const pId = Number(partyId);
+    
+    const customer = await db.query.mCustomers.findFirst({
+      where: and(eq(mCustomers.customerId, pId), eq(mCustomers.companyId, companyId))
+    });
+    const supplier = await db.query.mSuppliers.findFirst({
+      where: and(eq(mSuppliers.supplierId, pId), eq(mSuppliers.companyId, companyId))
+    });
+
+    if (!customer && !supplier) {
+      return NextResponse.json([]);
+    }
+
+    const isCustomer = !!customer;
+    const invoiceType = isCustomer ? "sale" : "purchase";
+    const paymentType = isCustomer ? "receipt" : "payment";
+    const noteType = isCustomer ? "credit_note" : "debit_note";
+
+    const invoices = await db
+      .select({
+        voucherId: tVouchers.voucherId,
+        voucherNo: tVouchers.voucherNo,
+        voucherDate: tVouchers.voucherDate,
+        netAmount: tVouchers.netAmount,
+      })
+      .from(tVouchers)
+      .where(
+        and(
+          eq(tVouchers.companyId, companyId),
+          eq(tVouchers.voucherType, invoiceType),
+          eq(tVouchers.partyId, pId),
+          isNull(tVouchers.deletedOn)
+        )
+      )
+      .orderBy(desc(tVouchers.voucherDate));
+
+    const adjustments = await db
+      .select({
+        voucherId: tVouchers.voucherId,
+        voucherType: tVouchers.voucherType,
+        billDetails: tVouchers.billDetails,
+      })
+      .from(tVouchers)
+      .where(
+        and(
+          eq(tVouchers.companyId, companyId),
+          inArray(tVouchers.voucherType, [paymentType, noteType]),
+          eq(tVouchers.partyId, pId),
+          isNull(tVouchers.deletedOn)
+        )
+      );
+
+    const paidAmounts: Record<number, number> = {};
+    for (const adj of adjustments) {
+      if (adj.billDetails && Array.isArray(adj.billDetails)) {
+        for (const item of adj.billDetails) {
+          if (item && typeof item === "object" && "voucherId" in item) {
+            const vId = Number(item.voucherId);
+            const amt = Number(item.amount) || 0;
+            paidAmounts[vId] = (paidAmounts[vId] || 0) + amt;
+          }
+        }
+      }
+    }
+
+    const ledger = await db.query.mLedgers.findFirst({
+      where: and(
+        eq(mLedgers.referenceId, pId),
+        eq(mLedgers.ledgerType, isCustomer ? "customer" : "supplier"),
+        eq(mLedgers.companyId, companyId),
+        isNull(mLedgers.deletedOn)
+      )
+    });
+
+    const outstandingInvoices = invoices
+      .map((inv) => {
+        const netAmt = Number(inv.netAmount) || 0;
+        const paidAmt = paidAmounts[Number(inv.voucherId)] || 0;
+        const outstanding = Math.max(0, netAmt - paidAmt);
+        return {
+          ...inv,
+          netAmount: netAmt,
+          paidAmount: paidAmt,
+          outstanding: Math.round(outstanding * 100) / 100,
+          rateOfInterest: ledger ? Number(ledger.rateOfInterest || 0) : 0,
+          creditDays: ledger ? Number(ledger.creditDays || 0) : 0,
+        };
+      })
+      .filter((inv) => inv.outstanding > 0.01);
+
+    return NextResponse.json(outstandingInvoices);
+  }
+
   const conditions = [
     eq(tVouchers.companyId, companyId),
     eq(tVouchers.voucherType, type),
@@ -548,6 +659,17 @@ export async function GET(request: Request) {
       netAmount: tVouchers.netAmount,
       remarks: tVouchers.remarks,
       partyId: tVouchers.partyId,
+      billDetails: tVouchers.billDetails,
+      broker: tVouchers.broker,
+      haste: tVouchers.haste,
+      lrNo: tVouchers.lrNo,
+      lrDate: tVouchers.lrDate,
+      transport: tVouchers.transport,
+      vehicleNo: tVouchers.vehicleNo,
+      personName: tVouchers.personName,
+      lotNo: tVouchers.lotNo,
+      parentVoucherId: tVouchers.parentVoucherId,
+      cashBankLedgerId: tVouchers.cashBankLedgerId,
       customerName: mCustomers.customerName,
       customerGst: mCustomers.gstNo,
       customerAddress: mCustomers.address,

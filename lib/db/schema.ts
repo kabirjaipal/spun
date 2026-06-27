@@ -323,6 +323,7 @@ export const tVouchers = pgTable("t_vouchers", {
   printAmount: boolean("print_amount").default(true).notNull(),
   parentVoucherId: bigint("parent_voucher_id", { mode: "number" }),
   cashBankLedgerId: bigint("cash_bank_ledger_id", { mode: "number" }).references(() => mLedgers.ledgerId),
+  billDetails: jsonb("bill_details"),
 
   ...auditColumns,
 }, (table) => ({

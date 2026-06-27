@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Plus, X, ArrowLeft } from "lucide-react";
+import { Plus, ArrowLeft } from "lucide-react";
 
 interface PaymentItem {
   voucherId: number;
@@ -17,6 +17,7 @@ interface PaymentItem {
   remarks: string | null;
   supplierName: string | null;
   customerName: string | null;
+  lrNo?: string | null; // Cheque / Ref No
 }
 
 interface SupplierOption {
@@ -28,6 +29,23 @@ interface LedgerOption {
   ledgerId: number;
   ledgerName: string;
   ledgerType: string;
+}
+
+interface OutstandingBill {
+  voucherId: number;
+  voucherNo: string;
+  voucherDate: string;
+  netAmount: number;
+  paidAmount: number;
+  outstanding: number;
+  rateOfInterest: number;
+  creditDays: number;
+}
+
+interface BillAdjustment {
+  amount: string;
+  days: number;
+  interest: number;
 }
 
 export default function PaymentClient({
@@ -49,18 +67,94 @@ export default function PaymentClient({
   const [selectedLedger, setSelectedLedger] = useState("");
   const [amount, setAmount] = useState("0");
   const [remarks, setRemarks] = useState("");
+  const [chequeNo, setChequeNo] = useState("");
+  const [isReversal, setIsReversal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
+  // Bill adjustments states
+  const [outstandingBills, setOutstandingBills] = useState<OutstandingBill[]>([]);
+  const [billAdjustments, setBillAdjustments] = useState<Record<number, BillAdjustment>>({});
+
+  useEffect(() => {
+    if (!selectedSupplier) {
+      setOutstandingBills([]);
+      setBillAdjustments({});
+      return;
+    }
+
+    fetch(`/api/vouchers?type=outstanding&partyId=${selectedSupplier}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setOutstandingBills(data);
+          const initialAdjs: Record<number, BillAdjustment> = {};
+          data.forEach((bill) => {
+            const invDate = new Date(bill.voucherDate);
+            const payDate = new Date(voucherDate);
+            const days = Math.max(0, Math.floor((payDate.getTime() - invDate.getTime()) / (1000 * 60 * 60 * 24)));
+            const rate = Number(bill.rateOfInterest || 0);
+            const interest = Math.round(((bill.outstanding * rate * days) / 36500) * 100) / 100;
+
+            initialAdjs[bill.voucherId] = {
+              amount: "",
+              days,
+              interest,
+            };
+          });
+          setBillAdjustments(initialAdjs);
+        }
+      })
+      .catch((err) => console.error("Error fetching outstanding bills:", err));
+  }, [selectedSupplier, voucherDate]);
+
+  // Sync total amount with adjustments
+  const totalAdjusted = Object.values(billAdjustments).reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+
+  const handleAdjustmentChange = (vId: number, amtVal: string) => {
+    setBillAdjustments((prev) => {
+      const updated = { ...prev };
+      const current = updated[vId];
+      if (current) {
+        // Recalculate interest based on entered amount
+        const bill = outstandingBills.find((b) => b.voucherId === vId);
+        const rate = bill ? Number(bill.rateOfInterest || 0) : 0;
+        const enteredAmt = Number(amtVal) || 0;
+        const interest = Math.round(((enteredAmt * rate * current.days) / 36500) * 100) / 100;
+        updated[vId] = {
+          ...current,
+          amount: amtVal,
+          interest,
+        };
+      }
+      return updated;
+    });
+  };
+
   async function handleSubmit() {
     if (!canCreate) return;
-    if (!voucherNo || !selectedSupplier || !selectedLedger || Number(amount) <= 0) {
+    const finalAmount = totalAdjusted > 0 ? totalAdjusted : Number(amount);
+    if (!voucherNo || !selectedSupplier || !selectedLedger || finalAmount <= 0) {
       setMessage("Please fill in all fields and ensure amount is greater than 0.");
       return;
     }
 
     setSaving(true);
     setMessage(null);
+
+    // Format bill details payload
+    const selectedDetails = Object.entries(billAdjustments)
+      .filter(([_, val]) => Number(val.amount) > 0)
+      .map(([id, val]) => {
+        const bill = outstandingBills.find((b) => String(b.voucherId) === id);
+        return {
+          voucherId: Number(id),
+          voucherNo: bill ? bill.voucherNo : "",
+          amount: Number(val.amount),
+          interest: val.interest,
+          days: val.days,
+        };
+      });
 
     try {
       const body = {
@@ -69,8 +163,11 @@ export default function PaymentClient({
         voucherDate,
         partyId: Number(selectedSupplier),
         cashBankLedgerId: Number(selectedLedger),
-        totalAmount: Number(amount),
-        remarks,
+        totalAmount: finalAmount,
+        remarks: isReversal ? `[RETURN CHEQUE REVERSAL] ${remarks}` : remarks,
+        lrNo: chequeNo || null, // storing cheque/txn ref in lrNo
+        billDetails: selectedDetails.length > 0 ? selectedDetails : null,
+        isReversal,
       };
 
       const response = await fetch("/api/vouchers", {
@@ -85,8 +182,6 @@ export default function PaymentClient({
       }
 
       const newVoucher = await response.json();
-
-      // Find supplier name for display
       const suppObj = suppliers.find((s) => String(s.supplierId) === selectedSupplier);
 
       const addedPayment: PaymentItem = {
@@ -98,6 +193,7 @@ export default function PaymentClient({
         remarks: newVoucher.remarks,
         supplierName: suppObj ? suppObj.supplierName : `ID ${newVoucher.partyId}`,
         customerName: null,
+        lrNo: newVoucher.lrNo,
       };
 
       setPayments([addedPayment, ...payments]);
@@ -110,6 +206,10 @@ export default function PaymentClient({
       setSelectedLedger("");
       setAmount("0");
       setRemarks("");
+      setChequeNo("");
+      setIsReversal(false);
+      setOutstandingBills([]);
+      setBillAdjustments({});
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to save payment.");
     } finally {
@@ -160,7 +260,7 @@ export default function PaymentClient({
             </div>
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-4 lg:grid-cols-3">
             <div className="space-y-2">
               <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Supplier (Debit)</Label>
               <Select value={selectedSupplier} onValueChange={setSelectedSupplier}>
@@ -176,10 +276,91 @@ export default function PaymentClient({
             </div>
 
             <div className="space-y-2">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Cheque / Reference No</Label>
+              <Input value={chequeNo} onChange={(e) => setChequeNo(e.target.value)} placeholder="Cheque No / Transaction ID" />
+            </div>
+
+            <div className="space-y-2">
               <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Amount (₹)</Label>
-              <Input type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} />
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={totalAdjusted > 0 ? totalAdjusted.toFixed(2) : amount}
+                onChange={(e) => setAmount(e.target.value)}
+                disabled={totalAdjusted > 0}
+              />
+              {totalAdjusted > 0 && (
+                <p className="text-[10px] text-muted-foreground">Derived from adjusted bills below.</p>
+              )}
             </div>
           </div>
+
+          {/* Cheque Return Toggle */}
+          <div className="flex items-center gap-2 py-2 border-t border-b border-border/50">
+            <input
+              type="checkbox"
+              id="isReversal"
+              checked={isReversal}
+              onChange={(e) => setIsReversal(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+            />
+            <Label htmlFor="isReversal" className="text-xs font-semibold uppercase tracking-wider text-danger cursor-pointer">
+              Mark as Cheque Return / Bounce Log (Reverses double entry)
+            </Label>
+          </div>
+
+          {/* Outstanding Bills Table Section */}
+          {outstandingBills.length > 0 && (
+            <div className="space-y-2 pt-2">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+                Against Outstanding Invoices (Select & adjust payment amount)
+              </Label>
+              <div className="rounded-lg border border-border bg-muted/20 overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead className="bg-muted text-left font-bold text-muted-foreground uppercase tracking-wider">
+                    <tr>
+                      <th className="px-3 py-2">Invoice No</th>
+                      <th className="px-3 py-2">Invoice Date</th>
+                      <th className="px-3 py-2 text-right">Net Amt</th>
+                      <th className="px-3 py-2 text-right">Outstanding</th>
+                      <th className="px-3 py-2 text-right">Days</th>
+                      <th className="px-3 py-2 text-right">Int Rate (%)</th>
+                      <th className="px-3 py-2 text-right">Int Amount</th>
+                      <th className="px-3 py-2 w-32">Pay Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {outstandingBills.map((bill) => {
+                      const adj = billAdjustments[bill.voucherId] || { amount: "", days: 0, interest: 0 };
+                      return (
+                        <tr key={bill.voucherId} className="border-t border-border/50 bg-card hover:bg-muted/10">
+                          <td className="px-3 py-2 font-medium text-foreground">{bill.voucherNo}</td>
+                          <td className="px-3 py-2 text-muted-foreground">
+                            {bill.voucherDate ? new Date(bill.voucherDate).toISOString().slice(0, 10) : "N/A"}
+                          </td>
+                          <td className="px-3 py-2 text-right text-foreground">₹{bill.netAmount.toFixed(2)}</td>
+                          <td className="px-3 py-2 text-right text-foreground">₹{bill.outstanding.toFixed(2)}</td>
+                          <td className="px-3 py-2 text-right text-muted-foreground">{adj.days}</td>
+                          <td className="px-3 py-2 text-right text-muted-foreground">{bill.rateOfInterest}%</td>
+                          <td className="px-3 py-2 text-right text-foreground">₹{adj.interest.toFixed(2)}</td>
+                          <td className="px-3 py-2">
+                            <Input
+                              type="number"
+                              className="h-8 py-1 text-xs"
+                              placeholder="0.00"
+                              value={adj.amount}
+                              onChange={(e) => handleAdjustmentChange(bill.voucherId, e.target.value)}
+                            />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Remarks</Label>
@@ -192,7 +373,7 @@ export default function PaymentClient({
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => setIsCreating(false)}>Cancel</Button>
           <Button onClick={handleSubmit} disabled={saving || !canCreate}>
-            {saving ? "Saving..." : "Record Payment"}
+            {saving ? "Saving..." : isReversal ? "Record Reversal / Return" : "Record Payment"}
           </Button>
         </div>
       </div>
@@ -237,6 +418,7 @@ export default function PaymentClient({
               <th className="px-4 py-3">Voucher No</th>
               <th className="px-4 py-3">Date</th>
               <th className="px-4 py-3">Party</th>
+              <th className="px-4 py-3">Ref No (Cheque)</th>
               <th className="px-4 py-3 text-right">Amount</th>
               <th className="px-4 py-3">Remarks</th>
             </tr>
@@ -244,20 +426,29 @@ export default function PaymentClient({
           <tbody>
             {payments.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">
+                <td colSpan={6} className="px-4 py-8 text-center text-sm text-muted-foreground">
                   No payment vouchers recorded yet.
                 </td>
               </tr>
             ) : (
               payments.map((payment) => {
                 const partyName = payment.supplierName || payment.customerName || `ID ${payment.partyId}`;
+                const hasReversal = payment.remarks?.includes("[RETURN CHEQUE REVERSAL]");
                 return (
                   <tr key={payment.voucherId} className="border-t border-border/50 hover:bg-muted/10 transition-colors">
-                    <td className="px-4 py-3 font-medium text-foreground">{payment.voucherNo}</td>
+                    <td className="px-4 py-3 font-medium text-foreground">
+                      {payment.voucherNo}{" "}
+                      {hasReversal && (
+                        <Badge variant="outline" className="text-danger border-danger/20 bg-danger/5 scale-90">
+                          Bounced
+                        </Badge>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-muted-foreground">
                       {payment.voucherDate ? new Date(payment.voucherDate).toISOString().slice(0, 10) : "N/A"}
                     </td>
                     <td className="px-4 py-3 text-foreground">{partyName}</td>
+                    <td className="px-4 py-3 text-muted-foreground font-mono">{payment.lrNo || "—"}</td>
                     <td className="px-4 py-3 text-right text-foreground">₹{Number(payment.totalAmount ?? 0).toFixed(2)}</td>
                     <td className="px-4 py-3 text-muted-foreground truncate">{payment.remarks || "—"}</td>
                   </tr>

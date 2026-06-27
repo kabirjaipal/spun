@@ -43,6 +43,13 @@
       "when": 1782547552000,
       "tag": "0005_white_kabuki",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1782549059455,
+      "tag": "0006_familiar_the_hood",
+      "breakpoints": true
     }
   ]
 }

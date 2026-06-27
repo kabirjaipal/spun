@@ -6,7 +6,7 @@ This document tracks our progress on the textile-specific enhancements defined i
 
 ## Progress Overview
 - Total Steps: 12
-- Completed Steps: 11/12 (91%)
+- Completed Steps: 12/12 (100%)
 
 ---
 
@@ -63,7 +63,7 @@ This document tracks our progress on the textile-specific enhancements defined i
 ### [x] 11. Mill Master
 - [x] Mill name, Address, GST No, GST Type, City, State code, Phone, MSME status
 
-### [ ] 12. Transactions & Vouchers
+### [x] 12. Transactions & Vouchers
 - [x] **Purchase:**
   - [x] Grey, Finished, Consumable, Other purchases
   - [x] Interface fields (Party, invoice/sr number, broker, haste, LR details, transport)
@@ -71,7 +71,7 @@ This document tracks our progress on the textile-specific enhancements defined i
   - [x] SGST, CGST, IGST totals
 - [x] **Purchase Return:**
   - [x] Return against multiple purchase invoices
-- [ ] **Job Work:**
+- [x] **Job Work:**
   - [x] Job Outward (Party, lot no, vehicle no, job type, job rate selection, etc.)
   - [x] Job Inward (Shortage calculations, lot-wise matching)
 - [x] **Mill:**
@@ -79,14 +79,15 @@ This document tracks our progress on the textile-specific enhancements defined i
   - [x] Mill Inward (Shortage matching outward-inward, lot status completion)
 - [x] **Sales:**
   - [x] Grey, Finished, and Other sales layout with broker, haste, transport, items table and GST details
-- [ ] **Payment & Receipt:**
-  - [ ] Outstanding bill selection
-  - [ ] Days and Interest calculations
-  - [ ] Return cheque logs
-- [ ] **Direct Bills & General Entries:**
-  - [ ] Non-trading purchases (Goods, Service, Other)
-  - [ ] General journal entries (Debit vs Credit with remarks)
-- [ ] **Inventory Entries:**
-  - [ ] Lot transfers between mills/jobs/parties
-- [ ] **Debit / Credit Notes:**
-  - [ ] Returns/adjustments against bills
+- [x] **Payment & Receipt:**
+  - [x] Outstanding bill selection
+  - [x] Days and Interest calculations
+  - [x] Return cheque logs
+- [x] **Direct Bills & General Entries:**
+  - [x] Non-trading purchases (Goods, Service, Other)
+  - [x] General journal entries (Debit vs Credit with remarks)
+- [x] **Inventory Entries:**
+  - [x] Lot transfers between mills/jobs/parties
+- [x] **Debit / Credit Notes:**
+  - [x] Returns/adjustments against bills
+

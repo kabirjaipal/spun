@@ -37,10 +37,14 @@ export const ALL_PAGES: PageConfig[] = [
   { accessItem: "receipt", pageUrl: "/dashboard/receipt", pageTitle: "Receipts", pageIcon: "ArrowDownLeft", pageGroup: "Transactions", accessGroup: "company" },
   { accessItem: "payment", pageUrl: "/dashboard/payment", pageTitle: "Payments", pageIcon: "ArrowUpRight", pageGroup: "Transactions", accessGroup: "company" },
   { accessItem: "journal", pageUrl: "/dashboard/journal", pageTitle: "Journal Vouchers", pageIcon: "Notebook", pageGroup: "Transactions", accessGroup: "company" },
+  { accessItem: "direct_bill", pageUrl: "/dashboard/direct-bill", pageTitle: "Direct Bill", pageIcon: "FileText", pageGroup: "Transactions", accessGroup: "company" },
+  { accessItem: "credit_note", pageUrl: "/dashboard/credit-note", pageTitle: "Credit Notes", pageIcon: "FileMinus", pageGroup: "Transactions", accessGroup: "company" },
+  { accessItem: "debit_note", pageUrl: "/dashboard/debit-note", pageTitle: "Debit Notes", pageIcon: "FilePlus", pageGroup: "Transactions", accessGroup: "company" },
   
   // Inventory
   { accessItem: "stock_summary", pageUrl: "/dashboard/stock-summary", pageTitle: "Stock Summary", pageIcon: "Layers", pageGroup: "Inventory", accessGroup: "company" },
   { accessItem: "stock_movements", pageUrl: "/dashboard/stock-movements", pageTitle: "Stock Movements", pageIcon: "Activity", pageGroup: "Inventory", accessGroup: "company" },
+  { accessItem: "lot_transfer", pageUrl: "/dashboard/lot-transfer", pageTitle: "Lot Transfer", pageIcon: "ArrowLeftRight", pageGroup: "Inventory", accessGroup: "company" },
   
   // Reports
   { accessItem: "ledger_report", pageUrl: "/dashboard/ledger-report", pageTitle: "Ledger Report", pageIcon: "FileText", pageGroup: "Reports", accessGroup: "company" },

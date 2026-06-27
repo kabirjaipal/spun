@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Plus, X, ArrowLeft } from "lucide-react";
+import { Plus, ArrowLeft } from "lucide-react";
 
 interface ReceiptItem {
   voucherId: number;
@@ -16,6 +16,7 @@ interface ReceiptItem {
   totalAmount: string;
   remarks: string | null;
   customerName: string | null;
+  lrNo?: string | null; // Cheque / Ref No
 }
 
 interface CustomerOption {
@@ -27,6 +28,23 @@ interface LedgerOption {
   ledgerId: number;
   ledgerName: string;
   ledgerType: string;
+}
+
+interface OutstandingBill {
+  voucherId: number;
+  voucherNo: string;
+  voucherDate: string;
+  netAmount: number;
+  paidAmount: number;
+  outstanding: number;
+  rateOfInterest: number;
+  creditDays: number;
+}
+
+interface BillAdjustment {
+  amount: string;
+  days: number;
+  interest: number;
 }
 
 export default function ReceiptClient({
@@ -48,18 +66,92 @@ export default function ReceiptClient({
   const [selectedLedger, setSelectedLedger] = useState("");
   const [amount, setAmount] = useState("0");
   const [remarks, setRemarks] = useState("");
+  const [chequeNo, setChequeNo] = useState("");
+  const [isReversal, setIsReversal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
+  // Bill adjustments states
+  const [outstandingBills, setOutstandingBills] = useState<OutstandingBill[]>([]);
+  const [billAdjustments, setBillAdjustments] = useState<Record<number, BillAdjustment>>({});
+
+  useEffect(() => {
+    if (!selectedCustomer) {
+      setOutstandingBills([]);
+      setBillAdjustments({});
+      return;
+    }
+
+    fetch(`/api/vouchers?type=outstanding&partyId=${selectedCustomer}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setOutstandingBills(data);
+          const initialAdjs: Record<number, BillAdjustment> = {};
+          data.forEach((bill) => {
+            const invDate = new Date(bill.voucherDate);
+            const payDate = new Date(voucherDate);
+            const days = Math.max(0, Math.floor((payDate.getTime() - invDate.getTime()) / (1000 * 60 * 60 * 24)));
+            const rate = Number(bill.rateOfInterest || 0);
+            const interest = Math.round(((bill.outstanding * rate * days) / 36500) * 100) / 100;
+
+            initialAdjs[bill.voucherId] = {
+              amount: "",
+              days,
+              interest,
+            };
+          });
+          setBillAdjustments(initialAdjs);
+        }
+      })
+      .catch((err) => console.error("Error fetching outstanding bills:", err));
+  }, [selectedCustomer, voucherDate]);
+
+  // Sync total amount with adjustments
+  const totalAdjusted = Object.values(billAdjustments).reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+
+  const handleAdjustmentChange = (vId: number, amtVal: string) => {
+    setBillAdjustments((prev) => {
+      const updated = { ...prev };
+      const current = updated[vId];
+      if (current) {
+        const bill = outstandingBills.find((b) => b.voucherId === vId);
+        const rate = bill ? Number(bill.rateOfInterest || 0) : 0;
+        const enteredAmt = Number(amtVal) || 0;
+        const interest = Math.round(((enteredAmt * rate * current.days) / 36500) * 100) / 100;
+        updated[vId] = {
+          ...current,
+          amount: amtVal,
+          interest,
+        };
+      }
+      return updated;
+    });
+  };
+
   async function handleSubmit() {
     if (!canCreate) return;
-    if (!voucherNo || !selectedCustomer || !selectedLedger || Number(amount) <= 0) {
+    const finalAmount = totalAdjusted > 0 ? totalAdjusted : Number(amount);
+    if (!voucherNo || !selectedCustomer || !selectedLedger || finalAmount <= 0) {
       setMessage("Please fill in all fields and ensure amount is greater than 0.");
       return;
     }
 
     setSaving(true);
     setMessage(null);
+
+    const selectedDetails = Object.entries(billAdjustments)
+      .filter(([_, val]) => Number(val.amount) > 0)
+      .map(([id, val]) => {
+        const bill = outstandingBills.find((b) => String(b.voucherId) === id);
+        return {
+          voucherId: Number(id),
+          voucherNo: bill ? bill.voucherNo : "",
+          amount: Number(val.amount),
+          interest: val.interest,
+          days: val.days,
+        };
+      });
 
     try {
       const body = {
@@ -68,8 +160,11 @@ export default function ReceiptClient({
         voucherDate,
         partyId: Number(selectedCustomer),
         cashBankLedgerId: Number(selectedLedger),
-        totalAmount: Number(amount),
-        remarks,
+        totalAmount: finalAmount,
+        remarks: isReversal ? `[RETURN CHEQUE REVERSAL] ${remarks}` : remarks,
+        lrNo: chequeNo || null, // storing cheque/txn ref in lrNo
+        billDetails: selectedDetails.length > 0 ? selectedDetails : null,
+        isReversal,
       };
 
       const response = await fetch("/api/vouchers", {
@@ -84,8 +179,6 @@ export default function ReceiptClient({
       }
 
       const newVoucher = await response.json();
-
-      // Find customer name for display
       const custObj = customers.find((c) => String(c.customerId) === selectedCustomer);
 
       const addedReceipt: ReceiptItem = {
@@ -96,18 +189,23 @@ export default function ReceiptClient({
         totalAmount: String(newVoucher.totalAmount),
         remarks: newVoucher.remarks,
         customerName: custObj ? custObj.customerName : `ID ${newVoucher.partyId}`,
+        lrNo: newVoucher.lrNo,
       };
 
       setReceipts([addedReceipt, ...receipts]);
       setMessage("Receipt voucher recorded successfully.");
       setIsCreating(false);
-      
-      // Reset form fields
+
+      // Reset form
       setVoucherNo("");
       setSelectedCustomer("");
       setSelectedLedger("");
       setAmount("0");
       setRemarks("");
+      setChequeNo("");
+      setIsReversal(false);
+      setOutstandingBills([]);
+      setBillAdjustments({});
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to save receipt.");
     } finally {
@@ -135,7 +233,7 @@ export default function ReceiptClient({
           <div className="grid gap-4 lg:grid-cols-3">
             <div className="space-y-2">
               <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Voucher No</Label>
-              <Input value={voucherNo} onChange={(e) => setVoucherNo(e.target.value)} placeholder="RCPT-001" />
+              <Input value={voucherNo} onChange={(e) => setVoucherNo(e.target.value)} placeholder="REC-001" />
             </div>
 
             <div className="space-y-2">
@@ -158,7 +256,7 @@ export default function ReceiptClient({
             </div>
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-4 lg:grid-cols-3">
             <div className="space-y-2">
               <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Customer (Credit)</Label>
               <Select value={selectedCustomer} onValueChange={setSelectedCustomer}>
@@ -174,14 +272,95 @@ export default function ReceiptClient({
             </div>
 
             <div className="space-y-2">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Cheque / Reference No</Label>
+              <Input value={chequeNo} onChange={(e) => setChequeNo(e.target.value)} placeholder="Cheque No / Transaction ID" />
+            </div>
+
+            <div className="space-y-2">
               <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Amount (₹)</Label>
-              <Input type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} />
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={totalAdjusted > 0 ? totalAdjusted.toFixed(2) : amount}
+                onChange={(e) => setAmount(e.target.value)}
+                disabled={totalAdjusted > 0}
+              />
+              {totalAdjusted > 0 && (
+                <p className="text-[10px] text-muted-foreground">Derived from adjusted bills below.</p>
+              )}
             </div>
           </div>
 
+          {/* Cheque Return Toggle */}
+          <div className="flex items-center gap-2 py-2 border-t border-b border-border/50">
+            <input
+              type="checkbox"
+              id="isReversal"
+              checked={isReversal}
+              onChange={(e) => setIsReversal(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+            />
+            <Label htmlFor="isReversal" className="text-xs font-semibold uppercase tracking-wider text-danger cursor-pointer">
+              Mark as Cheque Return / Bounce Log (Reverses double entry)
+            </Label>
+          </div>
+
+          {/* Outstanding Bills Table Section */}
+          {outstandingBills.length > 0 && (
+            <div className="space-y-2 pt-2">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+                Against Outstanding Invoices (Select & adjust received amount)
+              </Label>
+              <div className="rounded-lg border border-border bg-muted/20 overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead className="bg-muted text-left font-bold text-muted-foreground uppercase tracking-wider">
+                    <tr>
+                      <th className="px-3 py-2">Invoice No</th>
+                      <th className="px-3 py-2">Invoice Date</th>
+                      <th className="px-3 py-2 text-right">Net Amt</th>
+                      <th className="px-3 py-2 text-right">Outstanding</th>
+                      <th className="px-3 py-2 text-right">Days</th>
+                      <th className="px-3 py-2 text-right">Int Rate (%)</th>
+                      <th className="px-3 py-2 text-right">Int Amount</th>
+                      <th className="px-3 py-2 w-32">Rec Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {outstandingBills.map((bill) => {
+                      const adj = billAdjustments[bill.voucherId] || { amount: "", days: 0, interest: 0 };
+                      return (
+                        <tr key={bill.voucherId} className="border-t border-border/50 bg-card hover:bg-muted/10">
+                          <td className="px-3 py-2 font-medium text-foreground">{bill.voucherNo}</td>
+                          <td className="px-3 py-2 text-muted-foreground">
+                            {bill.voucherDate ? new Date(bill.voucherDate).toISOString().slice(0, 10) : "N/A"}
+                          </td>
+                          <td className="px-3 py-2 text-right text-foreground">₹{bill.netAmount.toFixed(2)}</td>
+                          <td className="px-3 py-2 text-right text-foreground">₹{bill.outstanding.toFixed(2)}</td>
+                          <td className="px-3 py-2 text-right text-muted-foreground">{adj.days}</td>
+                          <td className="px-3 py-2 text-right text-muted-foreground">{bill.rateOfInterest}%</td>
+                          <td className="px-3 py-2 text-right text-foreground">₹{adj.interest.toFixed(2)}</td>
+                          <td className="px-3 py-2">
+                            <Input
+                              type="number"
+                              className="h-8 py-1 text-xs"
+                              placeholder="0.00"
+                              value={adj.amount}
+                              onChange={(e) => handleAdjustmentChange(bill.voucherId, e.target.value)}
+                            />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Remarks</Label>
-            <Input value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Payment received against invoice" />
+            <Input value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Receipt received against sales invoice" />
           </div>
         </div>
 
@@ -190,14 +369,14 @@ export default function ReceiptClient({
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => setIsCreating(false)}>Cancel</Button>
           <Button onClick={handleSubmit} disabled={saving || !canCreate}>
-            {saving ? "Saving..." : "Record Receipt"}
+            {saving ? "Saving..." : isReversal ? "Record Reversal / Return" : "Record Receipt"}
           </Button>
         </div>
       </div>
     );
   }
 
-  const totalAmount = receipts.reduce((sum, item) => sum + Number(item.totalAmount ?? 0), 0);
+  const totalReceipts = receipts.reduce((sum, item) => sum + Number(item.totalAmount ?? 0), 0);
 
   return (
     <div className="space-y-6">
@@ -205,7 +384,7 @@ export default function ReceiptClient({
         <div>
           <h1 className="text-2xl font-bold text-foreground">Receipt Vouchers</h1>
           <p className="text-sm text-muted-foreground">
-            Review receipts from customers and advances collected into your account.
+            Review cash and customer receipt entries recorded in your company.
           </p>
         </div>
         {canCreate && (
@@ -217,18 +396,12 @@ export default function ReceiptClient({
 
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground">Receipts recorded</p>
+          <p className="text-xs uppercase tracking-wider text-muted-foreground">Recent Receipts</p>
           <p className="mt-3 text-3xl font-bold text-foreground">{receipts.length}</p>
         </div>
         <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground">Total amount</p>
-          <p className="mt-3 text-3xl font-bold text-foreground">₹{totalAmount.toFixed(2)}</p>
-        </div>
-        <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground">Latest receipt</p>
-          <p className="mt-3 text-lg font-semibold text-foreground">
-            {receipts[0]?.voucherNo ?? "None"}
-          </p>
+          <p className="text-xs uppercase tracking-wider text-muted-foreground">Total Amount</p>
+          <p className="mt-3 text-3xl font-bold text-foreground">₹{totalReceipts.toFixed(2)}</p>
         </div>
       </div>
 
@@ -240,7 +413,8 @@ export default function ReceiptClient({
             <tr>
               <th className="px-4 py-3">Voucher No</th>
               <th className="px-4 py-3">Date</th>
-              <th className="px-4 py-3">Customer</th>
+              <th className="px-4 py-3">Party</th>
+              <th className="px-4 py-3">Ref No (Cheque)</th>
               <th className="px-4 py-3 text-right">Amount</th>
               <th className="px-4 py-3">Remarks</th>
             </tr>
@@ -248,22 +422,34 @@ export default function ReceiptClient({
           <tbody>
             {receipts.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">
-                  No receipt vouchers found.
+                <td colSpan={6} className="px-4 py-8 text-center text-sm text-muted-foreground">
+                  No receipt vouchers recorded yet.
                 </td>
               </tr>
             ) : (
-              receipts.map((receipt) => (
-                <tr key={receipt.voucherId} className="border-t border-border/50 hover:bg-muted/10 transition-colors">
-                  <td className="px-4 py-3 font-medium text-foreground">{receipt.voucherNo}</td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {receipt.voucherDate ? new Date(receipt.voucherDate).toISOString().slice(0, 10) : "N/A"}
-                  </td>
-                  <td className="px-4 py-3 text-foreground">{receipt.customerName || `ID ${receipt.partyId}`}</td>
-                  <td className="px-4 py-3 text-right text-foreground">₹{Number(receipt.totalAmount ?? 0).toFixed(2)}</td>
-                  <td className="px-4 py-3 text-muted-foreground truncate">{receipt.remarks || "—"}</td>
-                </tr>
-              ))
+              receipts.map((receipt) => {
+                const partyName = receipt.customerName || `ID ${receipt.partyId}`;
+                const hasReversal = receipt.remarks?.includes("[RETURN CHEQUE REVERSAL]");
+                return (
+                  <tr key={receipt.voucherId} className="border-t border-border/50 hover:bg-muted/10 transition-colors">
+                    <td className="px-4 py-3 font-medium text-foreground">
+                      {receipt.voucherNo}{" "}
+                      {hasReversal && (
+                        <Badge variant="outline" className="text-danger border-danger/20 bg-danger/5 scale-90">
+                          Bounced
+                        </Badge>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {receipt.voucherDate ? new Date(receipt.voucherDate).toISOString().slice(0, 10) : "N/A"}
+                    </td>
+                    <td className="px-4 py-3 text-foreground">{partyName}</td>
+                    <td className="px-4 py-3 text-muted-foreground font-mono">{receipt.lrNo || "—"}</td>
+                    <td className="px-4 py-3 text-right text-foreground">₹{Number(receipt.totalAmount ?? 0).toFixed(2)}</td>
+                    <td className="px-4 py-3 text-muted-foreground truncate">{receipt.remarks || "—"}</td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
