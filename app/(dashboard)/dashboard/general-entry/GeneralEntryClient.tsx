@@ -27,14 +27,14 @@ interface LedgerOption {
 
 interface JournalLine {
   id: string;
-  ledgerId: string;
+  ledgerId: string; // Stored as string containing ledgerId or raw text input
   entryType: "debit" | "credit";
   amount: string;
 }
 
 const EMPTY_LINE: JournalLine = { id: "", ledgerId: "", entryType: "debit", amount: "0" };
 
-export default function JournalClient({
+export default function GeneralEntryClient({
   initialJournals,
   ledgers,
   canCreate,
@@ -48,12 +48,18 @@ export default function JournalClient({
   const [voucherNo, setVoucherNo] = useState("");
   const [voucherDate, setVoucherDate] = useState(new Date().toISOString().slice(0, 10));
   const [remarks, setRemarks] = useState("");
-  const [lines, setLines] = useState<JournalLine[]>([
-    { ...EMPTY_LINE, id: crypto.randomUUID(), entryType: "debit" },
-    { ...EMPTY_LINE, id: crypto.randomUUID(), entryType: "credit" },
-  ]);
+  const [lines, setLines] = useState<JournalLine[]>([]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+
+  // Initialize with debit and credit lines when opening form
+  const startCreation = () => {
+    setLines([
+      { ...EMPTY_LINE, id: crypto.randomUUID(), entryType: "debit" },
+      { ...EMPTY_LINE, id: crypto.randomUUID(), entryType: "credit" },
+    ]);
+    setIsCreating(true);
+  };
 
   const debitTotal = useMemo(() => {
     return lines.filter(l => l.entryType === "debit").reduce((sum, l) => sum + (Number(l.amount) || 0), 0);
@@ -86,9 +92,27 @@ export default function JournalClient({
       return;
     }
 
-    const validLines = lines.filter(l => l.ledgerId && Number(l.amount) > 0);
+    // Resolve Ledger IDs from names
+    const resolvedLines = lines.map((line) => {
+      const matched = ledgers.find(
+        (l) =>
+          l.ledgerName.toLowerCase() === line.ledgerId.toLowerCase() ||
+          String(l.ledgerId) === line.ledgerId
+      );
+      return {
+        ...line,
+        resolvedLedgerId: matched ? matched.ledgerId : null,
+      };
+    });
+
+    const validLines = resolvedLines.filter((l) => l.resolvedLedgerId && Number(l.amount) > 0);
     if (validLines.length < 2) {
-      setMessage("At least two valid transaction lines are required.");
+      setMessage("At least two valid postings with matching accounts are required.");
+      return;
+    }
+
+    if (resolvedLines.some((l) => !l.resolvedLedgerId && l.ledgerId.trim() !== "")) {
+      setMessage("Some accounts entered do not match existing ledgers. Please select from the autocomplete list.");
       return;
     }
 
@@ -107,7 +131,7 @@ export default function JournalClient({
         voucherDate,
         remarks,
         lineItems: validLines.map((line) => ({
-          ledgerId: Number(line.ledgerId),
+          ledgerId: line.resolvedLedgerId,
           entryType: line.entryType,
           amount: Number(line.amount),
         })),
@@ -121,7 +145,7 @@ export default function JournalClient({
 
       if (!response.ok) {
         const json = await response.json();
-        throw new Error(json.error || "Failed to create journal voucher.");
+        throw new Error(json.error || "Failed to create general entry.");
       }
 
       const newVoucher = await response.json();
@@ -138,18 +162,15 @@ export default function JournalClient({
       };
 
       setJournals([addedJournal, ...journals]);
-      setMessage("Journal voucher recorded successfully.");
+      setMessage("General entry recorded successfully.");
       setIsCreating(false);
 
       // Reset
       setVoucherNo("");
       setRemarks("");
-      setLines([
-        { ...EMPTY_LINE, id: crypto.randomUUID(), entryType: "debit" },
-        { ...EMPTY_LINE, id: crypto.randomUUID(), entryType: "credit" },
-      ]);
+      setLines([]);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Unable to save journal.");
+      setMessage(error instanceof Error ? error.message : "Unable to save general entry.");
     } finally {
       setSaving(false);
     }
@@ -164,18 +185,18 @@ export default function JournalClient({
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div>
-              <h1 className="text-lg font-bold text-foreground uppercase tracking-wide">Record Journal Voucher</h1>
+              <h1 className="text-lg font-bold text-foreground uppercase tracking-wide">Record General Entry</h1>
               <p className="text-xs text-muted-foreground mt-0.5">Input adjustment entries between ledger accounts.</p>
             </div>
           </div>
-          <Badge variant="secondary">Journal</Badge>
+          <Badge variant="secondary">General Entry</Badge>
         </div>
 
         <div className="rounded-lg border border-border bg-card p-5 shadow-sm space-y-4">
           <div className="grid gap-4 lg:grid-cols-2">
             <div className="space-y-2">
               <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Voucher No</Label>
-              <Input value={voucherNo} onChange={(e) => setVoucherNo(e.target.value)} placeholder="JV-001" />
+              <Input value={voucherNo} onChange={(e) => setVoucherNo(e.target.value)} placeholder="GE-001" />
             </div>
 
             <div className="space-y-2">
@@ -197,7 +218,7 @@ export default function JournalClient({
               <p className="text-xs text-muted-foreground">Add debit and credit accounts.</p>
             </div>
             <Button variant="outline" size="sm" onClick={addLine}>
-              <Plus className="h-3.5 w-3.5" /> Add Account
+              <Plus className="h-3.5 w-3.5 mr-1" /> Add Account
             </Button>
           </div>
 
@@ -207,7 +228,7 @@ export default function JournalClient({
                 <div className="space-y-2">
                   <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Type</Label>
                   <Select value={line.entryType} onValueChange={(value: "debit" | "credit") => updateLine(line.id, "entryType", value)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="debit">DEBIT</SelectItem>
                       <SelectItem value="credit">CREDIT</SelectItem>
@@ -217,26 +238,34 @@ export default function JournalClient({
 
                 <div className="space-y-2">
                   <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Account Ledger</Label>
-                  <Select value={line.ledgerId} onValueChange={(value) => updateLine(line.id, "ledgerId", value)}>
-                    <SelectTrigger><SelectValue placeholder="Choose account" /></SelectTrigger>
-                    <SelectContent>
-                      {ledgers.map((l) => (
-                        <SelectItem key={l.ledgerId} value={String(l.ledgerId)}>
-                          {l.ledgerName} ({l.ledgerType.toUpperCase()})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Input
+                    placeholder="Search or type account..."
+                    value={ledgers.find((l) => String(l.ledgerId) === line.ledgerId)?.ledgerName || line.ledgerId}
+                    onChange={(e) => {
+                      const typedValue = e.target.value;
+                      const matched = ledgers.find((l) => l.ledgerName.toLowerCase() === typedValue.toLowerCase());
+                      updateLine(line.id, "ledgerId", matched ? String(matched.ledgerId) : typedValue);
+                    }}
+                    list={`ledger-options-${line.id}`}
+                    className="h-9"
+                  />
+                  <datalist id={`ledger-options-${line.id}`}>
+                    {ledgers.map((l) => (
+                      <option key={l.ledgerId} value={l.ledgerName}>
+                        {l.ledgerType.toUpperCase()}
+                      </option>
+                    ))}
+                  </datalist>
                 </div>
 
                 <div className="space-y-2">
                   <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Amount (₹)</Label>
-                  <Input type="number" min="0" step="0.01" value={line.amount} onChange={(e) => updateLine(line.id, "amount", e.target.value)} />
+                  <Input type="number" min="0" step="0.01" value={line.amount} onChange={(e) => updateLine(line.id, "amount", e.target.value)} className="h-9" />
                 </div>
 
                 <div>
-                  <Button variant="ghost" size="icon-sm" onClick={() => removeLine(line.id)} className="text-danger hover:bg-danger/10">
-                    <Trash2 className="h-3.5 w-3.5" />
+                  <Button variant="ghost" size="icon" onClick={() => removeLine(line.id)} className="text-danger hover:bg-danger/10 h-9 w-9">
+                    <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
@@ -261,12 +290,14 @@ export default function JournalClient({
           </div>
         </div>
 
-        {message && <div className="rounded-lg border border-border bg-muted/50 p-4 text-sm text-muted-foreground">{message}</div>}
+        {message && <div className="rounded-lg border border-border bg-muted/65 p-4 text-sm text-center font-medium text-foreground">{message}</div>}
 
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={() => setIsCreating(false)}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={saving || !isBalanced || !canCreate}>
-            {saving ? "Saving..." : "Record Journal"}
+        <div className="flex justify-end gap-3">
+          <Button variant="outline" onClick={() => setIsCreating(false)} className="h-10 font-bold uppercase px-6">
+            Cancel
+          </Button>
+          <Button onClick={handleSubmit} disabled={saving || !canCreate} className="h-10 font-bold uppercase px-6">
+            {saving ? "Saving..." : "Record Entry"}
           </Button>
         </div>
       </div>
@@ -275,58 +306,55 @@ export default function JournalClient({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Journal Vouchers</h1>
+          <h1 className="text-2xl font-bold text-foreground">General Entries</h1>
           <p className="text-sm text-muted-foreground">
-            Track adjustment and accrual entries with journal vouchers.
+            Track adjustment and accrual entries with general ledger postings.
           </p>
         </div>
         {canCreate && (
-          <Button onClick={() => setIsCreating(true)} className="flex items-center gap-2">
-            <Plus className="h-4 w-4" /> Record Journal
+          <Button onClick={startCreation} className="h-10 font-semibold uppercase">
+            <Plus className="h-4 w-4 mr-1" /> Record General Entry
           </Button>
         )}
       </div>
 
-      {message && <div className="rounded-lg border border-border bg-muted/50 p-4 text-sm text-muted-foreground">{message}</div>}
-
       <div className="rounded-lg border border-border bg-card overflow-hidden shadow-sm">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/40 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">
-            <tr>
-              <th className="px-4 py-3">Voucher No</th>
-              <th className="px-4 py-3">Date</th>
-              <th className="px-4 py-3">Party (Associated)</th>
-              <th className="px-4 py-3 text-right">Amount</th>
-              <th className="px-4 py-3">Remarks</th>
-            </tr>
-          </thead>
-          <tbody>
-            {journals.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">
-                  No journal vouchers have been recorded yet.
-                </td>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="border-b border-border bg-muted/20 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                <th className="py-3 px-4">Voucher No</th>
+                <th className="py-3 px-4">Date</th>
+                <th className="py-3 px-4">Remarks</th>
+                <th className="py-3 px-4 text-right">Total Amount</th>
               </tr>
-            ) : (
-              journals.map((voucher) => {
-                const partyName = voucher.partyCustomer || voucher.partySupplier || "General JV";
-                return (
-                  <tr key={voucher.voucherId} className="border-t border-border/50 hover:bg-muted/10 transition-colors">
-                    <td className="px-4 py-3 font-medium text-foreground">{voucher.voucherNo}</td>
-                    <td className="px-4 py-3 text-muted-foreground font-sans">
-                      {voucher.voucherDate ? new Date(voucher.voucherDate).toISOString().slice(0, 10) : "N/A"}
+            </thead>
+            <tbody className="divide-y divide-border/60 text-sm">
+              {journals.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="py-8 text-center text-muted-foreground italic">
+                    No entries have been recorded yet.
+                  </td>
+                </tr>
+              ) : (
+                journals.map((voucher) => (
+                  <tr key={voucher.voucherId} className="hover:bg-muted/10">
+                    <td className="py-3 px-4 font-semibold text-foreground">{voucher.voucherNo}</td>
+                    <td className="py-3 px-4">
+                      {voucher.voucherDate ? new Date(voucher.voucherDate).toLocaleDateString() : "—"}
                     </td>
-                    <td className="px-4 py-3 text-foreground">{partyName}</td>
-                    <td className="px-4 py-3 text-right text-foreground">₹{Number(voucher.totalAmount ?? 0).toFixed(2)}</td>
-                    <td className="px-4 py-3 text-muted-foreground truncate">{voucher.remarks || "—"}</td>
+                    <td className="py-3 px-4 text-muted-foreground">{voucher.remarks || "—"}</td>
+                    <td className="py-3 px-4 text-right font-semibold text-foreground">
+                      ₹{Number(voucher.totalAmount).toFixed(2)}
+                    </td>
                   </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
