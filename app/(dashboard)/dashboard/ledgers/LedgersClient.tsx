@@ -7,8 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, FolderTree } from "lucide-react";
 import ExportButton from "@/components/ExportButton";
+import Link from "next/link";
 
 interface Ledger {
   ledgerId: number;
@@ -217,6 +218,11 @@ export default function LedgersClient({
             }))}
             canExport={canExport}
           />
+          <Link href="/dashboard/ledger-groups">
+            <Button variant="outline" className="flex items-center gap-2">
+              <FolderTree className="h-4 w-4" /> Manage Groups
+            </Button>
+          </Link>
           {canCreate && <Button onClick={openCreate}>+ Add Ledger</Button>}
         </div>
       </div>

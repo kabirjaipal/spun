@@ -86,12 +86,14 @@ export default function DashboardSidebar({
   };
 
   // Group permissions by pageGroup
-  const groups = permissions.reduce((acc, curr) => {
-    const groupName = curr.pageGroup || "Other";
-    if (!acc[groupName]) acc[groupName] = [];
-    acc[groupName].push(curr);
-    return acc;
-  }, {} as Record<string, UserPermission[]>);
+  const groups = permissions
+    .filter((p) => p.accessItem !== "ledger_groups")
+    .reduce((acc, curr) => {
+      const groupName = curr.pageGroup || "Other";
+      if (!acc[groupName]) acc[groupName] = [];
+      acc[groupName].push(curr);
+      return acc;
+    }, {} as Record<string, UserPermission[]>);
 
   // Group order: Masters, Transactions, Inventory, Reports, Administration
   const groupOrder = ["Masters", "Transactions", "Inventory", "Reports", "Administration"];

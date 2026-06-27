@@ -19,6 +19,7 @@ export const ALL_PAGES: PageConfig[] = [
   { accessItem: "suppliers", pageUrl: "/dashboard/suppliers", pageTitle: "Suppliers", pageIcon: "Truck", pageGroup: "Masters", accessGroup: "company" },
   { accessItem: "products", pageUrl: "/dashboard/products", pageTitle: "Products", pageIcon: "Package", pageGroup: "Masters", accessGroup: "company" },
   { accessItem: "ledgers", pageUrl: "/dashboard/ledgers", pageTitle: "Ledgers", pageIcon: "BookOpen", pageGroup: "Masters", accessGroup: "company" },
+  { accessItem: "ledger_groups", pageUrl: "/dashboard/ledger-groups", pageTitle: "Ledger Groups", pageIcon: "FolderTree", pageGroup: "Masters", accessGroup: "company" },
   { accessItem: "tax_rates", pageUrl: "/dashboard/tax-rates", pageTitle: "Tax Rates", pageIcon: "Percent", pageGroup: "Masters", accessGroup: "company" },
   
   // Transactions

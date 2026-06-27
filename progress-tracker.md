@@ -22,9 +22,9 @@ This document tracks our progress on the textile-specific enhancements defined i
 - [x] Support for Bank account details (Bank name, account name, account number, IFSC code, branch, account type).
 - [x] Simplified signup: User registers first with details, then completes full company registration at `/setup-company` page (avoiding duplicate entries).
 
-### [ ] 3. Gateway & Masters Foundation
-- [ ] Ledger Master
-- [x] Group Master (default system groups auto-seeded during company creation)
+### [/] 3. Gateway & Masters Foundation
+- [x] Ledger Master
+- [x] Group Master (default system groups auto-seeded, and CRUD interface implemented)
 - [ ] Inventory Master
 - [ ] Job Master / Mill Master
 
