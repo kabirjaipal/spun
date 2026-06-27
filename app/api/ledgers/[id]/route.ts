@@ -39,9 +39,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       msmeType: msmeType || null,
       panNo: panNo || null,
       isTdsApplicable: !!isTdsApplicable,
-      tdsRate: tdsRate ? String(tdsRate) : "0.00",
-      creditDays: creditDays ? Number(creditDays) : 0,
-      rateOfInterest: rateOfInterest ? String(rateOfInterest) : "0.00",
+      tdsRate: tdsRate && !isNaN(Number(tdsRate)) ? String(Number(tdsRate).toFixed(2)) : "0.00",
+      creditDays: creditDays && !isNaN(Number(creditDays)) ? Math.round(Number(creditDays)) : 0,
+      rateOfInterest: rateOfInterest && !isNaN(Number(rateOfInterest)) ? String(Number(rateOfInterest).toFixed(2)) : "0.00",
       updatedBy: userId,
       updatedOn: new Date(),
     })
