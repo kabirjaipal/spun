@@ -1,6 +1,7 @@
 import { db } from "./index";
 import { mUsers } from "./schema";
 import bcrypt from "bcryptjs";
+import { seedRealData } from "./real_seed";
 
 export async function seedDatabase() {
   console.log("Seeding database with default owner user...");
@@ -19,4 +20,8 @@ export async function seedDatabase() {
   });
 
   console.log("Database seeded successfully! Default login: owner@texora.com / password123 (No Company)");
+
+  // 3. Call the realistic company data seed
+  await seedRealData();
+  console.log("Database seeded with realistic company data! Test login: test@texora.com / password123 (Texora Trading Co.)");
 }
