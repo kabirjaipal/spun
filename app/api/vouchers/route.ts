@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { mLedgers, mInventory, mTaxRates, mCustomers, mSuppliers, mJobs, mMills, mCompanies, tVouchers, tVoucherEntries, tStockMovements, tVoucherItems } from "@/lib/db/schema";
+import { mLedgers, mInventory, mTaxRates, mCustomers, mJobs, mMills, mCompanies, tVouchers, tVoucherEntries, tStockMovements, tVoucherItems } from "@/lib/db/schema";
 import { and, eq, isNull, desc, sql, inArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
@@ -63,11 +63,11 @@ export async function POST(request: Request) {
             where: eq(mCustomers.customerId, Number(partyId)),
           });
           partyGstNo = cust?.gstNo || "";
-        } else if (voucherType === "purchase") {
-          const supp = await tx.query.mSuppliers.findFirst({
-            where: eq(mSuppliers.supplierId, Number(partyId)),
+        } else if (voucherType === "purchase" || voucherType === "direct_bill") {
+          const compObj = await tx.query.mCompanies.findFirst({
+            where: eq(mCompanies.companyId, Number(partyId)),
           });
-          partyGstNo = supp?.gstNo || "";
+          partyGstNo = compObj?.gstNo || "";
         } else if (voucherType === "job_outward" || voucherType === "job_inward") {
           const job = await tx.query.mJobs.findFirst({
             where: eq(mJobs.jobId, Number(partyId)),
@@ -305,20 +305,20 @@ export async function POST(request: Request) {
           }
         }
       } else if (voucherType === "purchase" || voucherType === "debit_note" || voucherType === "direct_bill") {
-        // 1. Credit Supplier Ledger
-        const supplierLedger = await tx.query.mLedgers.findFirst({
-          where: and(eq(mLedgers.referenceId, Number(partyId)), eq(mLedgers.ledgerType, "supplier"), eq(mLedgers.companyId, companyId), isNull(mLedgers.deletedOn))
+        // 1. Credit Company Ledger
+        const companyLedger = await tx.query.mLedgers.findFirst({
+          where: and(eq(mLedgers.referenceId, Number(partyId)), eq(mLedgers.ledgerType, "company"), eq(mLedgers.companyId, companyId), isNull(mLedgers.deletedOn))
         });
-        if (!supplierLedger) throw new Error("Supplier ledger not found");
+        if (!companyLedger) throw new Error("Company ledger not found");
 
-        const supplierEntryType = (voucherType === "purchase" || voucherType === "direct_bill") ? "credit" : "debit";
+        const companyEntryType = (voucherType === "purchase" || voucherType === "direct_bill") ? "credit" : "debit";
         const expenseEntryType = (voucherType === "purchase" || voucherType === "direct_bill") ? "debit" : "credit";
         const taxEntryType = (voucherType === "purchase" || voucherType === "direct_bill") ? "debit" : "credit";
 
         await tx.insert(tVoucherEntries).values({
           voucherId: voucherIdNum,
-          ledgerId: Number(supplierLedger.ledgerId),
-          entryType: supplierEntryType,
+          ledgerId: Number(companyLedger.ledgerId),
+          entryType: companyEntryType,
           amount: String(computedNet),
           createdBy: userId,
           updatedBy: userId,
@@ -476,14 +476,14 @@ export async function POST(request: Request) {
           updatedBy: userId,
         });
       } else if (voucherType === "payment") {
-        if (!cashBankLedgerId || !partyId) throw new Error("Cash/Bank and Supplier account are required for Payments");
-        const supplierLedger = await tx.query.mLedgers.findFirst({
-          where: and(eq(mLedgers.referenceId, Number(partyId)), eq(mLedgers.ledgerType, "supplier"), eq(mLedgers.companyId, companyId), isNull(mLedgers.deletedOn))
+        if (!cashBankLedgerId || !partyId) throw new Error("Cash/Bank and Company account are required for Payments");
+        const companyLedger = await tx.query.mLedgers.findFirst({
+          where: and(eq(mLedgers.referenceId, Number(partyId)), eq(mLedgers.ledgerType, "company"), eq(mLedgers.companyId, companyId), isNull(mLedgers.deletedOn))
         });
-        if (!supplierLedger) throw new Error("Supplier ledger not found");
+        if (!companyLedger) throw new Error("Company ledger not found");
 
         const bankEntryType = isReversal ? "debit" : "credit";
-        const supplierEntryType = isReversal ? "credit" : "debit";
+        const companyEntryType = isReversal ? "credit" : "debit";
 
         // Bank Entry
         await tx.insert(tVoucherEntries).values({
@@ -495,11 +495,11 @@ export async function POST(request: Request) {
           updatedBy: userId,
         });
 
-        // Supplier Entry
+        // Company Entry
         await tx.insert(tVoucherEntries).values({
           voucherId: voucherIdNum,
-          ledgerId: Number(supplierLedger.ledgerId),
-          entryType: supplierEntryType,
+          ledgerId: Number(companyLedger.ledgerId),
+          entryType: companyEntryType,
           amount: String(computedTotal),
           createdBy: userId,
           updatedBy: userId,
@@ -555,11 +555,11 @@ export async function GET(request: Request) {
     const customer = await db.query.mCustomers.findFirst({
       where: and(eq(mCustomers.customerId, pId), eq(mCustomers.companyId, companyId))
     });
-    const supplier = await db.query.mSuppliers.findFirst({
-      where: and(eq(mSuppliers.supplierId, pId), eq(mSuppliers.companyId, companyId))
+    const subCompany = await db.query.mCompanies.findFirst({
+      where: and(eq(mCompanies.companyId, pId), eq(mCompanies.parentCompanyId, companyId))
     });
 
-    if (!customer && !supplier) {
+    if (!customer && !subCompany) {
       return NextResponse.json([]);
     }
 
@@ -618,7 +618,7 @@ export async function GET(request: Request) {
     const ledger = await db.query.mLedgers.findFirst({
       where: and(
         eq(mLedgers.referenceId, pId),
-        eq(mLedgers.ledgerType, isCustomer ? "customer" : "supplier"),
+        eq(mLedgers.ledgerType, isCustomer ? "customer" : "company"),
         eq(mLedgers.companyId, companyId),
         isNull(mLedgers.deletedOn)
       )
@@ -679,9 +679,9 @@ export async function GET(request: Request) {
       customerName: mCustomers.customerName,
       customerGst: mCustomers.gstNo,
       customerAddress: mCustomers.address,
-      supplierName: mSuppliers.supplierName,
-      supplierGst: mSuppliers.gstNo,
-      supplierAddress: mSuppliers.address,
+      companyName: mCompanies.companyName,
+      companyGst: mCompanies.gstNo,
+      companyAddress: mCompanies.address,
       jobName: mJobs.jobName,
       jobGst: mJobs.gstNo,
       jobAddress: mJobs.address,
@@ -691,7 +691,7 @@ export async function GET(request: Request) {
     })
     .from(tVouchers)
     .leftJoin(mCustomers, eq(tVouchers.partyId, mCustomers.customerId))
-    .leftJoin(mSuppliers, eq(tVouchers.partyId, mSuppliers.supplierId))
+    .leftJoin(mCompanies, eq(tVouchers.partyId, mCompanies.companyId))
     .leftJoin(mJobs, eq(tVouchers.partyId, mJobs.jobId))
     .leftJoin(mMills, eq(tVouchers.partyId, mMills.millId))
     .where(and(...conditions))

@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { mSuppliers, mInventory, mLedgers, mTaxRates, mCompanies } from "@/lib/db/schema";
+import { mInventory, mLedgers, mTaxRates, mCompanies } from "@/lib/db/schema";
 import { and, eq, isNull } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
 import PurchaseClient from "./PurchaseClient";
@@ -13,12 +13,12 @@ export default async function PurchasePage() {
 
   const companyId = Number(session.user.companyId);
 
-  const [suppliers, inventory, ledgers, taxRates, company] = await Promise.all([
+  const [companies, inventory, ledgers, taxRates, company] = await Promise.all([
     db
       .select()
-      .from(mSuppliers)
-      .where(and(eq(mSuppliers.companyId, companyId), isNull(mSuppliers.deletedOn)))
-      .orderBy(mSuppliers.supplierName),
+      .from(mCompanies)
+      .where(and(eq(mCompanies.parentCompanyId, companyId), isNull(mCompanies.deletedOn)))
+      .orderBy(mCompanies.companyName),
     db
       .select()
       .from(mInventory)
@@ -45,11 +45,11 @@ export default async function PurchasePage() {
   return (
     <PurchaseClient
       company={company ? { companyName: company.companyName, gstNo: company.gstNo, address: company.address, companyType: company.companyType } : { companyName: "Texora Company", companyType: "general" }}
-      suppliers={suppliers.map((supplier) => ({
-        supplierId: supplier.supplierId,
-        supplierName: supplier.supplierName,
-        address: supplier.address,
-        gstNo: supplier.gstNo,
+      companies={companies.map((comp) => ({
+        companyId: comp.companyId,
+        companyName: comp.companyName,
+        address: comp.address,
+        gstNo: comp.gstNo,
       }))}
       inventory={inventory.map((item) => ({
         inventoryId: item.inventoryId,

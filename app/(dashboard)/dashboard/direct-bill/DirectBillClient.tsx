@@ -16,12 +16,12 @@ interface DirectBillItem {
   totalAmount: string;
   netAmount: string;
   remarks: string | null;
-  supplierName: string | null;
+  companyName: string | null;
 }
 
-interface SupplierOption {
-  supplierId: number;
-  supplierName: string;
+interface CompanyOption {
+  companyId: number;
+  companyName: string;
   address: string | null;
   gstNo: string | null;
 }
@@ -73,7 +73,7 @@ const EMPTY_LINE = (): LineItem => ({
 export default function DirectBillClient({
   initialVouchers,
   company,
-  suppliers,
+  companies,
   inventory,
   ledgers,
   taxRates,
@@ -81,7 +81,7 @@ export default function DirectBillClient({
 }: {
   initialVouchers: DirectBillItem[];
   company: { companyName: string; gstNo?: string | null; address?: string | null };
-  suppliers: SupplierOption[];
+  companies: CompanyOption[];
   inventory: InventoryOption[];
   ledgers: LedgerOption[];
   taxRates: TaxRateOption[];
@@ -91,7 +91,7 @@ export default function DirectBillClient({
   const [isCreating, setIsCreating] = useState(false);
   const [voucherNo, setVoucherNo] = useState("");
   const [voucherDate, setVoucherDate] = useState(new Date().toISOString().slice(0, 10));
-  const [selectedSupplier, setSelectedSupplier] = useState("");
+  const [selectedCompany, setSelectedCompany] = useState("");
   const [purchaseType, setPurchaseType] = useState<"goods" | "service" | "other">("service");
   const [remarks, setRemarks] = useState("");
   const [lineItems, setLineItems] = useState<LineItem[]>([EMPTY_LINE()]);
@@ -105,14 +105,14 @@ export default function DirectBillClient({
     );
   }, [ledgers]);
 
-  const supplierObj = useMemo(() => {
-    return suppliers.find((s) => String(s.supplierId) === selectedSupplier);
-  }, [selectedSupplier, suppliers]);
+  const subCompanyObj = useMemo(() => {
+    return companies.find((s) => String(s.companyId) === selectedCompany);
+  }, [selectedCompany, companies]);
 
   const isInterstate = useMemo(() => {
-    if (!company.gstNo || !supplierObj?.gstNo) return false;
-    return company.gstNo.slice(0, 2) !== supplierObj.gstNo.slice(0, 2);
-  }, [company.gstNo, supplierObj]);
+    if (!company.gstNo || !subCompanyObj?.gstNo) return false;
+    return company.gstNo.slice(0, 2) !== subCompanyObj.gstNo.slice(0, 2);
+  }, [company.gstNo, subCompanyObj]);
 
   const lineTotals = useMemo(() => {
     return lineItems.map((item) => {
@@ -178,16 +178,12 @@ export default function DirectBillClient({
 
   async function handleSubmit() {
     if (!canCreate) return;
-    if (!selectedSupplier || !voucherNo) {
-      setMessage("Select supplier and enter voucher number.");
+    if (!selectedCompany || !voucherNo || lineItems.some(i => !i.inventoryId || !i.ledgerId || Number(i.quantity) <= 0 || Number(i.rate) <= 0)) {
+      setMessage("Please fill all fields, select company and add at least one valid line item.");
       return;
     }
 
     const validLines = lineItems.filter((l) => l.inventoryId && l.ledgerId && Number(l.quantity) > 0);
-    if (validLines.length === 0) {
-      setMessage("At least one valid line with item, ledger, and quantity is required.");
-      return;
-    }
 
     setSaving(true);
     setMessage(null);
@@ -195,10 +191,11 @@ export default function DirectBillClient({
     try {
       const body = {
         voucherType: "direct_bill",
+        goodsName: purchaseType === "goods" ? "Goods Direct" : "Service Direct",
         voucherNo,
         voucherDate,
-        partyId: Number(selectedSupplier),
-        remarks: `[Direct Bill: ${purchaseType.toUpperCase()}] ${remarks}`,
+        partyId: Number(selectedCompany),
+        remarks: remarks || "Direct Expense / Purchase",
         lineItems: validLines.map((line) => ({
           inventoryId: Number(line.inventoryId),
           ledgerId: Number(line.ledgerId),
@@ -232,16 +229,16 @@ export default function DirectBillClient({
         totalAmount: String(newVoucher.totalAmount),
         netAmount: String(newVoucher.netAmount),
         remarks: newVoucher.remarks,
-        supplierName: supplierObj ? supplierObj.supplierName : `ID ${newVoucher.partyId}`,
+        companyName: subCompanyObj ? subCompanyObj.companyName : `ID ${newVoucher.partyId}`,
       };
 
       setVouchers([added, ...vouchers]);
-      setMessage("Direct bill voucher recorded successfully.");
+      setMessage("Direct invoice recorded successfully.");
       setIsCreating(false);
 
       // Reset
       setVoucherNo("");
-      setSelectedSupplier("");
+      setSelectedCompany("");
       setRemarks("");
       setLineItems([EMPTY_LINE()]);
     } catch (err) {
@@ -269,14 +266,16 @@ export default function DirectBillClient({
 
         <div className="rounded-lg border border-border bg-card p-5 shadow-sm space-y-4">
           <div className="grid gap-4 lg:grid-cols-4">
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Supplier</Label>
-              <Select value={selectedSupplier} onValueChange={setSelectedSupplier}>
-                <SelectTrigger><SelectValue placeholder="Choose Supplier" /></SelectTrigger>
+            <div className="space-y-1.5 col-span-1 md:col-span-2">
+              <Label className="text-xs font-semibold uppercase text-foreground">Company (Party)</Label>
+              <Select value={selectedCompany} onValueChange={setSelectedCompany}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="Choose company" />
+                </SelectTrigger>
                 <SelectContent>
-                  {suppliers.map((s) => (
-                    <SelectItem key={s.supplierId} value={String(s.supplierId)}>
-                      {s.supplierName}
+                  {companies.map((s) => (
+                    <SelectItem key={s.companyId} value={String(s.companyId)}>
+                      {s.companyName} {s.gstNo ? `(${s.gstNo})` : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -291,18 +290,6 @@ export default function DirectBillClient({
             <div className="space-y-2">
               <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Date</Label>
               <Input type="date" value={voucherDate} onChange={(e) => setVoucherDate(e.target.value)} />
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Purchase Type</Label>
-              <Select value={purchaseType} onValueChange={(v: any) => setPurchaseType(v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="goods">Goods (Non-Trading)</SelectItem>
-                  <SelectItem value="service">Service</SelectItem>
-                  <SelectItem value="other">Other Expense</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
           </div>
 
@@ -431,7 +418,7 @@ export default function DirectBillClient({
             <tr>
               <th className="px-4 py-3">Voucher No</th>
               <th className="px-4 py-3">Date</th>
-              <th className="px-4 py-3">Supplier</th>
+              <th className="px-4 py-3">Company Name</th>
               <th className="px-4 py-3 text-right">Taxable Amount</th>
               <th className="px-4 py-3 text-right">Net Amount</th>
               <th className="px-4 py-3">Remarks</th>
@@ -451,7 +438,7 @@ export default function DirectBillClient({
                   <td className="px-4 py-3 text-muted-foreground">
                     {v.voucherDate ? new Date(v.voucherDate).toISOString().slice(0, 10) : "—"}
                   </td>
-                  <td className="px-4 py-3 text-foreground">{v.supplierName || `Supplier ID ${v.partyId}`}</td>
+                  <td className="px-4 py-3 text-foreground">{v.companyName || `Company ID ${v.partyId}`}</td>
                   <td className="px-4 py-3 text-right text-foreground">₹{Number(v.totalAmount).toFixed(2)}</td>
                   <td className="px-4 py-3 text-right text-foreground font-bold">₹{Number(v.netAmount).toFixed(2)}</td>
                   <td className="px-4 py-3 text-muted-foreground truncate max-w-[200px]">{v.remarks || "—"}</td>

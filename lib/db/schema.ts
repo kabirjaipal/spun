@@ -30,6 +30,7 @@ const auditColumns = {
 
 export const mCompanies = pgTable("m_companies", {
   companyId: serial("company_id").primaryKey(),
+  parentCompanyId: bigint("parent_company_id", { mode: "number" }).references((): any => mCompanies.companyId),
   companyName: text("company_name").notNull(),
   gstNo: text("gst_no"),
   panNo: text("pan_no"),
@@ -56,6 +57,7 @@ export const mCompanies = pgTable("m_companies", {
   ...auditColumns,
 }, (table) => ({
   companyNameIdx: index("idx_m_companies_company_name").on(table.companyName),
+  parentCompanyIdIdx: index("idx_m_companies_parent_company_id").on(table.parentCompanyId),
 }));
 
 export const mUsers = pgTable("m_users", {
@@ -125,36 +127,7 @@ export const mCustomers = pgTable("m_customers", {
   companyIdIdx: index("idx_m_customers_company_id").on(table.companyId),
 }));
 
-export const mSuppliers = pgTable("m_suppliers", {
-  supplierId: serial("supplier_id").primaryKey(),
-  companyId: bigint("company_id", { mode: "number" })
-    .references(() => mCompanies.companyId)
-    .notNull(),
-  supplierName: text("supplier_name").notNull(),
-  gstNo: text("gst_no"),
-  phone: text("phone"),
-  email: text("email"),
-  address: text("address"),
-  openingBalance: numeric("opening_balance", { precision: 15, scale: 2 }).default("0.00").notNull(),
-  panNo: text("pan_no"),
-  pincode: text("pincode"),
-  state: text("state"),
-  currencySymbol: text("currency_symbol"),
-  nationName: text("nation_name"),
-  bankName: text("bank_name"),
-  bankAccountName: text("bank_account_name"),
-  accountNo: text("account_no"),
-  ifscCode: text("ifsc_code"),
-  branchName: text("branch_name"),
-  accountType: text("account_type"),
-  gstApplicable: boolean("gst_applicable").default(false).notNull(),
-  gstType: text("gst_type"),
-  stateCode: text("state_code"),
-  city: text("city"),
-  ...auditColumns,
-}, (table) => ({
-  companyIdIdx: index("idx_m_suppliers_company_id").on(table.companyId),
-}));
+
 
 export const mTaxRates = pgTable("m_tax_rates", {
   taxRateId: serial("tax_rate_id").primaryKey(),
@@ -300,7 +273,7 @@ export const mLedgers = pgTable("m_ledgers", {
   tdsRate: numeric("tds_rate", { precision: 5, scale: 2 }).default("0.00").notNull(),
   creditDays: integer("credit_days").default(0).notNull(),
   rateOfInterest: numeric("rate_of_interest", { precision: 5, scale: 2 }).default("0.00").notNull(),
-  ledgerType: text("ledger_type").notNull(), // e.g., 'cash', 'bank', 'customer', 'supplier', etc.
+  ledgerType: text("ledger_type").notNull(), // e.g., 'cash', 'bank', 'customer', 'company', etc.
   referenceId: bigint("reference_id", { mode: "number" }),
   ...auditColumns,
 }, (table) => ({

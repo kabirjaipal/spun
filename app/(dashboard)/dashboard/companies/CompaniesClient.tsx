@@ -6,18 +6,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Pencil, Trash2, Building2, Landmark, MapPin, FileText, Phone, Mail, DollarSign, Globe, ArrowLeft } from "lucide-react";
+import { Pencil, Trash2, Building2, Landmark, MapPin, Calendar, FileText, Phone, Mail, DollarSign, Globe, ArrowLeft } from "lucide-react";
 import ExportButton from "@/components/ExportButton";
 import { BANK_LIST } from "@/lib/banks";
 
-interface Supplier {
-  supplierId: number;
-  supplierName: string;
+interface Company {
+  companyId: number;
+  companyName: string;
   gstNo: string | null;
   phone: string | null;
   email: string | null;
   address: string | null;
-  openingBalance: string;
   panNo: string | null;
   pincode: string | null;
   state: string | null;
@@ -33,6 +32,9 @@ interface Supplier {
   gstType: string | null;
   stateCode: string | null;
   city: string | null;
+  companyType: string | null;
+  marketCategory: string | null;
+  financialYearStart: string | null;
 }
 
 const CURRENCIES = [
@@ -48,13 +50,21 @@ const CURRENCIES = [
   { symbol: "AED", nation: "United Arab Emirates", label: "AED (UAE Dirham)" },
 ];
 
+const MARKET_CATEGORIES: Record<string, string[]> = {
+  textiles: ["Weaving", "Trading", "Processing", "Knitting", "Spinning", "Other"],
+  diamond: ["Polished Diamonds", "Rough Diamonds", "Diamond Manufacturing", "Jewellery", "Other"],
+  general: ["Retail", "Wholesale", "Services", "Manufacturing", "Distribution", "Other"],
+};
+
+const currentYear = new Date().getFullYear();
+const defaultFyStart = `${currentYear}-04-01`;
+
 const EMPTY = {
-  supplierName: "",
+  companyName: "",
   gstNo: "",
   phone: "",
   email: "",
   address: "",
-  openingBalance: "0",
   panNo: "",
   pincode: "",
   state: "",
@@ -70,12 +80,15 @@ const EMPTY = {
   gstType: "regular",
   stateCode: "",
   city: "",
+  companyType: "general",
+  marketCategory: "Retail",
+  financialYearStart: defaultFyStart,
 };
 
-export default function SuppliersClient({
+export default function CompaniesClient({
   initialData, canCreate, canUpdate, canDelete, canExport,
 }: {
-  initialData: Supplier[];
+  initialData: Company[];
   canCreate: boolean;
   canUpdate: boolean;
   canDelete: boolean;
@@ -83,23 +96,25 @@ export default function SuppliersClient({
 }) {
   const [data, setData] = useState(initialData);
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editing, setEditing] = useState<Supplier | null>(null);
+  const [editing, setEditing] = useState<Company | null>(null);
   const [form, setForm] = useState(EMPTY);
-  const [deleteTarget, setDeleteTarget] = useState<Supplier | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Company | null>(null);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
   const [selectedBankIndex, setSelectedBankIndex] = useState<number | null>(null);
   const [customBankActive, setCustomBankActive] = useState(true);
   const [customIfscActive, setCustomIfscActive] = useState(true);
 
   const filtered = data.filter((r) =>
-    r.supplierName.toLowerCase().includes(search.toLowerCase()) ||
+    r.companyName.toLowerCase().includes(search.toLowerCase()) ||
     (r.gstNo ?? "").toLowerCase().includes(search.toLowerCase()) ||
     (r.phone ?? "").includes(search)
   );
 
   function openCreate() {
+    setError(null);
     setEditing(null);
     setForm(EMPTY);
     setSelectedBankIndex(null);
@@ -108,7 +123,8 @@ export default function SuppliersClient({
     setIsFormOpen(true);
   }
 
-  function openEdit(row: Supplier) {
+  function openEdit(row: Company) {
+    setError(null);
     setEditing(row);
     
     const bankIndex = BANK_LIST.findIndex(b => b.bankName === row.bankName);
@@ -116,12 +132,11 @@ export default function SuppliersClient({
     const isPreseededIfsc = isPreseededBank && BANK_LIST[bankIndex].branches.some(br => br.ifscCode === row.ifscCode);
 
     setForm({
-      supplierName: row.supplierName,
+      companyName: row.companyName,
       gstNo: row.gstNo ?? "",
       phone: row.phone ?? "",
       email: row.email ?? "",
       address: row.address ?? "",
-      openingBalance: row.openingBalance,
       panNo: row.panNo ?? "",
       pincode: row.pincode ?? "",
       state: row.state ?? "",
@@ -137,6 +152,9 @@ export default function SuppliersClient({
       gstType: row.gstType ?? "regular",
       stateCode: row.stateCode ?? "",
       city: row.city ?? "",
+      companyType: row.companyType ?? "general",
+      marketCategory: row.marketCategory ?? "Retail",
+      financialYearStart: row.financialYearStart ?? defaultFyStart,
     });
 
     setSelectedBankIndex(isPreseededBank ? bankIndex : null);
@@ -147,32 +165,40 @@ export default function SuppliersClient({
   }
 
   async function handleSave() {
-    if (!form.supplierName) return;
+    if (!form.companyName) return;
     setSaving(true);
-    const url = editing ? `/api/suppliers/${editing.supplierId}` : "/api/suppliers";
-    const res = await fetch(url, {
-      method: editing ? "PATCH" : "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...form,
-        openingBalance: Number(form.openingBalance),
-        gstNo: form.gstApplicable ? form.gstNo : null,
-        stateCode: form.gstApplicable ? form.stateCode : null,
-        city: form.gstApplicable ? form.city : null,
-        gstType: form.gstApplicable ? form.gstType : null,
-      }),
-    });
-    const row = await res.json();
-    if (editing) setData((d) => d.map((r) => (r.supplierId === editing.supplierId ? row : r)));
-    else setData((d) => [...d, row]);
-    setIsFormOpen(false);
-    setSaving(false);
+    setError(null);
+    const url = editing ? `/api/companies/${editing.companyId}` : "/api/companies";
+    try {
+      const res = await fetch(url, {
+        method: editing ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...form,
+          gstNo: form.gstApplicable ? form.gstNo : null,
+          stateCode: form.gstApplicable ? form.stateCode : null,
+          city: form.gstApplicable ? form.city : null,
+          gstType: form.gstApplicable ? form.gstType : null,
+        }),
+      });
+      const row = await res.json();
+      if (!res.ok) {
+        throw new Error(row.error || "Failed to save company");
+      }
+      if (editing) setData((d) => d.map((r) => (r.companyId === editing.companyId ? row : r)));
+      else setData((d) => [...d, row]);
+      setIsFormOpen(false);
+    } catch (err: any) {
+      setError(err.message || "An error occurred");
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function handleDelete() {
     if (!deleteTarget) return;
-    await fetch(`/api/suppliers/${deleteTarget.supplierId}`, { method: "DELETE" });
-    setData((d) => d.filter((r) => r.supplierId !== deleteTarget.supplierId));
+    await fetch(`/api/companies/${deleteTarget.companyId}`, { method: "DELETE" });
+    setData((d) => d.filter((r) => r.companyId !== deleteTarget.companyId));
     setDeleteTarget(null);
   }
 
@@ -185,9 +211,15 @@ export default function SuppliersClient({
             <span>Back to list</span>
           </Button>
           <h1 className="text-xl font-bold text-foreground">
-            {editing ? `Edit Supplier: ${editing.supplierName}` : "Create New Supplier"}
+            {editing ? `Edit Company: ${editing.companyName}` : "Create New Company"}
           </h1>
         </div>
+
+        {error && (
+          <div className="rounded-lg border border-danger bg-danger/10 p-4 text-sm text-danger font-medium">
+            {error}
+          </div>
+        )}
 
         <div className="grid gap-6 lg:grid-cols-2">
           {/* General Details & Taxation */}
@@ -201,15 +233,15 @@ export default function SuppliersClient({
               <div className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="col-span-1 sm:col-span-2">
-                    <Label htmlFor="supplierName" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Supplier Name *</Label>
+                    <Label htmlFor="companyName" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Company Name *</Label>
                     <Input
-                      id="supplierName"
+                      id="companyName"
                       type="text"
                       required
-                      value={form.supplierName}
-                      onChange={(e) => setForm((f) => ({ ...f, supplierName: e.target.value }))}
+                      value={form.companyName}
+                      onChange={(e) => setForm((f) => ({ ...f, companyName: e.target.value }))}
                       className="mt-1"
-                      placeholder="e.g. XYZ Fabrics Pvt Ltd"
+                      placeholder="e.g. Acme Fabrics Pvt Ltd"
                     />
                   </div>
 
@@ -283,7 +315,7 @@ export default function SuppliersClient({
                         value={form.email}
                         onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
                         className="pl-10"
-                        placeholder="supplier@example.com"
+                        placeholder="info@acmefabrics.com"
                       />
                     </div>
                   </div>
@@ -346,16 +378,58 @@ export default function SuppliersClient({
                     </div>
                   </div>
 
+                  <div>
+                    <Label htmlFor="companyType" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Company Type *</Label>
+                    <select
+                      id="companyType"
+                      value={form.companyType}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setForm((f) => ({
+                          ...f,
+                          companyType: val,
+                          marketCategory: MARKET_CATEGORIES[val][0],
+                        }));
+                      }}
+                      className="w-full h-10 mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    >
+                      <option value="general">General / Standard</option>
+                      <option value="textiles">Textiles</option>
+                      <option value="diamond">Diamond</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="marketCategory" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Market Category *</Label>
+                    <select
+                      id="marketCategory"
+                      value={form.marketCategory}
+                      onChange={(e) => setForm((f) => ({ ...f, marketCategory: e.target.value }))}
+                      className="w-full h-10 mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    >
+                      {MARKET_CATEGORIES[form.companyType]?.map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
                   <div className="col-span-1 sm:col-span-2">
-                    <Label htmlFor="openingBalance" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Opening Balance (₹)</Label>
-                    <Input
-                      id="openingBalance"
-                      type="number"
-                      step={0.01}
-                      value={form.openingBalance}
-                      onChange={(e) => setForm((f) => ({ ...f, openingBalance: e.target.value }))}
-                      className="mt-1"
-                    />
+                    <Label htmlFor="financialYearStart" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Financial Year Start *</Label>
+                    <div className="relative mt-1">
+                      <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <Input
+                        id="financialYearStart"
+                        type="date"
+                        required
+                        value={form.financialYearStart}
+                        onChange={(e) => setForm((f) => ({ ...f, financialYearStart: e.target.value }))}
+                        className="pl-10"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -536,7 +610,7 @@ export default function SuppliersClient({
                     value={form.bankAccountName}
                     onChange={(e) => setForm((f) => ({ ...f, bankAccountName: e.target.value }))}
                     className="mt-1"
-                    placeholder="e.g. XYZ Fabrics Pvt Ltd"
+                    placeholder="e.g. Acme Fabrics Pvt Ltd"
                   />
                 </div>
 
@@ -635,8 +709,8 @@ export default function SuppliersClient({
 
             <div className="flex gap-4 pt-6 border-t justify-end">
               <Button variant="outline" onClick={() => setIsFormOpen(false)}>Cancel</Button>
-              <Button onClick={handleSave} disabled={saving || !form.supplierName || (form.gstApplicable && (!form.gstNo || !form.stateCode || !form.city))}>
-                {saving ? "Saving..." : editing ? "Update Supplier" : "Create Supplier"}
+              <Button onClick={handleSave} disabled={saving || !form.companyName || (form.gstApplicable && (!form.gstNo || !form.stateCode || !form.city))}>
+                {saving ? "Saving..." : editing ? "Update Company" : "Create Company"}
               </Button>
             </div>
           </div>
@@ -649,19 +723,19 @@ export default function SuppliersClient({
     <>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-lg font-bold text-foreground uppercase tracking-wide">Suppliers</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">{data.length} supplier{data.length !== 1 ? "s" : ""}</p>
+          <h1 className="text-lg font-bold text-foreground uppercase tracking-wide">Companies</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">{data.length} compan{data.length !== 1 ? "ies" : "y"}</p>
         </div>
         <div className="flex items-center gap-3">
-          <Input id="search-suppliers" placeholder="Search name, GST, phone..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-60" />
+          <Input id="search-companies" placeholder="Search name, GST, phone..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-60" />
           <ExportButton
-            filename="suppliers.csv"
-            headers={["Supplier Name", "GSTIN", "Phone", "Email", "Address", "Opening Balance"]}
-            keys={["supplierName", "gstNo", "phone", "email", "address", "openingBalance"]}
+            filename="companies.csv"
+            headers={["Company Name", "GSTIN", "Phone", "Email", "Address", "Module/Type"]}
+            keys={["companyName", "gstNo", "phone", "email", "address", "companyType"]}
             rows={filtered}
             canExport={canExport}
           />
-          {canCreate && <Button onClick={openCreate}>+ Add Supplier</Button>}
+          {canCreate && <Button onClick={openCreate}>+ Add Company</Button>}
         </div>
       </div>
 
@@ -673,27 +747,23 @@ export default function SuppliersClient({
               <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Name</th>
               <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">GSTIN</th>
               <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Phone</th>
-              <th className="px-4 py-2.5 text-right text-xs font-bold uppercase tracking-wider text-muted-foreground">Opening Bal.</th>
+              <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Module</th>
               {(canUpdate || canDelete) && <th className="px-4 py-2.5 text-right text-xs font-bold uppercase tracking-wider text-muted-foreground">Actions</th>}
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 && (
               <tr><td colSpan={6} className="px-4 py-8 text-center text-sm text-muted-foreground">
-                {search ? "No suppliers match your search." : "No suppliers yet. Add your first one."}
+                {search ? "No companies match your search." : "No companies yet. Add your first one."}
               </td></tr>
             )}
             {filtered.map((row, i) => (
-              <tr key={row.supplierId} className="border-b border-border/50 hover:bg-muted/20 transition-colors">
+              <tr key={row.companyId} className="border-b border-border/50 hover:bg-muted/20 transition-colors">
                 <td className="px-4 py-3 text-xs text-muted-foreground">{i + 1}</td>
-                <td className="px-4 py-3 font-medium text-foreground">{row.supplierName}</td>
+                <td className="px-4 py-3 font-medium text-foreground">{row.companyName}</td>
                 <td className="px-4 py-3 text-xs text-muted-foreground font-mono">{row.gstNo || "—"}</td>
                 <td className="px-4 py-3 text-xs text-muted-foreground">{row.phone || "—"}</td>
-                <td className="px-4 py-3 text-right">
-                  <Badge variant="secondary" className="text-xs font-mono">
-                    ₹{Number(row.openingBalance).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                  </Badge>
-                </td>
+                <td className="px-4 py-3 text-xs text-muted-foreground capitalize">{row.companyType || "general"}</td>
                 {(canUpdate || canDelete) && (
                   <td className="px-4 py-3 text-right space-x-2">
                     {canUpdate && <Button variant="ghost" size="icon-sm" onClick={() => openEdit(row)}><Pencil className="h-3.5 w-3.5" /></Button>}
@@ -708,8 +778,8 @@ export default function SuppliersClient({
 
       <Dialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle className="text-sm font-bold uppercase">Delete Supplier</DialogTitle></DialogHeader>
-          <p className="text-sm text-muted-foreground">Delete <span className="font-semibold text-foreground">{deleteTarget?.supplierName}</span>? Their ledger will also be removed.</p>
+          <DialogHeader><DialogTitle className="text-sm font-bold uppercase">Delete Company</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">Delete <span className="font-semibold text-foreground">{deleteTarget?.companyName}</span>? Their ledger will also be removed.</p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancel</Button>
             <Button variant="destructive" onClick={handleDelete}>Delete</Button>

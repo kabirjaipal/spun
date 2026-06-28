@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { mCustomers, mSuppliers, mLedgers, tVouchers } from "@/lib/db/schema";
+import { mCustomers, mCompanies, mLedgers, tVouchers } from "@/lib/db/schema";
 import { and, eq, isNull, or, desc } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
 import PaymentClient from "./PaymentClient";
@@ -13,7 +13,7 @@ export default async function PaymentPage() {
 
   const companyId = Number(session.user.companyId);
 
-  const [payments, suppliers, cashBankLedgers] = await Promise.all([
+  const [payments, companies, cashBankLedgers] = await Promise.all([
     db
       .select({
         voucherId: tVouchers.voucherId,
@@ -23,22 +23,22 @@ export default async function PaymentPage() {
         totalAmount: tVouchers.totalAmount,
         remarks: tVouchers.remarks,
         customerName: mCustomers.customerName,
-        supplierName: mSuppliers.supplierName,
+        companyName: mCompanies.companyName,
       })
       .from(tVouchers)
       .leftJoin(mCustomers, eq(tVouchers.partyId, mCustomers.customerId))
-      .leftJoin(mSuppliers, eq(tVouchers.partyId, mSuppliers.supplierId))
+      .leftJoin(mCompanies, eq(tVouchers.partyId, mCompanies.companyId))
       .where(and(eq(tVouchers.companyId, companyId), eq(tVouchers.voucherType, "payment"), isNull(tVouchers.deletedOn)))
       .orderBy(desc(tVouchers.voucherDate))
       .limit(100),
     db
       .select({
-        supplierId: mSuppliers.supplierId,
-        supplierName: mSuppliers.supplierName,
+        companyId: mCompanies.companyId,
+        companyName: mCompanies.companyName,
       })
-      .from(mSuppliers)
-      .where(and(eq(mSuppliers.companyId, companyId), isNull(mSuppliers.deletedOn)))
-      .orderBy(mSuppliers.supplierName),
+      .from(mCompanies)
+      .where(and(eq(mCompanies.parentCompanyId, companyId), isNull(mCompanies.deletedOn)))
+      .orderBy(mCompanies.companyName),
     db
       .select({
         ledgerId: mLedgers.ledgerId,
@@ -65,7 +65,10 @@ export default async function PaymentPage() {
         ...py,
         voucherDate: py.voucherDate ? new Date(py.voucherDate) : null
       }))}
-      suppliers={suppliers}
+      companies={companies.map(c => ({
+        companyId: c.companyId,
+        companyName: c.companyName
+      }))}
       cashBankLedgers={cashBankLedgers}
       canCreate={p?.c ?? false}
     />

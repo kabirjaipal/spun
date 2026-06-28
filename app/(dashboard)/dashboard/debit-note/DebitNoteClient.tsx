@@ -16,12 +16,12 @@ interface DebitNoteItem {
   totalAmount: string;
   netAmount: string;
   remarks: string | null;
-  supplierName: string | null;
+  companyName: string | null;
 }
 
-interface SupplierOption {
-  supplierId: number;
-  supplierName: string;
+interface CompanyOption {
+  companyId: number;
+  companyName: string;
   address: string | null;
   gstNo: string | null;
 }
@@ -80,7 +80,7 @@ const EMPTY_LINE = (): LineItem => ({
 export default function DebitNoteClient({
   initialNotes,
   company,
-  suppliers,
+  companies,
   inventory,
   ledgers,
   taxRates,
@@ -88,7 +88,7 @@ export default function DebitNoteClient({
 }: {
   initialNotes: DebitNoteItem[];
   company: { companyName: string; gstNo?: string | null; address?: string | null };
-  suppliers: SupplierOption[];
+  companies: CompanyOption[];
   inventory: InventoryOption[];
   ledgers: LedgerOption[];
   taxRates: TaxRateOption[];
@@ -98,23 +98,23 @@ export default function DebitNoteClient({
   const [isCreating, setIsCreating] = useState(false);
   const [voucherNo, setVoucherNo] = useState("");
   const [voucherDate, setVoucherDate] = useState(new Date().toISOString().slice(0, 10));
-  const [selectedSupplier, setSelectedSupplier] = useState("");
+  const [selectedCompany, setSelectedCompany] = useState("");
   const [selectedInvoice, setSelectedInvoice] = useState("");
   const [remarks, setRemarks] = useState("");
   const [lineItems, setLineItems] = useState<LineItem[]>([EMPTY_LINE()]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
-  // Fetch purchase invoices for selected supplier
+  // Fetch purchase invoices for selected company
   const [invoices, setInvoices] = useState<PurchaseInvoiceOption[]>([]);
 
   useEffect(() => {
-    if (!selectedSupplier) {
+    if (!selectedCompany) {
       setInvoices([]);
       setSelectedInvoice("");
       return;
     }
-    fetch(`/api/vouchers?type=purchase&partyId=${selectedSupplier}`)
+    fetch(`/api/vouchers?type=purchase&partyId=${selectedCompany}`)
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) {
@@ -122,7 +122,7 @@ export default function DebitNoteClient({
         }
       })
       .catch((err) => console.error("Error fetching purchase invoices:", err));
-  }, [selectedSupplier]);
+  }, [selectedCompany]);
 
   const purchaseReturnLedgers = useMemo(() => {
     return ledgers.filter(
@@ -131,8 +131,8 @@ export default function DebitNoteClient({
   }, [ledgers]);
 
   const suppObj = useMemo(() => {
-    return suppliers.find((s) => String(s.supplierId) === selectedSupplier);
-  }, [selectedSupplier, suppliers]);
+    return companies.find((s) => String(s.companyId) === selectedCompany);
+  }, [selectedCompany, companies]);
 
   const isInterstate = useMemo(() => {
     if (!company.gstNo || !suppObj?.gstNo) return false;
@@ -203,14 +203,9 @@ export default function DebitNoteClient({
 
   async function handleSubmit() {
     if (!canCreate) return;
-    if (!selectedSupplier || !voucherNo) {
-      setMessage("Please select supplier and enter voucher number.");
-      return;
-    }
 
-    const validLines = lineItems.filter((l) => l.inventoryId && l.ledgerId && Number(l.quantity) > 0);
-    if (validLines.length === 0) {
-      setMessage("At least one valid line with item, ledger, and quantity is required.");
+    if (!selectedCompany || !voucherNo || lineItems.some(i => !i.inventoryId || !i.ledgerId || Number(i.quantity) <= 0 || Number(i.rate) <= 0)) {
+      setMessage("Please fill all fields, select company and add at least one valid line item.");
       return;
     }
 
@@ -224,10 +219,10 @@ export default function DebitNoteClient({
         voucherType: "debit_note",
         voucherNo,
         voucherDate,
-        partyId: Number(selectedSupplier),
+        partyId: Number(selectedCompany),
         remarks: invoiceVoucher ? `[AGAINST PURCHASE BILL ${invoiceVoucher.voucherNo}] ${remarks}` : remarks,
         parentVoucherId: selectedInvoice ? Number(selectedInvoice) : null,
-        lineItems: validLines.map((line) => ({
+        lineItems: lineItems.filter((l) => l.inventoryId && l.ledgerId && Number(l.quantity) > 0).map((line) => ({
           inventoryId: Number(line.inventoryId),
           ledgerId: Number(line.ledgerId),
           hsnCode: line.hsnCode,
@@ -260,16 +255,16 @@ export default function DebitNoteClient({
         totalAmount: String(newVoucher.totalAmount),
         netAmount: String(newVoucher.netAmount),
         remarks: newVoucher.remarks,
-        supplierName: suppObj ? suppObj.supplierName : `ID ${newVoucher.partyId}`,
+        companyName: suppObj ? suppObj.companyName : `ID ${newVoucher.partyId}`,
       };
 
       setNotes([added, ...notes]);
-      setMessage("Debit note voucher recorded successfully.");
+      setMessage("Debit note recorded successfully.");
       setIsCreating(false);
 
       // Reset
       setVoucherNo("");
-      setSelectedSupplier("");
+      setSelectedCompany("");
       setSelectedInvoice("");
       setRemarks("");
       setLineItems([EMPTY_LINE()]);
@@ -290,7 +285,7 @@ export default function DebitNoteClient({
             </Button>
             <div>
               <h1 className="text-lg font-bold text-foreground uppercase tracking-wide">Record Debit Note</h1>
-              <p className="text-xs text-muted-foreground mt-0.5">Input purchase return adjustments or debits against supplier accounts.</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Input purchase return adjustments or debits against company accounts.</p>
             </div>
           </div>
           <Badge variant="secondary">Debit Note</Badge>
@@ -298,14 +293,16 @@ export default function DebitNoteClient({
 
         <div className="rounded-lg border border-border bg-card p-5 shadow-sm space-y-4">
           <div className="grid gap-4 lg:grid-cols-4">
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Supplier</Label>
-              <Select value={selectedSupplier} onValueChange={setSelectedSupplier}>
-                <SelectTrigger><SelectValue placeholder="Choose Supplier" /></SelectTrigger>
+            <div className="space-y-1.5 col-span-1 md:col-span-2">
+              <Label className="text-xs font-semibold uppercase text-foreground">Company (Party)</Label>
+              <Select value={selectedCompany} onValueChange={setSelectedCompany}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="Choose company" />
+                </SelectTrigger>
                 <SelectContent>
-                  {suppliers.map((s) => (
-                    <SelectItem key={s.supplierId} value={String(s.supplierId)}>
-                      {s.supplierName}
+                  {companies.map((s) => (
+                    <SelectItem key={s.companyId} value={String(s.companyId)}>
+                      {s.companyName} {s.gstNo ? `(${s.gstNo})` : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -446,7 +443,7 @@ export default function DebitNoteClient({
         <div>
           <h1 className="text-2xl font-bold text-foreground">Debit Notes</h1>
           <p className="text-sm text-muted-foreground">
-            Manage supplier purchase returns and account adjustments.
+            Manage company purchase returns and account adjustments.
           </p>
         </div>
         {canCreate && (
@@ -460,9 +457,9 @@ export default function DebitNoteClient({
         <table className="w-full text-sm">
           <thead className="bg-muted/40 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">
             <tr>
-              <th className="px-4 py-3">Note No</th>
+              <th className="px-4 py-3">Voucher No</th>
               <th className="px-4 py-3">Date</th>
-              <th className="px-4 py-3">Supplier</th>
+              <th className="px-4 py-3">Company Name</th>
               <th className="px-4 py-3 text-right">Taxable Amount</th>
               <th className="px-4 py-3 text-right">Net Amount</th>
               <th className="px-4 py-3">Remarks</th>
@@ -482,7 +479,7 @@ export default function DebitNoteClient({
                   <td className="px-4 py-3 text-muted-foreground">
                     {n.voucherDate ? new Date(n.voucherDate).toISOString().slice(0, 10) : "—"}
                   </td>
-                  <td className="px-4 py-3 text-foreground">{n.supplierName || `Supplier ID ${n.partyId}`}</td>
+                  <td className="px-4 py-3 text-foreground">{n.companyName || `Company ID ${n.partyId}`}</td>
                   <td className="px-4 py-3 text-right text-foreground">₹{Number(n.totalAmount).toFixed(2)}</td>
                   <td className="px-4 py-3 text-right text-foreground font-bold">₹{Number(n.netAmount).toFixed(2)}</td>
                   <td className="px-4 py-3 text-muted-foreground truncate max-w-[200px]">{n.remarks || "—"}</td>

@@ -11,9 +11,9 @@ import { Plus, Trash2, Printer } from "lucide-react";
 import PrintInvoiceModal from "@/components/PrintInvoiceModal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
-interface SupplierOption {
-  supplierId: number;
-  supplierName: string;
+interface CompanyOption {
+  companyId: number;
+  companyName: string;
   gstNo: string | null;
   address: string | null;
 }
@@ -71,14 +71,14 @@ const EMPTY_LINE = (): LineItem => ({
 
 export default function PurchaseClient({
   company,
-  suppliers,
+  companies,
   inventory,
   ledgers,
   taxRates,
   canCreate,
 }: {
   company: { companyName: string; gstNo?: string | null; address?: string | null; companyType?: string };
-  suppliers: SupplierOption[];
+  companies: CompanyOption[];
   inventory: InventoryOption[];
   ledgers: LedgerOption[];
   taxRates: TaxRateOption[];
@@ -89,7 +89,7 @@ export default function PurchaseClient({
 
   // Dialog States for inline creation
   const [showPartyModal, setShowPartyModal] = useState(false);
-  const [partyForm, setPartyForm] = useState({ supplierName: "", gstNo: "", address: "", phone: "", email: "" });
+  const [partyForm, setPartyForm] = useState({ companyName: "", gstNo: "", address: "", phone: "", email: "" });
   const [partySaving, setPartySaving] = useState(false);
 
   const [showBrokerModal, setShowBrokerModal] = useState(false);
@@ -101,17 +101,17 @@ export default function PurchaseClient({
   const [hasteSaving, setHasteSaving] = useState(false);
 
   async function handleCreateParty() {
-    if (!partyForm.supplierName) return;
+    if (!partyForm.companyName) return;
     setPartySaving(true);
     try {
-      const res = await fetch("/api/suppliers", {
+      const res = await fetch("/api/companies", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...partyForm, openingBalance: 0 }),
       });
       if (res.ok) {
         setShowPartyModal(false);
-        router.push("/dashboard/suppliers");
+        router.push("/dashboard/companies");
       }
     } catch (e) {
       console.error(e);
@@ -162,7 +162,7 @@ export default function PurchaseClient({
 
 
   const purchaseType = "purchase";
-  const [selectedSupplier, setSelectedSupplier] = useState("");
+  const [selectedCompany, setSelectedCompany] = useState("");
   const [voucherNo, setVoucherNo] = useState("");
   const [voucherDate, setVoucherDate] = useState(new Date().toISOString().slice(0, 10));
   const [invoiceNo, setInvoiceNo] = useState("");
@@ -187,11 +187,11 @@ export default function PurchaseClient({
   // Check if Interstate or Intrastate GST
   const isInterstate = useMemo(() => {
     const companyGst = company?.gstNo || "";
-    const supplier = suppliers.find((s) => String(s.supplierId) === selectedSupplier);
-    const supplierGst = supplier?.gstNo || "";
-    if (!companyGst || !supplierGst) return false;
-    return companyGst.slice(0, 2) !== supplierGst.slice(0, 2);
-  }, [company, selectedSupplier, suppliers]);
+    const subCompany = companies.find((s) => String(s.companyId) === selectedCompany);
+    const subCompanyGst = subCompany?.gstNo || "";
+    if (!companyGst || !subCompanyGst) return false;
+    return companyGst.slice(0, 2) !== subCompanyGst.slice(0, 2);
+  }, [company, selectedCompany, companies]);
 
   const lineTotals = useMemo(() => {
     return lineItems.map((line) => {
@@ -271,7 +271,7 @@ export default function PurchaseClient({
 
   async function handleSubmit() {
     if (!canCreate) return;
-    if (!selectedSupplier || !voucherNo) {
+    if (!selectedCompany || !voucherNo) {
       setMessage("Select name and enter voucher number.");
       return;
     }
@@ -293,7 +293,7 @@ export default function PurchaseClient({
         invoiceNo,
         invoiceDate: invoiceDate || null,
         goodsName,
-        partyId: Number(selectedSupplier),
+        partyId: Number(selectedCompany),
         remarks: remarks || "Purchase",
         broker,
         haste,
@@ -346,7 +346,7 @@ export default function PurchaseClient({
       setLineItems([EMPTY_LINE()]);
 
       // Print preview setup
-      const supplier = suppliers.find((s) => String(s.supplierId) === selectedSupplier);
+      const subCompany = companies.find((s) => String(s.companyId) === selectedCompany);
       setPrintVoucher({
         voucher: {
           voucherNo: body.voucherNo,
@@ -358,9 +358,9 @@ export default function PurchaseClient({
           netAmount: grandTotals.total,
         },
         party: {
-          name: supplier?.supplierName || "Name",
-          gstNo: supplier?.gstNo,
-          address: supplier?.address,
+          name: subCompany?.companyName || "Name",
+          gstNo: subCompany?.gstNo,
+          address: subCompany?.address,
         },
         lines: validLines.map((line) => {
           const prod = inventory.find((p) => String(p.inventoryId) === line.inventoryId);
@@ -400,7 +400,7 @@ export default function PurchaseClient({
 
       {/* Main Form Fields */}
       <div className="grid gap-6 md:grid-cols-3">
-        {/* Supplier & Main Details */}
+        {/* Company & Main Details */}
         {/* Party & Document Details */}
         <div className="md:col-span-2 rounded-lg border border-border bg-card p-5 space-y-4 shadow-sm">
           <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">Party & Document Details</h2>
@@ -412,14 +412,14 @@ export default function PurchaseClient({
                 <Label className="text-xs font-semibold uppercase text-foreground">Name</Label>
                 <button type="button" onClick={() => setShowPartyModal(true)} className="text-[10px] font-bold text-primary hover:underline uppercase">+ New Party</button>
               </div>
-              <Select value={selectedSupplier} onValueChange={setSelectedSupplier}>
+              <Select value={selectedCompany} onValueChange={setSelectedCompany}>
                 <SelectTrigger className="h-9">
                   <SelectValue placeholder="Choose name" />
                 </SelectTrigger>
                 <SelectContent>
-                  {suppliers.map((s) => (
-                    <SelectItem key={s.supplierId} value={String(s.supplierId)}>
-                      {s.supplierName} {s.gstNo ? `(${s.gstNo})` : ""}
+                  {companies.map((s) => (
+                    <SelectItem key={s.companyId} value={String(s.companyId)}>
+                      {s.companyName} {s.gstNo ? `(${s.gstNo})` : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -735,15 +735,15 @@ export default function PurchaseClient({
       <Dialog open={showPartyModal} onOpenChange={setShowPartyModal}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-sm font-bold uppercase">New Party / Supplier</DialogTitle>
+            <DialogTitle className="text-sm font-bold uppercase">New Party / Company</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold uppercase text-foreground">Name</Label>
               <Input
                 placeholder="e.g. Acme Fabrics"
-                value={partyForm.supplierName}
-                onChange={(e) => setPartyForm({ ...partyForm, supplierName: e.target.value })}
+                value={partyForm.companyName}
+                onChange={(e) => setPartyForm({ ...partyForm, companyName: e.target.value })}
               />
             </div>
             <div className="space-y-1.5">
@@ -765,7 +765,7 @@ export default function PurchaseClient({
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowPartyModal(false)}>Cancel</Button>
-            <Button onClick={handleCreateParty} disabled={partySaving || !partyForm.supplierName}>
+            <Button onClick={handleCreateParty} disabled={partySaving || !partyForm.companyName}>
               {partySaving ? "Saving..." : "Create"}
             </Button>
           </DialogFooter>

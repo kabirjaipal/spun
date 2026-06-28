@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { mCustomers, mSuppliers, mJobs, mMills, tVouchers } from "@/lib/db/schema";
+import { mCustomers, mCompanies, mJobs, mMills, tVouchers } from "@/lib/db/schema";
 import { and, eq, isNull, desc, isNotNull } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
 import LotTransferClient from "./LotTransferClient";
@@ -30,9 +30,9 @@ export default async function LotTransferPage() {
   const lotNumbers = outwardLotsQuery.map((l) => l.lotNo).filter(Boolean) as string[];
 
   // 2. Fetch all parties (for target transfer selection)
-  const [customers, suppliers, jobs, mills, recentTransfers] = await Promise.all([
+  const [customers, subCompanies, jobs, mills, recentTransfers] = await Promise.all([
     db.select().from(mCustomers).where(and(eq(mCustomers.companyId, companyId), isNull(mCustomers.deletedOn))),
-    db.select().from(mSuppliers).where(and(eq(mSuppliers.companyId, companyId), isNull(mSuppliers.deletedOn))),
+    db.select().from(mCompanies).where(and(eq(mCompanies.parentCompanyId, companyId), isNull(mCompanies.deletedOn))),
     db.select().from(mJobs).where(and(eq(mJobs.companyId, companyId), isNull(mJobs.deletedOn))),
     db.select().from(mMills).where(and(eq(mMills.companyId, companyId), isNull(mMills.deletedOn))),
     db
@@ -59,7 +59,7 @@ export default async function LotTransferPage() {
   // Combine target parties into a unified list
   const targetParties = [
     ...customers.map((c) => ({ id: c.customerId, name: c.customerName, type: "Customer" })),
-    ...suppliers.map((s) => ({ id: s.supplierId, name: s.supplierName, type: "Supplier" })),
+    ...subCompanies.map((s) => ({ id: s.companyId, name: s.companyName, type: "Company" })),
     ...jobs.map((j) => ({ id: j.jobId, name: j.jobName, type: "Job Worker" })),
     ...mills.map((m) => ({ id: m.millId, name: m.millName, type: "Mill" })),
   ];

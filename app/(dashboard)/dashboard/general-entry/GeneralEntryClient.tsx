@@ -16,7 +16,7 @@ interface JournalItem {
   remarks: string | null;
   totalAmount: string;
   partyCustomer: string | null;
-  partySupplier: string | null;
+  partyCompany: string | null;
 }
 
 interface LedgerOption {
@@ -158,7 +158,7 @@ export default function GeneralEntryClient({
         remarks: newVoucher.remarks,
         totalAmount: String(newVoucher.totalAmount),
         partyCustomer: null,
-        partySupplier: null,
+        partyCompany: null,
       };
 
       setJournals([addedJournal, ...journals]);

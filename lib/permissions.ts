@@ -16,7 +16,7 @@ export interface PageConfig {
 export const ALL_PAGES: PageConfig[] = [
   // Masters
   { accessItem: "customers", pageUrl: "/dashboard/customers", pageTitle: "Customers", pageIcon: "Users", pageGroup: "Masters", accessGroup: "company" },
-  { accessItem: "suppliers", pageUrl: "/dashboard/suppliers", pageTitle: "Suppliers", pageIcon: "Truck", pageGroup: "Masters", accessGroup: "company" },
+  { accessItem: "companies", pageUrl: "/dashboard/companies", pageTitle: "Companies", pageIcon: "Building", pageGroup: "Masters", accessGroup: "company" },
   { accessItem: "inventory", pageUrl: "/dashboard/inventory", pageTitle: "Inventory", pageIcon: "Package", pageGroup: "Masters", accessGroup: "company" },
   { accessItem: "inventory_categories", pageUrl: "/dashboard/inventory", pageTitle: "Inventory Categories", pageIcon: "Layers", pageGroup: "Masters", accessGroup: "company" },
   { accessItem: "inventory_groups", pageUrl: "/dashboard/inventory", pageTitle: "Inventory Groups", pageIcon: "Folder", pageGroup: "Masters", accessGroup: "company" },

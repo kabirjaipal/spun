@@ -115,7 +115,7 @@ export default function LotTransferClient({
             </Button>
             <div>
               <h1 className="text-lg font-bold text-foreground uppercase tracking-wide">Record Lot Transfer</h1>
-              <p className="text-xs text-muted-foreground mt-0.5">Transfer inventory lot to a different job worker, mill, or supplier.</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Transfer inventory lot to a different job worker, mill, or company.</p>
             </div>
           </div>
           <Badge variant="secondary">Lot Transfer</Badge>
@@ -195,7 +195,7 @@ export default function LotTransferClient({
         <div>
           <h1 className="text-2xl font-bold text-foreground">Lot Transfers</h1>
           <p className="text-sm text-muted-foreground">
-            Track lot transfers between job workers, mills, and suppliers.
+            Track lot transfers between job workers, mills, and companies.
           </p>
         </div>
         {canCreate && (

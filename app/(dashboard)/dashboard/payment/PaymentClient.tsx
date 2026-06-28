@@ -15,14 +15,14 @@ interface PaymentItem {
   partyId: number | null;
   totalAmount: string;
   remarks: string | null;
-  supplierName: string | null;
+  companyName: string | null;
   customerName: string | null;
   lrNo?: string | null; // Cheque / Ref No
 }
 
-interface SupplierOption {
-  supplierId: number;
-  supplierName: string;
+interface CompanyOption {
+  companyId: number;
+  companyName: string;
 }
 
 interface LedgerOption {
@@ -50,12 +50,12 @@ interface BillAdjustment {
 
 export default function PaymentClient({
   initialPayments,
-  suppliers,
+  companies,
   cashBankLedgers,
   canCreate,
 }: {
   initialPayments: PaymentItem[];
-  suppliers: SupplierOption[];
+  companies: CompanyOption[];
   cashBankLedgers: LedgerOption[];
   canCreate: boolean;
 }) {
@@ -63,7 +63,7 @@ export default function PaymentClient({
   const [isCreating, setIsCreating] = useState(false);
   const [voucherNo, setVoucherNo] = useState("");
   const [voucherDate, setVoucherDate] = useState(new Date().toISOString().slice(0, 10));
-  const [selectedSupplier, setSelectedSupplier] = useState("");
+  const [selectedCompany, setSelectedCompany] = useState("");
   const [selectedLedger, setSelectedLedger] = useState("");
   const [amount, setAmount] = useState("0");
   const [remarks, setRemarks] = useState("");
@@ -77,13 +77,13 @@ export default function PaymentClient({
   const [billAdjustments, setBillAdjustments] = useState<Record<number, BillAdjustment>>({});
 
   useEffect(() => {
-    if (!selectedSupplier) {
+    if (!selectedCompany) {
       setOutstandingBills([]);
       setBillAdjustments({});
       return;
     }
 
-    fetch(`/api/vouchers?type=outstanding&partyId=${selectedSupplier}`)
+    fetch(`/api/vouchers?type=outstanding&partyId=${selectedCompany}`)
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) {
@@ -106,7 +106,7 @@ export default function PaymentClient({
         }
       })
       .catch((err) => console.error("Error fetching outstanding bills:", err));
-  }, [selectedSupplier, voucherDate]);
+  }, [selectedCompany, voucherDate]);
 
   // Sync total amount with adjustments
   const totalAdjusted = Object.values(billAdjustments).reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
@@ -134,7 +134,7 @@ export default function PaymentClient({
   async function handleSubmit() {
     if (!canCreate) return;
     const finalAmount = totalAdjusted > 0 ? totalAdjusted : Number(amount);
-    if (!voucherNo || !selectedSupplier || !selectedLedger || finalAmount <= 0) {
+    if (!voucherNo || !selectedCompany || !selectedLedger || finalAmount <= 0) {
       setMessage("Please fill in all fields and ensure amount is greater than 0.");
       return;
     }
@@ -161,7 +161,7 @@ export default function PaymentClient({
         voucherType: "payment",
         voucherNo,
         voucherDate,
-        partyId: Number(selectedSupplier),
+        partyId: Number(selectedCompany),
         cashBankLedgerId: Number(selectedLedger),
         totalAmount: finalAmount,
         remarks: isReversal ? `[RETURN CHEQUE REVERSAL] ${remarks}` : remarks,
@@ -182,7 +182,7 @@ export default function PaymentClient({
       }
 
       const newVoucher = await response.json();
-      const suppObj = suppliers.find((s) => String(s.supplierId) === selectedSupplier);
+      const suppObj = companies.find((s) => String(s.companyId) === selectedCompany);
 
       const addedPayment: PaymentItem = {
         voucherId: newVoucher.voucherId,
@@ -191,7 +191,7 @@ export default function PaymentClient({
         partyId: newVoucher.partyId,
         totalAmount: String(newVoucher.totalAmount),
         remarks: newVoucher.remarks,
-        supplierName: suppObj ? suppObj.supplierName : `ID ${newVoucher.partyId}`,
+        companyName: suppObj ? suppObj.companyName : `ID ${newVoucher.partyId}`,
         customerName: null,
         lrNo: newVoucher.lrNo,
       };
@@ -202,7 +202,7 @@ export default function PaymentClient({
 
       // Reset form
       setVoucherNo("");
-      setSelectedSupplier("");
+      setSelectedCompany("");
       setSelectedLedger("");
       setAmount("0");
       setRemarks("");
@@ -227,7 +227,7 @@ export default function PaymentClient({
             </Button>
             <div>
               <h1 className="text-lg font-bold text-foreground uppercase tracking-wide">Record Payment Voucher</h1>
-              <p className="text-xs text-muted-foreground mt-0.5">Credit cash/bank and debit supplier ledger.</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Credit cash/bank and debit company ledger.</p>
             </div>
           </div>
           <Badge variant="secondary">Payment</Badge>
@@ -262,13 +262,13 @@ export default function PaymentClient({
 
           <div className="grid gap-4 lg:grid-cols-3">
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Supplier (Debit)</Label>
-              <Select value={selectedSupplier} onValueChange={setSelectedSupplier}>
-                <SelectTrigger><SelectValue placeholder="Choose supplier" /></SelectTrigger>
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Company (Debit)</Label>
+              <Select value={selectedCompany} onValueChange={setSelectedCompany}>
+                <SelectTrigger><SelectValue placeholder="Choose company" /></SelectTrigger>
                 <SelectContent>
-                  {suppliers.map((s) => (
-                    <SelectItem key={s.supplierId} value={String(s.supplierId)}>
-                      {s.supplierName}
+                  {companies.map((s) => (
+                    <SelectItem key={s.companyId} value={String(s.companyId)}>
+                      {s.companyName}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -388,7 +388,7 @@ export default function PaymentClient({
         <div>
           <h1 className="text-2xl font-bold text-foreground">Payment Vouchers</h1>
           <p className="text-sm text-muted-foreground">
-            Review cash and supplier payment entries recorded in your company.
+            Review cash and company payment entries recorded in your company.
           </p>
         </div>
         {canCreate && (
@@ -432,7 +432,7 @@ export default function PaymentClient({
               </tr>
             ) : (
               payments.map((payment) => {
-                const partyName = payment.supplierName || payment.customerName || `ID ${payment.partyId}`;
+                const partyName = payment.companyName || payment.customerName || `ID ${payment.partyId}`;
                 const hasReversal = payment.remarks?.includes("[RETURN CHEQUE REVERSAL]");
                 return (
                   <tr key={payment.voucherId} className="border-t border-border/50 hover:bg-muted/10 transition-colors">

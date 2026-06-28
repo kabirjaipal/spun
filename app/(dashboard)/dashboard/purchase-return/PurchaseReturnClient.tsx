@@ -8,9 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Trash2, Loader2, ArrowLeft } from "lucide-react";
 
-interface SupplierOption {
-  supplierId: number;
-  supplierName: string;
+interface CompanyOption {
+  companyId: number;
+  companyName: string;
   gstNo: string | null;
   address: string | null;
 }
@@ -82,21 +82,21 @@ interface ReturnLineItem {
 
 export default function PurchaseReturnClient({
   company,
-  suppliers,
+  companies,
   inventory,
   ledgers,
   taxRates,
   canCreate,
 }: {
   company: { companyName: string; gstNo?: string | null; address?: string | null; companyType?: string };
-  suppliers: SupplierOption[];
+  companies: CompanyOption[];
   inventory: InventoryOption[];
   ledgers: LedgerOption[];
   taxRates: TaxRateOption[];
   canCreate: boolean;
 }) {
 
-  const [selectedSupplier, setSelectedSupplier] = useState("");
+  const [selectedCompany, setSelectedCompany] = useState("");
   const [voucherNo, setVoucherNo] = useState(""); // Debite Note / Purchase Return No
   const [voucherDate, setVoucherDate] = useState(new Date().toISOString().slice(0, 10));
 
@@ -117,9 +117,9 @@ export default function PurchaseReturnClient({
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
-  // Fetch supplier invoices
+  // Fetch company invoices
   useEffect(() => {
-    if (!selectedSupplier) {
+    if (!selectedCompany) {
       setInvoices([]);
       setLineItems([]);
       setSelectedInvoiceIds([]);
@@ -129,7 +129,7 @@ export default function PurchaseReturnClient({
     async function fetchInvoices() {
       setLoadingInvoices(true);
       try {
-        const res = await fetch(`/api/vouchers?type=purchase&partyId=${selectedSupplier}&includeItems=true`);
+        const res = await fetch(`/api/vouchers?type=purchase&partyId=${selectedCompany}&includeItems=true`);
         if (res.ok) {
           const data = await res.json();
           setInvoices(data);
@@ -141,7 +141,7 @@ export default function PurchaseReturnClient({
       }
     }
     fetchInvoices();
-  }, [selectedSupplier]);
+  }, [selectedCompany]);
 
   // Handle invoice checkbox toggle
   function handleToggleInvoice(invoice: PurchaseInvoice) {
@@ -180,11 +180,11 @@ export default function PurchaseReturnClient({
   // Check if Interstate or Intrastate GST
   const isInterstate = useMemo(() => {
     const companyGst = company?.gstNo || "";
-    const supplier = suppliers.find((s) => String(s.supplierId) === selectedSupplier);
-    const supplierGst = supplier?.gstNo || "";
-    if (!companyGst || !supplierGst) return false;
-    return companyGst.slice(0, 2) !== supplierGst.slice(0, 2);
-  }, [company, selectedSupplier, suppliers]);
+    const subCompany = companies.find((s) => String(s.companyId) === selectedCompany);
+    const subCompanyGst = subCompany?.gstNo || "";
+    if (!companyGst || !subCompanyGst) return false;
+    return companyGst.slice(0, 2) !== subCompanyGst.slice(0, 2);
+  }, [company, selectedCompany, companies]);
 
   const lineTotals = useMemo(() => {
     return lineItems.map((line) => {
@@ -246,8 +246,8 @@ export default function PurchaseReturnClient({
 
   async function handleSubmit() {
     if (!canCreate) return;
-    if (!selectedSupplier || !voucherNo) {
-      setMessage("Select supplier and enter debit note/PR number.");
+    if (!selectedCompany || !voucherNo) {
+      setMessage("Select company and enter debit note/PR number.");
       return;
     }
 
@@ -277,7 +277,7 @@ export default function PurchaseReturnClient({
         voucherType: "debit_note",
         voucherNo,
         voucherDate,
-        partyId: Number(selectedSupplier),
+        partyId: Number(selectedCompany),
         remarks: remarks || `Purchase Return - Against Invoices: ${selectedInvoiceIds.map(id => invoices.find(inv => inv.voucherId === id)?.voucherNo).join(", ")}`,
         lrNo,
         lrDate: lrDate || null,
@@ -344,15 +344,15 @@ export default function PurchaseReturnClient({
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">Supplier (Party)</Label>
-              <Select value={selectedSupplier} onValueChange={setSelectedSupplier}>
+              <Label className="text-xs font-semibold uppercase text-foreground">Company (Party)</Label>
+              <Select value={selectedCompany} onValueChange={setSelectedCompany}>
                 <SelectTrigger className="h-9">
-                  <SelectValue placeholder="Choose supplier" />
+                  <SelectValue placeholder="Choose company" />
                 </SelectTrigger>
                 <SelectContent>
-                  {suppliers.map((s) => (
-                    <SelectItem key={s.supplierId} value={String(s.supplierId)}>
-                      {s.supplierName} {s.gstNo ? `(${s.gstNo})` : ""}
+                  {companies.map((s) => (
+                    <SelectItem key={s.companyId} value={String(s.companyId)}>
+                      {s.companyName} {s.gstNo ? `(${s.gstNo})` : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -373,15 +373,13 @@ export default function PurchaseReturnClient({
               <Input type="date" value={voucherDate} onChange={(e) => setVoucherDate(e.target.value)} className="h-9" />
             </div>
 
-            {selectedSupplier && (
-              <div className="space-y-2 pt-2 md:col-span-2">
-                <Label className="text-xs font-semibold uppercase text-foreground font-bold">Select Invoices (Multiple Returns Allowed)</Label>
+            {selectedCompany && (
+              <div className="space-y-4">
+                <Label className="text-xs font-semibold uppercase text-foreground">Select Invoices to Return Items From</Label>
                 {loadingInvoices ? (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Loader2 className="h-3 w-3 animate-spin" /> Loading invoices...
-                  </div>
+                  <div className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /><span>Loading invoices...</span></div>
                 ) : invoices.length === 0 ? (
-                  <p className="text-xs text-muted-foreground italic">No purchase invoices found for this supplier.</p>
+                  <p className="text-xs text-muted-foreground italic">No purchase invoices found for this company.</p>
                 ) : (
                   <div className="max-h-36 overflow-y-auto space-y-2 border border-border rounded p-2 bg-muted/10">
                     {invoices.map((inv) => (

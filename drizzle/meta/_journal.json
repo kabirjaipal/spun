@@ -29,6 +29,13 @@
       "when": 1782593593478,
       "tag": "0003_broad_green_goblin",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1782654106383,
+      "tag": "0004_gigantic_stone_men",
+      "breakpoints": true
     }
   ]
 }

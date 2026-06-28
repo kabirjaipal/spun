@@ -1,7 +1,7 @@
 import React from "react";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { mCustomers, mSuppliers, mInventory, mCompanies, mLedgers, tVouchers } from "@/lib/db/schema";
+import { mCustomers, mInventory, mCompanies, mLedgers, tVouchers } from "@/lib/db/schema";
 import { eq, sql, isNull, and, desc } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import * as Icons from "lucide-react";
@@ -34,7 +34,7 @@ export default async function DashboardPage() {
   // Consolidated Database Queries in Parallel
   const [
     customersCountRaw,
-    suppliersCountRaw,
+    companiesCountRaw,
     inventoryCountRaw,
     ledgersCountRaw,
     monthlyStats,
@@ -47,8 +47,8 @@ export default async function DashboardPage() {
       .where(and(eq(mCustomers.companyId, companyIdVal), isNull(mCustomers.deletedOn))),
     db
       .select({ count: sql<number>`count(*)` })
-      .from(mSuppliers)
-      .where(and(eq(mSuppliers.companyId, companyIdVal), isNull(mSuppliers.deletedOn))),
+      .from(mCompanies)
+      .where(and(eq(mCompanies.parentCompanyId, companyIdVal), isNull(mCompanies.deletedOn))),
     db
       .select({ count: sql<number>`count(*)` })
       .from(mInventory)
@@ -106,7 +106,7 @@ export default async function DashboardPage() {
   }));
 
   const customersCount = customersCountRaw[0]?.count ?? 0;
-  const suppliersCount = suppliersCountRaw[0]?.count ?? 0;
+  const companiesCount = companiesCountRaw[0]?.count ?? 0;
   const inventoryCount = inventoryCountRaw[0]?.count ?? 0;
   const ledgersCount = ledgersCountRaw[0]?.count ?? 0;
 
@@ -119,11 +119,11 @@ export default async function DashboardPage() {
       description: "Active business customers",
     },
     {
-      name: "SUPPLIERS",
-      value: suppliersCount,
-      icon: "Truck",
+      name: "COMPANIES",
+      value: companiesCount,
+      icon: "Building",
       color: "text-success bg-success/10",
-      description: "Fabric and yarn suppliers",
+      description: "Sub-companies inside company",
     },
     {
       name: "INVENTORY",

@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { mSuppliers, mInventory, mLedgers, mTaxRates, mCompanies, tVouchers } from "@/lib/db/schema";
+import { mInventory, mLedgers, mTaxRates, mCompanies, tVouchers } from "@/lib/db/schema";
 import { and, eq, isNull, desc } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
 import DirectBillClient from "./DirectBillClient";
@@ -13,7 +13,7 @@ export default async function DirectBillPage() {
 
   const companyId = Number(session.user.companyId);
 
-  const [vouchers, suppliers, inventory, ledgers, taxRates, company] = await Promise.all([
+  const [vouchers, companies, inventory, ledgers, taxRates, company] = await Promise.all([
     db
       .select({
         voucherId: tVouchers.voucherId,
@@ -23,18 +23,18 @@ export default async function DirectBillPage() {
         totalAmount: tVouchers.totalAmount,
         netAmount: tVouchers.netAmount,
         remarks: tVouchers.remarks,
-        supplierName: mSuppliers.supplierName,
+        companyName: mCompanies.companyName,
       })
       .from(tVouchers)
-      .leftJoin(mSuppliers, eq(tVouchers.partyId, mSuppliers.supplierId))
+      .leftJoin(mCompanies, eq(tVouchers.partyId, mCompanies.companyId))
       .where(and(eq(tVouchers.companyId, companyId), eq(tVouchers.voucherType, "direct_bill"), isNull(tVouchers.deletedOn)))
       .orderBy(desc(tVouchers.voucherDate))
       .limit(100),
     db
       .select()
-      .from(mSuppliers)
-      .where(and(eq(mSuppliers.companyId, companyId), isNull(mSuppliers.deletedOn)))
-      .orderBy(mSuppliers.supplierName),
+      .from(mCompanies)
+      .where(and(eq(mCompanies.parentCompanyId, companyId), isNull(mCompanies.deletedOn)))
+      .orderBy(mCompanies.companyName),
     db
       .select()
       .from(mInventory)
@@ -65,11 +65,11 @@ export default async function DirectBillPage() {
         voucherDate: v.voucherDate ? new Date(v.voucherDate) : null
       }))}
       company={company ? { companyName: company.companyName, gstNo: company.gstNo, address: company.address } : { companyName: "Texora Company" }}
-      suppliers={suppliers.map((supplier) => ({
-        supplierId: supplier.supplierId,
-        supplierName: supplier.supplierName,
-        address: supplier.address,
-        gstNo: supplier.gstNo,
+      companies={companies.map((comp) => ({
+        companyId: comp.companyId,
+        companyName: comp.companyName,
+        address: comp.address,
+        gstNo: comp.gstNo,
       }))}
       inventory={inventory.map((item) => ({
         inventoryId: item.inventoryId,
