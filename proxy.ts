@@ -9,7 +9,16 @@ export const proxy = auth((request) => {
   const { pathname } = request.nextUrl;
 
   const isPublicRoute = ["/login", "/register"].includes(pathname);
-  if (isPublicRoute) return NextResponse.next();
+  if (isPublicRoute) {
+    if (request.auth?.user?.id) {
+      const { user } = request.auth;
+      const isOwner = user.role === "owner";
+      const hasCompany = !!user.companyId;
+      const dest = isOwner && !hasCompany ? "/dashboard/owner" : "/dashboard";
+      return NextResponse.redirect(new URL(dest, request.nextUrl));
+    }
+    return NextResponse.next();
+  }
 
   if (!request.auth?.user?.id) {
     return NextResponse.redirect(new URL("/login", request.nextUrl));

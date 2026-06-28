@@ -126,8 +126,16 @@ export default function LoginForm() {
           <div>
             <button
               type="button"
-              onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
-              className="flex w-full justify-center items-center gap-2 rounded-md border border-border bg-secondary px-3 py-2.5 text-sm font-semibold text-secondary-foreground shadow-sm hover:opacity-90 transition-opacity"
+              disabled={loading}
+              onClick={async () => {
+                setLoading(true);
+                try {
+                  await signIn("google", { callbackUrl: "/dashboard" });
+                } catch (err) {
+                  setLoading(false);
+                }
+              }}
+              className="flex w-full justify-center items-center gap-2 rounded-md border border-border bg-secondary px-3 py-2.5 text-sm font-semibold text-secondary-foreground shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <svg className="h-4 w-4" viewBox="0 0 24 24" width="24" height="24" xmlns="http://www.w3.org/2000/svg">
                 <g transform="matrix(1, 0, 0, 1, 0, 0)">

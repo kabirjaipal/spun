@@ -102,13 +102,24 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
   trustHost: true,
   callbacks: {
-    async signIn({ user }) {
+    async signIn({ user, account, profile }) {
       if (user?.id) {
         const dbUser = await db.query.mUsers.findFirst({
           where: eq(mUsers.id, user.id),
         });
-        if (dbUser && !dbUser.isActive) {
-          return false;
+        if (dbUser) {
+          if (!dbUser.isActive) {
+            return false;
+          }
+          // Prevent linking Google account if the email does not match the database user email
+          if (account?.provider === "google" && profile?.email) {
+            if (dbUser.email && dbUser.email.toLowerCase() !== profile.email.toLowerCase()) {
+              console.warn(
+                `[signIn] Blocked linking Google account (${profile.email}) to user (${dbUser.email}) due to email mismatch.`
+              );
+              return false;
+            }
+          }
         }
       }
       return true;
@@ -133,7 +144,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.companyId =
           user.companyId != null ? String(user.companyId) : null;
         token.role = user.role || "company";
-        token.allowedPages = user.allowedPages || [];
+        
+        if (user.allowedPages) {
+          token.allowedPages = user.allowedPages;
+        } else if (user.id) {
+          // Fetch allowed pages for initial Google sign-in
+          const permissions = await getUserPagePermissions(user.id);
+          token.allowedPages = permissions
+            .map((p) => p.pageUrl)
+            .filter((url): url is string => !!url);
+        } else {
+          token.allowedPages = [];
+        }
       } else if (token.id) {
         // Query database to get the latest companyId and role so that the token stays updated
         const dbUser = await db.query.mUsers.findFirst({
