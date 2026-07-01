@@ -29,6 +29,9 @@ interface Party {
   ifscCode: string | null;
   branchName: string | null;
   accountType: string | null;
+  msmeRegistered: boolean;
+  msmeType: string | null;
+  msmeNo: string | null;
   gstApplicable: boolean | null;
   gstType: string | null;
   stateCode: string | null;
@@ -65,6 +68,9 @@ const EMPTY = {
   companyType: "general",
   marketCategory: "Retail",
   financialYearStart: defaultFyStart,
+  msmeRegistered: false,
+  msmeType: "micro",
+  msmeNo: "",
 };
 
 function mergeBanks(base: BankData[], custom: BankData[]): BankData[] {
@@ -226,6 +232,9 @@ export default function PartiesClient({
       companyType: row.companyType ?? "general",
       marketCategory: row.marketCategory ?? "Retail",
       financialYearStart: row.financialYearStart ?? defaultFyStart,
+      msmeRegistered: !!row.msmeRegistered,
+      msmeType: row.msmeType ?? "micro",
+      msmeNo: row.msmeNo ?? "",
     });
 
     setSelectedBankIndex(isPreseededBank ? bankIndex : null);
@@ -250,6 +259,8 @@ export default function PartiesClient({
           stateCode: form.gstApplicable ? form.stateCode : null,
           city: form.gstApplicable ? form.city : null,
           gstType: form.gstApplicable ? form.gstType : null,
+          msmeType: form.msmeRegistered ? form.msmeType : null,
+          msmeNo: form.msmeRegistered ? form.msmeNo : null,
         }),
       });
       const row = await res.json();
@@ -510,6 +521,55 @@ export default function PartiesClient({
                   </div>
                 </div>
               </div>
+            </div>
+
+            {/* MSME Registration */}
+            <div className="rounded-lg border border-border bg-card p-6 shadow-sm space-y-4">
+              <div className="flex items-center justify-between border-b pb-2">
+                <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                  <Building2 className="h-4 w-4" />
+                  <span>MSME Registration</span>
+                </h3>
+                <label className="flex items-center gap-2 cursor-pointer text-sm font-normal text-muted-foreground select-none">
+                  <input
+                    type="checkbox"
+                    checked={form.msmeRegistered}
+                    onChange={(e) => setForm((f) => ({ ...f, msmeRegistered: e.target.checked }))}
+                    className="h-4 w-4 rounded border-input text-primary focus:ring-primary bg-background"
+                  />
+                  Registered
+                </label>
+              </div>
+
+              {form.msmeRegistered && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="msmeType" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">MSME Category</Label>
+                    <select
+                      id="msmeType"
+                      value={form.msmeType}
+                      onChange={(e) => setForm((f) => ({ ...f, msmeType: e.target.value }))}
+                      className="w-full h-10 mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    >
+                      <option value="micro">Micro</option>
+                      <option value="small">Small</option>
+                      <option value="medium">Medium</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="msmeNo" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Udyam Registration No.</Label>
+                    <Input
+                      id="msmeNo"
+                      type="text"
+                      value={form.msmeNo}
+                      onChange={(e) => setForm((f) => ({ ...f, msmeNo: e.target.value.toUpperCase() }))}
+                      className="mt-1"
+                      placeholder="UDYAM-GJ-01-0012345"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="rounded-lg border border-border bg-card p-6 shadow-sm space-y-4">

@@ -23,6 +23,9 @@ interface CompanyDetails {
   ifscCode: string | null;
   branchName: string | null;
   accountType: string | null;
+  msmeRegistered: boolean;
+  msmeType: string | null;
+  msmeNo: string | null;
 }
 
 interface MasterCounts {
@@ -55,6 +58,9 @@ export default function SettingsClient({
   const [ifscCode, setIfscCode] = useState(company.ifscCode || "");
   const [branchName, setBranchName] = useState(company.branchName || "");
   const [accountType, setAccountType] = useState(company.accountType || "current");
+  const [msmeRegistered, setMsmeRegistered] = useState(company.msmeRegistered);
+  const [msmeType, setMsmeType] = useState(company.msmeType || "micro");
+  const [msmeNo, setMsmeNo] = useState(company.msmeNo || "");
 
   // Determine initial bank selection state helpers
   const initialBankIndex = BANK_LIST.findIndex(b => b.bankName === company.bankName);
@@ -96,6 +102,9 @@ export default function SettingsClient({
           ifscCode,
           branchName,
           accountType,
+          msmeRegistered,
+          msmeType: msmeRegistered ? msmeType : null,
+          msmeNo: msmeRegistered ? msmeNo : null,
         }),
       });
 
@@ -188,6 +197,46 @@ export default function SettingsClient({
                 </option>
               ))}
             </select>
+          </div>
+
+          <div className="border-t border-border pt-4 mt-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-foreground">MSME Registration</h3>
+              <label className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground select-none">
+                <input
+                  type="checkbox"
+                  checked={msmeRegistered}
+                  onChange={(e) => setMsmeRegistered(e.target.checked)}
+                  className="h-4 w-4 rounded border-input"
+                />
+                Registered
+              </label>
+            </div>
+
+            {msmeRegistered && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">MSME Category</Label>
+                  <select
+                    value={msmeType}
+                    onChange={(e) => setMsmeType(e.target.value)}
+                    className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  >
+                    <option value="micro">Micro</option>
+                    <option value="small">Small</option>
+                    <option value="medium">Medium</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Udyam Registration No.</Label>
+                  <Input
+                    value={msmeNo}
+                    onChange={(e) => setMsmeNo(e.target.value.toUpperCase())}
+                    placeholder="UDYAM-GJ-01-0012345"
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="border-t border-border pt-4 mt-4 space-y-4">

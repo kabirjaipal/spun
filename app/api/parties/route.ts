@@ -55,6 +55,9 @@ export async function POST(request: Request) {
     companyType,
     marketCategory,
     financialYearStart,
+    msmeRegistered,
+    msmeType,
+    msmeNo,
   } = body;
 
   if (!companyName) {
@@ -107,6 +110,9 @@ export async function POST(request: Request) {
           financialYearStart: financialYearStart || defaultFyStart,
           companyType: companyType || "general",
           marketCategory: marketCategory || "Retail",
+          msmeRegistered: !!msmeRegistered,
+          msmeType: msmeRegistered ? (msmeType || null) : null,
+          msmeNo: msmeRegistered ? (msmeNo || null) : null,
           createdBy: userId,
           updatedBy: userId,
         })

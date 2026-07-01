@@ -54,6 +54,9 @@ export const mCompanies = pgTable("m_companies", {
   financialYearStart: date("financial_year_start"),
   companyType: text("company_type").default("general").notNull(),
   marketCategory: text("market_category"),
+  msmeRegistered: boolean("msme_registered").default(false).notNull(),
+  msmeType: text("msme_type"), // 'micro', 'small', 'medium'
+  msmeNo: text("msme_no"), // Udyam Registration Number e.g. UDYAM-GJ-01-0012345
   ...auditColumns,
 }, (table) => ({
   companyNameIdx: index("idx_m_companies_company_name").on(table.companyName),

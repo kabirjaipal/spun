@@ -34,6 +34,9 @@ interface CompanyFormState {
   selectedBankIndex: number | null;
   customBankActive: boolean;
   customIfscActive: boolean;
+  msmeRegistered: boolean;
+  msmeType: string;
+  msmeNo: string;
 }
 
 const currentYear = new Date().getFullYear();
@@ -66,6 +69,9 @@ const createEmptyCompanyState = (): CompanyFormState => ({
   selectedBankIndex: null,
   customBankActive: true,
   customIfscActive: true,
+  msmeRegistered: false,
+  msmeType: "micro",
+  msmeNo: "",
 });
 
 function mergeBanks(base: BankData[], custom: BankData[]): BankData[] {
@@ -233,6 +239,9 @@ export default function SetupCompanyPage() {
             financialYearStart: c.financialYearStart,
             companyType: c.companyType,
             marketCategory: c.marketCategory,
+            msmeRegistered: c.msmeRegistered,
+            msmeType: c.msmeRegistered ? c.msmeType : null,
+            msmeNo: c.msmeRegistered ? c.msmeNo : null,
           })),
         }),
       });
@@ -692,7 +701,62 @@ export default function SetupCompanyPage() {
               </div>
             </div>
 
-            {/* Section 3: Bank Details */}
+            {/* Section 3: MSME Registration */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-bold border-b pb-2 text-foreground flex items-center justify-between">
+                <span>MSME Registration</span>
+                <label className="flex items-center gap-2 cursor-pointer text-sm font-normal text-muted-foreground select-none">
+                  <input
+                    type="checkbox"
+                    checked={currentCompany.msmeRegistered}
+                    onChange={(e) => updateCurrent({ msmeRegistered: e.target.checked })}
+                    className="h-4 w-4 rounded border-input text-primary focus:ring-primary bg-background"
+                  />
+                  MSME Registered
+                </label>
+              </h3>
+
+              {currentCompany.msmeRegistered && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="msmeType" className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                      MSME CATEGORY
+                    </label>
+                    <select
+                      id="msmeType"
+                      value={currentCompany.msmeType}
+                      onChange={(e) => updateCurrent({ msmeType: e.target.value })}
+                      className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    >
+                      <option value="micro">Micro</option>
+                      <option value="small">Small</option>
+                      <option value="medium">Medium</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label htmlFor="msmeNo" className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                      UDYAM REGISTRATION NUMBER
+                    </label>
+                    <div className="relative">
+                      <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <input
+                        id="msmeNo"
+                        type="text"
+                        value={currentCompany.msmeNo}
+                        onChange={(e) => updateCurrent({ msmeNo: e.target.value.toUpperCase() })}
+                        className="w-full h-10 rounded-md border border-input bg-background pl-10 pr-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground/60"
+                        placeholder="UDYAM-GJ-01-0012345"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Section 4: Bank Details */}
             <div className="space-y-4">
               <h3 className="text-lg font-bold border-b pb-2 text-foreground">Bank Account Information</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

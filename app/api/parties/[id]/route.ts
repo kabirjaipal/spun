@@ -19,7 +19,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     panNo, pincode, state, currencySymbol, nationName,
     bankName, bankAccountName, accountNo, ifscCode, branchName, accountType,
     gstApplicable, gstType, stateCode, city, companyType, marketCategory,
-    financialYearStart
+    financialYearStart,
+    msmeRegistered, msmeType, msmeNo
   } = await request.json();
 
   try {
@@ -58,6 +59,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           companyType,
           marketCategory,
           financialYearStart,
+          msmeRegistered: msmeRegistered !== undefined ? !!msmeRegistered : undefined,
+          msmeType: msmeRegistered ? (msmeType || null) : null,
+          msmeNo: msmeRegistered ? (msmeNo || null) : null,
           updatedBy: userId,
           updatedOn: new Date(),
         })

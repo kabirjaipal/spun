@@ -60,6 +60,9 @@ export async function POST(request: Request) {
           city,
           companyType,
           marketCategory,
+          msmeRegistered,
+          msmeType,
+          msmeNo,
         } = comp;
 
         if (!companyName) {
@@ -113,6 +116,9 @@ export async function POST(request: Request) {
                 financialYearStart: financialYearStart || null,
                 companyType: companyType || "general",
                 marketCategory: marketCategory || null,
+                msmeRegistered: !!msmeRegistered,
+                msmeType: msmeRegistered ? (msmeType || null) : null,
+                msmeNo: msmeRegistered ? (msmeNo || null) : null,
                 updatedBy: session.user.id,
               })
               .where(eq(mCompanies.companyId, existingCompany.companyId));
@@ -149,6 +155,9 @@ export async function POST(request: Request) {
             financialYearStart: financialYearStart || null,
             companyType: companyType || "general",
             marketCategory: marketCategory || null,
+            msmeRegistered: !!msmeRegistered,
+            msmeType: msmeRegistered ? (msmeType || null) : null,
+            msmeNo: msmeRegistered ? (msmeNo || null) : null,
             createdBy: session.user.id,
             updatedBy: session.user.id,
           })

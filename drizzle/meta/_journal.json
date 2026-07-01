@@ -36,6 +36,13 @@
       "when": 1782654106383,
       "tag": "0004_gigantic_stone_men",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1782894783033,
+      "tag": "0005_shiny_hemingway",
+      "breakpoints": true
     }
   ]
 }

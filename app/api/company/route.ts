@@ -31,6 +31,9 @@ export async function PATCH(request: Request) {
     ifscCode,
     branchName,
     accountType,
+    msmeRegistered,
+    msmeType,
+    msmeNo,
   } = body;
 
   if (!companyName) {
@@ -59,6 +62,9 @@ export async function PATCH(request: Request) {
           ifscCode: ifscCode || null,
           branchName: branchName || null,
           accountType: accountType || null,
+          msmeRegistered: !!msmeRegistered,
+          msmeType: msmeRegistered ? (msmeType || null) : null,
+          msmeNo: msmeRegistered ? (msmeNo || null) : null,
           updatedBy: userId,
           updatedOn: new Date(),
         })

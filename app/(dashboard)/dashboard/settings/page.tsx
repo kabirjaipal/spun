@@ -58,6 +58,9 @@ export default async function SettingsPage() {
     ifscCode: company.ifscCode,
     branchName: company.branchName,
     accountType: company.accountType,
+    msmeRegistered: company.msmeRegistered,
+    msmeType: company.msmeType,
+    msmeNo: company.msmeNo,
   };
 
   const counts = {
