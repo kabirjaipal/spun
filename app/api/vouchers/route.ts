@@ -61,7 +61,7 @@ export async function POST(request: Request) {
       let partyStateCode = "";
 
       if (partyId) {
-        if (voucherType === "sale" || voucherType === "credit_note" || voucherType === "debit_note") {
+        if (voucherType === "sale" || voucherType === "credit_note" || voucherType === "debit_note" || voucherType === "purchase_return") {
           const cust = await tx.query.mCompanies.findFirst({
             where: eq(mCompanies.companyId, Number(partyId)),
           });
@@ -109,6 +109,7 @@ export async function POST(request: Request) {
         voucherType === "purchase" ||
         voucherType === "credit_note" ||
         voucherType === "debit_note" ||
+        voucherType === "purchase_return" ||
         voucherType === "job_outward" ||
         voucherType === "job_inward" ||
         voucherType === "mill_outward" ||
@@ -354,7 +355,7 @@ export async function POST(request: Request) {
             });
           }
         }
-      } else if (voucherType === "purchase" || voucherType === "debit_note" || voucherType === "direct_bill") {
+      } else if (voucherType === "purchase" || voucherType === "debit_note" || voucherType === "purchase_return" || voucherType === "direct_bill") {
         // 1. Credit Party Ledger
         const partyLedger = await tx.query.mLedgers.findFirst({
           where: and(eq(mLedgers.referenceId, Number(partyId)), eq(mLedgers.ledgerType, "company"), eq(mLedgers.companyId, companyId), isNull(mLedgers.deletedOn))
@@ -634,7 +635,7 @@ export async function GET(request: Request) {
       .where(
         and(
           eq(tVouchers.companyId, companyId),
-          inArray(tVouchers.voucherType, [paymentType, noteType]),
+          inArray(tVouchers.voucherType, [paymentType, noteType, "purchase_return"]),
           eq(tVouchers.partyId, pId),
           isNull(tVouchers.deletedOn)
         )

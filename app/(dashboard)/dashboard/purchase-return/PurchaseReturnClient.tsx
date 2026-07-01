@@ -1,12 +1,11 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Trash2, Loader2, ArrowLeft } from "lucide-react";
+import { Trash2, Loader2, Edit } from "lucide-react";
 
 interface CompanyOption {
   companyId: number;
@@ -96,9 +95,8 @@ export default function PurchaseReturnClient({
   taxRates: TaxRateOption[];
   canCreate: boolean;
 }) {
-
   const [selectedCompany, setSelectedCompany] = useState("");
-  const [voucherNo, setVoucherNo] = useState(""); // Debite Note / Purchase Return No
+  const [voucherNo, setVoucherNo] = useState(""); // Purchase Return No
   const [voucherDate, setVoucherDate] = useState(new Date().toISOString().slice(0, 10));
 
   // Logistics
@@ -112,8 +110,9 @@ export default function PurchaseReturnClient({
   const [loadingInvoices, setLoadingInvoices] = useState(false);
   const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<number[]>([]);
 
-  // Line items for return
+  // Line items for return & editing state
   const [lineItems, setLineItems] = useState<ReturnLineItem[]>([]);
+  const [editingLineId, setEditingLineId] = useState<string | null>(null);
 
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -124,6 +123,7 @@ export default function PurchaseReturnClient({
       setInvoices([]);
       setLineItems([]);
       setSelectedInvoiceIds([]);
+      setEditingLineId(null);
       return;
     }
 
@@ -144,7 +144,7 @@ export default function PurchaseReturnClient({
     fetchInvoices();
   }, [selectedCompany]);
 
-  // Handle invoice checkbox toggle
+  // Handle invoice dropdown/checkbox toggle
   function handleToggleInvoice(invoice: PurchaseInvoice) {
     const isSelected = selectedInvoiceIds.includes(invoice.voucherId);
     let newIds = [];
@@ -152,6 +152,14 @@ export default function PurchaseReturnClient({
       newIds = selectedInvoiceIds.filter((id) => id !== invoice.voucherId);
       // Remove lines from this invoice
       setLineItems((items) => items.filter((item) => item.invoiceNo !== invoice.voucherNo));
+      // Close editing panel if the item being edited was from this invoice
+      setEditingLineId((currId) => {
+        const item = lineItems.find((l) => l.id === currId);
+        if (item && item.invoiceNo === invoice.voucherNo) {
+          return null;
+        }
+        return currId;
+      });
     } else {
       newIds = [...selectedInvoiceIds, invoice.voucherId];
       // Add lines from this invoice
@@ -248,13 +256,14 @@ export default function PurchaseReturnClient({
   }
 
   function removeLine(id: string) {
+    if (editingLineId === id) setEditingLineId(null);
     setLineItems((items) => items.filter((item) => item.id !== id));
   }
 
   async function handleSubmit() {
     if (!canCreate) return;
     if (!selectedCompany || !voucherNo) {
-      setMessage("Select company and enter debit note/PR number.");
+      setMessage("Select company and enter return number.");
       return;
     }
 
@@ -281,7 +290,7 @@ export default function PurchaseReturnClient({
 
     try {
       const body = {
-        voucherType: "debit_note",
+        voucherType: "purchase_return",
         voucherNo,
         voucherDate,
         partyId: Number(selectedCompany),
@@ -318,7 +327,7 @@ export default function PurchaseReturnClient({
         throw new Error(json.error || "Failed to save purchase return.");
       }
 
-      setMessage("Purchase Return (Debit Note) created successfully.");
+      setMessage("Purchase Return created successfully.");
       setVoucherNo("");
       setRemarks("");
       setLrNo("");
@@ -326,6 +335,7 @@ export default function PurchaseReturnClient({
       setTransport("");
       setLineItems([]);
       setSelectedInvoiceIds([]);
+      setEditingLineId(null);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to save voucher.");
     } finally {
@@ -338,7 +348,7 @@ export default function PurchaseReturnClient({
       {/* Top Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-foreground uppercase">Purchase Return (Debit Note)</h1>
+          <h1 className="text-xl font-bold tracking-tight text-foreground uppercase">Purchase Return</h1>
           <p className="text-sm text-muted-foreground">Record returns against one or multiple purchase invoices.</p>
         </div>
       </div>
@@ -372,7 +382,7 @@ export default function PurchaseReturnClient({
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">DR. Note / PR No.</Label>
+              <Label className="text-xs font-semibold uppercase text-foreground">Return No.</Label>
               <Input value={voucherNo} onChange={(e) => setVoucherNo(e.target.value)} placeholder="e.g. PR-001" className="h-9" />
             </div>
             <div className="space-y-1.5">
@@ -381,25 +391,53 @@ export default function PurchaseReturnClient({
             </div>
 
             {selectedCompany && (
-              <div className="space-y-4">
+              <div className="space-y-2 col-span-1 md:col-span-2">
                 <Label className="text-xs font-semibold uppercase text-foreground">Select Invoices to Return Items From</Label>
                 {loadingInvoices ? (
                   <div className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /><span>Loading invoices...</span></div>
                 ) : invoices.length === 0 ? (
                   <p className="text-xs text-muted-foreground italic">No purchase invoices found for this company.</p>
                 ) : (
-                  <div className="max-h-36 overflow-y-auto space-y-2 border border-border rounded p-2 bg-muted/10">
-                    {invoices.map((inv) => (
-                      <label key={inv.voucherId} className="flex items-center gap-2 text-xs text-foreground cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={selectedInvoiceIds.includes(inv.voucherId)}
-                          onChange={() => handleToggleInvoice(inv)}
-                          className="rounded border-border text-primary focus:ring-primary h-3.5 w-3.5"
-                        />
-                        <span>{inv.voucherNo} ({new Date(inv.voucherDate).toLocaleDateString()}) - ₹{Number(inv.netAmount).toFixed(2)}</span>
-                      </label>
-                    ))}
+                  <div className="space-y-2">
+                    <Select
+                      value=""
+                      onValueChange={(val) => {
+                        const inv = invoices.find((i) => String(i.voucherId) === val);
+                        if (inv) handleToggleInvoice(inv);
+                      }}
+                    >
+                      <SelectTrigger className="h-9 w-full">
+                        <SelectValue placeholder="Click to select/toggle purchase invoices" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {invoices.map((inv) => {
+                          const isSelected = selectedInvoiceIds.includes(inv.voucherId);
+                          return (
+                            <SelectItem key={inv.voucherId} value={String(inv.voucherId)}>
+                              {isSelected ? "✓ " : ""}{inv.voucherNo} ({new Date(inv.voucherDate).toLocaleDateString()}) - ₹{Number(inv.netAmount).toFixed(2)}
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+
+                    {selectedInvoiceIds.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {selectedInvoiceIds.map((id) => {
+                          const inv = invoices.find((i) => i.voucherId === id);
+                          if (!inv) return null;
+                          return (
+                            <span
+                              key={id}
+                              onClick={() => handleToggleInvoice(inv)}
+                              className="inline-flex items-center gap-1 bg-primary/10 text-primary hover:bg-danger/10 hover:text-danger border border-primary/20 rounded px-2.5 py-0.5 text-xs font-medium cursor-pointer transition-colors"
+                            >
+                              {inv.voucherNo} ✕
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -453,107 +491,178 @@ export default function PurchaseReturnClient({
                   <th className="py-2.5 px-2 w-[7%] text-right">SGST %</th>
                   <th className="py-2.5 px-2 w-[7%] text-right">IGST %</th>
                   <th className="py-2.5 px-2 w-[9%] text-right">Net Amt</th>
-                  <th className="py-2.5 px-2 text-center w-12">Action</th>
+                  <th className="py-2.5 px-2 text-center w-20">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60">
                 {lineItems.map((line, idx) => {
                   const totals = lineTotals[idx] || { amount: 0, cgst: 0, sgst: 0, igst: 0, cgstPercent: 0, sgstPercent: 0, igstPercent: 0, net: 0 };
+                  const isEditing = editingLineId === line.id;
                   return (
-                    <tr key={line.id} className="hover:bg-muted/10">
-                      <td className="py-2 px-2 text-xs font-semibold text-muted-foreground">{line.invoiceNo}</td>
-                      <td className="py-2 px-2 text-xs font-medium text-foreground">{line.inventoryName}</td>
-                      <td className="py-2 px-2">
-                        <Input
-                          value={line.hsnCode || ""}
-                          onChange={(e) => updateLine(line.id, "hsnCode", e.target.value)}
-                          className="h-8 text-xs w-full"
-                          placeholder="HSN Code"
-                        />
-                      </td>
-                      <td className="py-2 px-2 text-xs text-muted-foreground">
-                        {line.originalPcs} PCS / {line.originalQuantity}
-                      </td>
-                      <td className="py-2 px-2">
-                        <Input
-                          type="number"
-                          value={line.pcs || ""}
-                          onChange={(e) => updateLine(line.id, "pcs", e.target.value)}
-                          className="h-8 text-xs text-right w-full"
-                        />
-                      </td>
-                      <td className="py-2 px-2">
-                        <Input
-                          type="number"
-                          step="0.01"
-                          value={line.quantity || ""}
-                          onChange={(e) => updateLine(line.id, "quantity", e.target.value)}
-                          className="h-8 text-xs text-right w-full"
-                        />
-                      </td>
-                      <td className="py-2 px-2 text-xs text-muted-foreground font-medium">
-                        {inventory.find((p) => String(p.inventoryId) === line.inventoryId)?.unit || "—"}
-                      </td>
+                    <React.Fragment key={line.id}>
+                      <tr className={`hover:bg-muted/10 transition-colors ${isEditing ? "bg-primary/5 border-l-2 border-primary" : ""}`}>
+                        <td className="py-2.5 px-2 text-xs font-semibold text-muted-foreground">{line.invoiceNo}</td>
+                        <td className="py-2.5 px-2 text-xs font-medium text-foreground">{line.inventoryName}</td>
+                        <td className="py-2.5 px-2 text-xs text-foreground">{line.hsnCode || "—"}</td>
+                        <td className="py-2.5 px-2 text-xs text-muted-foreground">
+                          {line.originalPcs} PCS / {line.originalQuantity}
+                        </td>
+                        <td className="py-2.5 px-2 text-xs text-right text-foreground">{line.pcs || "0"}</td>
+                        <td className="py-2.5 px-2 text-xs text-right text-foreground">{line.quantity || "0.00"}</td>
+                        <td className="py-2.5 px-2 text-xs text-muted-foreground font-medium">
+                          {inventory.find((p) => String(p.inventoryId) === line.inventoryId)?.unit || "—"}
+                        </td>
+                        <td className="py-2.5 px-2 text-xs text-right text-foreground">₹{Number(line.rate || 0).toFixed(2)}</td>
+                        <td className="py-2.5 px-2 text-xs font-semibold text-right text-foreground">
+                          ₹{totals.amount.toFixed(2)}
+                        </td>
+                        <td className="py-2.5 px-2 text-xs text-right text-foreground">
+                          {isInterstate ? "—" : totals.cgstPercent.toFixed(2) + "%"}
+                        </td>
+                        <td className="py-2.5 px-2 text-xs text-right text-foreground">
+                          {isInterstate ? "—" : totals.sgstPercent.toFixed(2) + "%"}
+                        </td>
+                        <td className="py-2.5 px-2 text-xs text-right text-foreground">
+                          {!isInterstate ? "—" : totals.igstPercent.toFixed(2) + "%"}
+                        </td>
+                        <td className="py-2.5 px-2 text-xs font-bold text-right text-foreground">
+                          ₹{totals.net.toFixed(2)}
+                        </td>
+                        <td className="py-2.5 px-2 text-center">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setEditingLineId(isEditing ? null : line.id)}
+                              className={`h-8 w-8 transition-colors ${isEditing ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-primary hover:bg-primary/5"}`}
+                              title="Edit Item Details"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => removeLine(line.id)}
+                              className="text-danger hover:bg-danger/10 hover:text-danger h-8 w-8"
+                              title="Remove Item"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
 
-                      <td className="py-2 px-2">
-                        <Input
-                          type="number"
-                          step="0.01"
-                          value={line.rate || ""}
-                          onChange={(e) => updateLine(line.id, "rate", e.target.value)}
-                          className="h-8 text-xs text-right w-full"
-                        />
-                      </td>
-                      <td className="py-2 px-2 text-xs font-semibold text-right text-foreground">
-                        ₹{totals.amount.toFixed(2)}
-                      </td>
-                      <td className="py-2 px-2">
-                        <Input
-                          type="number"
-                          step="0.01"
-                          placeholder={isInterstate ? "0.00" : totals.cgstPercent.toFixed(2)}
-                          value={isInterstate ? "" : (line.cgst || "")}
-                          onChange={(e) => updateLine(line.id, "cgst", e.target.value)}
-                          disabled={isInterstate}
-                          className="h-8 text-xs text-right w-full"
-                        />
-                      </td>
-                      <td className="py-2 px-2">
-                        <Input
-                          type="number"
-                          step="0.01"
-                          placeholder={isInterstate ? "0.00" : totals.sgstPercent.toFixed(2)}
-                          value={isInterstate ? "" : (line.sgst || "")}
-                          onChange={(e) => updateLine(line.id, "sgst", e.target.value)}
-                          disabled={isInterstate}
-                          className="h-8 text-xs text-right w-full"
-                        />
-                      </td>
-                      <td className="py-2 px-2">
-                        <Input
-                          type="number"
-                          step="0.01"
-                          placeholder={!isInterstate ? "0.00" : totals.igstPercent.toFixed(2)}
-                          value={!isInterstate ? "" : (line.igst || "")}
-                          onChange={(e) => updateLine(line.id, "igst", e.target.value)}
-                          disabled={!isInterstate}
-                          className="h-8 text-xs text-right w-full"
-                        />
-                      </td>
-                      <td className="py-2 px-2 text-xs font-bold text-right text-foreground">
-                        ₹{totals.net.toFixed(2)}
-                      </td>
-                      <td className="py-2 px-2 text-center">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removeLine(line.id)}
-                          className="text-danger hover:bg-danger/10 hover:text-danger h-8 w-8"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </td>
-                    </tr>
+                      {isEditing && (
+                        <tr className="bg-primary/5 border-l-2 border-primary divide-x divide-border/20">
+                          {/* Invoice No: Read only */}
+                          <td className="py-2.5 px-2 text-xs font-semibold text-muted-foreground bg-muted/20">{line.invoiceNo} (Edit)</td>
+                          {/* Item Name: Read only */}
+                          <td className="py-2.5 px-2 text-xs font-medium text-foreground bg-muted/20">{line.inventoryName}</td>
+                          {/* HSN Code: Input */}
+                          <td className="py-1 px-1">
+                            <Input
+                              value={line.hsnCode || ""}
+                              onChange={(e) => updateLine(line.id, "hsnCode", e.target.value)}
+                              className="h-8 text-xs w-full p-1.5 bg-background"
+                              placeholder="HSN"
+                            />
+                          </td>
+                          {/* Original Qty: Read only */}
+                          <td className="py-2.5 px-2 text-xs text-muted-foreground bg-muted/20">
+                            {line.originalPcs} PCS / {line.originalQuantity}
+                          </td>
+                          {/* Return PCS: Input */}
+                          <td className="py-1 px-1">
+                            <Input
+                              type="number"
+                              value={line.pcs || ""}
+                              onChange={(e) => updateLine(line.id, "pcs", e.target.value)}
+                              className="h-8 text-xs text-right w-full p-1.5 bg-background"
+                            />
+                          </td>
+                          {/* Return Qty: Input */}
+                          <td className="py-1 px-1">
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={line.quantity || ""}
+                              onChange={(e) => updateLine(line.id, "quantity", e.target.value)}
+                              className="h-8 text-xs text-right w-full p-1.5 bg-background"
+                            />
+                          </td>
+                          {/* Unit: Read only */}
+                          <td className="py-2.5 px-2 text-xs text-muted-foreground font-medium bg-muted/20">
+                            {inventory.find((p) => String(p.inventoryId) === line.inventoryId)?.unit || "—"}
+                          </td>
+                          {/* Rate: Input */}
+                          <td className="py-1 px-1">
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={line.rate || ""}
+                              onChange={(e) => updateLine(line.id, "rate", e.target.value)}
+                              className="h-8 text-xs text-right w-full p-1.5 bg-background"
+                            />
+                          </td>
+                          {/* Taxable: Read only */}
+                          <td className="py-2.5 px-2 text-xs font-semibold text-right text-foreground bg-muted/20">
+                            ₹{totals.amount.toFixed(2)}
+                          </td>
+                          {/* CGST %: Input */}
+                          <td className="py-1 px-1">
+                            <Input
+                              type="number"
+                              step="0.01"
+                              placeholder={isInterstate ? "0.00" : totals.cgstPercent.toFixed(2)}
+                              value={isInterstate ? "" : (line.cgst || "")}
+                              onChange={(e) => updateLine(line.id, "cgst", e.target.value)}
+                              disabled={isInterstate}
+                              className="h-8 text-xs text-right w-full p-1.5 bg-background"
+                            />
+                          </td>
+                          {/* SGST %: Input */}
+                          <td className="py-1 px-1">
+                            <Input
+                              type="number"
+                              step="0.01"
+                              placeholder={isInterstate ? "0.00" : totals.sgstPercent.toFixed(2)}
+                              value={isInterstate ? "" : (line.sgst || "")}
+                              onChange={(e) => updateLine(line.id, "sgst", e.target.value)}
+                              disabled={isInterstate}
+                              className="h-8 text-xs text-right w-full p-1.5 bg-background"
+                            />
+                          </td>
+                          {/* IGST %: Input */}
+                          <td className="py-1 px-1">
+                            <Input
+                              type="number"
+                              step="0.01"
+                              placeholder={!isInterstate ? "0.00" : totals.igstPercent.toFixed(2)}
+                              value={!isInterstate ? "" : (line.igst || "")}
+                              onChange={(e) => updateLine(line.id, "igst", e.target.value)}
+                              disabled={!isInterstate}
+                              className="h-8 text-xs text-right w-full p-1.5 bg-background"
+                            />
+                          </td>
+                          {/* Net Amt: Read only */}
+                          <td className="py-2.5 px-2 text-xs font-bold text-right text-foreground bg-muted/20">
+                            ₹{totals.net.toFixed(2)}
+                          </td>
+                          {/* Action: Done Button */}
+                          <td className="py-2.5 px-2 text-center bg-muted/20">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setEditingLineId(null)}
+                              className="text-success hover:bg-success/15 hover:text-success h-8 w-8"
+                              title="Done Editing"
+                            >
+                              <span className="font-bold text-base">✓</span>
+                            </Button>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
                   );
                 })}
               </tbody>
