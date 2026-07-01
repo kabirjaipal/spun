@@ -1,12 +1,12 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { mCustomers } from "@/lib/db/schema";
+import { mCompanies } from "@/lib/db/schema";
 import { and, isNull, eq } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
-import CustomersClient from "./CustomersClient";
+import PartiesClient from "./PartiesClient";
 
-export default async function CustomersPage() {
+export default async function PartiesPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
   if (!session.user.companyId) redirect("/setup-company");
@@ -15,16 +15,16 @@ export default async function CustomersPage() {
 
   const rows = await db
     .select()
-    .from(mCustomers)
-    .where(and(eq(mCustomers.companyId, companyId), isNull(mCustomers.deletedOn)))
-    .orderBy(mCustomers.customerName);
+    .from(mCompanies)
+    .where(and(eq(mCompanies.parentCompanyId, companyId), isNull(mCompanies.deletedOn)))
+    .orderBy(mCompanies.companyName);
 
   const perms = getStaticPermissionsForRole(session.user.role as Role);
-  const p = perms.find((x) => x.accessItem === "customers");
+  const p = perms.find((x) => x.accessItem === "parties");
 
   return (
-    <CustomersClient
-      initialData={rows.map((r) => ({ ...r, customerId: r.customerId, openingBalance: String(r.openingBalance) }))}
+    <PartiesClient
+      initialData={rows}
       canCreate={p?.c ?? false}
       canUpdate={p?.u ?? false}
       canDelete={p?.d ?? false}

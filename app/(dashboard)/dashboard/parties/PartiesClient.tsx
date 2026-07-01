@@ -11,7 +11,7 @@ import ExportButton from "@/components/ExportButton";
 import { BANK_LIST, type BankData } from "@/lib/banks";
 import { CURRENCIES, MARKET_CATEGORIES } from "@/lib/constants";
 
-interface Company {
+interface Party {
   companyId: number;
   companyName: string;
   gstNo: string | null;
@@ -87,10 +87,10 @@ function mergeBanks(base: BankData[], custom: BankData[]): BankData[] {
   return result;
 }
 
-export default function CompaniesClient({
+export default function PartiesClient({
   initialData, canCreate, canUpdate, canDelete, canExport,
 }: {
-  initialData: Company[];
+  initialData: Party[];
   canCreate: boolean;
   canUpdate: boolean;
   canDelete: boolean;
@@ -98,9 +98,9 @@ export default function CompaniesClient({
 }) {
   const [data, setData] = useState(initialData);
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editing, setEditing] = useState<Company | null>(null);
+  const [editing, setEditing] = useState<Party | null>(null);
   const [form, setForm] = useState(EMPTY);
-  const [deleteTarget, setDeleteTarget] = useState<Company | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Party | null>(null);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -194,7 +194,7 @@ export default function CompaniesClient({
     setIsFormOpen(true);
   }
 
-  function openEdit(row: Company) {
+  function openEdit(row: Party) {
     setError(null);
     setEditing(row);
     
@@ -239,7 +239,7 @@ export default function CompaniesClient({
     if (!form.companyName) return;
     setSaving(true);
     setError(null);
-    const url = editing ? `/api/companies/${editing.companyId}` : "/api/companies";
+    const url = editing ? `/api/parties/${editing.companyId}` : "/api/parties";
     try {
       const res = await fetch(url, {
         method: editing ? "PATCH" : "POST",
@@ -254,7 +254,7 @@ export default function CompaniesClient({
       });
       const row = await res.json();
       if (!res.ok) {
-        throw new Error(row.error || "Failed to save company");
+        throw new Error(row.error || "Failed to save party");
       }
       if (editing) setData((d) => d.map((r) => (r.companyId === editing.companyId ? row : r)));
       else setData((d) => [...d, row]);
@@ -274,7 +274,7 @@ export default function CompaniesClient({
 
   async function handleDelete() {
     if (!deleteTarget) return;
-    await fetch(`/api/companies/${deleteTarget.companyId}`, { method: "DELETE" });
+    await fetch(`/api/parties/${deleteTarget.companyId}`, { method: "DELETE" });
     setData((d) => d.filter((r) => r.companyId !== deleteTarget.companyId));
     setDeleteTarget(null);
   }
@@ -288,7 +288,7 @@ export default function CompaniesClient({
             <span>Back to list</span>
           </Button>
           <h1 className="text-xl font-bold text-foreground">
-            {editing ? `Edit Company: ${editing.companyName}` : "Create New Company"}
+            {editing ? `Edit Party: ${editing.companyName}` : "Create New Party"}
           </h1>
         </div>
 
@@ -310,7 +310,7 @@ export default function CompaniesClient({
               <div className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="col-span-1 sm:col-span-2">
-                    <Label htmlFor="companyName" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Company Name *</Label>
+                    <Label htmlFor="companyName" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Party Name *</Label>
                     <Input
                       id="companyName"
                       type="text"
@@ -404,23 +404,23 @@ export default function CompaniesClient({
                         <DollarSign className="h-4 w-4 text-muted-foreground" />
                       </div>
                       <select
-                        id="currencySymbol"
-                        value={form.currencySymbol}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          const match = CURRENCIES.find((c) => c.symbol === val);
-                          setForm((f) => ({
-                            ...f,
-                            currencySymbol: val,
-                            nationName: match ? match.nation : f.nationName,
-                          }));
-                        }}
-                        className="w-full h-10 rounded-md border border-input bg-background pl-10 pr-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                          id="currencySymbol"
+                          value={form.currencySymbol}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            const match = CURRENCIES.find((c) => c.symbol === val);
+                            setForm((f) => ({
+                              ...f,
+                              currencySymbol: val,
+                              nationName: match ? match.nation : f.nationName,
+                            }));
+                          }}
+                          className="w-full h-10 rounded-md border border-input bg-background pl-10 pr-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                       >
                         {CURRENCIES.map((c) => (
-                          <option key={c.symbol} value={c.symbol}>
-                            {c.label}
-                          </option>
+                            <option key={c.symbol} value={c.symbol}>
+                              {c.label}
+                            </option>
                         ))}
                       </select>
                     </div>
@@ -433,42 +433,42 @@ export default function CompaniesClient({
                         <Globe className="h-4 w-4 text-muted-foreground" />
                       </div>
                       <select
-                        id="nationName"
-                        value={form.nationName}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          const match = CURRENCIES.find((c) => c.nation === val);
-                          setForm((f) => ({
-                            ...f,
-                            nationName: val,
-                            currencySymbol: match ? match.symbol : f.currencySymbol,
-                          }));
-                        }}
-                        className="w-full h-10 rounded-md border border-input bg-background pl-10 pr-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                          id="nationName"
+                          value={form.nationName}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            const match = CURRENCIES.find((c) => c.nation === val);
+                            setForm((f) => ({
+                              ...f,
+                              nationName: val,
+                              currencySymbol: match ? match.symbol : f.currencySymbol,
+                            }));
+                          }}
+                          className="w-full h-10 rounded-md border border-input bg-background pl-10 pr-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                       >
                         {CURRENCIES.map((c) => (
-                          <option key={c.nation} value={c.nation}>
-                            {c.nation}
-                          </option>
+                            <option key={c.nation} value={c.nation}>
+                              {c.nation}
+                            </option>
                         ))}
                       </select>
                     </div>
                   </div>
 
                   <div>
-                    <Label htmlFor="companyType" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Company Type *</Label>
+                    <Label htmlFor="companyType" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Party Type *</Label>
                     <select
-                      id="companyType"
-                      value={form.companyType}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setForm((f) => ({
-                          ...f,
-                          companyType: val,
-                          marketCategory: MARKET_CATEGORIES[val][0],
-                        }));
-                      }}
-                      className="w-full h-10 mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                        id="companyType"
+                        value={form.companyType}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setForm((f) => ({
+                            ...f,
+                            companyType: val,
+                            marketCategory: MARKET_CATEGORIES[val][0],
+                          }));
+                        }}
+                        className="w-full h-10 mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                     >
                       <option value="general">General / Standard</option>
                       <option value="textiles">Textiles</option>
@@ -479,15 +479,15 @@ export default function CompaniesClient({
                   <div>
                     <Label htmlFor="marketCategory" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Market Category *</Label>
                     <select
-                      id="marketCategory"
-                      value={form.marketCategory}
-                      onChange={(e) => setForm((f) => ({ ...f, marketCategory: e.target.value }))}
-                      className="w-full h-10 mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                        id="marketCategory"
+                        value={form.marketCategory}
+                        onChange={(e) => setForm((f) => ({ ...f, marketCategory: e.target.value }))}
+                        className="w-full h-10 mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                     >
                       {MARKET_CATEGORIES[form.companyType]?.map((cat) => (
-                        <option key={cat} value={cat}>
-                          {cat}
-                        </option>
+                          <option key={cat} value={cat}>
+                            {cat}
+                          </option>
                       ))}
                     </select>
                   </div>
@@ -787,7 +787,7 @@ export default function CompaniesClient({
             <div className="flex gap-4 pt-6 border-t justify-end">
               <Button variant="outline" onClick={() => setIsFormOpen(false)}>Cancel</Button>
               <Button onClick={handleSave} disabled={saving || !form.companyName || (form.gstApplicable && (!form.gstNo || !form.stateCode || !form.city))}>
-                {saving ? "Saving..." : editing ? "Update Company" : "Create Company"}
+                {saving ? "Saving..." : editing ? "Update Party" : "Create Party"}
               </Button>
             </div>
           </div>
@@ -800,19 +800,19 @@ export default function CompaniesClient({
     <>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-lg font-bold text-foreground uppercase tracking-wide">Companies</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">{data.length} compan{data.length !== 1 ? "ies" : "y"}</p>
+          <h1 className="text-lg font-bold text-foreground uppercase tracking-wide">Parties</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">{data.length} part{data.length !== 1 ? "ies" : "y"}</p>
         </div>
         <div className="flex items-center gap-3">
-          <Input id="search-companies" placeholder="Search name, GST, phone..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-60" />
+          <Input id="search-parties" placeholder="Search name, GST, phone..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-60" />
           <ExportButton
-            filename="companies.csv"
-            headers={["Company Name", "GSTIN", "Phone", "Email", "Address", "Module/Type"]}
+            filename="parties.csv"
+            headers={["Party Name", "GSTIN", "Phone", "Email", "Address", "Module/Type"]}
             keys={["companyName", "gstNo", "phone", "email", "address", "companyType"]}
             rows={filtered}
             canExport={canExport}
           />
-          {canCreate && <Button onClick={openCreate}>+ Add Company</Button>}
+          {canCreate && <Button onClick={openCreate}>+ Add Party</Button>}
         </div>
       </div>
 
@@ -824,14 +824,14 @@ export default function CompaniesClient({
               <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Name</th>
               <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">GSTIN</th>
               <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Phone</th>
-              <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Module</th>
+              <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Type</th>
               {(canUpdate || canDelete) && <th className="px-4 py-2.5 text-right text-xs font-bold uppercase tracking-wider text-muted-foreground">Actions</th>}
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 && (
               <tr><td colSpan={6} className="px-4 py-8 text-center text-sm text-muted-foreground">
-                {search ? "No companies match your search." : "No companies yet. Add your first one."}
+                {search ? "No parties match your search." : "No parties yet. Add your first one."}
               </td></tr>
             )}
             {filtered.map((row, i) => (
@@ -855,7 +855,7 @@ export default function CompaniesClient({
 
       <Dialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle className="text-sm font-bold uppercase">Delete Company</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle className="text-sm font-bold uppercase">Delete Party</DialogTitle></DialogHeader>
           <p className="text-sm text-muted-foreground">Delete <span className="font-semibold text-foreground">{deleteTarget?.companyName}</span>? Their ledger will also be removed.</p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancel</Button>

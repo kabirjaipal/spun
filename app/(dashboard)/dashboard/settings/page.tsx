@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { mCompanies, mCustomers, mInventory, mLedgers, mTaxRates } from "@/lib/db/schema";
+import { mCompanies, mInventory, mLedgers, mTaxRates } from "@/lib/db/schema";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import SettingsClient from "./SettingsClient";
 
@@ -18,11 +18,7 @@ export default async function SettingsPage() {
 
   if (!company) redirect("/setup-company");
 
-  const [customerCount, companiesCount, inventoryCount, ledgerCount, taxRateCount] = await Promise.all([
-    db
-      .select({ count: sql<number>`count(*)` })
-      .from(mCustomers)
-      .where(and(eq(mCustomers.companyId, companyId), isNull(mCustomers.deletedOn))),
+  const [companiesCount, inventoryCount, ledgerCount, taxRateCount] = await Promise.all([
     db
       .select({ count: sql<number>`count(*)` })
       .from(mCompanies)
@@ -65,7 +61,6 @@ export default async function SettingsPage() {
   };
 
   const counts = {
-    customers: customerCount[0]?.count ?? 0,
     companies: companiesCount[0]?.count ?? 0,
     inventory: inventoryCount[0]?.count ?? 0,
     ledgers: ledgerCount[0]?.count ?? 0,

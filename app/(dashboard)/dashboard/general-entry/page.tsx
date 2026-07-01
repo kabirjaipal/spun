@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { mCustomers, mCompanies, mLedgers, tVouchers } from "@/lib/db/schema";
+import { mCompanies, mLedgers, tVouchers } from "@/lib/db/schema";
 import { and, eq, isNull, desc } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
 import GeneralEntryClient from "./GeneralEntryClient";
@@ -22,11 +22,9 @@ export default async function GeneralEntryPage() {
         partyId: tVouchers.partyId,
         remarks: tVouchers.remarks,
         totalAmount: tVouchers.totalAmount,
-        partyCustomer: mCustomers.customerName,
-        partyCompany: mCompanies.companyName,
+        partyName: mCompanies.companyName,
       })
       .from(tVouchers)
-      .leftJoin(mCustomers, eq(tVouchers.partyId, mCustomers.customerId))
       .leftJoin(mCompanies, eq(tVouchers.partyId, mCompanies.companyId))
       .where(and(eq(tVouchers.companyId, companyId), eq(tVouchers.voucherType, "journal"), isNull(tVouchers.deletedOn)))
       .orderBy(desc(tVouchers.voucherDate))

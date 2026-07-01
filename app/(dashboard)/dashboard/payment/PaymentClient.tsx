@@ -15,8 +15,7 @@ interface PaymentItem {
   partyId: number | null;
   totalAmount: string;
   remarks: string | null;
-  companyName: string | null;
-  customerName: string | null;
+  partyName: string | null;
   lrNo?: string | null; // Cheque / Ref No
 }
 
@@ -83,7 +82,7 @@ export default function PaymentClient({
       return;
     }
 
-    fetch(`/api/vouchers?type=outstanding&partyId=${selectedCompany}`)
+    fetch(`/api/vouchers?type=outstanding&partyId=${selectedCompany}&invoiceType=purchase`)
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) {
@@ -191,8 +190,7 @@ export default function PaymentClient({
         partyId: newVoucher.partyId,
         totalAmount: String(newVoucher.totalAmount),
         remarks: newVoucher.remarks,
-        companyName: suppObj ? suppObj.companyName : `ID ${newVoucher.partyId}`,
-        customerName: null,
+        partyName: suppObj ? suppObj.companyName : `ID ${newVoucher.partyId}`,
         lrNo: newVoucher.lrNo,
       };
 
@@ -432,7 +430,7 @@ export default function PaymentClient({
               </tr>
             ) : (
               payments.map((payment) => {
-                const partyName = payment.companyName || payment.customerName || `ID ${payment.partyId}`;
+                const partyName = payment.partyName || `ID ${payment.partyId}`;
                 const hasReversal = payment.remarks?.includes("[RETURN CHEQUE REVERSAL]");
                 return (
                   <tr key={payment.voucherId} className="border-t border-border/50 hover:bg-muted/10 transition-colors">

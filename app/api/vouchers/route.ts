@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
-import { mLedgers, mInventory, mTaxRates, mCustomers, mJobs, mMills, mCompanies, tVouchers, tVoucherEntries, tStockMovements, tVoucherItems } from "@/lib/db/schema";
-import { and, eq, isNull, desc, sql, inArray } from "drizzle-orm";
+import { mLedgers, mInventory, mTaxRates, mJobs, mMills, mCompanies, tVouchers, tVoucherEntries, tStockMovements, tVoucherItems } from "@/lib/db/schema";
+import { and, eq, isNull, desc, sql, inArray, or } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { writeAuditLog } from "@/lib/audit";
@@ -59,8 +59,8 @@ export async function POST(request: Request) {
 
       if (partyId) {
         if (voucherType === "sale" || voucherType === "credit_note" || voucherType === "debit_note") {
-          const cust = await tx.query.mCustomers.findFirst({
-            where: eq(mCustomers.customerId, Number(partyId)),
+          const cust = await tx.query.mCompanies.findFirst({
+            where: eq(mCompanies.companyId, Number(partyId)),
           });
           partyGstNo = cust?.gstNo || "";
         } else if (voucherType === "purchase" || voucherType === "direct_bill") {
@@ -226,15 +226,15 @@ export async function POST(request: Request) {
 
       // Insert Entries and Stock Movements
       if (voucherType === "sale" || voucherType === "credit_note") {
-        // 1. Debit Customer Ledger
-        const customerLedger = await tx.query.mLedgers.findFirst({
-          where: and(eq(mLedgers.referenceId, Number(partyId)), eq(mLedgers.ledgerType, "customer"), eq(mLedgers.companyId, companyId), isNull(mLedgers.deletedOn))
+        // 1. Debit Party Ledger
+        const partyLedger = await tx.query.mLedgers.findFirst({
+          where: and(eq(mLedgers.referenceId, Number(partyId)), eq(mLedgers.ledgerType, "company"), eq(mLedgers.companyId, companyId), isNull(mLedgers.deletedOn))
         });
-        if (!customerLedger) throw new Error("Customer ledger not found");
+        if (!partyLedger) throw new Error("Party ledger not found");
 
         await tx.insert(tVoucherEntries).values({
           voucherId: voucherIdNum,
-          ledgerId: Number(customerLedger.ledgerId),
+          ledgerId: Number(partyLedger.ledgerId),
           entryType: voucherType === "sale" ? "debit" : "credit",
           amount: String(computedNet),
           createdBy: userId,
@@ -305,11 +305,11 @@ export async function POST(request: Request) {
           }
         }
       } else if (voucherType === "purchase" || voucherType === "debit_note" || voucherType === "direct_bill") {
-        // 1. Credit Company Ledger
-        const companyLedger = await tx.query.mLedgers.findFirst({
+        // 1. Credit Party Ledger
+        const partyLedger = await tx.query.mLedgers.findFirst({
           where: and(eq(mLedgers.referenceId, Number(partyId)), eq(mLedgers.ledgerType, "company"), eq(mLedgers.companyId, companyId), isNull(mLedgers.deletedOn))
         });
-        if (!companyLedger) throw new Error("Company ledger not found");
+        if (!partyLedger) throw new Error("Party ledger not found");
 
         const companyEntryType = (voucherType === "purchase" || voucherType === "direct_bill") ? "credit" : "debit";
         const expenseEntryType = (voucherType === "purchase" || voucherType === "direct_bill") ? "debit" : "credit";
@@ -317,7 +317,7 @@ export async function POST(request: Request) {
 
         await tx.insert(tVoucherEntries).values({
           voucherId: voucherIdNum,
-          ledgerId: Number(companyLedger.ledgerId),
+          ledgerId: Number(partyLedger.ledgerId),
           entryType: companyEntryType,
           amount: String(computedNet),
           createdBy: userId,
@@ -447,14 +447,14 @@ export async function POST(request: Request) {
           }
         }
       } else if (voucherType === "receipt") {
-        if (!cashBankLedgerId || !partyId) throw new Error("Cash/Bank and Customer account are required for Receipts");
-        const customerLedger = await tx.query.mLedgers.findFirst({
-          where: and(eq(mLedgers.referenceId, Number(partyId)), eq(mLedgers.ledgerType, "customer"), eq(mLedgers.companyId, companyId), isNull(mLedgers.deletedOn))
+        if (!cashBankLedgerId || !partyId) throw new Error("Cash/Bank and Party account are required for Receipts");
+        const partyLedger = await tx.query.mLedgers.findFirst({
+          where: and(eq(mLedgers.referenceId, Number(partyId)), eq(mLedgers.ledgerType, "company"), eq(mLedgers.companyId, companyId), isNull(mLedgers.deletedOn))
         });
-        if (!customerLedger) throw new Error("Customer ledger not found");
+        if (!partyLedger) throw new Error("Party ledger not found");
 
         const bankEntryType = isReversal ? "credit" : "debit";
-        const customerEntryType = isReversal ? "debit" : "credit";
+        const partyEntryType = isReversal ? "debit" : "credit";
 
         // Bank Entry
         await tx.insert(tVoucherEntries).values({
@@ -466,21 +466,21 @@ export async function POST(request: Request) {
           updatedBy: userId,
         });
 
-        // Customer Entry
+        // Party Entry
         await tx.insert(tVoucherEntries).values({
           voucherId: voucherIdNum,
-          ledgerId: Number(customerLedger.ledgerId),
-          entryType: customerEntryType,
+          ledgerId: Number(partyLedger.ledgerId),
+          entryType: partyEntryType,
           amount: String(computedTotal),
           createdBy: userId,
           updatedBy: userId,
         });
       } else if (voucherType === "payment") {
-        if (!cashBankLedgerId || !partyId) throw new Error("Cash/Bank and Company account are required for Payments");
-        const companyLedger = await tx.query.mLedgers.findFirst({
+        if (!cashBankLedgerId || !partyId) throw new Error("Cash/Bank and Party account are required for Payments");
+        const partyLedger = await tx.query.mLedgers.findFirst({
           where: and(eq(mLedgers.referenceId, Number(partyId)), eq(mLedgers.ledgerType, "company"), eq(mLedgers.companyId, companyId), isNull(mLedgers.deletedOn))
         });
-        if (!companyLedger) throw new Error("Company ledger not found");
+        if (!partyLedger) throw new Error("Party ledger not found");
 
         const bankEntryType = isReversal ? "debit" : "credit";
         const companyEntryType = isReversal ? "credit" : "debit";
@@ -495,10 +495,10 @@ export async function POST(request: Request) {
           updatedBy: userId,
         });
 
-        // Company Entry
+        // Party Entry
         await tx.insert(tVoucherEntries).values({
           voucherId: voucherIdNum,
-          ledgerId: Number(companyLedger.ledgerId),
+          ledgerId: Number(partyLedger.ledgerId),
           entryType: companyEntryType,
           amount: String(computedTotal),
           createdBy: userId,
@@ -552,21 +552,21 @@ export async function GET(request: Request) {
     if (!partyId) return NextResponse.json({ error: "partyId is required" }, { status: 400 });
     const pId = Number(partyId);
     
-    const customer = await db.query.mCustomers.findFirst({
-      where: and(eq(mCustomers.customerId, pId), eq(mCustomers.companyId, companyId))
-    });
-    const subCompany = await db.query.mCompanies.findFirst({
-      where: and(eq(mCompanies.companyId, pId), eq(mCompanies.parentCompanyId, companyId))
-    });
+    let invoiceType = searchParams.get("invoiceType");
 
-    if (!customer && !subCompany) {
-      return NextResponse.json([]);
+    if (!invoiceType) {
+      const subCompany = await db.query.mCompanies.findFirst({
+        where: and(eq(mCompanies.companyId, pId), eq(mCompanies.parentCompanyId, companyId))
+      });
+
+      if (!subCompany) {
+        return NextResponse.json([]);
+      }
+      invoiceType = "purchase";
     }
 
-    const isCustomer = !!customer;
-    const invoiceType = isCustomer ? "sale" : "purchase";
-    const paymentType = isCustomer ? "receipt" : "payment";
-    const noteType = isCustomer ? "credit_note" : "debit_note";
+    const paymentType = invoiceType === "sale" ? "receipt" : "payment";
+    const noteType = invoiceType === "sale" ? "credit_note" : "debit_note";
 
     const invoices = await db
       .select({
@@ -618,7 +618,7 @@ export async function GET(request: Request) {
     const ledger = await db.query.mLedgers.findFirst({
       where: and(
         eq(mLedgers.referenceId, pId),
-        eq(mLedgers.ledgerType, isCustomer ? "customer" : "company"),
+        or(eq(mLedgers.ledgerType, "company"), eq(mLedgers.ledgerType, "customer")),
         eq(mLedgers.companyId, companyId),
         isNull(mLedgers.deletedOn)
       )
@@ -676,12 +676,9 @@ export async function GET(request: Request) {
       lotNo: tVouchers.lotNo,
       parentVoucherId: tVouchers.parentVoucherId,
       cashBankLedgerId: tVouchers.cashBankLedgerId,
-      customerName: mCustomers.customerName,
-      customerGst: mCustomers.gstNo,
-      customerAddress: mCustomers.address,
-      companyName: mCompanies.companyName,
-      companyGst: mCompanies.gstNo,
-      companyAddress: mCompanies.address,
+      partyName: mCompanies.companyName,
+      partyGst: mCompanies.gstNo,
+      partyAddress: mCompanies.address,
       jobName: mJobs.jobName,
       jobGst: mJobs.gstNo,
       jobAddress: mJobs.address,
@@ -690,7 +687,6 @@ export async function GET(request: Request) {
       millAddress: mMills.address,
     })
     .from(tVouchers)
-    .leftJoin(mCustomers, eq(tVouchers.partyId, mCustomers.customerId))
     .leftJoin(mCompanies, eq(tVouchers.partyId, mCompanies.companyId))
     .leftJoin(mJobs, eq(tVouchers.partyId, mJobs.jobId))
     .leftJoin(mMills, eq(tVouchers.partyId, mMills.millId))

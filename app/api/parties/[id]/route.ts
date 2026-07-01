@@ -29,7 +29,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       });
 
       if (!oldC) {
-        throw new Error("Company not found or unauthorized");
+        throw new Error("Party not found or unauthorized");
       }
 
       const [c] = await tx
@@ -93,7 +93,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     return NextResponse.json(company);
   } catch (error: any) {
-    return NextResponse.json({ error: error.message || "Failed to update company" }, { status: 500 });
+    return NextResponse.json({ error: error.message || "Failed to update party" }, { status: 500 });
   }
 }
 
@@ -114,7 +114,7 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
       });
 
       if (!oldC) {
-        throw new Error("Company not found or unauthorized");
+        throw new Error("Party not found or unauthorized");
       }
 
       await tx
@@ -145,6 +145,6 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message || "Failed to delete company" }, { status: 500 });
+    return NextResponse.json({ error: error.message || "Failed to delete party" }, { status: 500 });
   }
 }

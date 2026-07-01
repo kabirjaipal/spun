@@ -26,7 +26,6 @@ interface CompanyDetails {
 }
 
 interface MasterCounts {
-  customers: number;
   companies: number;
   inventory: number;
   ledgers: number;
@@ -332,11 +331,7 @@ export default function SettingsClient({
           <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Master Data Status</h2>
           <div className="mt-4 grid gap-3 text-sm">
             <div className="rounded-lg border border-border/50 bg-muted/10 p-4">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Customers</p>
-              <p className="mt-1 text-xl font-semibold text-foreground">{counts.customers}</p>
-            </div>
-            <div className="rounded-lg border border-border/50 bg-muted/10 p-4">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Companies</p>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Parties</p>
               <p className="mt-1 text-xl font-semibold text-foreground">{counts.companies}</p>
             </div>
             <div className="rounded-lg border border-border/50 bg-muted/10 p-4">

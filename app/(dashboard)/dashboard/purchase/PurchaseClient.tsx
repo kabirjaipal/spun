@@ -104,14 +104,14 @@ export default function PurchaseClient({
     if (!partyForm.companyName) return;
     setPartySaving(true);
     try {
-      const res = await fetch("/api/companies", {
+      const res = await fetch("/api/parties", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...partyForm, openingBalance: 0 }),
       });
       if (res.ok) {
         setShowPartyModal(false);
-        router.push("/dashboard/companies");
+        router.push("/dashboard/parties");
       }
     } catch (e) {
       console.error(e);

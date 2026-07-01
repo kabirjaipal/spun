@@ -1,7 +1,7 @@
 import React from "react";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { mCustomers, mInventory, mCompanies, mLedgers, tVouchers } from "@/lib/db/schema";
+import { mInventory, mCompanies, mLedgers, tVouchers } from "@/lib/db/schema";
 import { eq, sql, isNull, and, desc } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import * as Icons from "lucide-react";
@@ -33,7 +33,6 @@ export default async function DashboardPage() {
 
   // Consolidated Database Queries in Parallel
   const [
-    customersCountRaw,
     companiesCountRaw,
     inventoryCountRaw,
     ledgersCountRaw,
@@ -41,10 +40,6 @@ export default async function DashboardPage() {
     financialSummary,
     recentVouchers,
   ] = await Promise.all([
-    db
-      .select({ count: sql<number>`count(*)` })
-      .from(mCustomers)
-      .where(and(eq(mCustomers.companyId, companyIdVal), isNull(mCustomers.deletedOn))),
     db
       .select({ count: sql<number>`count(*)` })
       .from(mCompanies)
@@ -105,25 +100,17 @@ export default async function DashboardPage() {
     purchases: Number(s.purchases || 0),
   }));
 
-  const customersCount = customersCountRaw[0]?.count ?? 0;
-  const companiesCount = companiesCountRaw[0]?.count ?? 0;
+  const partiesCount = companiesCountRaw[0]?.count ?? 0;
   const inventoryCount = inventoryCountRaw[0]?.count ?? 0;
   const ledgersCount = ledgersCountRaw[0]?.count ?? 0;
 
   const stats = [
     {
-      name: "CUSTOMERS",
-      value: customersCount,
-      icon: "Users",
-      color: "text-primary bg-primary/10",
-      description: "Active business customers",
-    },
-    {
-      name: "COMPANIES",
-      value: companiesCount,
+      name: "PARTIES",
+      value: partiesCount,
       icon: "Building",
-      color: "text-success bg-success/10",
-      description: "Sub-companies inside company",
+      color: "text-primary bg-primary/10",
+      description: "Active business parties",
     },
     {
       name: "INVENTORY",
@@ -184,7 +171,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {stats.map((stat) => (
           <div
             key={stat.name}

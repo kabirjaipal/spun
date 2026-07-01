@@ -15,13 +15,13 @@ interface ReceiptItem {
   partyId: number | null;
   totalAmount: string;
   remarks: string | null;
-  customerName: string | null;
+  partyName: string | null;
   lrNo?: string | null; // Cheque / Ref No
 }
 
-interface CustomerOption {
-  customerId: number;
-  customerName: string;
+interface PartyOption {
+  partyId: number;
+  partyName: string;
 }
 
 interface LedgerOption {
@@ -49,12 +49,12 @@ interface BillAdjustment {
 
 export default function ReceiptClient({
   initialReceipts,
-  customers,
+  parties,
   cashBankLedgers,
   canCreate,
 }: {
   initialReceipts: ReceiptItem[];
-  customers: CustomerOption[];
+  parties: PartyOption[];
   cashBankLedgers: LedgerOption[];
   canCreate: boolean;
 }) {
@@ -62,7 +62,7 @@ export default function ReceiptClient({
   const [isCreating, setIsCreating] = useState(false);
   const [voucherNo, setVoucherNo] = useState("");
   const [voucherDate, setVoucherDate] = useState(new Date().toISOString().slice(0, 10));
-  const [selectedCustomer, setSelectedCustomer] = useState("");
+  const [selectedParty, setSelectedParty] = useState("");
   const [selectedLedger, setSelectedLedger] = useState("");
   const [amount, setAmount] = useState("0");
   const [remarks, setRemarks] = useState("");
@@ -76,13 +76,13 @@ export default function ReceiptClient({
   const [billAdjustments, setBillAdjustments] = useState<Record<number, BillAdjustment>>({});
 
   useEffect(() => {
-    if (!selectedCustomer) {
+    if (!selectedParty) {
       setOutstandingBills([]);
       setBillAdjustments({});
       return;
     }
 
-    fetch(`/api/vouchers?type=outstanding&partyId=${selectedCustomer}`)
+    fetch(`/api/vouchers?type=outstanding&partyId=${selectedParty}&invoiceType=sale`)
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) {
@@ -105,7 +105,7 @@ export default function ReceiptClient({
         }
       })
       .catch((err) => console.error("Error fetching outstanding bills:", err));
-  }, [selectedCustomer, voucherDate]);
+  }, [selectedParty, voucherDate]);
 
   // Sync total amount with adjustments
   const totalAdjusted = Object.values(billAdjustments).reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
@@ -132,7 +132,7 @@ export default function ReceiptClient({
   async function handleSubmit() {
     if (!canCreate) return;
     const finalAmount = totalAdjusted > 0 ? totalAdjusted : Number(amount);
-    if (!voucherNo || !selectedCustomer || !selectedLedger || finalAmount <= 0) {
+    if (!voucherNo || !selectedParty || !selectedLedger || finalAmount <= 0) {
       setMessage("Please fill in all fields and ensure amount is greater than 0.");
       return;
     }
@@ -158,7 +158,7 @@ export default function ReceiptClient({
         voucherType: "receipt",
         voucherNo,
         voucherDate,
-        partyId: Number(selectedCustomer),
+        partyId: Number(selectedParty),
         cashBankLedgerId: Number(selectedLedger),
         totalAmount: finalAmount,
         remarks: isReversal ? `[RETURN CHEQUE REVERSAL] ${remarks}` : remarks,
@@ -179,7 +179,7 @@ export default function ReceiptClient({
       }
 
       const newVoucher = await response.json();
-      const custObj = customers.find((c) => String(c.customerId) === selectedCustomer);
+      const custObj = parties.find((c) => String(c.partyId) === selectedParty);
 
       const addedReceipt: ReceiptItem = {
         voucherId: newVoucher.voucherId,
@@ -188,7 +188,7 @@ export default function ReceiptClient({
         partyId: newVoucher.partyId,
         totalAmount: String(newVoucher.totalAmount),
         remarks: newVoucher.remarks,
-        customerName: custObj ? custObj.customerName : `ID ${newVoucher.partyId}`,
+        partyName: custObj ? custObj.partyName : `ID ${newVoucher.partyId}`,
         lrNo: newVoucher.lrNo,
       };
 
@@ -198,7 +198,7 @@ export default function ReceiptClient({
 
       // Reset form
       setVoucherNo("");
-      setSelectedCustomer("");
+      setSelectedParty("");
       setSelectedLedger("");
       setAmount("0");
       setRemarks("");
@@ -223,7 +223,7 @@ export default function ReceiptClient({
             </Button>
             <div>
               <h1 className="text-lg font-bold text-foreground uppercase tracking-wide">Record Receipt Voucher</h1>
-              <p className="text-xs text-muted-foreground mt-0.5">Debit cash/bank and credit customer ledger.</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Debit cash/bank and credit party ledger.</p>
             </div>
           </div>
           <Badge variant="secondary">Receipt</Badge>
@@ -258,13 +258,13 @@ export default function ReceiptClient({
 
           <div className="grid gap-4 lg:grid-cols-3">
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Customer (Credit)</Label>
-              <Select value={selectedCustomer} onValueChange={setSelectedCustomer}>
-                <SelectTrigger><SelectValue placeholder="Choose customer" /></SelectTrigger>
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Party (Credit)</Label>
+              <Select value={selectedParty} onValueChange={setSelectedParty}>
+                <SelectTrigger><SelectValue placeholder="Choose party" /></SelectTrigger>
                 <SelectContent>
-                  {customers.map((c) => (
-                    <SelectItem key={c.customerId} value={String(c.customerId)}>
-                      {c.customerName}
+                  {parties.map((c) => (
+                    <SelectItem key={c.partyId} value={String(c.partyId)}>
+                      {c.partyName}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -384,7 +384,7 @@ export default function ReceiptClient({
         <div>
           <h1 className="text-2xl font-bold text-foreground">Receipt Vouchers</h1>
           <p className="text-sm text-muted-foreground">
-            Review cash and customer receipt entries recorded in your company.
+            Review cash and party receipt entries recorded in your company.
           </p>
         </div>
         {canCreate && (
@@ -428,7 +428,7 @@ export default function ReceiptClient({
               </tr>
             ) : (
               receipts.map((receipt) => {
-                const partyName = receipt.customerName || `ID ${receipt.partyId}`;
+                const partyName = receipt.partyName || `ID ${receipt.partyId}`;
                 const hasReversal = receipt.remarks?.includes("[RETURN CHEQUE REVERSAL]");
                 return (
                   <tr key={receipt.voucherId} className="border-t border-border/50 hover:bg-muted/10 transition-colors">

@@ -9,9 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2, Eye, FileText } from "lucide-react";
 import PrintInvoiceModal from "@/components/PrintInvoiceModal";
 
-interface CustomerOption {
-  customerId: number;
-  customerName: string;
+interface PartyOption {
+  partyId: number;
+  partyName: string;
   gstNo: string | null;
   address: string | null;
 }
@@ -76,7 +76,7 @@ const fmt = (n: number) => `₹${n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, "
 
 export default function SalesClient({
   company,
-  customers,
+  parties,
   inventory,
   ledgers,
   taxRates,
@@ -84,7 +84,7 @@ export default function SalesClient({
   pastVouchers: initialPastVouchers,
 }: {
   company: { companyName: string; gstNo?: string | null; address?: string | null; companyType?: string };
-  customers: CustomerOption[];
+  parties: PartyOption[];
   inventory: InventoryOption[];
   ledgers: LedgerOption[];
   taxRates: TaxRateOption[];
@@ -94,7 +94,7 @@ export default function SalesClient({
 
 
   const [salesType, setSalesType] = useState<"grey" | "finished" | "other">("grey");
-  const [selectedCustomer, setSelectedCustomer] = useState("");
+  const [selectedParty, setSelectedParty] = useState("");
   const [invoiceNo, setInvoiceNo] = useState("");
   const [voucherDate, setVoucherDate] = useState(new Date().toISOString().slice(0, 10));
   
@@ -117,11 +117,11 @@ export default function SalesClient({
   // Check if Interstate or Intrastate GST
   const isInterstate = useMemo(() => {
     const companyGst = company?.gstNo || "";
-    const customer = customers.find((c) => String(c.customerId) === selectedCustomer);
-    const customerGst = customer?.gstNo || "";
-    if (!companyGst || !customerGst) return false;
-    return companyGst.slice(0, 2) !== customerGst.slice(0, 2);
-  }, [company, selectedCustomer, customers]);
+    const party = parties.find((c) => String(c.partyId) === selectedParty);
+    const partyGst = party?.gstNo || "";
+    if (!companyGst || !partyGst) return false;
+    return companyGst.slice(0, 2) !== partyGst.slice(0, 2);
+  }, [company, selectedParty, parties]);
 
   const lineTotals = useMemo(() => {
     return lineItems.map((line) => {
@@ -211,8 +211,8 @@ export default function SalesClient({
 
   async function handleSubmit() {
     if (!canCreate) return;
-    if (!selectedCustomer || !invoiceNo) {
-      setMessage("Select customer and enter invoice/voucher number.");
+    if (!selectedParty || !invoiceNo) {
+      setMessage("Select party and enter invoice/voucher number.");
       return;
     }
 
@@ -230,7 +230,7 @@ export default function SalesClient({
         voucherType: "sale",
         voucherNo: invoiceNo,
         voucherDate,
-        partyId: Number(selectedCustomer),
+        partyId: Number(selectedParty),
         remarks: remarks || `Sales - ${salesType.toUpperCase()}`,
         broker,
         haste,
@@ -267,7 +267,7 @@ export default function SalesClient({
       const responseData = await response.json();
       setMessage("Sales voucher created successfully.");
 
-      const customer = customers.find((c) => String(c.customerId) === selectedCustomer);
+      const party = parties.find((c) => String(c.partyId) === selectedParty);
       const newVoucher: PastVoucher = {
         voucherId: responseData.voucherId,
         voucherNo: body.voucherNo,
@@ -277,7 +277,7 @@ export default function SalesClient({
         taxAmount: grandTotals.tax,
         netAmount: grandTotals.total,
         remarks: body.remarks,
-        party: customer ? { name: customer.customerName, gstNo: customer.gstNo, address: customer.address } : null,
+        party: party ? { name: party.partyName, gstNo: party.gstNo, address: party.address } : null,
       };
 
       setPastVouchers((prev) => [newVoucher, ...prev]);
@@ -346,20 +346,20 @@ export default function SalesClient({
 
       {/* Main Form Fields */}
       <div className="grid gap-6 md:grid-cols-3">
-        {/* Customer & Main Details */}
+        {/* Party & Main Details */}
         <div className="rounded-lg border border-border bg-card p-5 space-y-4 shadow-sm">
           <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">Party Details</h2>
           
           <div className="space-y-1.5">
-            <Label className="text-xs font-semibold uppercase text-foreground">Customer</Label>
-            <Select value={selectedCustomer} onValueChange={setSelectedCustomer}>
+            <Label className="text-xs font-semibold uppercase text-foreground">Party</Label>
+            <Select value={selectedParty} onValueChange={setSelectedParty}>
               <SelectTrigger className="h-9">
-                <SelectValue placeholder="Choose customer" />
+                <SelectValue placeholder="Choose party" />
               </SelectTrigger>
               <SelectContent>
-                {customers.map((c) => (
-                  <SelectItem key={c.customerId} value={String(c.customerId)}>
-                    {c.customerName} {c.gstNo ? `(${c.gstNo})` : ""}
+                {parties.map((c) => (
+                  <SelectItem key={c.partyId} value={String(c.partyId)}>
+                    {c.partyName} {c.gstNo ? `(${c.gstNo})` : ""}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -568,7 +568,7 @@ export default function SalesClient({
                 <tr>
                   <th className="px-4 py-3">Voucher No</th>
                   <th className="px-4 py-3">Date</th>
-                  <th className="px-4 py-3">Customer</th>
+                  <th className="px-4 py-3">Party</th>
                   <th className="px-4 py-3">Remarks</th>
                   <th className="px-4 py-3 text-right">Taxable</th>
                   <th className="px-4 py-3 text-right">GST</th>

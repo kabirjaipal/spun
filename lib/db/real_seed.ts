@@ -2,7 +2,6 @@ import { db } from "./index";
 import {
   mCompanies,
   mUsers,
-  mCustomers,
   mTaxRates,
   mInventoryGroups,
   mInventoryCategories,
@@ -83,10 +82,9 @@ export async function seedRealData() {
         // G. Delete units of measurement
         await tx.delete(mUnitsOfMeasurement).where(inArray(mUnitsOfMeasurement.companyId, companyIds));
 
-        // H. Delete jobs & mills & customers
+        // H. Delete jobs & mills
         await tx.delete(mJobs).where(inArray(mJobs.companyId, companyIds));
         await tx.delete(mMills).where(inArray(mMills.companyId, companyIds));
-        await tx.delete(mCustomers).where(inArray(mCustomers.companyId, companyIds));
 
         // I. Delete companies (sub-companies first to respect FK)
         if (subComps.length > 0) {
@@ -380,28 +378,26 @@ export async function seedRealData() {
       updatedBy: userId,
     }).returning();
 
-    // 12. Customers
-    console.log("Inserting customers...");
-    const [custRamesh] = await tx.insert(mCustomers).values({
-      companyId,
-      customerName: "Ramesh Fabric Traders",
+    // 12. Parties (formerly Customers)
+    console.log("Inserting parties...");
+    const [custRamesh] = await tx.insert(mCompanies).values({
+      parentCompanyId: companyId,
+      companyName: "Ramesh Fabric Traders",
       gstNo: "24AAACR1234D1Z2",
       phone: "9898012345",
       email: "ramesh@fabrictraders.com",
       address: "A-501, Radhe Textile Market, Ring Road, Surat",
-      openingBalance: "0.00",
       createdBy: userId,
       updatedBy: userId,
     }).returning();
 
-    const [custShreeji] = await tx.insert(mCustomers).values({
-      companyId,
-      customerName: "Shreeji Outfits",
+    const [custShreeji] = await tx.insert(mCompanies).values({
+      parentCompanyId: companyId,
+      companyName: "Shreeji Outfits",
       gstNo: "27AAACS4321E1Z3",
       phone: "9898054321",
       email: "shreeji@outfits.com",
       address: "55, Fashion Plaza, Dadar, Mumbai",
-      openingBalance: "0.00",
       createdBy: userId,
       updatedBy: userId,
     }).returning();
@@ -536,13 +532,13 @@ export async function seedRealData() {
       updatedBy: userId,
     }).returning();
 
-    // Customer reference ledgers
+    // Customer reference ledgers (now mapped as company/party type)
     const [ledgerRamesh] = await tx.insert(mLedgers).values({
       companyId,
       ledgerName: "Ramesh Fabric Traders",
       groupId: groupMap.get("Sundry Debtors"),
-      ledgerType: "customer",
-      referenceId: Number(custRamesh.customerId),
+      ledgerType: "company",
+      referenceId: Number(custRamesh.companyId),
       gstNo: custRamesh.gstNo,
       createdBy: userId,
       updatedBy: userId,
@@ -552,8 +548,8 @@ export async function seedRealData() {
       companyId,
       ledgerName: "Shreeji Outfits",
       groupId: groupMap.get("Sundry Debtors"),
-      ledgerType: "customer",
-      referenceId: Number(custShreeji.customerId),
+      ledgerType: "company",
+      referenceId: Number(custShreeji.companyId),
       gstNo: custShreeji.gstNo,
       createdBy: userId,
       updatedBy: userId,
@@ -771,7 +767,7 @@ export async function seedRealData() {
       voucherType: "sale",
       voucherNo: "SAL-2026-0001",
       voucherDate: "2026-04-22",
-      partyId: Number(custRamesh.customerId),
+      partyId: Number(custRamesh.companyId),
       invoiceNo: "TX-001",
       invoiceDate: "2026-04-22",
       goodsName: "Finished Satin Fabric",
@@ -825,7 +821,7 @@ export async function seedRealData() {
       voucherType: "sale",
       voucherNo: "SAL-2026-0002",
       voucherDate: "2026-04-25",
-      partyId: Number(custShreeji.customerId),
+      partyId: Number(custShreeji.companyId),
       invoiceNo: "TX-002",
       invoiceDate: "2026-04-25",
       goodsName: "Finished Satin Fabric",
@@ -878,7 +874,7 @@ export async function seedRealData() {
       voucherType: "receipt",
       voucherNo: "REC-2026-0001",
       voucherDate: "2026-04-28",
-      partyId: Number(custRamesh.customerId),
+      partyId: Number(custRamesh.companyId),
       cashBankLedgerId: Number(ledgerSBI.ledgerId),
       remarks: "Part payment received",
       totalAmount: "30000.00",
@@ -971,7 +967,7 @@ export async function seedRealData() {
       voucherType: "credit_note",
       voucherNo: "CN-2026-0001",
       voucherDate: "2026-04-24",
-      partyId: Number(custRamesh.customerId),
+      partyId: Number(custRamesh.companyId),
       invoiceNo: "TX-001",
       invoiceDate: "2026-04-22",
       goodsName: "Polyester Finished Satin",

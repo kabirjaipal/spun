@@ -63,7 +63,7 @@ export async function POST(request: Request) {
 
   try {
     const result = await db.transaction(async (tx) => {
-      // 1. Check if a sub-company with same name already exists under this parent
+      // 1. Check if a sub-company/party with same name already exists under this parent
       const existingCompany = await tx.query.mCompanies.findFirst({
         where: and(
           eq(mCompanies.parentCompanyId, parentCompanyId),
@@ -73,13 +73,13 @@ export async function POST(request: Request) {
       });
 
       if (existingCompany) {
-        throw new Error("Sub-company with this name already exists");
+        throw new Error("Party with this name already exists");
       }
 
       const currentYear = new Date().getFullYear();
       const defaultFyStart = `${currentYear}-04-01`;
 
-      // 2. Create the company record
+      // 2. Create the company/party record
       const [newCompany] = await tx
         .insert(mCompanies)
         .values({
@@ -114,7 +114,7 @@ export async function POST(request: Request) {
 
       const newCompanyId = Number(newCompany.companyId);
 
-      // 3. Seed default ledger groups for the new sub-company
+      // 3. Seed default ledger groups for the new sub-company/party
       await tx.insert(mLedgerGroups).values(
         DEFAULT_LEDGER_GROUPS.map((groupName) => ({
           companyId: newCompanyId,
@@ -125,7 +125,7 @@ export async function POST(request: Request) {
         }))
       );
 
-      // 4. Seed default inventory groups for the new sub-company
+      // 4. Seed default inventory groups for the new sub-company/party
       await tx.insert(mInventoryGroups).values(
         DEFAULT_INVENTORY_GROUPS.map((groupName) => ({
           companyId: newCompanyId,
@@ -135,7 +135,7 @@ export async function POST(request: Request) {
         }))
       );
 
-      // 5. Seed default units of measurement for the new sub-company
+      // 5. Seed default units of measurement for the new sub-company/party
       await tx.insert(mUnitsOfMeasurement).values(
         DEFAULT_UNITS.map((u) => ({
           companyId: newCompanyId,
@@ -147,7 +147,7 @@ export async function POST(request: Request) {
         }))
       );
 
-      // 6. Create ledger entry in parent company pointing to this sub-company
+      // 6. Create ledger entry in parent company pointing to this sub-company/party
       await tx.insert(mLedgers).values({
         companyId: parentCompanyId,
         ledgerName: companyName,
@@ -171,6 +171,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json(result, { status: 201 });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message || "Failed to create company" }, { status: 500 });
+    return NextResponse.json({ error: error.message || "Failed to create party" }, { status: 500 });
   }
 }

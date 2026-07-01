@@ -111,21 +111,7 @@ export const pVerificationTokens = pgTable("p_verification_tokens", {
 // 2. Business Masters (Prefix: m_)
 // -------------------------------------------------------------
 
-export const mCustomers = pgTable("m_customers", {
-  customerId: serial("customer_id").primaryKey(),
-  companyId: bigint("company_id", { mode: "number" })
-    .references(() => mCompanies.companyId)
-    .notNull(),
-  customerName: text("customer_name").notNull(),
-  gstNo: text("gst_no"),
-  phone: text("phone"),
-  email: text("email"),
-  address: text("address"),
-  openingBalance: numeric("opening_balance", { precision: 15, scale: 2 }).default("0.00").notNull(),
-  ...auditColumns,
-}, (table) => ({
-  companyIdIdx: index("idx_m_customers_company_id").on(table.companyId),
-}));
+
 
 
 

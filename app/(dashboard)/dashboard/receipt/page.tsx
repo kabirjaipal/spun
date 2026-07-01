@@ -1,8 +1,8 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { mCustomers, mLedgers, tVouchers } from "@/lib/db/schema";
-import { and, eq, isNull, or, desc } from "drizzle-orm";
+import { mCompanies, mLedgers, tVouchers } from "@/lib/db/schema";
+import { and, eq, isNull, or, desc, sql } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
 import ReceiptClient from "./ReceiptClient";
 
@@ -13,7 +13,7 @@ export default async function ReceiptPage() {
 
   const companyId = Number(session.user.companyId);
 
-  const [receipts, customers, cashBankLedgers] = await Promise.all([
+  const [receipts, parties, cashBankLedgers] = await Promise.all([
     db
       .select({
         voucherId: tVouchers.voucherId,
@@ -22,21 +22,21 @@ export default async function ReceiptPage() {
         partyId: tVouchers.partyId,
         totalAmount: tVouchers.totalAmount,
         remarks: tVouchers.remarks,
-        customerName: mCustomers.customerName,
+        partyName: mCompanies.companyName,
       })
       .from(tVouchers)
-      .leftJoin(mCustomers, eq(tVouchers.partyId, mCustomers.customerId))
+      .leftJoin(mCompanies, eq(tVouchers.partyId, mCompanies.companyId))
       .where(and(eq(tVouchers.companyId, companyId), eq(tVouchers.voucherType, "receipt"), isNull(tVouchers.deletedOn)))
       .orderBy(desc(tVouchers.voucherDate))
       .limit(100),
     db
       .select({
-        customerId: mCustomers.customerId,
-        customerName: mCustomers.customerName,
+        partyId: mCompanies.companyId,
+        partyName: mCompanies.companyName,
       })
-      .from(mCustomers)
-      .where(and(eq(mCustomers.companyId, companyId), isNull(mCustomers.deletedOn)))
-      .orderBy(mCustomers.customerName),
+      .from(mCompanies)
+      .where(and(eq(mCompanies.parentCompanyId, companyId), isNull(mCompanies.deletedOn)))
+      .orderBy(mCompanies.companyName),
     db
       .select({
         ledgerId: mLedgers.ledgerId,
@@ -63,7 +63,7 @@ export default async function ReceiptPage() {
         ...r,
         voucherDate: r.voucherDate ? new Date(r.voucherDate) : null
       }))}
-      customers={customers}
+      parties={parties}
       cashBankLedgers={cashBankLedgers}
       canCreate={p?.c ?? false}
     />

@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { mCustomers, mInventory, mLedgers, mTaxRates, mCompanies, tVouchers } from "@/lib/db/schema";
+import { mInventory, mLedgers, mTaxRates, mCompanies, tVouchers } from "@/lib/db/schema";
 import { and, eq, isNull, desc } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
 import SalesClient from "./SalesClient";
@@ -13,12 +13,17 @@ export default async function SalesPage() {
 
   const companyId = Number(session.user.companyId);
 
-  const [customers, inventory, ledgers, taxRates, company, pastVouchers] = await Promise.all([
+  const [parties, inventory, ledgers, taxRates, company, pastVouchers] = await Promise.all([
     db
-      .select()
-      .from(mCustomers)
-      .where(and(eq(mCustomers.companyId, companyId), isNull(mCustomers.deletedOn)))
-      .orderBy(mCustomers.customerName),
+      .select({
+        partyId: mCompanies.companyId,
+        partyName: mCompanies.companyName,
+        address: mCompanies.address,
+        gstNo: mCompanies.gstNo,
+      })
+      .from(mCompanies)
+      .where(and(eq(mCompanies.parentCompanyId, companyId), isNull(mCompanies.deletedOn)))
+      .orderBy(mCompanies.companyName),
     db
       .select()
       .from(mInventory)
@@ -58,17 +63,17 @@ export default async function SalesPage() {
   const perms = getStaticPermissionsForRole(session.user.role as Role);
   const p = perms.find((x) => x.accessItem === "sales");
 
-  // Build customer map for past vouchers display
-  const customerMap = Object.fromEntries(
-    customers.map((c) => [c.customerId, { name: c.customerName, gstNo: c.gstNo, address: c.address }])
+  // Build party map for past vouchers display
+  const partyMap = Object.fromEntries(
+    parties.map((c) => [c.partyId, { name: c.partyName, gstNo: c.gstNo, address: c.address }])
   );
 
   return (
     <SalesClient
       company={company ? { companyName: company.companyName, gstNo: company.gstNo, address: company.address, companyType: company.companyType } : { companyName: "Texora Company", companyType: "general" }}
-      customers={customers.map((c) => ({
-        customerId: c.customerId,
-        customerName: c.customerName,
+      parties={parties.map((c) => ({
+        partyId: c.partyId,
+        partyName: c.partyName,
         address: c.address,
         gstNo: c.gstNo,
       }))}
@@ -100,7 +105,7 @@ export default async function SalesPage() {
         taxAmount: Number(v.taxAmount),
         netAmount: Number(v.netAmount),
         remarks: v.remarks,
-        party: v.partyId ? (customerMap[v.partyId] ?? null) : null,
+        party: v.partyId ? (partyMap[v.partyId] ?? null) : null,
       }))}
     />
   );

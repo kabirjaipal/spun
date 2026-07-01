@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,12 +16,12 @@ interface CreditNoteItem {
   totalAmount: string;
   netAmount: string;
   remarks: string | null;
-  customerName: string | null;
+  partyName: string | null;
 }
 
-interface CustomerOption {
-  customerId: number;
-  customerName: string;
+interface PartyOption {
+  partyId: number;
+  partyName: string;
   address: string | null;
   gstNo: string | null;
 }
@@ -80,7 +80,7 @@ const EMPTY_LINE = (): LineItem => ({
 export default function CreditNoteClient({
   initialNotes,
   company,
-  customers,
+  parties,
   inventory,
   ledgers,
   taxRates,
@@ -88,7 +88,7 @@ export default function CreditNoteClient({
 }: {
   initialNotes: CreditNoteItem[];
   company: { companyName: string; gstNo?: string | null; address?: string | null };
-  customers: CustomerOption[];
+  parties: PartyOption[];
   inventory: InventoryOption[];
   ledgers: LedgerOption[];
   taxRates: TaxRateOption[];
@@ -98,23 +98,23 @@ export default function CreditNoteClient({
   const [isCreating, setIsCreating] = useState(false);
   const [voucherNo, setVoucherNo] = useState("");
   const [voucherDate, setVoucherDate] = useState(new Date().toISOString().slice(0, 10));
-  const [selectedCustomer, setSelectedCustomer] = useState("");
+  const [selectedParty, setSelectedParty] = useState("");
   const [selectedInvoice, setSelectedInvoice] = useState("");
   const [remarks, setRemarks] = useState("");
   const [lineItems, setLineItems] = useState<LineItem[]>([EMPTY_LINE()]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
-  // Fetch sales invoices for selected customer
+  // Fetch sales invoices for selected party
   const [invoices, setInvoices] = useState<SalesInvoiceOption[]>([]);
 
   useEffect(() => {
-    if (!selectedCustomer) {
+    if (!selectedParty) {
       setInvoices([]);
       setSelectedInvoice("");
       return;
     }
-    fetch(`/api/vouchers?type=sale&partyId=${selectedCustomer}`)
+    fetch(`/api/vouchers?type=sale&partyId=${selectedParty}`)
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) {
@@ -122,7 +122,7 @@ export default function CreditNoteClient({
         }
       })
       .catch((err) => console.error("Error fetching sales invoices:", err));
-  }, [selectedCustomer]);
+  }, [selectedParty]);
 
   const salesReturnLedgers = useMemo(() => {
     // filter returns or sales accounts
@@ -130,8 +130,8 @@ export default function CreditNoteClient({
   }, [ledgers]);
 
   const custObj = useMemo(() => {
-    return customers.find((c) => String(c.customerId) === selectedCustomer);
-  }, [selectedCustomer, customers]);
+    return parties.find((c) => String(c.partyId) === selectedParty);
+  }, [selectedParty, parties]);
 
   const isInterstate = useMemo(() => {
     if (!company.gstNo || !custObj?.gstNo) return false;
@@ -202,8 +202,8 @@ export default function CreditNoteClient({
 
   async function handleSubmit() {
     if (!canCreate) return;
-    if (!selectedCustomer || !voucherNo) {
-      setMessage("Please select customer and enter voucher number.");
+    if (!selectedParty || !voucherNo) {
+      setMessage("Please select party and enter voucher number.");
       return;
     }
 
@@ -223,7 +223,7 @@ export default function CreditNoteClient({
         voucherType: "credit_note",
         voucherNo,
         voucherDate,
-        partyId: Number(selectedCustomer),
+        partyId: Number(selectedParty),
         remarks: invoiceVoucher ? `[AGAINST SALES BILL ${invoiceVoucher.voucherNo}] ${remarks}` : remarks,
         parentVoucherId: selectedInvoice ? Number(selectedInvoice) : null,
         lineItems: validLines.map((line) => ({
@@ -259,7 +259,7 @@ export default function CreditNoteClient({
         totalAmount: String(newVoucher.totalAmount),
         netAmount: String(newVoucher.netAmount),
         remarks: newVoucher.remarks,
-        customerName: custObj ? custObj.customerName : `ID ${newVoucher.partyId}`,
+        partyName: custObj ? custObj.partyName : `ID ${newVoucher.partyId}`,
       };
 
       setNotes([added, ...notes]);
@@ -268,7 +268,7 @@ export default function CreditNoteClient({
 
       // Reset
       setVoucherNo("");
-      setSelectedCustomer("");
+      setSelectedParty("");
       setSelectedInvoice("");
       setRemarks("");
       setLineItems([EMPTY_LINE()]);
@@ -289,7 +289,7 @@ export default function CreditNoteClient({
             </Button>
             <div>
               <h1 className="text-lg font-bold text-foreground uppercase tracking-wide">Record Credit Note</h1>
-              <p className="text-xs text-muted-foreground mt-0.5">Input sales return adjustments or credits against customer accounts.</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Input sales return adjustments or credits against party accounts.</p>
             </div>
           </div>
           <Badge variant="secondary">Credit Note</Badge>
@@ -298,13 +298,13 @@ export default function CreditNoteClient({
         <div className="rounded-lg border border-border bg-card p-5 shadow-sm space-y-4">
           <div className="grid gap-4 lg:grid-cols-4">
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Customer</Label>
-              <Select value={selectedCustomer} onValueChange={setSelectedCustomer}>
-                <SelectTrigger><SelectValue placeholder="Choose Customer" /></SelectTrigger>
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Party</Label>
+              <Select value={selectedParty} onValueChange={setSelectedParty}>
+                <SelectTrigger><SelectValue placeholder="Choose Party" /></SelectTrigger>
                 <SelectContent>
-                  {customers.map((c) => (
-                    <SelectItem key={c.customerId} value={String(c.customerId)}>
-                      {c.customerName}
+                  {parties.map((c) => (
+                    <SelectItem key={c.partyId} value={String(c.partyId)}>
+                      {c.partyName}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -445,7 +445,7 @@ export default function CreditNoteClient({
         <div>
           <h1 className="text-2xl font-bold text-foreground">Credit Notes</h1>
           <p className="text-sm text-muted-foreground">
-            Manage customer sales returns and accounts adjustments.
+            Manage party sales returns and accounts adjustments.
           </p>
         </div>
         {canCreate && (
@@ -461,7 +461,7 @@ export default function CreditNoteClient({
             <tr>
               <th className="px-4 py-3">Note No</th>
               <th className="px-4 py-3">Date</th>
-              <th className="px-4 py-3">Customer</th>
+              <th className="px-4 py-3">Party</th>
               <th className="px-4 py-3 text-right">Taxable Amount</th>
               <th className="px-4 py-3 text-right">Net Amount</th>
               <th className="px-4 py-3">Remarks</th>
@@ -481,7 +481,7 @@ export default function CreditNoteClient({
                   <td className="px-4 py-3 text-muted-foreground">
                     {n.voucherDate ? new Date(n.voucherDate).toISOString().slice(0, 10) : "—"}
                   </td>
-                  <td className="px-4 py-3 text-foreground">{n.customerName || `Customer ID ${n.partyId}`}</td>
+                  <td className="px-4 py-3 text-foreground">{n.partyName || `Party ID ${n.partyId}`}</td>
                   <td className="px-4 py-3 text-right text-foreground">₹{Number(n.totalAmount).toFixed(2)}</td>
                   <td className="px-4 py-3 text-right text-foreground font-bold">₹{Number(n.netAmount).toFixed(2)}</td>
                   <td className="px-4 py-3 text-muted-foreground truncate max-w-[200px]">{n.remarks || "—"}</td>
