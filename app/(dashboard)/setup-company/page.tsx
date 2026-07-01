@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { Building2, Landmark, MapPin, Calendar, FileText, ArrowRight, Phone, Mail, DollarSign, Globe, Trash2 } from "lucide-react";
-import { BANK_LIST } from "@/lib/banks";
+import { BANK_LIST, type BankData } from "@/lib/banks";
 import { CURRENCIES, MARKET_CATEGORIES } from "@/lib/constants";
 
 interface CompanyFormState {
@@ -68,6 +68,26 @@ const createEmptyCompanyState = (): CompanyFormState => ({
   customIfscActive: true,
 });
 
+function mergeBanks(base: BankData[], custom: BankData[]): BankData[] {
+  const result = [...base.map(b => ({ ...b, branches: [...b.branches] }))];
+  for (const cBank of custom) {
+    const existing = result.find(b => b.bankName.toLowerCase() === cBank.bankName.toLowerCase());
+    if (existing) {
+      for (const cBranch of cBank.branches) {
+        const branchExists = existing.branches.some(
+          br => br.ifscCode.toLowerCase() === cBranch.ifscCode.toLowerCase()
+        );
+        if (!branchExists) {
+          existing.branches.push(cBranch);
+        }
+      }
+    } else {
+      result.push(cBank);
+    }
+  }
+  return result;
+}
+
 export default function SetupCompanyPage() {
   const [companies, setCompanies] = useState<CompanyFormState[]>([createEmptyCompanyState()]);
   const [activeIdx, setActiveIdx] = useState(0);
@@ -75,6 +95,92 @@ export default function SetupCompanyPage() {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const { update } = useSession();
+
+  useEffect(() => {
+    fetch("/api/users/banks")
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setLocalBanks((prev) => mergeBanks(prev, data));
+        }
+      })
+      .catch((err) => console.error("Failed to load user banks from DB", err));
+  }, []);
+
+  const [localBanks, setLocalBanks] = useState<BankData[]>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("texora_custom_banks");
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          return mergeBanks(BANK_LIST, parsed);
+        } catch (e) {
+          // ignore
+        }
+      }
+    }
+    return BANK_LIST;
+  });
+
+  const saveCustomBanks = (updatedBanks: BankData[]) => {
+    setLocalBanks(updatedBanks);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("texora_custom_banks", JSON.stringify(updatedBanks));
+    }
+  };
+
+  const captureCustomBank = (companyState: CompanyFormState, currentBanks: BankData[]) => {
+    if (
+      companyState.customBankActive &&
+      companyState.bankName.trim() &&
+      companyState.branchName.trim() &&
+      companyState.ifscCode.trim()
+    ) {
+      const bName = companyState.bankName.trim();
+      const brName = companyState.branchName.trim();
+      const ifsc = companyState.ifscCode.trim().toUpperCase();
+
+      const updated = [...currentBanks.map(b => ({ ...b, branches: [...b.branches] }))];
+      const existingBankIndex = updated.findIndex(
+        (b) => b.bankName.toLowerCase() === bName.toLowerCase()
+      );
+
+      if (existingBankIndex !== -1) {
+        const bank = updated[existingBankIndex];
+        const branchExists = bank.branches.some(
+          (br) => br.ifscCode.toUpperCase() === ifsc
+        );
+        if (!branchExists) {
+          bank.branches.push({ branchName: brName, ifscCode: ifsc });
+          return updated;
+        }
+      } else {
+        updated.push({
+          bankName: bName,
+          branches: [{ branchName: brName, ifscCode: ifsc }],
+        });
+        return updated;
+      }
+    }
+    return null;
+  };
+
+  const handleSelectCompany = (targetIdx: number) => {
+    const updatedBanks = captureCustomBank(companies[activeIdx], localBanks);
+    if (updatedBanks) {
+      saveCustomBanks(updatedBanks);
+    }
+    setActiveIdx(targetIdx);
+  };
+
+  const handleAddCompany = () => {
+    const updatedBanks = captureCustomBank(companies[activeIdx], localBanks);
+    if (updatedBanks) {
+      saveCustomBanks(updatedBanks);
+    }
+    setCompanies(prev => [...prev, createEmptyCompanyState()]);
+    setActiveIdx(companies.length);
+  };
 
   const currentCompany = companies[activeIdx];
   const updateCurrent = (fields: Partial<CompanyFormState>) => {
@@ -91,6 +197,11 @@ export default function SetupCompanyPage() {
       setError("Company Name is required for all companies.");
       setLoading(false);
       return;
+    }
+
+    const updatedBanks = captureCustomBank(companies[activeIdx], localBanks);
+    if (updatedBanks) {
+      saveCustomBanks(updatedBanks);
     }
 
     try {
@@ -205,7 +316,7 @@ export default function SetupCompanyPage() {
               <div key={idx} className="flex items-center gap-1 bg-muted/20 p-1 rounded-md border border-border">
                 <button
                   type="button"
-                  onClick={() => setActiveIdx(idx)}
+                  onClick={() => handleSelectCompany(idx)}
                   className={`px-3 py-1.5 text-xs font-semibold rounded transition-colors ${
                     idx === activeIdx
                       ? "bg-primary text-primary-foreground shadow-sm"
@@ -221,7 +332,7 @@ export default function SetupCompanyPage() {
                     onClick={() => {
                       setCompanies(prev => prev.filter((_, i) => i !== idx));
                       if (activeIdx >= idx) {
-                        setActiveIdx(prev => Math.max(0, prev - 1));
+                        handleSelectCompany(Math.max(0, activeIdx - 1));
                       }
                     }}
                     className="p-1 text-muted-foreground hover:text-danger rounded hover:bg-danger/10"
@@ -234,10 +345,7 @@ export default function SetupCompanyPage() {
             ))}
             <button
               type="button"
-              onClick={() => {
-                setCompanies(prev => [...prev, createEmptyCompanyState()]);
-                setActiveIdx(companies.length);
-              }}
+              onClick={handleAddCompany}
               className="px-3 py-1.5 text-xs font-semibold rounded border border-dashed border-primary text-primary bg-background hover:bg-primary/5 transition-colors"
             >
               + Add Another Company
@@ -607,7 +715,7 @@ export default function SetupCompanyPage() {
                         });
                       } else {
                         const bankIndex = Number(val);
-                        const bank = BANK_LIST[bankIndex];
+                        const bank = localBanks[bankIndex];
                         updateCurrent({
                           customBankActive: false,
                           customIfscActive: false,
@@ -621,7 +729,7 @@ export default function SetupCompanyPage() {
                     className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   >
                     <option value="custom">Other / Custom Bank</option>
-                    {BANK_LIST.map((b, idx) => (
+                    {localBanks.map((b, idx) => (
                       <option key={b.bankName} value={idx}>
                         {b.bankName}
                       </option>
@@ -692,7 +800,7 @@ export default function SetupCompanyPage() {
                     </span>
                   ) : (
                     <select
-                      value={currentCompany.customIfscActive ? "custom" : BANK_LIST[currentCompany.selectedBankIndex!].branches.findIndex(b => b.ifscCode === currentCompany.ifscCode)}
+                      value={currentCompany.customIfscActive ? "custom" : localBanks[currentCompany.selectedBankIndex!].branches.findIndex(b => b.ifscCode === currentCompany.ifscCode)}
                       onChange={(e) => {
                         const val = e.target.value;
                         if (val === "custom") {
@@ -703,7 +811,7 @@ export default function SetupCompanyPage() {
                           });
                         } else {
                           const branchIndex = Number(val);
-                          const branch = BANK_LIST[currentCompany.selectedBankIndex!].branches[branchIndex];
+                          const branch = localBanks[currentCompany.selectedBankIndex!].branches[branchIndex];
                           updateCurrent({
                             customIfscActive: false,
                             ifscCode: branch.ifscCode,
@@ -713,7 +821,7 @@ export default function SetupCompanyPage() {
                       }}
                       className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                     >
-                      {BANK_LIST[currentCompany.selectedBankIndex!].branches.map((b, idx) => (
+                      {localBanks[currentCompany.selectedBankIndex!].branches.map((b, idx) => (
                         <option key={b.ifscCode} value={idx}>
                           {b.branchName} ({b.ifscCode})
                         </option>
