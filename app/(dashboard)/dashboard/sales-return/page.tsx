@@ -1,0 +1,65 @@
+import { auth } from "@/auth";
+import { redirect } from "next/navigation";
+import { db } from "@/lib/db";
+import { mInventory, mTaxRates, mCompanies } from "@/lib/db/schema";
+import { and, eq, isNull } from "drizzle-orm";
+import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
+import SalesReturnClient from "./SalesReturnClient";
+
+export default async function SalesReturnPage() {
+  const session = await auth();
+  if (!session?.user?.id) redirect("/login");
+  if (!session.user.companyId) redirect("/setup-company");
+
+  const companyId = Number(session.user.companyId);
+
+  const [companies, inventory, taxRates, company] = await Promise.all([
+    db
+      .select()
+      .from(mCompanies)
+      .where(and(eq(mCompanies.parentCompanyId, companyId), isNull(mCompanies.deletedOn)))
+      .orderBy(mCompanies.companyName),
+    db
+      .select()
+      .from(mInventory)
+      .where(and(eq(mInventory.companyId, companyId), isNull(mInventory.deletedOn)))
+      .orderBy(mInventory.inventoryName),
+    db
+      .select()
+      .from(mTaxRates)
+      .where(isNull(mTaxRates.deletedOn))
+      .orderBy(mTaxRates.taxPercent),
+    db.query.mCompanies.findFirst({
+      where: eq(mCompanies.companyId, companyId),
+    }),
+  ]);
+
+  const perms = getStaticPermissionsForRole(session.user.role as Role);
+  const p = perms.find((x) => x.accessItem === "sales_return") || perms.find((x) => x.accessItem === "sales") || { c: true };
+
+  return (
+    <SalesReturnClient
+      company={company ? { companyName: company.companyName, gstNo: company.gstNo, address: company.address, companyType: company.companyType, state: company.state } : { companyName: "Texora Company", companyType: "general", state: null }}
+      companies={companies.map((comp) => ({
+        companyId: comp.companyId,
+        companyName: comp.companyName,
+        address: comp.address,
+        gstNo: comp.gstNo,
+        state: comp.state,
+      }))}
+      inventory={inventory.map((item) => ({
+        inventoryId: item.inventoryId,
+        inventoryName: item.inventoryName,
+        inventoryCode: item.inventoryCode,
+        unit: item.unit,
+        gstRateId: item.gstRateId,
+      }))}
+      taxRates={taxRates.map((rate) => ({
+        taxRateId: rate.taxRateId,
+        taxName: rate.taxName,
+        taxPercent: String(rate.taxPercent),
+      }))}
+      canCreate={p?.c ?? false}
+    />
+  );
+}

@@ -258,6 +258,35 @@ export async function POST(request: Request) {
           updatedBy: userId,
         });
 
+        // Look up default revenue/sales ledger for this company
+        let defaultRevenueLedger = await tx.query.mLedgers.findFirst({
+          where: and(
+            eq(mLedgers.companyId, companyId),
+            voucherType === "credit_note"
+              ? or(sql`lower(${mLedgers.ledgerName}) like '%sales return%'`, sql`lower(${mLedgers.ledgerName}) like '%sale return%'`)
+              : or(sql`lower(${mLedgers.ledgerName}) like '%sales%'`, sql`lower(${mLedgers.ledgerName}) like '%sale%'`),
+            isNull(mLedgers.deletedOn)
+          ),
+        });
+
+        // Fallback to general sales ledger if sales return ledger not found
+        if (!defaultRevenueLedger && voucherType === "credit_note") {
+          defaultRevenueLedger = await tx.query.mLedgers.findFirst({
+            where: and(
+              eq(mLedgers.companyId, companyId),
+              or(sql`lower(${mLedgers.ledgerName}) like '%sales%'`, sql`lower(${mLedgers.ledgerName}) like '%sale%'`),
+              isNull(mLedgers.deletedOn)
+            ),
+          });
+        }
+
+        // Ultimate fallback to first general ledger of company
+        if (!defaultRevenueLedger) {
+          defaultRevenueLedger = await tx.query.mLedgers.findFirst({
+            where: and(eq(mLedgers.companyId, companyId), isNull(mLedgers.deletedOn)),
+          });
+        }
+
         // 2. Insert item details, ledger postings, and stock movements
         for (const line of processedLines) {
           await tx.insert(tVoucherItems).values({
@@ -281,9 +310,14 @@ export async function POST(request: Request) {
           });
 
           // Credit / Debit Revenue Account
+          const lineLedgerId = Number(line.ledgerId) || (defaultRevenueLedger ? Number(defaultRevenueLedger.ledgerId) : NaN);
+          if (isNaN(lineLedgerId)) {
+            throw new Error("Revenue ledger not found for the company");
+          }
+
           await tx.insert(tVoucherEntries).values({
             voucherId: voucherIdNum,
-            ledgerId: Number(line.ledgerId),
+            ledgerId: lineLedgerId,
             entryType: voucherType === "sale" ? "credit" : "debit",
             amount: String(line.taxableAmount),
             createdBy: userId,
