@@ -639,7 +639,6 @@ export async function seedRealData() {
     await tx.insert(tVoucherItems).values({
       voucherId: vPurch1Id,
       inventoryId: Number(invCottonGrey.inventoryId),
-      ledgerId: Number(ledgerPurchase.ledgerId),
       hsnCode: "5208",
       pcs: 20,
       quantity: "1000.0000",
@@ -690,7 +689,6 @@ export async function seedRealData() {
     await tx.insert(tVoucherItems).values({
       voucherId: vJobOutId,
       inventoryId: Number(invCottonGrey.inventoryId),
-      ledgerId: Number(ledgerJobWork.ledgerId),
       pcs: 20,
       quantity: "1000.0000",
       fold: "100.00",
@@ -734,7 +732,6 @@ export async function seedRealData() {
     await tx.insert(tVoucherItems).values({
       voucherId: vJobInId,
       inventoryId: Number(invPolySatin.inventoryId),
-      ledgerId: Number(ledgerJobWork.ledgerId),
       pcs: 20,
       quantity: "980.0000",
       fold: "100.00",
@@ -779,7 +776,6 @@ export async function seedRealData() {
     await tx.insert(tVoucherItems).values({
       voucherId: vSale1Id,
       inventoryId: Number(invPolySatin.inventoryId),
-      ledgerId: Number(ledgerSales.ledgerId),
       hsnCode: "5407",
       pcs: 10,
       quantity: "500.0000",
@@ -833,7 +829,6 @@ export async function seedRealData() {
     await tx.insert(tVoucherItems).values({
       voucherId: vSale2Id,
       inventoryId: Number(invPolySatin.inventoryId),
-      ledgerId: Number(ledgerSales.ledgerId),
       hsnCode: "5407",
       pcs: 8,
       quantity: "400.0000",
@@ -923,7 +918,6 @@ export async function seedRealData() {
     await tx.insert(tVoucherItems).values({
       voucherId: vDirectBillId,
       inventoryId: Number(invDyesBlack.inventoryId),
-      ledgerId: Number(ledgerPurchase.ledgerId),
       hsnCode: "3204",
       pcs: 0,
       quantity: "32.0000",
@@ -980,7 +974,6 @@ export async function seedRealData() {
     await tx.insert(tVoucherItems).values({
       voucherId: vCreditNoteId,
       inventoryId: Number(invPolySatin.inventoryId),
-      ledgerId: Number(ledgerSales.ledgerId),
       hsnCode: "5407",
       pcs: 0,
       quantity: "20.0000",
@@ -1033,7 +1026,6 @@ export async function seedRealData() {
     await tx.insert(tVoucherItems).values({
       voucherId: vDebitNoteId,
       inventoryId: Number(invCottonGrey.inventoryId),
-      ledgerId: Number(ledgerPurchase.ledgerId),
       hsnCode: "5208",
       pcs: 0,
       quantity: "100.0000",

@@ -446,7 +446,7 @@ export default function JobOutwardClient({
                 <th className="py-2 px-2 w-[10%]">Meters</th>
                 <th className="py-2 px-2 w-[6%]">Fold%</th>
                 <th className="py-2 px-2 w-[10%]">Job Type</th>
-                <th className="py-2 px-2 w-[8%]">Per</th>
+                <th className="py-2 px-2 w-[8%]">Unit</th>
                 <th className="py-2 px-2 w-[8%]">Rate</th>
                 <th className="py-2 px-2 w-[10%] text-right">Amount</th>
                 <th className="py-2 pl-2 w-[5%]"></th>

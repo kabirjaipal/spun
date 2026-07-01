@@ -27,12 +27,6 @@ interface InventoryOption {
   gstRateId: number | null;
 }
 
-interface LedgerOption {
-  ledgerId: number;
-  ledgerName: string;
-  ledgerType: string;
-}
-
 interface TaxRateOption {
   taxRateId: number;
   taxName: string;
@@ -48,7 +42,6 @@ interface BrokerHasteOption {
 interface LineItem {
   id: string;
   inventoryId: string;
-  ledgerId: string;
   hsnCode: string;
   pcs: string;
   quantity: string; // meters / quantity
@@ -58,12 +51,12 @@ interface LineItem {
   cgst: string;
   sgst: string;
   igst: string;
+  unitType: "pcs" | "meter";
 }
 
 const EMPTY_LINE = (): LineItem => ({
   id: crypto.randomUUID(),
   inventoryId: "",
-  ledgerId: "",
   hsnCode: "",
   pcs: "0",
   quantity: "0",
@@ -73,6 +66,7 @@ const EMPTY_LINE = (): LineItem => ({
   cgst: "",
   sgst: "",
   igst: "",
+  unitType: "meter",
 });
 
 
@@ -80,7 +74,6 @@ export default function PurchaseClient({
   company,
   companies,
   inventory,
-  ledgers,
   taxRates,
   brokersHaste,
   canCreate,
@@ -88,7 +81,6 @@ export default function PurchaseClient({
   company: { companyName: string; gstNo?: string | null; address?: string | null; companyType?: string };
   companies: CompanyOption[];
   inventory: InventoryOption[];
-  ledgers: LedgerOption[];
   taxRates: TaxRateOption[];
   brokersHaste: BrokerHasteOption[];
   canCreate: boolean;
@@ -164,13 +156,15 @@ export default function PurchaseClient({
 
   const lineTotals = useMemo(() => {
     return lineItems.map((line) => {
+      const pcs = Number(line.pcs) || 0;
       const qty = Number(line.quantity) || 0;
       const rate = Number(line.rate) || 0;
       const fold = 100;
       const gstRatePercent = Number(line.gstRateId ? taxRates.find((t) => String(t.taxRateId) === line.gstRateId)?.taxPercent : 0) || 0;
       
-      // Fold calculation: qty * rate * fold / 100
-      const amount = Math.round((qty * rate * fold / 100) * 100) / 100;
+      // Amount formula: if unitType is 'pcs', then pcs * rate. If 'meter', then qty * rate * fold / 100.
+      const multiplier = line.unitType === "pcs" ? pcs : (qty * fold / 100);
+      const amount = Math.round((multiplier * rate) * 100) / 100;
       const totalTax = Math.round((amount * gstRatePercent) / 100 * 100) / 100;
       
       let defaultCgst = 0;
@@ -245,9 +239,9 @@ export default function PurchaseClient({
       return;
     }
 
-    const validLines = lineItems.filter((line) => line.inventoryId && Number(line.quantity) >= 0 && Number(line.rate) >= 0 && line.ledgerId);
+    const validLines = lineItems.filter((line) => line.inventoryId && Number(line.quantity) >= 0 && Number(line.rate) >= 0);
     if (validLines.length === 0) {
-      setMessage("Add at least one line item with item, ledger, quantity, and rate.");
+      setMessage("Add at least one line item with item, quantity, and rate.");
       return;
     }
 
@@ -277,7 +271,6 @@ export default function PurchaseClient({
           const totals = lineTotals[lineItems.indexOf(line)];
           return {
             inventoryId: Number(line.inventoryId),
-            ledgerId: Number(line.ledgerId),
             hsnCode: line.hsnCode,
             pcs: Number(line.pcs || 0),
             quantity: Number(line.quantity),
@@ -287,6 +280,7 @@ export default function PurchaseClient({
             cgst: totals?.cgst || 0,
             sgst: totals?.sgst || 0,
             igst: totals?.igst || 0,
+            jobRateType: line.unitType,
           };
         }),
       };
@@ -511,26 +505,24 @@ export default function PurchaseClient({
           <table className="w-full text-left border-collapse min-w-[1200px]">
             <thead>
               <tr className="border-b border-border text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                <th className="py-2 pr-4 w-[18%]">Item</th>
-                <th className="py-2 px-3 w-[10%]">HSN Code</th>
-                <th className="py-2 px-3 w-[15%]">Expense Ledger</th>
+                <th className="py-2 pr-4 w-[20%]">Item</th>
+                <th className="py-2 px-3 w-[12%]">HSN Code</th>
                 <th className="py-2 px-3 w-[6%] text-right">PCS</th>
-                <th className="py-2 px-3 w-[8%] text-right">Qty</th>
-                <th className="py-2 px-3 w-[6%]">Unit</th>
+                <th className="py-2 px-3 w-[8%] text-right">Meter</th>
+                <th className="py-2 px-3 w-[8%]">Unit</th>
                 <th className="py-2 px-3 w-[8%] text-right">Rate</th>
-                <th className="py-2 px-3 w-[8%]">GST Rate</th>
                 <th className="py-2 px-3 w-[9%] text-right">Taxable</th>
+                <th className="py-2 px-3 w-[8%]">GST Rate</th>
                 <th className="py-2 px-3 w-[7%] text-right">CGST</th>
                 <th className="py-2 px-3 w-[7%] text-right">SGST</th>
                 <th className="py-2 px-3 w-[7%] text-right">IGST</th>
                 <th className="py-2 px-3 w-[9%] text-right">Net Amt</th>
-                <th className="py-2 pl-4 w-[4%]"></th>
+                <th className="py-2 pl-4 w-[3%]"></th>
               </tr>
             </thead>
             <tbody>
               {lineItems.map((line, index) => {
                 const totals = lineTotals[index];
-                const itemProd = inventory.find((p) => String(p.inventoryId) === line.inventoryId);
                 return (
                   <tr key={line.id} className="border-b border-border/40 hover:bg-muted/30">
                     <td className="py-3 pr-4">
@@ -567,20 +559,6 @@ export default function PurchaseClient({
                       />
                     </td>
                     <td className="py-3 px-3">
-                      <Select value={line.ledgerId} onValueChange={(val) => updateLine(line.id, "ledgerId", val)}>
-                        <SelectTrigger className="h-9 w-full">
-                          <SelectValue placeholder="Select Ledger" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {ledgers.map((l) => (
-                            <SelectItem key={l.ledgerId} value={String(l.ledgerId)}>
-                              {l.ledgerName}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </td>
-                    <td className="py-3 px-3">
                       <Input
                         type="number"
                         value={line.pcs}
@@ -597,10 +575,17 @@ export default function PurchaseClient({
                         className="h-9 text-right font-medium"
                       />
                     </td>
-                    <td className="py-3 px-3 text-xs text-muted-foreground font-medium">
-                      {itemProd?.unit || "—"}
+                    <td className="py-3 px-3">
+                      <Select value={line.unitType} onValueChange={(val) => updateLine(line.id, "unitType", val as any)}>
+                        <SelectTrigger className="h-9 w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="meter">Meter</SelectItem>
+                          <SelectItem value="pcs">Pcs</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </td>
-
                     <td className="py-3 px-3">
                       <Input
                         type="number"
@@ -609,6 +594,9 @@ export default function PurchaseClient({
                         onChange={(e) => updateLine(line.id, "rate", e.target.value)}
                         className="h-9 text-right font-semibold"
                       />
+                    </td>
+                    <td className="py-3 px-3 text-right font-semibold text-foreground">
+                      ₹{totals?.amount.toFixed(2)}
                     </td>
                     <td className="py-3 px-3">
                       <Select value={line.gstRateId} onValueChange={(val) => updateLine(line.id, "gstRateId", val)}>
@@ -623,9 +611,6 @@ export default function PurchaseClient({
                           ))}
                         </SelectContent>
                       </Select>
-                    </td>
-                    <td className="py-3 px-3 text-right font-semibold text-foreground">
-                      ₹{totals?.amount.toFixed(2)}
                     </td>
                     <td className="py-3 px-3">
                       <Input

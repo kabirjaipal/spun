@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { mJobs, mInventory, mLedgers, mTaxRates, mCompanies, tVouchers, tVoucherItems, mBrokersHaste } from "@/lib/db/schema";
+import { mJobs, mInventory, mTaxRates, mCompanies, tVouchers, tVoucherItems, mBrokersHaste } from "@/lib/db/schema";
 import { and, eq, isNull } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
 import JobInwardClient from "./JobInwardClient";
@@ -13,7 +13,7 @@ export default async function JobInwardPage() {
 
   const companyId = Number(session.user.companyId);
 
-  const [jobs, inventory, ledgers, taxRates, company, outwardVouchers, outwardItems, brokersHaste] = await Promise.all([
+  const [jobs, inventory, taxRates, company, outwardVouchers, outwardItems, brokersHaste] = await Promise.all([
     db
       .select()
       .from(mJobs)
@@ -24,11 +24,6 @@ export default async function JobInwardPage() {
       .from(mInventory)
       .where(and(eq(mInventory.companyId, companyId), isNull(mInventory.deletedOn)))
       .orderBy(mInventory.inventoryName),
-    db
-      .select()
-      .from(mLedgers)
-      .where(and(eq(mLedgers.companyId, companyId), isNull(mLedgers.deletedOn)))
-      .orderBy(mLedgers.ledgerName),
     db
       .select()
       .from(mTaxRates)
@@ -52,7 +47,6 @@ export default async function JobInwardPage() {
         voucherItemId: tVoucherItems.voucherItemId,
         voucherId: tVoucherItems.voucherId,
         inventoryId: tVoucherItems.inventoryId,
-        ledgerId: tVoucherItems.ledgerId,
         hsnCode: tVoucherItems.hsnCode,
         pcs: tVoucherItems.pcs,
         quantity: tVoucherItems.quantity,
@@ -91,11 +85,6 @@ export default async function JobInwardPage() {
         unit: item.unit,
         gstRateId: item.gstRateId,
       }))}
-      ledgers={ledgers.map((ledger) => ({
-        ledgerId: ledger.ledgerId,
-        ledgerName: ledger.ledgerName,
-        ledgerType: ledger.ledgerType,
-      }))}
       taxRates={taxRates.map((rate) => ({
         taxRateId: rate.taxRateId,
         taxName: rate.taxName,
@@ -112,7 +101,6 @@ export default async function JobInwardPage() {
         voucherItemId: Number(item.voucherItemId),
         voucherId: Number(item.voucherId),
         inventoryId: Number(item.inventoryId),
-        ledgerId: Number(item.ledgerId),
         hsnCode: item.hsnCode,
         pcs: item.pcs,
         quantity: String(item.quantity),

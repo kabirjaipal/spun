@@ -57,6 +57,13 @@
       "when": 1782900943506,
       "tag": "0007_goofy_bloodstorm",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1782918532130,
+      "tag": "0008_conscious_albert_cleary",
+      "breakpoints": true
     }
   ]
 }

@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { mInventory, mLedgers, mTaxRates, mCompanies, tVouchers, mBrokersHaste } from "@/lib/db/schema";
+import { mInventory, mTaxRates, mCompanies, tVouchers, mBrokersHaste } from "@/lib/db/schema";
 import { and, eq, isNull, desc } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
 import SalesClient from "./SalesClient";
@@ -13,7 +13,7 @@ export default async function SalesPage() {
 
   const companyId = Number(session.user.companyId);
 
-  const [parties, inventory, ledgers, taxRates, company, pastVouchers, brokersHaste] = await Promise.all([
+  const [parties, inventory, taxRates, company, pastVouchers, brokersHaste] = await Promise.all([
     db
       .select({
         partyId: mCompanies.companyId,
@@ -29,11 +29,6 @@ export default async function SalesPage() {
       .from(mInventory)
       .where(and(eq(mInventory.companyId, companyId), isNull(mInventory.deletedOn)))
       .orderBy(mInventory.inventoryName),
-    db
-      .select()
-      .from(mLedgers)
-      .where(and(eq(mLedgers.companyId, companyId), isNull(mLedgers.deletedOn)))
-      .orderBy(mLedgers.ledgerName),
     db
       .select()
       .from(mTaxRates)
@@ -88,12 +83,6 @@ export default async function SalesPage() {
         inventoryCode: p.inventoryCode,
         unit: p.unit,
         gstRateId: p.gstRateId,
-      }))}
-      ledgers={ledgers.map((l) => ({
-        ledgerId: l.ledgerId,
-        ledgerName: l.ledgerName,
-        ledgerType: l.ledgerType,
-        referenceId: l.referenceId,
       }))}
       taxRates={taxRates.map((r) => ({
         taxRateId: r.taxRateId,

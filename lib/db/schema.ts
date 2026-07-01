@@ -335,9 +335,6 @@ export const tVoucherItems = pgTable("t_voucher_items", {
   inventoryId: bigint("inventory_id", { mode: "number" })
     .references(() => mInventory.inventoryId)
     .notNull(),
-  ledgerId: bigint("ledger_id", { mode: "number" })
-    .references(() => mLedgers.ledgerId)
-    .notNull(),
   hsnCode: text("hsn_code"),
   pcs: integer("pcs").default(0).notNull(),
   quantity: numeric("quantity", { precision: 15, scale: 4 }).default("0.0000").notNull(), // meters or main quantity

@@ -24,12 +24,6 @@ interface InventoryOption {
   gstRateId: number | null;
 }
 
-interface LedgerOption {
-  ledgerId: number;
-  ledgerName: string;
-  ledgerType: string;
-}
-
 interface TaxRateOption {
   taxRateId: number;
   taxName: string;
@@ -54,7 +48,6 @@ interface OutwardItem {
   voucherItemId: number;
   voucherId: number;
   inventoryId: number;
-  ledgerId: number;
   hsnCode: string | null;
   pcs: number;
   quantity: string;
@@ -68,7 +61,6 @@ interface OutwardItem {
 interface LineItem {
   id: string;
   inventoryId: string;
-  ledgerId: string;
   hsnCode: string;
   outwardPcs: number;
   outwardQuantity: number;
@@ -85,7 +77,6 @@ export default function JobInwardClient({
   company,
   jobs,
   inventory,
-  ledgers,
   taxRates,
   outwardVouchers,
   outwardItems,
@@ -95,7 +86,6 @@ export default function JobInwardClient({
   company: { companyName: string; gstNo?: string | null; address?: string | null };
   jobs: JobOption[];
   inventory: InventoryOption[];
-  ledgers: LedgerOption[];
   taxRates: TaxRateOption[];
   outwardVouchers: OutwardVoucher[];
   outwardItems: OutwardItem[];
@@ -147,7 +137,6 @@ export default function JobInwardClient({
     const itemsMapped = matchedItems.map((item) => ({
       id: crypto.randomUUID(),
       inventoryId: String(item.inventoryId),
-      ledgerId: String(item.ledgerId),
       hsnCode: item.hsnCode || "",
       outwardPcs: item.pcs,
       outwardQuantity: Number(item.quantity) || 0,
@@ -231,7 +220,6 @@ export default function JobInwardClient({
       {
         id: crypto.randomUUID(),
         inventoryId: "",
-        ledgerId: "",
         hsnCode: "",
         outwardPcs: 0,
         outwardQuantity: 0,
@@ -257,9 +245,9 @@ export default function JobInwardClient({
       return;
     }
 
-    const validLines = lineItems.filter((line) => line.inventoryId && line.ledgerId);
+    const validLines = lineItems.filter((line) => line.inventoryId);
     if (validLines.length === 0) {
-      setMessage("Add at least one item with item and ledger specified.");
+      setMessage("Add at least one line item.");
       return;
     }
 
@@ -290,7 +278,6 @@ export default function JobInwardClient({
           const totals = lineTotals[lineItems.indexOf(line)];
           return {
             inventoryId: Number(line.inventoryId),
-            ledgerId: Number(line.ledgerId),
             hsnCode: line.hsnCode,
             pcs: Number(line.pcs || 0),
             quantity: Number(line.quantity || 0),
@@ -513,7 +500,6 @@ export default function JobInwardClient({
             <thead>
               <tr className="border-b border-border text-xs font-bold uppercase text-muted-foreground">
                 <th className="py-2 pr-2 w-[20%]">Item</th>
-                <th className="py-2 px-2 w-[15%]">Ledger</th>
                 <th className="py-2 px-2 w-[12%] text-center">Outward (PCS/Mtr)</th>
                 <th className="py-2 px-2 w-[8%]">Inward PCS</th>
                 <th className="py-2 px-2 w-[10%]">Inward Meters</th>
@@ -527,7 +513,7 @@ export default function JobInwardClient({
             <tbody className="divide-y divide-border text-sm">
               {lineItems.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-8 text-center text-muted-foreground text-xs uppercase font-medium">
+                  <td colSpan={9} className="py-8 text-center text-muted-foreground text-xs uppercase font-medium">
                     No items loaded. Please select an active Outward Lot above.
                   </td>
                 </tr>
@@ -545,21 +531,6 @@ export default function JobInwardClient({
                             {inventory.map((p) => (
                               <SelectItem key={p.inventoryId} value={String(p.inventoryId)}>
                                 {p.inventoryName} ({p.unit})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </td>
-
-                      <td className="py-3 px-2">
-                        <Select value={line.ledgerId} onValueChange={(v) => updateLine(line.id, "ledgerId", v)}>
-                          <SelectTrigger className="h-9">
-                            <SelectValue placeholder="Select ledger" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {ledgers.map((l) => (
-                              <SelectItem key={l.ledgerId} value={String(l.ledgerId)}>
-                                {l.ledgerName}
                               </SelectItem>
                             ))}
                           </SelectContent>

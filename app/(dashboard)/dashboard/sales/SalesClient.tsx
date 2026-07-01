@@ -25,12 +25,6 @@ interface InventoryOption {
   gstRateId: number | null;
 }
 
-interface LedgerOption {
-  ledgerId: number;
-  ledgerName: string;
-  ledgerType: string;
-}
-
 interface TaxRateOption {
   taxRateId: number;
   taxName: string;
@@ -40,7 +34,6 @@ interface TaxRateOption {
 interface LineItem {
   id: string;
   inventoryId: string;
-  ledgerId: string;
   hsnCode: string;
   pcs: string;
   quantity: string; // meters / quantity
@@ -70,7 +63,6 @@ interface BrokerHasteOption {
 const EMPTY_LINE = (): LineItem => ({
   id: crypto.randomUUID(),
   inventoryId: "",
-  ledgerId: "",
   hsnCode: "",
   pcs: "0",
   quantity: "0",
@@ -85,7 +77,6 @@ export default function SalesClient({
   company,
   parties,
   inventory,
-  ledgers,
   taxRates,
   brokersHaste,
   canCreate,
@@ -94,7 +85,6 @@ export default function SalesClient({
   company: { companyName: string; gstNo?: string | null; address?: string | null; companyType?: string };
   parties: PartyOption[];
   inventory: InventoryOption[];
-  ledgers: LedgerOption[];
   taxRates: TaxRateOption[];
   brokersHaste: BrokerHasteOption[];
   canCreate: boolean;
@@ -231,9 +221,9 @@ export default function SalesClient({
       return;
     }
 
-    const validLines = lineItems.filter((line) => line.inventoryId && Number(line.quantity) >= 0 && Number(line.rate) >= 0 && line.ledgerId);
+    const validLines = lineItems.filter((line) => line.inventoryId && Number(line.quantity) >= 0 && Number(line.rate) >= 0);
     if (validLines.length === 0) {
-      setMessage("Add at least one line item with item, ledger, quantity, and rate.");
+      setMessage("Add at least one line item with item, quantity, and rate.");
       return;
     }
 
@@ -258,7 +248,6 @@ export default function SalesClient({
         printAmount: true,
         lineItems: validLines.map((line) => ({
           inventoryId: Number(line.inventoryId),
-          ledgerId: Number(line.ledgerId),
           hsnCode: line.hsnCode,
           pcs: Number(line.pcs || 0),
           quantity: Number(line.quantity),
@@ -487,7 +476,6 @@ export default function SalesClient({
             <thead>
               <tr className="border-b border-border text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
                 <th className="py-2 pr-4 w-[25%]">Item</th>
-                <th className="py-2 px-3 w-[20%]">Revenue Ledger</th>
                 <th className="py-2 px-3 w-[8%] text-right">PCS</th>
                 <th className="py-2 px-3 w-[10%] text-right">Quantity</th>
                 <th className="py-2 px-3 w-[10%] text-right">Rate</th>
@@ -510,20 +498,6 @@ export default function SalesClient({
                           {inventory.map((p) => (
                             <SelectItem key={p.inventoryId} value={String(p.inventoryId)}>
                               {p.inventoryCode} — {p.inventoryName}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </td>
-                    <td className="py-3 px-3">
-                      <Select value={line.ledgerId} onValueChange={(val) => updateLine(line.id, "ledgerId", val)}>
-                        <SelectTrigger className="h-9 w-full">
-                          <SelectValue placeholder="Select Ledger" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {ledgers.map((l) => (
-                            <SelectItem key={l.ledgerId} value={String(l.ledgerId)}>
-                              {l.ledgerName}
                             </SelectItem>
                           ))}
                         </SelectContent>

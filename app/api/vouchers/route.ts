@@ -106,12 +106,15 @@ export async function POST(request: Request) {
         }
 
         for (const line of lineItems) {
+          const pcs = Number(line.pcs) || 0;
           const qty = Number(line.quantity) || 0;
           const rate = Number(line.rate) || 0;
           const fold = Number(line.fold !== undefined ? line.fold : 100) || 100;
+          const jobRateType = line.jobRateType || "mtr";
           
-          // Fold formula: quantity * rate * fold / 100
-          const taxableAmount = Math.round((qty * rate * fold / 100) * 100) / 100;
+          // Amount formula: if jobRateType is 'pcs', then pcs * rate. If 'mtr', then qty * rate * fold / 100.
+          const multiplier = jobRateType === "pcs" ? pcs : (qty * fold / 100);
+          const taxableAmount = Math.round((multiplier * rate) * 100) / 100;
 
           let cgst = line.cgst !== undefined ? Number(line.cgst) : 0;
           let sgst = line.sgst !== undefined ? Number(line.sgst) : 0;
@@ -246,7 +249,6 @@ export async function POST(request: Request) {
           await tx.insert(tVoucherItems).values({
             voucherId: voucherIdNum,
             inventoryId: Number(line.inventoryId),
-            ledgerId: Number(line.ledgerId),
             hsnCode: line.hsnCode || null,
             pcs: Number(line.pcs || 0),
             quantity: String(line.qty),
@@ -329,7 +331,6 @@ export async function POST(request: Request) {
           await tx.insert(tVoucherItems).values({
             voucherId: voucherIdNum,
             inventoryId: Number(line.inventoryId),
-            ledgerId: Number(line.ledgerId),
             hsnCode: line.hsnCode || null,
             pcs: Number(line.pcs || 0),
             quantity: String(line.qty),
@@ -343,16 +344,6 @@ export async function POST(request: Request) {
             netAmount: String(line.lineNet),
             jobType: line.jobType || null,
             jobRateType: line.jobRateType || null,
-            createdBy: userId,
-            updatedBy: userId,
-          });
-
-          // Expense Account Entry
-          await tx.insert(tVoucherEntries).values({
-            voucherId: voucherIdNum,
-            ledgerId: Number(line.ledgerId),
-            entryType: expenseEntryType,
-            amount: String(line.taxableAmount),
             createdBy: userId,
             updatedBy: userId,
           });
@@ -401,7 +392,6 @@ export async function POST(request: Request) {
           await tx.insert(tVoucherItems).values({
             voucherId: voucherIdNum,
             inventoryId: Number(line.inventoryId),
-            ledgerId: Number(line.ledgerId),
             hsnCode: line.hsnCode || null,
             pcs: Number(line.pcs || 0),
             quantity: String(line.qty),
@@ -706,7 +696,6 @@ export async function GET(request: Request) {
         inventoryName: mInventory.inventoryName,
         inventoryCode: mInventory.inventoryCode,
         unit: mInventory.unit,
-        ledgerId: tVoucherItems.ledgerId,
         hsnCode: tVoucherItems.hsnCode,
         pcs: tVoucherItems.pcs,
         quantity: tVoucherItems.quantity,
