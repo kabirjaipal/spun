@@ -29,6 +29,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     consumeWithInventoryId,
     consumptionRatio,
     shortagePercent,
+    formula,
   } = await request.json();
 
   const [row] = await db.transaction(async (tx) => {
@@ -54,6 +55,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         consumeWithInventoryId: consumeWithInventoryId ? Number(consumeWithInventoryId) : null,
         consumptionRatio: consumptionRatio ? String(consumptionRatio) : null,
         shortagePercent: shortagePercent ? String(shortagePercent) : null,
+        formula: formula || null,
         updatedBy: userId,
         updatedOn: new Date(),
       })

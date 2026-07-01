@@ -8,10 +8,11 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/com
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, List } from "lucide-react";
 import ExportButton from "@/components/ExportButton";
 
 export interface TaxRate { taxRateId: number; taxName: string; taxPercent: string; }
+
 export interface InventoryItem {
   inventoryId: number;
   inventoryCode: string;
@@ -31,6 +32,7 @@ export interface InventoryItem {
   consumeWithInventoryId?: number | null;
   consumptionRatio?: string | null;
   shortagePercent?: string | null;
+  formula?: string | null;
 }
 
 export interface InventoryGroup { inventoryGroupId: number; groupName: string; }
@@ -86,6 +88,10 @@ export default function InventoryItemsClient({
   const [deleteTarget, setDeleteTarget] = useState<InventoryItem | null>(null);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
+  const [formulaSheetOpen, setFormulaSheetOpen] = useState(false);
+  const [formulaTarget, setFormulaTarget] = useState<InventoryItem | null>(null);
+  const [formulaLeft, setFormulaLeft] = useState("");
+  const [formulaRight, setFormulaRight] = useState("");
 
   const filtered = data.filter((r) =>
     r.inventoryName.toLowerCase().includes(search.toLowerCase()) ||
@@ -153,6 +159,38 @@ export default function InventoryItemsClient({
     setSaving(false);
   }
 
+  async function handleFormulaSave() {
+    if (!formulaTarget) return;
+    setSaving(true);
+    const formula = JSON.stringify({ left: formulaLeft, right: formulaRight });
+    const res = await fetch(`/api/inventory/${formulaTarget.inventoryId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        inventoryCode: formulaTarget.inventoryCode,
+        inventoryName: formulaTarget.inventoryName,
+        unit: formulaTarget.unit,
+        gstRateId: formulaTarget.gstRateId,
+        openingStockQty: Number(formulaTarget.openingStockQty),
+        openingStockRate: Number(formulaTarget.openingStockRate),
+        hsnCode: formulaTarget.hsnCode,
+        inventoryGroupId: formulaTarget.inventoryGroupId,
+        inventoryCategoryId: formulaTarget.inventoryCategoryId,
+        gstType: formulaTarget.gstType,
+        gstPercent: Number(formulaTarget.gstPercent),
+        isConsumable: formulaTarget.isConsumable,
+        consumeWithInventoryId: formulaTarget.consumeWithInventoryId,
+        consumptionRatio: Number(formulaTarget.consumptionRatio),
+        shortagePercent: Number(formulaTarget.shortagePercent),
+        formula,
+      }),
+    });
+    const updated = await res.json();
+    setData((d) => d.map((r) => (r.inventoryId === formulaTarget.inventoryId ? { ...r, ...updated, formula } : r)));
+    setFormulaSheetOpen(false);
+    setSaving(false);
+  }
+
   async function handleDelete() {
     if (!deleteTarget) return;
     await fetch(`/api/inventory/${deleteTarget.inventoryId}`, { method: "DELETE" });
@@ -176,6 +214,7 @@ export default function InventoryItemsClient({
             rows={filtered}
             canExport={canExport}
           />
+          {canUpdate && <Button variant="outline" onClick={() => { setFormulaTarget(null); setFormulaLeft(""); setFormulaRight(""); setFormulaSheetOpen(true); }}>+ Add Formula</Button>}
           {canCreate && <Button onClick={openCreate}>+ Add Item</Button>}
         </div>
       </div>
@@ -189,6 +228,7 @@ export default function InventoryItemsClient({
               <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Type</th>
               <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Unit</th>
               <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">GST Details</th>
+              <th className="px-4 py-2.5 text-center text-xs font-bold uppercase tracking-wider text-muted-foreground">Formula</th>
               <th className="px-4 py-2.5 text-right text-xs font-bold uppercase tracking-wider text-muted-foreground">Opening Qty</th>
               <th className="px-4 py-2.5 text-right text-xs font-bold uppercase tracking-wider text-muted-foreground">Rate</th>
               {(canUpdate || canDelete) && <th className="px-4 py-2.5 text-right text-xs font-bold uppercase tracking-wider text-muted-foreground">Actions</th>}
@@ -196,7 +236,7 @@ export default function InventoryItemsClient({
           </thead>
           <tbody>
             {filtered.length === 0 && (
-              <tr><td colSpan={8} className="px-4 py-8 text-center text-sm text-muted-foreground">{search ? "No items match." : "No inventory items yet."}</td></tr>
+              <tr><td colSpan={9} className="px-4 py-8 text-center text-sm text-muted-foreground">{search ? "No items match." : "No inventory items yet."}</td></tr>
             )}
             {filtered.map((row) => (
               <tr key={row.inventoryId} className="border-b border-border/50 hover:bg-muted/20 transition-colors">
@@ -211,11 +251,21 @@ export default function InventoryItemsClient({
                 <td className="px-4 py-3 text-xs text-muted-foreground">
                   {row.gstType ? `${row.gstType.toUpperCase()} (${row.gstPercent}%)` : row.taxName ? `${row.taxName} (${row.taxPercent}%)` : "—"}
                 </td>
+                <td className="px-4 py-3 text-center">
+                  {row.formula ? (
+                    <Badge variant="outline" className="cursor-pointer max-w-[120px] truncate block" title={String(row.formula)} onClick={() => { try { const f = JSON.parse(String(row.formula)); setFormulaLeft(f.left || ""); setFormulaRight(f.right || ""); } catch { setFormulaLeft(""); setFormulaRight(""); } setFormulaTarget(row); setFormulaSheetOpen(true); }}>
+                      {(() => { try { const f = JSON.parse(String(row.formula)); return `${f.left} = ${f.right}`; } catch { return "Formula"; } })()}
+                    </Badge>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">—</span>
+                  )}
+                </td>
                 <td className="px-4 py-3 text-right text-xs text-foreground">{Number(row.openingStockQty).toFixed(2)}</td>
                 <td className="px-4 py-3 text-right text-xs text-foreground">₹{Number(row.openingStockRate).toFixed(2)}</td>
                 {(canUpdate || canDelete) && (
                   <td className="px-4 py-3 text-right space-x-2">
                     {canUpdate && <Button variant="ghost" size="icon-sm" onClick={() => openEdit(row)}><Pencil className="h-3.5 w-3.5" /></Button>}
+                    {canUpdate && <Button variant="ghost" size="icon-sm" onClick={() => { try { const f = JSON.parse(row.formula ?? "{}"); setFormulaLeft(f.left || ""); setFormulaRight(f.right || ""); } catch { setFormulaLeft(""); setFormulaRight(""); } setFormulaTarget(row); setFormulaSheetOpen(true); }} title="Edit Formula"><List className="h-3.5 w-3.5" /></Button>}
                     {canDelete && <Button variant="ghost" size="icon-sm" onClick={() => setDeleteTarget(row)} className="text-danger hover:text-danger hover:bg-danger/10"><Trash2 className="h-3.5 w-3.5" /></Button>}
                   </td>
                 )}
@@ -367,6 +417,53 @@ export default function InventoryItemsClient({
             <Button variant="outline" onClick={() => setSheetOpen(false)}>Cancel</Button>
             <Button onClick={handleSave} disabled={saving || !form.inventoryCode || !form.inventoryName || !form.unit}>
               {saving ? "Saving..." : editing ? "Update" : "Create"}
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={formulaSheetOpen} onOpenChange={setFormulaSheetOpen}>
+        <SheetContent className="overflow-y-auto w-[420px] sm:w-[540px]">
+          <SheetHeader>
+            <SheetTitle>{formulaTarget ? `Formula: ${formulaTarget.inventoryName}` : "New Formula"}</SheetTitle>
+          </SheetHeader>
+
+          <div className="flex-1 px-1 py-6 space-y-4">
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Item</Label>
+              <Select value={formulaTarget ? String(formulaTarget.inventoryId) : ""} onValueChange={(v) => {
+                const item = data.find((d) => d.inventoryId === Number(v));
+                setFormulaTarget(item || null);
+              }}>
+                <SelectTrigger><SelectValue placeholder="Select item" /></SelectTrigger>
+                <SelectContent>
+                  {data.map((item) => (
+                    <SelectItem key={item.inventoryId} value={String(item.inventoryId)}>{item.inventoryName} ({item.inventoryCode})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="border-t border-border pt-4">
+              <Label className="text-xs font-bold uppercase tracking-wider text-foreground mb-3 block">Formula</Label>
+              <div className="flex items-end gap-2">
+                <div className="flex-1 space-y-1">
+                  <Label className="text-[10px] font-semibold uppercase text-muted-foreground">Input</Label>
+                  <Input placeholder="e.g. 1 meter cloth" value={formulaLeft} onChange={(e) => setFormulaLeft(e.target.value)} />
+                </div>
+                <span className="text-lg font-bold text-muted-foreground pb-2">=</span>
+                <div className="flex-1 space-y-1">
+                  <Label className="text-[10px] font-semibold uppercase text-muted-foreground">Output</Label>
+                  <Input placeholder="e.g. 3 liter color" value={formulaRight} onChange={(e) => setFormulaRight(e.target.value)} />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <SheetFooter className="mt-4">
+            <Button variant="outline" onClick={() => setFormulaSheetOpen(false)}>Cancel</Button>
+            <Button onClick={handleFormulaSave} disabled={saving || !formulaTarget}>
+              {saving ? "Saving..." : "Save Formula"}
             </Button>
           </SheetFooter>
         </SheetContent>

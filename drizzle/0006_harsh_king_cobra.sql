@@ -1,0 +1,1 @@
+ALTER TABLE "m_inventory" ADD COLUMN "formula" text;

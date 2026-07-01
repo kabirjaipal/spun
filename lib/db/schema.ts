@@ -186,6 +186,7 @@ export const mInventory = pgTable("m_inventory", {
   consumeWithInventoryId: integer("consume_with_inventory_id"), // self reference ID
   consumptionRatio: numeric("consumption_ratio", { precision: 15, scale: 4 }),
   shortagePercent: numeric("shortage_percent", { precision: 5, scale: 2 }),
+  formula: text("formula"),
 
   ...auditColumns,
 }, (table) => ({

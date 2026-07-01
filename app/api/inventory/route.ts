@@ -32,6 +32,7 @@ export async function GET() {
       consumeWithInventoryId: mInventory.consumeWithInventoryId,
       consumptionRatio: mInventory.consumptionRatio,
       shortagePercent: mInventory.shortagePercent,
+      formula: mInventory.formula,
     })
     .from(mInventory)
     .leftJoin(mTaxRates, eq(mInventory.gstRateId, mTaxRates.taxRateId))
@@ -64,6 +65,7 @@ export async function POST(request: Request) {
     consumeWithInventoryId,
     consumptionRatio,
     shortagePercent,
+    formula,
   } = await request.json();
 
   if (!inventoryCode || !inventoryName || !unit) {
@@ -90,6 +92,7 @@ export async function POST(request: Request) {
         consumeWithInventoryId: consumeWithInventoryId ? Number(consumeWithInventoryId) : null,
         consumptionRatio: consumptionRatio ? String(consumptionRatio) : null,
         shortagePercent: shortagePercent ? String(shortagePercent) : null,
+        formula: formula || null,
         createdBy: userId,
         updatedBy: userId,
       })
