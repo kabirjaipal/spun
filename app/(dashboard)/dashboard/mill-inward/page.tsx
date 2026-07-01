@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { mMills, mInventory, mLedgers, mTaxRates, mCompanies, tVouchers, tVoucherItems } from "@/lib/db/schema";
+import { mMills, mInventory, mLedgers, mTaxRates, mCompanies, tVouchers, tVoucherItems, mBrokersHaste } from "@/lib/db/schema";
 import { and, eq, isNull } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
 import MillInwardClient from "./MillInwardClient";
@@ -13,7 +13,7 @@ export default async function MillInwardPage() {
 
   const companyId = Number(session.user.companyId);
 
-  const [mills, inventory, ledgers, taxRates, company, outwardVouchers, outwardItems] = await Promise.all([
+  const [mills, inventory, ledgers, taxRates, company, outwardVouchers, outwardItems, brokersHaste] = await Promise.all([
     db
       .select()
       .from(mMills)
@@ -65,6 +65,11 @@ export default async function MillInwardPage() {
       .from(tVoucherItems)
       .innerJoin(tVouchers, eq(tVoucherItems.voucherId, tVouchers.voucherId))
       .where(and(eq(tVouchers.companyId, companyId), eq(tVouchers.voucherType, "mill_outward"), isNull(tVoucherItems.deletedOn))),
+    db
+      .select()
+      .from(mBrokersHaste)
+      .where(and(eq(mBrokersHaste.companyId, companyId), isNull(mBrokersHaste.deletedOn)))
+      .orderBy(mBrokersHaste.name),
   ]);
 
   const perms = getStaticPermissionsForRole(session.user.role as Role);
@@ -116,6 +121,11 @@ export default async function MillInwardPage() {
         jobType: item.jobType,
         jobRateType: item.jobRateType,
         gstRateId: item.gstRateId ? Number(item.gstRateId) : null,
+      }))}
+      brokersHaste={brokersHaste.map((r) => ({
+        id: r.id,
+        name: r.name,
+        type: r.type,
       }))}
       canCreate={p?.c ?? false}
     />

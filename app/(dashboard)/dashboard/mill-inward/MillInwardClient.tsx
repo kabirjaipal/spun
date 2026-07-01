@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Trash2 } from "lucide-react";
 import PrintInvoiceModal from "@/components/PrintInvoiceModal";
+import BrokerHasteDialog from "@/components/BrokerHasteDialog";
 
 interface MillOption {
   millId: number;
@@ -33,6 +34,12 @@ interface TaxRateOption {
   taxRateId: number;
   taxName: string;
   taxPercent: string;
+}
+
+interface BrokerHasteOption {
+  id: number;
+  name: string;
+  type: string;
 }
 
 interface OutwardVoucher {
@@ -82,6 +89,7 @@ export default function MillInwardClient({
   taxRates,
   outwardVouchers,
   outwardItems,
+  brokersHaste,
   canCreate,
 }: {
   company: { companyName: string; gstNo?: string | null; address?: string | null };
@@ -91,8 +99,12 @@ export default function MillInwardClient({
   taxRates: TaxRateOption[];
   outwardVouchers: OutwardVoucher[];
   outwardItems: OutwardItem[];
+  brokersHaste: BrokerHasteOption[];
   canCreate: boolean;
 }) {
+  const [brokersHasteData, setBrokersHasteData] = useState(brokersHaste);
+  const brokers = brokersHasteData.filter((r) => r.type === "broker");
+  const hastes = brokersHasteData.filter((r) => r.type === "haste");
   const [selectedMill, setSelectedMill] = useState("");
   const [selectedVoucherId, setSelectedVoucherId] = useState("");
   const [voucherNo, setVoucherNo] = useState("");
@@ -100,6 +112,8 @@ export default function MillInwardClient({
 
   const [broker, setBroker] = useState("");
   const [haste, setHaste] = useState("");
+  const [showBrokerDialog, setShowBrokerDialog] = useState(false);
+  const [showHasteDialog, setShowHasteDialog] = useState(false);
   const [lrNo, setLrNo] = useState("");
   const [lrDate, setLrDate] = useState(new Date().toISOString().slice(0, 10));
   const [transport, setTransport] = useState("");
@@ -431,12 +445,40 @@ export default function MillInwardClient({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">Broker</Label>
-              <Input value={broker} onChange={(e) => setBroker(e.target.value)} placeholder="Broker" className="h-9" />
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold uppercase text-foreground">Broker</Label>
+                <button type="button" onClick={() => setShowBrokerDialog(true)} className="text-[10px] font-bold text-primary hover:underline uppercase">+ New Broker</button>
+              </div>
+              <Select value={broker} onValueChange={setBroker}>
+                <SelectTrigger className="h-9 w-full">
+                  <SelectValue placeholder="Choose Broker" />
+                </SelectTrigger>
+                <SelectContent>
+                  {brokers.map((b) => (
+                    <SelectItem key={b.id} value={b.name}>
+                      {b.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">Haste</Label>
-              <Input value={haste} onChange={(e) => setHaste(e.target.value)} placeholder="Agent" className="h-9" />
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold uppercase text-foreground">Haste (Delivery Agent)</Label>
+                <button type="button" onClick={() => setShowHasteDialog(true)} className="text-[10px] font-bold text-primary hover:underline uppercase">+ New Haste</button>
+              </div>
+              <Select value={haste} onValueChange={setHaste}>
+                <SelectTrigger className="h-9 w-full">
+                  <SelectValue placeholder="Choose Haste" />
+                </SelectTrigger>
+                <SelectContent>
+                  {hastes.map((h) => (
+                    <SelectItem key={h.id} value={h.name}>
+                      {h.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -642,6 +684,24 @@ export default function MillInwardClient({
         </Button>
       </div>
 
+      <BrokerHasteDialog
+        type="broker"
+        open={showBrokerDialog}
+        onOpenChange={setShowBrokerDialog}
+        onCreated={(item) => {
+          setBroker(item.name);
+          setBrokersHasteData((prev) => [...prev, item]);
+        }}
+      />
+      <BrokerHasteDialog
+        type="haste"
+        open={showHasteDialog}
+        onOpenChange={setShowHasteDialog}
+        onCreated={(item) => {
+          setHaste(item.name);
+          setBrokersHasteData((prev) => [...prev, item]);
+        }}
+      />
       {printVoucher && (
         <PrintInvoiceModal
           isOpen={!!printVoucher}

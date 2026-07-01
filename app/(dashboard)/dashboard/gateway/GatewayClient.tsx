@@ -5,7 +5,8 @@ import LedgersClient from "../ledgers/LedgersClient";
 import LedgerGroupsClient from "../ledger-groups/LedgerGroupsClient";
 import JobsClient from "../jobs/JobsClient";
 import MillsClient from "../mills/MillsClient";
-import { BookOpen, FolderTree, Briefcase, Building } from "lucide-react";
+import BrokersHasteClient from "./BrokersHasteClient";
+import { BookOpen, FolderTree, Briefcase, Building, Users } from "lucide-react";
 
 interface Permission {
   c: boolean;
@@ -19,21 +20,24 @@ interface Props {
   ledgerGroups: any[];
   jobs: any[];
   mills: any[];
+  brokersHaste: any[];
   permissions: {
     ledgers: Permission;
     groups: Permission;
     jobs: Permission;
     mills: Permission;
+    brokersHaste: Permission;
   };
 }
 
-type Section = "ledgers" | "groups" | "jobs" | "mills";
+type Section = "ledgers" | "groups" | "jobs" | "mills" | "brokers_haste";
 
 export default function GatewayClient({
   ledgers,
   ledgerGroups,
   jobs,
   mills,
+  brokersHaste,
   permissions,
 }: Props) {
   const [activeSection, setActiveSection] = useState<Section>("ledgers");
@@ -62,6 +66,12 @@ export default function GatewayClient({
       name: "Mill Master",
       icon: Building,
       description: "Configure processing mills",
+    },
+    {
+      id: "brokers_haste" as Section,
+      name: "Brokers & Haste",
+      icon: Users,
+      description: "Manage brokers and delivery agents",
     },
   ];
 
@@ -130,6 +140,15 @@ export default function GatewayClient({
             canUpdate={permissions.mills.u}
             canDelete={permissions.mills.d}
             canExport={permissions.mills.e}
+          />
+        )}
+        {activeSection === "brokers_haste" && (
+          <BrokersHasteClient
+            initialData={brokersHaste}
+            canCreate={permissions.brokersHaste.c}
+            canUpdate={permissions.brokersHaste.u}
+            canDelete={permissions.brokersHaste.d}
+            canExport={permissions.brokersHaste.e}
           />
         )}
       </div>

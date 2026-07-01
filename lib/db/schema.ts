@@ -194,6 +194,19 @@ export const mInventory = pgTable("m_inventory", {
   gstRateIdIdx: index("idx_m_inventory_gst_rate_id").on(table.gstRateId),
 }));
 
+export const mBrokersHaste = pgTable("m_brokers_haste", {
+  id: serial("id").primaryKey(),
+  companyId: bigint("company_id", { mode: "number" })
+    .references(() => mCompanies.companyId)
+    .notNull(),
+  name: text("name").notNull(),
+  type: text("type").notNull(), // 'broker' | 'haste'
+  ...auditColumns,
+}, (table) => ({
+  companyIdIdx: index("idx_m_brokers_haste_company_id").on(table.companyId),
+  typeIdx: index("idx_m_brokers_haste_type").on(table.type),
+}));
+
 export const mJobs = pgTable("m_jobs", {
   jobId: serial("job_id").primaryKey(),
   companyId: bigint("company_id", { mode: "number" })

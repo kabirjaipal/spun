@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { mInventory, mLedgers, mTaxRates, mCompanies, tVouchers } from "@/lib/db/schema";
+import { mInventory, mLedgers, mTaxRates, mCompanies, tVouchers, mBrokersHaste } from "@/lib/db/schema";
 import { and, eq, isNull, desc } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
 import SalesClient from "./SalesClient";
@@ -13,7 +13,7 @@ export default async function SalesPage() {
 
   const companyId = Number(session.user.companyId);
 
-  const [parties, inventory, ledgers, taxRates, company, pastVouchers] = await Promise.all([
+  const [parties, inventory, ledgers, taxRates, company, pastVouchers, brokersHaste] = await Promise.all([
     db
       .select({
         partyId: mCompanies.companyId,
@@ -58,6 +58,11 @@ export default async function SalesPage() {
       .where(and(eq(tVouchers.companyId, companyId), eq(tVouchers.voucherType, "sale"), isNull(tVouchers.deletedOn)))
       .orderBy(desc(tVouchers.voucherDate), desc(tVouchers.voucherId))
       .limit(50),
+    db
+      .select()
+      .from(mBrokersHaste)
+      .where(and(eq(mBrokersHaste.companyId, companyId), isNull(mBrokersHaste.deletedOn)))
+      .orderBy(mBrokersHaste.name),
   ]);
 
   const perms = getStaticPermissionsForRole(session.user.role as Role);
@@ -94,6 +99,11 @@ export default async function SalesPage() {
         taxRateId: r.taxRateId,
         taxName: r.taxName,
         taxPercent: String(r.taxPercent),
+      }))}
+      brokersHaste={brokersHaste.map((r) => ({
+        id: r.id,
+        name: r.name,
+        type: r.type,
       }))}
       canCreate={p?.c ?? false}
       pastVouchers={pastVouchers.map((v) => ({

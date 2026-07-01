@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2, Eye, FileText } from "lucide-react";
 import PrintInvoiceModal from "@/components/PrintInvoiceModal";
+import BrokerHasteDialog from "@/components/BrokerHasteDialog";
 
 interface PartyOption {
   partyId: number;
@@ -60,6 +61,12 @@ interface PastVoucher {
   party: { name: string; gstNo: string | null; address: string | null } | null;
 }
 
+interface BrokerHasteOption {
+  id: number;
+  name: string;
+  type: string;
+}
+
 const EMPTY_LINE = (): LineItem => ({
   id: crypto.randomUUID(),
   inventoryId: "",
@@ -80,6 +87,7 @@ export default function SalesClient({
   inventory,
   ledgers,
   taxRates,
+  brokersHaste,
   canCreate,
   pastVouchers: initialPastVouchers,
 }: {
@@ -88,10 +96,15 @@ export default function SalesClient({
   inventory: InventoryOption[];
   ledgers: LedgerOption[];
   taxRates: TaxRateOption[];
+  brokersHaste: BrokerHasteOption[];
   canCreate: boolean;
   pastVouchers: PastVoucher[];
 }) {
 
+
+  const [brokersHasteData, setBrokersHasteData] = useState(brokersHaste);
+  const brokers = brokersHasteData.filter((r) => r.type === "broker");
+  const hastes = brokersHasteData.filter((r) => r.type === "haste");
 
   const [salesType, setSalesType] = useState<"grey" | "finished" | "other">("grey");
   const [selectedParty, setSelectedParty] = useState("");
@@ -101,6 +114,8 @@ export default function SalesClient({
   // Textile-specific logistics fields
   const [broker, setBroker] = useState("");
   const [haste, setHaste] = useState("");
+  const [showBrokerDialog, setShowBrokerDialog] = useState(false);
+  const [showHasteDialog, setShowHasteDialog] = useState(false);
   const [lrNo, setLrNo] = useState("");
   const [lrDate, setLrDate] = useState(new Date().toISOString().slice(0, 10));
   const [transport, setTransport] = useState("");
@@ -393,6 +408,45 @@ export default function SalesClient({
           <div className="rounded-lg border border-border bg-card p-5 space-y-4 shadow-sm">
             <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">Logistics & Dispatch</h2>
 
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-semibold uppercase text-foreground">Broker</Label>
+                  <button type="button" onClick={() => setShowBrokerDialog(true)} className="text-[10px] font-bold text-primary hover:underline uppercase">+ New Broker</button>
+                </div>
+                <Select value={broker} onValueChange={setBroker}>
+                  <SelectTrigger className="h-9 w-full">
+                    <SelectValue placeholder="Choose Broker" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {brokers.map((b) => (
+                      <SelectItem key={b.id} value={b.name}>
+                        {b.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-semibold uppercase text-foreground">Haste (Delivery Agent)</Label>
+                  <button type="button" onClick={() => setShowHasteDialog(true)} className="text-[10px] font-bold text-primary hover:underline uppercase">+ New Haste</button>
+                </div>
+                <Select value={haste} onValueChange={setHaste}>
+                  <SelectTrigger className="h-9 w-full">
+                    <SelectValue placeholder="Choose Haste" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {hastes.map((h) => (
+                      <SelectItem key={h.id} value={h.name}>
+                        {h.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold uppercase text-foreground">LR No.</Label>
               <Input value={lrNo} onChange={(e) => setLrNo(e.target.value)} placeholder="Lorry Receipt No." className="h-9" />
@@ -605,6 +659,24 @@ export default function SalesClient({
         )}
       </div>
 
+      <BrokerHasteDialog
+        type="broker"
+        open={showBrokerDialog}
+        onOpenChange={setShowBrokerDialog}
+        onCreated={(item) => {
+          setBroker(item.name);
+          setBrokersHasteData((prev) => [...prev, item]);
+        }}
+      />
+      <BrokerHasteDialog
+        type="haste"
+        open={showHasteDialog}
+        onOpenChange={setShowHasteDialog}
+        onCreated={(item) => {
+          setHaste(item.name);
+          setBrokersHasteData((prev) => [...prev, item]);
+        }}
+      />
       {printVoucher && (
         <PrintInvoiceModal
           isOpen={!!printVoucher}

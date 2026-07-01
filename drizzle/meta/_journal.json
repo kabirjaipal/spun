@@ -50,6 +50,13 @@
       "when": 1782897960845,
       "tag": "0006_harsh_king_cobra",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1782900943506,
+      "tag": "0007_goofy_bloodstorm",
+      "breakpoints": true
     }
   ]
 }

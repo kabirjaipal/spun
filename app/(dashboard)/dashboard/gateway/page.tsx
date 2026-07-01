@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { mLedgers, mLedgerGroups, mJobs, mMills } from "@/lib/db/schema";
+import { mLedgers, mLedgerGroups, mJobs, mMills, mBrokersHaste } from "@/lib/db/schema";
 import { and, isNull, eq } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
 import GatewayClient from "./GatewayClient";
@@ -14,7 +14,7 @@ export default async function GatewayPage() {
   const companyId = Number(session.user.companyId);
 
   // Fetch all master data in parallel
-  const [ledgers, ledgerGroups, jobs, mills] = await Promise.all([
+  const [ledgers, ledgerGroups, jobs, mills, brokersHaste] = await Promise.all([
     db
       .select()
       .from(mLedgers)
@@ -35,6 +35,11 @@ export default async function GatewayPage() {
       .from(mMills)
       .where(and(eq(mMills.companyId, companyId), isNull(mMills.deletedOn)))
       .orderBy(mMills.millName),
+    db
+      .select()
+      .from(mBrokersHaste)
+      .where(and(eq(mBrokersHaste.companyId, companyId), isNull(mBrokersHaste.deletedOn)))
+      .orderBy(mBrokersHaste.name),
   ]);
 
   const perms = getStaticPermissionsForRole(session.user.role as Role);
@@ -43,6 +48,8 @@ export default async function GatewayPage() {
   const groupsPerm = perms.find((x) => x.accessItem === "ledger_groups");
   const jobsPerm = perms.find((x) => x.accessItem === "jobs");
   const millsPerm = perms.find((x) => x.accessItem === "mills");
+  // Brokers/haste uses gateway permissions
+  const gatewayPerm = perms.find((x) => x.accessItem === "gateway");
 
   return (
     <GatewayClient
@@ -70,6 +77,11 @@ export default async function GatewayPage() {
       }))}
       jobs={jobs}
       mills={mills}
+      brokersHaste={brokersHaste.map((r) => ({
+        id: r.id,
+        name: r.name,
+        type: r.type,
+      }))}
       permissions={{
         ledgers: {
           c: ledgersPerm?.c ?? false,
@@ -94,6 +106,12 @@ export default async function GatewayPage() {
           u: millsPerm?.u ?? false,
           d: millsPerm?.d ?? false,
           e: millsPerm?.e ?? false,
+        },
+        brokersHaste: {
+          c: gatewayPerm?.c ?? false,
+          u: gatewayPerm?.u ?? false,
+          d: gatewayPerm?.d ?? false,
+          e: gatewayPerm?.e ?? false,
         },
       }}
     />

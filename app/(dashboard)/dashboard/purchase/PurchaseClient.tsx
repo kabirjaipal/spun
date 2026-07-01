@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2, Printer } from "lucide-react";
 import PrintInvoiceModal from "@/components/PrintInvoiceModal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import BrokerHasteDialog from "@/components/BrokerHasteDialog";
 
 interface CompanyOption {
   companyId: number;
@@ -36,6 +37,12 @@ interface TaxRateOption {
   taxRateId: number;
   taxName: string;
   taxPercent: string;
+}
+
+interface BrokerHasteOption {
+  id: number;
+  name: string;
+  type: string;
 }
 
 interface LineItem {
@@ -75,6 +82,7 @@ export default function PurchaseClient({
   inventory,
   ledgers,
   taxRates,
+  brokersHaste,
   canCreate,
 }: {
   company: { companyName: string; gstNo?: string | null; address?: string | null; companyType?: string };
@@ -82,6 +90,7 @@ export default function PurchaseClient({
   inventory: InventoryOption[];
   ledgers: LedgerOption[];
   taxRates: TaxRateOption[];
+  brokersHaste: BrokerHasteOption[];
   canCreate: boolean;
 }) {
   const router = useRouter();
@@ -92,13 +101,13 @@ export default function PurchaseClient({
   const [partyForm, setPartyForm] = useState({ companyName: "", gstNo: "", address: "", phone: "", email: "" });
   const [partySaving, setPartySaving] = useState(false);
 
-  const [showBrokerModal, setShowBrokerModal] = useState(false);
-  const [brokerForm, setBrokerForm] = useState({ ledgerName: "", ledgerType: "other" });
-  const [brokerSaving, setBrokerSaving] = useState(false);
+  const [brokersHasteData, setBrokersHasteData] = useState(brokersHaste);
 
-  const [showHasteModal, setShowHasteModal] = useState(false);
-  const [hasteForm, setHasteForm] = useState({ inventoryName: "", inventoryCode: "", unit: "PCS" });
-  const [hasteSaving, setHasteSaving] = useState(false);
+  const [showBrokerDialog, setShowBrokerDialog] = useState(false);
+  const [showHasteDialog, setShowHasteDialog] = useState(false);
+
+  const brokers = brokersHasteData.filter((r) => r.type === "broker");
+  const hastes = brokersHasteData.filter((r) => r.type === "haste");
 
   async function handleCreateParty() {
     if (!partyForm.companyName) return;
@@ -117,46 +126,6 @@ export default function PurchaseClient({
       console.error(e);
     } finally {
       setPartySaving(false);
-    }
-  }
-
-  async function handleCreateBroker() {
-    if (!brokerForm.ledgerName) return;
-    setBrokerSaving(true);
-    try {
-      const res = await fetch("/api/ledgers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...brokerForm }),
-      });
-      if (res.ok) {
-        setShowBrokerModal(false);
-        router.push("/dashboard/ledgers");
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setBrokerSaving(false);
-    }
-  }
-
-  async function handleCreateHaste() {
-    if (!hasteForm.inventoryName || !hasteForm.inventoryCode) return;
-    setHasteSaving(true);
-    try {
-      const res = await fetch("/api/inventory", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...hasteForm, openingStockQty: 0, openingStockRate: 0 }),
-      });
-      if (res.ok) {
-        setShowHasteModal(false);
-        router.push("/dashboard/inventory");
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setHasteSaving(false);
     }
   }
 
@@ -462,16 +431,16 @@ export default function PurchaseClient({
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <Label className="text-xs font-semibold uppercase text-foreground">Broker</Label>
-                <button type="button" onClick={() => setShowBrokerModal(true)} className="text-[10px] font-bold text-primary hover:underline uppercase">+ New Broker</button>
+                <button type="button" onClick={() => setShowBrokerDialog(true)} className="text-[10px] font-bold text-primary hover:underline uppercase">+ New Broker</button>
               </div>
               <Select value={broker} onValueChange={setBroker}>
                 <SelectTrigger className="h-9 w-full">
                   <SelectValue placeholder="Choose Broker" />
                 </SelectTrigger>
                 <SelectContent>
-                  {ledgers.map((l) => (
-                    <SelectItem key={l.ledgerId} value={l.ledgerName}>
-                      {l.ledgerName}
+                  {brokers.map((b) => (
+                    <SelectItem key={b.id} value={b.name}>
+                      {b.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -481,16 +450,16 @@ export default function PurchaseClient({
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <Label className="text-xs font-semibold uppercase text-foreground">Haste (Delivery Agent)</Label>
-                <button type="button" onClick={() => setShowHasteModal(true)} className="text-[10px] font-bold text-primary hover:underline uppercase">+ New Haste</button>
+                <button type="button" onClick={() => setShowHasteDialog(true)} className="text-[10px] font-bold text-primary hover:underline uppercase">+ New Haste</button>
               </div>
               <Select value={haste} onValueChange={setHaste}>
                 <SelectTrigger className="h-9 w-full">
                   <SelectValue placeholder="Choose Haste" />
                 </SelectTrigger>
                 <SelectContent>
-                  {inventory.map((inv) => (
-                    <SelectItem key={inv.inventoryId} value={inv.inventoryName}>
-                      {inv.inventoryName}
+                  {hastes.map((h) => (
+                    <SelectItem key={h.id} value={h.name}>
+                      {h.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -772,69 +741,24 @@ export default function PurchaseClient({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showBrokerModal} onOpenChange={setShowBrokerModal}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="text-sm font-bold uppercase">New Broker Ledger</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">Ledger Name</Label>
-              <Input
-                placeholder="Broker Ledger Name"
-                value={brokerForm.ledgerName}
-                onChange={(e) => setBrokerForm({ ...brokerForm, ledgerName: e.target.value })}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowBrokerModal(false)}>Cancel</Button>
-            <Button onClick={handleCreateBroker} disabled={brokerSaving || !brokerForm.ledgerName}>
-              {brokerSaving ? "Saving..." : "Create"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showHasteModal} onOpenChange={setShowHasteModal}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="text-sm font-bold uppercase">New Haste (Inventory Item)</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">Item Name</Label>
-              <Input
-                placeholder="Haste Name"
-                value={hasteForm.inventoryName}
-                onChange={(e) => setHasteForm({ ...hasteForm, inventoryName: e.target.value })}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">Item Code</Label>
-              <Input
-                placeholder="Code"
-                value={hasteForm.inventoryCode}
-                onChange={(e) => setHasteForm({ ...hasteForm, inventoryCode: e.target.value })}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">Unit</Label>
-              <Input
-                placeholder="PCS / MTR"
-                value={hasteForm.unit}
-                onChange={(e) => setHasteForm({ ...hasteForm, unit: e.target.value })}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowHasteModal(false)}>Cancel</Button>
-            <Button onClick={handleCreateHaste} disabled={hasteSaving || !hasteForm.inventoryName || !hasteForm.inventoryCode}>
-              {hasteSaving ? "Saving..." : "Create"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <BrokerHasteDialog
+        type="broker"
+        open={showBrokerDialog}
+        onOpenChange={setShowBrokerDialog}
+        onCreated={(item) => {
+          setBroker(item.name);
+          setBrokersHasteData((prev) => [...prev, item]);
+        }}
+      />
+      <BrokerHasteDialog
+        type="haste"
+        open={showHasteDialog}
+        onOpenChange={setShowHasteDialog}
+        onCreated={(item) => {
+          setHaste(item.name);
+          setBrokersHasteData((prev) => [...prev, item]);
+        }}
+      />
     </div>
   );
 }
