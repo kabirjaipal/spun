@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { BANK_LIST } from "@/lib/banks";
+import { MARKET_CATEGORIES } from "@/lib/constants";
 
 interface CompanyDetails {
   companyId: number;
@@ -31,12 +32,6 @@ interface MasterCounts {
   ledgers: number;
   taxRates: number;
 }
-
-const MARKET_CATEGORIES: Record<string, string[]> = {
-  textiles: ["Weaving", "Trading", "Processing", "Knitting", "Spinning", "Other"],
-  diamond: ["Polished Diamonds", "Rough Diamonds", "Diamond Manufacturing", "Jewellery", "Other"],
-  general: ["Retail", "Wholesale", "Services", "Manufacturing", "Distribution", "Other"],
-};
 
 export default function SettingsClient({
   company,

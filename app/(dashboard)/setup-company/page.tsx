@@ -5,25 +5,7 @@ import { useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { Building2, Landmark, MapPin, Calendar, FileText, ArrowRight, Phone, Mail, DollarSign, Globe } from "lucide-react";
 import { BANK_LIST } from "@/lib/banks";
-
-const CURRENCIES = [
-  { symbol: "₹", nation: "India", label: "₹ (INR - India)" },
-  { symbol: "$", nation: "United States", label: "$ (USD - USA)" },
-  { symbol: "£", nation: "United Kingdom", label: "£ (GBP - UK)" },
-  { symbol: "€", nation: "Eurozone", label: "€ (EUR - Euro)" },
-  { symbol: "¥", nation: "Japan", label: "¥ (JPY - Japan)" },
-  { symbol: "A$", nation: "Australia", label: "A$ (AUD - Australia)" },
-  { symbol: "C$", nation: "Canada", label: "C$ (CAD - Canada)" },
-  { symbol: "CHF", nation: "Switzerland", label: "CHF (Swiss Franc)" },
-  { symbol: "元", nation: "China", label: "元 (CNY - China)" },
-  { symbol: "AED", nation: "United Arab Emirates", label: "AED (UAE Dirham)" },
-];
-
-const MARKET_CATEGORIES: Record<string, string[]> = {
-  textiles: ["Weaving", "Trading", "Processing", "Knitting", "Spinning", "Other"],
-  diamond: ["Polished Diamonds", "Rough Diamonds", "Diamond Manufacturing", "Jewellery", "Other"],
-  general: ["Retail", "Wholesale", "Services", "Manufacturing", "Distribution", "Other"],
-};
+import { CURRENCIES, MARKET_CATEGORIES } from "@/lib/constants";
 
 export default function SetupCompanyPage() {
   const currentYear = new Date().getFullYear();

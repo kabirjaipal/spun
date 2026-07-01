@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Pencil, Trash2, Building2, Landmark, MapPin, Calendar, FileText, Phone, Mail, DollarSign, Globe, ArrowLeft } from "lucide-react";
 import ExportButton from "@/components/ExportButton";
 import { BANK_LIST } from "@/lib/banks";
+import { CURRENCIES, MARKET_CATEGORIES } from "@/lib/constants";
 
 interface Company {
   companyId: number;
@@ -36,25 +37,6 @@ interface Company {
   marketCategory: string | null;
   financialYearStart: string | null;
 }
-
-const CURRENCIES = [
-  { symbol: "₹", nation: "India", label: "₹ (INR - India)" },
-  { symbol: "$", nation: "United States", label: "$ (USD - USA)" },
-  { symbol: "£", nation: "United Kingdom", label: "£ (GBP - UK)" },
-  { symbol: "€", nation: "Eurozone", label: "€ (EUR - Euro)" },
-  { symbol: "¥", nation: "Japan", label: "¥ (JPY - Japan)" },
-  { symbol: "A$", nation: "Australia", label: "A$ (AUD - Australia)" },
-  { symbol: "C$", nation: "Canada", label: "C$ (CAD - Canada)" },
-  { symbol: "CHF", nation: "Switzerland", label: "CHF (Swiss Franc)" },
-  { symbol: "元", nation: "China", label: "元 (CNY - China)" },
-  { symbol: "AED", nation: "United Arab Emirates", label: "AED (UAE Dirham)" },
-];
-
-const MARKET_CATEGORIES: Record<string, string[]> = {
-  textiles: ["Weaving", "Trading", "Processing", "Knitting", "Spinning", "Other"],
-  diamond: ["Polished Diamonds", "Rough Diamonds", "Diamond Manufacturing", "Jewellery", "Other"],
-  general: ["Retail", "Wholesale", "Services", "Manufacturing", "Distribution", "Other"],
-};
 
 const currentYear = new Date().getFullYear();
 const defaultFyStart = `${currentYear}-04-01`;
