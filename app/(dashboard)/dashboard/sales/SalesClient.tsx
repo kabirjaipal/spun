@@ -15,6 +15,7 @@ interface PartyOption {
   partyName: string;
   gstNo: string | null;
   address: string | null;
+  state?: string | null;
 }
 
 interface InventoryOption {
@@ -82,7 +83,7 @@ export default function SalesClient({
   canCreate,
   pastVouchers: initialPastVouchers,
 }: {
-  company: { companyName: string; gstNo?: string | null; address?: string | null; companyType?: string };
+  company: { companyName: string; gstNo?: string | null; address?: string | null; companyType?: string; state?: string | null };
   parties: PartyOption[];
   inventory: InventoryOption[];
   taxRates: TaxRateOption[];
@@ -121,8 +122,11 @@ export default function SalesClient({
 
   // Check if Interstate or Intrastate GST
   const isInterstate = useMemo(() => {
-    const companyGst = company?.gstNo || "";
     const party = parties.find((c) => String(c.partyId) === selectedParty);
+    if (company?.state && party?.state) {
+      return company.state.trim().toLowerCase() !== party.state.trim().toLowerCase();
+    }
+    const companyGst = company?.gstNo || "";
     const partyGst = party?.gstNo || "";
     if (!companyGst || !partyGst) return false;
     return companyGst.slice(0, 2) !== partyGst.slice(0, 2);

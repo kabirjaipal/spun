@@ -20,6 +20,7 @@ export default async function SalesPage() {
         partyName: mCompanies.companyName,
         address: mCompanies.address,
         gstNo: mCompanies.gstNo,
+        state: mCompanies.state,
       })
       .from(mCompanies)
       .where(and(eq(mCompanies.parentCompanyId, companyId), isNull(mCompanies.deletedOn)))
@@ -70,12 +71,13 @@ export default async function SalesPage() {
 
   return (
     <SalesClient
-      company={company ? { companyName: company.companyName, gstNo: company.gstNo, address: company.address, companyType: company.companyType } : { companyName: "Texora Company", companyType: "general" }}
+      company={company ? { companyName: company.companyName, gstNo: company.gstNo, address: company.address, companyType: company.companyType, state: company.state } : { companyName: "Texora Company", companyType: "general", state: null }}
       parties={parties.map((c) => ({
         partyId: c.partyId,
         partyName: c.partyName,
         address: c.address,
         gstNo: c.gstNo,
+        state: c.state,
       }))}
       inventory={inventory.map((p) => ({
         inventoryId: p.inventoryId,

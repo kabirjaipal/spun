@@ -24,6 +24,7 @@ interface CompanyOption {
   companyName: string;
   address: string | null;
   gstNo: string | null;
+  state?: string | null;
 }
 
 interface InventoryOption {
@@ -87,7 +88,7 @@ export default function DebitNoteClient({
   canCreate,
 }: {
   initialNotes: DebitNoteItem[];
-  company: { companyName: string; gstNo?: string | null; address?: string | null };
+  company: { companyName: string; gstNo?: string | null; address?: string | null; state?: string | null };
   companies: CompanyOption[];
   inventory: InventoryOption[];
   ledgers: LedgerOption[];
@@ -135,9 +136,12 @@ export default function DebitNoteClient({
   }, [selectedCompany, companies]);
 
   const isInterstate = useMemo(() => {
+    if (company?.state && suppObj?.state) {
+      return company.state.trim().toLowerCase() !== suppObj.state.trim().toLowerCase();
+    }
     if (!company.gstNo || !suppObj?.gstNo) return false;
     return company.gstNo.slice(0, 2) !== suppObj.gstNo.slice(0, 2);
-  }, [company.gstNo, suppObj]);
+  }, [company.gstNo, company.state, suppObj]);
 
   const lineTotals = useMemo(() => {
     return lineItems.map((item) => {

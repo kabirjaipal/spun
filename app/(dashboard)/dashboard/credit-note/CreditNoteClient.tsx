@@ -24,6 +24,7 @@ interface PartyOption {
   partyName: string;
   address: string | null;
   gstNo: string | null;
+  state?: string | null;
 }
 
 interface InventoryOption {
@@ -87,7 +88,7 @@ export default function CreditNoteClient({
   canCreate,
 }: {
   initialNotes: CreditNoteItem[];
-  company: { companyName: string; gstNo?: string | null; address?: string | null };
+  company: { companyName: string; gstNo?: string | null; address?: string | null; state?: string | null };
   parties: PartyOption[];
   inventory: InventoryOption[];
   ledgers: LedgerOption[];
@@ -134,9 +135,12 @@ export default function CreditNoteClient({
   }, [selectedParty, parties]);
 
   const isInterstate = useMemo(() => {
+    if (company?.state && custObj?.state) {
+      return company.state.trim().toLowerCase() !== custObj.state.trim().toLowerCase();
+    }
     if (!company.gstNo || !custObj?.gstNo) return false;
     return company.gstNo.slice(0, 2) !== custObj.gstNo.slice(0, 2);
-  }, [company.gstNo, custObj]);
+  }, [company.gstNo, company.state, custObj]);
 
   const lineTotals = useMemo(() => {
     return lineItems.map((item) => {

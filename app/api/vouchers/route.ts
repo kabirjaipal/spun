@@ -50,12 +50,15 @@ export async function POST(request: Request) {
 
   try {
     const [voucher] = await db.transaction(async (tx) => {
-      // Determine interstate vs intrastate GST based on GSTIN prefix
+      // Determine interstate vs intrastate GST based on state/GSTIN prefix
       const company = await tx.query.mCompanies.findFirst({
         where: eq(mCompanies.companyId, companyId),
       });
       const companyGst = company?.gstNo || "";
+      const companyState = company?.state || "";
       let partyGstNo = "";
+      let partyState = "";
+      let partyStateCode = "";
 
       if (partyId) {
         if (voucherType === "sale" || voucherType === "credit_note" || voucherType === "debit_note") {
@@ -63,25 +66,36 @@ export async function POST(request: Request) {
             where: eq(mCompanies.companyId, Number(partyId)),
           });
           partyGstNo = cust?.gstNo || "";
+          partyState = cust?.state || "";
         } else if (voucherType === "purchase" || voucherType === "direct_bill") {
           const compObj = await tx.query.mCompanies.findFirst({
             where: eq(mCompanies.companyId, Number(partyId)),
           });
           partyGstNo = compObj?.gstNo || "";
+          partyState = compObj?.state || "";
         } else if (voucherType === "job_outward" || voucherType === "job_inward") {
           const job = await tx.query.mJobs.findFirst({
             where: eq(mJobs.jobId, Number(partyId)),
           });
           partyGstNo = job?.gstNo || "";
+          partyStateCode = job?.stateCode || "";
         } else if (voucherType === "mill_outward" || voucherType === "mill_inward") {
           const mill = await tx.query.mMills.findFirst({
             where: eq(mMills.millId, Number(partyId)),
           });
           partyGstNo = mill?.gstNo || "";
+          partyStateCode = mill?.stateCode || "";
         }
       }
 
-      const isInterstate = companyGst && partyGstNo && companyGst.slice(0, 2) !== partyGstNo.slice(0, 2);
+      let isInterstate = false;
+      if (companyState && partyState) {
+        isInterstate = companyState.trim().toLowerCase() !== partyState.trim().toLowerCase();
+      } else if (company?.stateCode && partyStateCode) {
+        isInterstate = company.stateCode.trim().toLowerCase() !== partyStateCode.trim().toLowerCase();
+      } else if (companyGst && partyGstNo) {
+        isInterstate = companyGst.slice(0, 2) !== partyGstNo.slice(0, 2);
+      }
 
       // Calculate totals based on voucher type
       let computedTotal = 0;

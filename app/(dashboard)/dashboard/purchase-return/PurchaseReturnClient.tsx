@@ -13,6 +13,7 @@ interface CompanyOption {
   companyName: string;
   gstNo: string | null;
   address: string | null;
+  state?: string | null;
 }
 
 interface InventoryOption {
@@ -88,7 +89,7 @@ export default function PurchaseReturnClient({
   taxRates,
   canCreate,
 }: {
-  company: { companyName: string; gstNo?: string | null; address?: string | null; companyType?: string };
+  company: { companyName: string; gstNo?: string | null; address?: string | null; companyType?: string; state?: string | null };
   companies: CompanyOption[];
   inventory: InventoryOption[];
   ledgers: LedgerOption[];
@@ -179,8 +180,11 @@ export default function PurchaseReturnClient({
 
   // Check if Interstate or Intrastate GST
   const isInterstate = useMemo(() => {
-    const companyGst = company?.gstNo || "";
     const subCompany = companies.find((s) => String(s.companyId) === selectedCompany);
+    if (company?.state && subCompany?.state) {
+      return company.state.trim().toLowerCase() !== subCompany.state.trim().toLowerCase();
+    }
+    const companyGst = company?.gstNo || "";
     const subCompanyGst = subCompany?.gstNo || "";
     if (!companyGst || !subCompanyGst) return false;
     return companyGst.slice(0, 2) !== subCompanyGst.slice(0, 2);
@@ -194,26 +198,29 @@ export default function PurchaseReturnClient({
       const gstRatePercent = Number(line.gstRateId ? taxRates.find((t) => String(t.taxRateId) === line.gstRateId)?.taxPercent : 0) || 0;
 
       const amount = Math.round((qty * rate * fold / 100) * 100) / 100;
-      const totalTax = Math.round((amount * gstRatePercent) / 100 * 100) / 100;
 
       let defaultCgst = 0;
       let defaultSgst = 0;
       let defaultIgst = 0;
 
       if (isInterstate) {
-        defaultIgst = totalTax;
+        defaultIgst = gstRatePercent;
       } else {
-        defaultCgst = Math.round((totalTax / 2) * 100) / 100;
-        defaultSgst = Math.round((totalTax - defaultCgst) * 100) / 100;
+        defaultCgst = gstRatePercent / 2;
+        defaultSgst = gstRatePercent / 2;
       }
 
-      const cgst = line.cgst !== "" ? (Number(line.cgst) || 0) : defaultCgst;
-      const sgst = line.sgst !== "" ? (Number(line.sgst) || 0) : defaultSgst;
-      const igst = line.igst !== "" ? (Number(line.igst) || 0) : defaultIgst;
+      const cgstPercent = isInterstate ? 0 : (line.cgst !== "" ? (Number(line.cgst) || 0) : defaultCgst);
+      const sgstPercent = isInterstate ? 0 : (line.sgst !== "" ? (Number(line.sgst) || 0) : defaultSgst);
+      const igstPercent = isInterstate ? (line.igst !== "" ? (Number(line.igst) || 0) : defaultIgst) : 0;
+
+      const cgst = Math.round((amount * cgstPercent) / 100 * 100) / 100;
+      const sgst = Math.round((amount * sgstPercent) / 100 * 100) / 100;
+      const igst = Math.round((amount * igstPercent) / 100 * 100) / 100;
 
       const totalTaxVal = cgst + sgst + igst;
 
-      return { amount, cgst, sgst, igst, totalTax: totalTaxVal, net: amount + totalTaxVal };
+      return { amount, cgst, sgst, igst, cgstPercent, sgstPercent, igstPercent, totalTax: totalTaxVal, net: amount + totalTaxVal };
     });
   }, [lineItems, taxRates, isInterstate]);
 
@@ -442,16 +449,16 @@ export default function PurchaseReturnClient({
                   <th className="py-2.5 px-2 w-[6%]">Unit</th>
                   <th className="py-2.5 px-2 w-[8%] text-right">Rate</th>
                   <th className="py-2.5 px-2 w-[9%] text-right">Taxable</th>
-                  <th className="py-2.5 px-2 w-[7%] text-right">CGST</th>
-                  <th className="py-2.5 px-2 w-[7%] text-right">SGST</th>
-                  <th className="py-2.5 px-2 w-[7%] text-right">IGST</th>
+                  <th className="py-2.5 px-2 w-[7%] text-right">CGST %</th>
+                  <th className="py-2.5 px-2 w-[7%] text-right">SGST %</th>
+                  <th className="py-2.5 px-2 w-[7%] text-right">IGST %</th>
                   <th className="py-2.5 px-2 w-[9%] text-right">Net Amt</th>
                   <th className="py-2.5 px-2 text-center w-12">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60">
                 {lineItems.map((line, idx) => {
-                  const totals = lineTotals[idx] || { amount: 0, cgst: 0, sgst: 0, igst: 0, net: 0 };
+                  const totals = lineTotals[idx] || { amount: 0, cgst: 0, sgst: 0, igst: 0, cgstPercent: 0, sgstPercent: 0, igstPercent: 0, net: 0 };
                   return (
                     <tr key={line.id} className="hover:bg-muted/10">
                       <td className="py-2 px-2 text-xs font-semibold text-muted-foreground">{line.invoiceNo}</td>
@@ -504,9 +511,10 @@ export default function PurchaseReturnClient({
                         <Input
                           type="number"
                           step="0.01"
-                          placeholder={totals.cgst.toFixed(2)}
-                          value={line.cgst || ""}
+                          placeholder={isInterstate ? "0.00" : totals.cgstPercent.toFixed(2)}
+                          value={isInterstate ? "" : (line.cgst || "")}
                           onChange={(e) => updateLine(line.id, "cgst", e.target.value)}
+                          disabled={isInterstate}
                           className="h-8 text-xs text-right w-full"
                         />
                       </td>
@@ -514,9 +522,10 @@ export default function PurchaseReturnClient({
                         <Input
                           type="number"
                           step="0.01"
-                          placeholder={totals.sgst.toFixed(2)}
-                          value={line.sgst || ""}
+                          placeholder={isInterstate ? "0.00" : totals.sgstPercent.toFixed(2)}
+                          value={isInterstate ? "" : (line.sgst || "")}
                           onChange={(e) => updateLine(line.id, "sgst", e.target.value)}
+                          disabled={isInterstate}
                           className="h-8 text-xs text-right w-full"
                         />
                       </td>
@@ -524,9 +533,10 @@ export default function PurchaseReturnClient({
                         <Input
                           type="number"
                           step="0.01"
-                          placeholder={totals.igst.toFixed(2)}
-                          value={line.igst || ""}
+                          placeholder={!isInterstate ? "0.00" : totals.igstPercent.toFixed(2)}
+                          value={!isInterstate ? "" : (line.igst || "")}
                           onChange={(e) => updateLine(line.id, "igst", e.target.value)}
+                          disabled={!isInterstate}
                           className="h-8 text-xs text-right w-full"
                         />
                       </td>

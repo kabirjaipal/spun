@@ -2,7 +2,7 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { mCompanies, mInventory, mLedgers, mTaxRates } from "@/lib/db/schema";
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, isNull, sql, or } from "drizzle-orm";
 import SettingsClient from "./SettingsClient";
 
 export default async function SettingsPage() {
@@ -17,25 +17,6 @@ export default async function SettingsPage() {
   });
 
   if (!company) redirect("/setup-company");
-
-  const [companiesCount, inventoryCount, ledgerCount, taxRateCount] = await Promise.all([
-    db
-      .select({ count: sql<number>`count(*)` })
-      .from(mCompanies)
-      .where(and(eq(mCompanies.parentCompanyId, companyId), isNull(mCompanies.deletedOn))),
-    db
-      .select({ count: sql<number>`count(*)` })
-      .from(mInventory)
-      .where(and(eq(mInventory.companyId, companyId), isNull(mInventory.deletedOn))),
-    db
-      .select({ count: sql<number>`count(*)` })
-      .from(mLedgers)
-      .where(and(eq(mLedgers.companyId, companyId), isNull(mLedgers.deletedOn))),
-    db
-      .select({ count: sql<number>`count(*)` })
-      .from(mTaxRates)
-      .where(isNull(mTaxRates.deletedOn)),
-  ]);
 
   const companyDetails = {
     companyId: company.companyId,
@@ -61,14 +42,15 @@ export default async function SettingsPage() {
     msmeRegistered: company.msmeRegistered,
     msmeType: company.msmeType,
     msmeNo: company.msmeNo,
+    gstApplicable: company.gstApplicable,
+    gstType: company.gstType,
+    stateCode: company.stateCode,
+    city: company.city,
   };
 
-  const counts = {
-    companies: companiesCount[0]?.count ?? 0,
-    inventory: inventoryCount[0]?.count ?? 0,
-    ledgers: ledgerCount[0]?.count ?? 0,
-    taxRates: taxRateCount[0]?.count ?? 0,
-  };
-
-  return <SettingsClient company={companyDetails} counts={counts} />;
+  return (
+    <SettingsClient
+      company={companyDetails}
+    />
+  );
 }

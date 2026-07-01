@@ -34,6 +34,16 @@ export async function PATCH(request: Request) {
     msmeRegistered,
     msmeType,
     msmeNo,
+    phone,
+    email,
+    pincode,
+    state,
+    stateCode,
+    city,
+    nationName,
+    currencySymbol,
+    gstApplicable,
+    gstType,
   } = body;
 
   if (!companyName) {
@@ -65,6 +75,16 @@ export async function PATCH(request: Request) {
           msmeRegistered: !!msmeRegistered,
           msmeType: msmeRegistered ? (msmeType || null) : null,
           msmeNo: msmeRegistered ? (msmeNo || null) : null,
+          phone: phone || null,
+          email: email || null,
+          pincode: pincode || null,
+          state: state || null,
+          stateCode: stateCode || null,
+          city: city || null,
+          nationName: nationName || null,
+          currencySymbol: currencySymbol || null,
+          gstApplicable: !!gstApplicable,
+          gstType: gstType || null,
           updatedBy: userId,
           updatedOn: new Date(),
         })

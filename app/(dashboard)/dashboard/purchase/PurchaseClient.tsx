@@ -17,6 +17,7 @@ interface CompanyOption {
   companyName: string;
   gstNo: string | null;
   address: string | null;
+  state?: string | null;
 }
 
 interface InventoryOption {
@@ -78,7 +79,7 @@ export default function PurchaseClient({
   brokersHaste,
   canCreate,
 }: {
-  company: { companyName: string; gstNo?: string | null; address?: string | null; companyType?: string };
+  company: { companyName: string; gstNo?: string | null; address?: string | null; companyType?: string; state?: string | null };
   companies: CompanyOption[];
   inventory: InventoryOption[];
   taxRates: TaxRateOption[];
@@ -147,8 +148,11 @@ export default function PurchaseClient({
  
   // Check if Interstate or Intrastate GST
   const isInterstate = useMemo(() => {
-    const companyGst = company?.gstNo || "";
     const subCompany = companies.find((s) => String(s.companyId) === selectedCompany);
+    if (company?.state && subCompany?.state) {
+      return company.state.trim().toLowerCase() !== subCompany.state.trim().toLowerCase();
+    }
+    const companyGst = company?.gstNo || "";
     const subCompanyGst = subCompany?.gstNo || "";
     if (!companyGst || !subCompanyGst) return false;
     return companyGst.slice(0, 2) !== subCompanyGst.slice(0, 2);
@@ -165,26 +169,29 @@ export default function PurchaseClient({
       // Amount formula: if unitType is 'pcs', then pcs * rate. If 'meter', then qty * rate * fold / 100.
       const multiplier = line.unitType === "pcs" ? pcs : (qty * fold / 100);
       const amount = Math.round((multiplier * rate) * 100) / 100;
-      const totalTax = Math.round((amount * gstRatePercent) / 100 * 100) / 100;
       
       let defaultCgst = 0;
       let defaultSgst = 0;
       let defaultIgst = 0;
 
       if (isInterstate) {
-        defaultIgst = totalTax;
+        defaultIgst = gstRatePercent;
       } else {
-        defaultCgst = Math.round((totalTax / 2) * 100) / 100;
-        defaultSgst = Math.round((totalTax - defaultCgst) * 100) / 100;
+        defaultCgst = gstRatePercent / 2;
+        defaultSgst = gstRatePercent / 2;
       }
 
-      const cgst = line.cgst !== "" ? (Number(line.cgst) || 0) : defaultCgst;
-      const sgst = line.sgst !== "" ? (Number(line.sgst) || 0) : defaultSgst;
-      const igst = line.igst !== "" ? (Number(line.igst) || 0) : defaultIgst;
+      const cgstPercent = isInterstate ? 0 : (line.cgst !== "" ? (Number(line.cgst) || 0) : defaultCgst);
+      const sgstPercent = isInterstate ? 0 : (line.sgst !== "" ? (Number(line.sgst) || 0) : defaultSgst);
+      const igstPercent = isInterstate ? (line.igst !== "" ? (Number(line.igst) || 0) : defaultIgst) : 0;
+
+      const cgst = Math.round((amount * cgstPercent) / 100 * 100) / 100;
+      const sgst = Math.round((amount * sgstPercent) / 100 * 100) / 100;
+      const igst = Math.round((amount * igstPercent) / 100 * 100) / 100;
 
       const totalTaxVal = cgst + sgst + igst;
 
-      return { amount, cgst, sgst, igst, totalTax: totalTaxVal, net: amount + totalTaxVal };
+      return { amount, cgst, sgst, igst, cgstPercent, sgstPercent, igstPercent, totalTax: totalTaxVal, net: amount + totalTaxVal };
     });
   }, [lineItems, taxRates, isInterstate]);
 
@@ -513,9 +520,9 @@ export default function PurchaseClient({
                 <th className="py-2 px-3 w-[8%] text-right">Rate</th>
                 <th className="py-2 px-3 w-[9%] text-right">Taxable</th>
                 <th className="py-2 px-3 w-[8%]">GST Rate</th>
-                <th className="py-2 px-3 w-[7%] text-right">CGST</th>
-                <th className="py-2 px-3 w-[7%] text-right">SGST</th>
-                <th className="py-2 px-3 w-[7%] text-right">IGST</th>
+                <th className="py-2 px-3 w-[7%] text-right">CGST %</th>
+                <th className="py-2 px-3 w-[7%] text-right">SGST %</th>
+                <th className="py-2 px-3 w-[7%] text-right">IGST %</th>
                 <th className="py-2 px-3 w-[9%] text-right">Net Amt</th>
                 <th className="py-2 pl-4 w-[3%]"></th>
               </tr>
@@ -616,9 +623,10 @@ export default function PurchaseClient({
                       <Input
                         type="number"
                         step="0.01"
-                        placeholder={totals?.cgst.toFixed(2)}
-                        value={line.cgst || ""}
+                        placeholder={isInterstate ? "0.00" : totals?.cgstPercent.toFixed(2)}
+                        value={isInterstate ? "" : (line.cgst || "")}
                         onChange={(e) => updateLine(line.id, "cgst", e.target.value)}
+                        disabled={isInterstate}
                         className="h-9 text-right font-medium w-20 ml-auto"
                       />
                     </td>
@@ -626,9 +634,10 @@ export default function PurchaseClient({
                       <Input
                         type="number"
                         step="0.01"
-                        placeholder={totals?.sgst.toFixed(2)}
-                        value={line.sgst || ""}
+                        placeholder={isInterstate ? "0.00" : totals?.sgstPercent.toFixed(2)}
+                        value={isInterstate ? "" : (line.sgst || "")}
                         onChange={(e) => updateLine(line.id, "sgst", e.target.value)}
+                        disabled={isInterstate}
                         className="h-9 text-right font-medium w-20 ml-auto"
                       />
                     </td>
@@ -636,9 +645,10 @@ export default function PurchaseClient({
                       <Input
                         type="number"
                         step="0.01"
-                        placeholder={totals?.igst.toFixed(2)}
-                        value={line.igst || ""}
+                        placeholder={!isInterstate ? "0.00" : totals?.igstPercent.toFixed(2)}
+                        value={!isInterstate ? "" : (line.igst || "")}
                         onChange={(e) => updateLine(line.id, "igst", e.target.value)}
+                        disabled={!isInterstate}
                         className="h-9 text-right font-medium w-20 ml-auto"
                       />
                     </td>

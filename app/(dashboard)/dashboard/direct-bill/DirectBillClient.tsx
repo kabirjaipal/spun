@@ -24,6 +24,7 @@ interface CompanyOption {
   companyName: string;
   address: string | null;
   gstNo: string | null;
+  state?: string | null;
 }
 
 interface InventoryOption {
@@ -80,7 +81,7 @@ export default function DirectBillClient({
   canCreate,
 }: {
   initialVouchers: DirectBillItem[];
-  company: { companyName: string; gstNo?: string | null; address?: string | null };
+  company: { companyName: string; gstNo?: string | null; address?: string | null; state?: string | null };
   companies: CompanyOption[];
   inventory: InventoryOption[];
   ledgers: LedgerOption[];
@@ -110,9 +111,12 @@ export default function DirectBillClient({
   }, [selectedCompany, companies]);
 
   const isInterstate = useMemo(() => {
+    if (company?.state && subCompanyObj?.state) {
+      return company.state.trim().toLowerCase() !== subCompanyObj.state.trim().toLowerCase();
+    }
     if (!company.gstNo || !subCompanyObj?.gstNo) return false;
     return company.gstNo.slice(0, 2) !== subCompanyObj.gstNo.slice(0, 2);
-  }, [company.gstNo, subCompanyObj]);
+  }, [company.gstNo, company.state, subCompanyObj]);
 
   const lineTotals = useMemo(() => {
     return lineItems.map((item) => {

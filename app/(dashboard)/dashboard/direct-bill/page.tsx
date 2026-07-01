@@ -64,12 +64,13 @@ export default async function DirectBillPage() {
         ...v,
         voucherDate: v.voucherDate ? new Date(v.voucherDate) : null
       }))}
-      company={company ? { companyName: company.companyName, gstNo: company.gstNo, address: company.address } : { companyName: "Texora Company" }}
+      company={company ? { companyName: company.companyName, gstNo: company.gstNo, address: company.address, state: company.state } : { companyName: "Texora Company", state: null }}
       companies={companies.map((comp) => ({
         companyId: comp.companyId,
         companyName: comp.companyName,
         address: comp.address,
         gstNo: comp.gstNo,
+        state: comp.state,
       }))}
       inventory={inventory.map((item) => ({
         inventoryId: item.inventoryId,

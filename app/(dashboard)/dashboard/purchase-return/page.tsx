@@ -44,12 +44,13 @@ export default async function PurchaseReturnPage() {
 
   return (
     <PurchaseReturnClient
-      company={company ? { companyName: company.companyName, gstNo: company.gstNo, address: company.address, companyType: company.companyType } : { companyName: "Texora Company", companyType: "general" }}
+      company={company ? { companyName: company.companyName, gstNo: company.gstNo, address: company.address, companyType: company.companyType, state: company.state } : { companyName: "Texora Company", companyType: "general", state: null }}
       companies={companies.map((comp) => ({
         companyId: comp.companyId,
         companyName: comp.companyName,
         address: comp.address,
         gstNo: comp.gstNo,
+        state: comp.state,
       }))}
       inventory={inventory.map((item) => ({
         inventoryId: item.inventoryId,

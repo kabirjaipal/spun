@@ -64,12 +64,13 @@ export default async function DebitNotePage() {
         ...n,
         voucherDate: n.voucherDate ? new Date(n.voucherDate) : null
       }))}
-      company={company ? { companyName: company.companyName, gstNo: company.gstNo, address: company.address } : { companyName: "Texora Company" }}
+      company={company ? { companyName: company.companyName, gstNo: company.gstNo, address: company.address, state: company.state } : { companyName: "Texora Company", state: null }}
       companies={companies.map((comp) => ({
         companyId: comp.companyId,
         companyName: comp.companyName,
         address: comp.address,
         gstNo: comp.gstNo,
+        state: comp.state,
       }))}
       inventory={inventory.map((item) => ({
         inventoryId: item.inventoryId,
