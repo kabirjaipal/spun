@@ -102,7 +102,7 @@ export default function PurchaseReturnClient({
 
   // Logistics
   const [lrNo, setLrNo] = useState("");
-  const [lrDate, setLrDate] = useState("");
+  const [lrDate, setLrDate] = useState(new Date().toISOString().slice(0, 10));
   const [transport, setTransport] = useState("");
   const [remarks, setRemarks] = useState("");
 
