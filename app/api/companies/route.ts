@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { mCompanies, mLedgers, mLedgerGroups, mInventoryGroups, mUnitsOfMeasurement } from "@/lib/db/schema";
 import { and, isNull, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
+import { DEFAULT_UNITS, DEFAULT_LEDGER_GROUPS, DEFAULT_INVENTORY_GROUPS } from "@/lib/constants";
 import { auth } from "@/auth";
 import { writeAuditLog } from "@/lib/audit";
 
@@ -114,32 +115,8 @@ export async function POST(request: Request) {
       const newCompanyId = Number(newCompany.companyId);
 
       // 3. Seed default ledger groups for the new sub-company
-      const defaultGroups = [
-        "Capital Account",
-        "Sales Account",
-        "Purchase Account",
-        "Bank Account",
-        "Stock in Hand",
-        "Sales Return",
-        "Purchase Return",
-        "Direct Expenses",
-        "Indirect Income",
-        "Profit & Loss",
-        "Unsecured Loans",
-        "Secured Loans",
-        "Deposits & Advance Assets",
-        "Fixed Assets",
-        "Investment",
-        "Loan (Assets)",
-        "Preliminary Expenses",
-        "Cash in Hand",
-        "Provisions",
-        "Sundry Debtors",
-        "Sundry Creditors",
-        "Suspense Account"
-      ];
       await tx.insert(mLedgerGroups).values(
-        defaultGroups.map((groupName) => ({
+        DEFAULT_LEDGER_GROUPS.map((groupName) => ({
           companyId: newCompanyId,
           groupName,
           isSystem: true,
@@ -149,9 +126,8 @@ export async function POST(request: Request) {
       );
 
       // 4. Seed default inventory groups for the new sub-company
-      const defaultInvGroups = ["Consumable", "Selling"];
       await tx.insert(mInventoryGroups).values(
-        defaultInvGroups.map((groupName) => ({
+        DEFAULT_INVENTORY_GROUPS.map((groupName) => ({
           companyId: newCompanyId,
           groupName,
           createdBy: userId,
@@ -160,16 +136,8 @@ export async function POST(request: Request) {
       );
 
       // 5. Seed default units of measurement for the new sub-company
-      const defaultUnits = [
-        { code: "PCS", name: "Pieces" },
-        { code: "MTR", name: "Meters" },
-        { code: "KGS", name: "Kilograms" },
-        { code: "GRM", name: "Grams" },
-        { code: "LTR", name: "Liters" },
-        { code: "BOX", name: "BOX" },
-      ];
       await tx.insert(mUnitsOfMeasurement).values(
-        defaultUnits.map((u) => ({
+        DEFAULT_UNITS.map((u) => ({
           companyId: newCompanyId,
           unitCode: u.code,
           unitName: u.name,

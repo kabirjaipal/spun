@@ -3,87 +3,126 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
-import { Building2, Landmark, MapPin, Calendar, FileText, ArrowRight, Phone, Mail, DollarSign, Globe } from "lucide-react";
+import { Building2, Landmark, MapPin, Calendar, FileText, ArrowRight, Phone, Mail, DollarSign, Globe, Trash2 } from "lucide-react";
 import { BANK_LIST } from "@/lib/banks";
 import { CURRENCIES, MARKET_CATEGORIES } from "@/lib/constants";
 
+interface CompanyFormState {
+  companyName: string;
+  address: string;
+  pincode: string;
+  state: string;
+  phone: string;
+  email: string;
+  currencySymbol: string;
+  nationName: string;
+  companyType: string;
+  marketCategory: string;
+  financialYearStart: string;
+  gstApplicable: boolean;
+  panNo: string;
+  gstNo: string;
+  stateCode: string;
+  city: string;
+  gstType: string;
+  bankName: string;
+  bankAccountName: string;
+  accountNo: string;
+  ifscCode: string;
+  branchName: string;
+  accountType: string;
+  selectedBankIndex: number | null;
+  customBankActive: boolean;
+  customIfscActive: boolean;
+}
+
+const currentYear = new Date().getFullYear();
+const defaultFyStart = `${currentYear}-04-01`;
+
+const createEmptyCompanyState = (): CompanyFormState => ({
+  companyName: "",
+  address: "",
+  pincode: "",
+  state: "",
+  phone: "",
+  email: "",
+  currencySymbol: "₹",
+  nationName: "India",
+  companyType: "general",
+  marketCategory: "Retail",
+  financialYearStart: defaultFyStart,
+  gstApplicable: false,
+  panNo: "",
+  gstNo: "",
+  stateCode: "",
+  city: "",
+  gstType: "regular",
+  bankName: "",
+  bankAccountName: "",
+  accountNo: "",
+  ifscCode: "",
+  branchName: "",
+  accountType: "current",
+  selectedBankIndex: null,
+  customBankActive: true,
+  customIfscActive: true,
+});
+
 export default function SetupCompanyPage() {
-  const currentYear = new Date().getFullYear();
-  const defaultFyStart = `${currentYear}-04-01`;
-
-  const [companyName, setCompanyName] = useState("");
-  const [address, setAddress] = useState("");
-  const [pincode, setPincode] = useState("");
-  const [state, setState] = useState("");
-  const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
-  const [currencySymbol, setCurrencySymbol] = useState("₹");
-  const [nationName, setNationName] = useState("India");
-
-  // Company Module
-  const [companyType, setCompanyType] = useState("general");
-  const [marketCategory, setMarketCategory] = useState("Retail");
-
-  // GST details
-  const [gstApplicable, setGstApplicable] = useState(false);
-  const [gstNo, setGstNo] = useState("");
-  const [panNo, setPanNo] = useState("");
-  const [stateCode, setStateCode] = useState("");
-  const [city, setCity] = useState("");
-  const [gstType, setGstType] = useState("regular"); // regular, composition, export
-
-  // Bank details
-  const [bankName, setBankName] = useState("");
-  const [bankAccountName, setBankAccountName] = useState("");
-  const [accountNo, setAccountNo] = useState("");
-  const [ifscCode, setIfscCode] = useState("");
-  const [branchName, setBranchName] = useState("");
-  const [accountType, setAccountType] = useState("current"); // current, cc, od, saving, other
-
-  // Bank selection state helpers
-  const [selectedBankIndex, setSelectedBankIndex] = useState<number | null>(null);
-  const [customBankActive, setCustomBankActive] = useState(true); // Default to custom input unless chosen
-  const [customIfscActive, setCustomIfscActive] = useState(true);
-
-  const [financialYearStart, setFinancialYearStart] = useState(defaultFyStart);
+  const [companies, setCompanies] = useState<CompanyFormState[]>([createEmptyCompanyState()]);
+  const [activeIdx, setActiveIdx] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const { update } = useSession();
+
+  const currentCompany = companies[activeIdx];
+  const updateCurrent = (fields: Partial<CompanyFormState>) => {
+    setCompanies(prev => prev.map((c, i) => i === activeIdx ? { ...c, ...fields } : c));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
 
+    const missingNames = companies.some(c => !c.companyName.trim());
+    if (missingNames) {
+      setError("Company Name is required for all companies.");
+      setLoading(false);
+      return;
+    }
+
     try {
       const res = await fetch("/api/setup-company", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          companyName,
-          address,
-          pincode,
-          state,
-          phone,
-          email,
-          currencySymbol,
-          nationName,
-          bankName,
-          bankAccountName,
-          accountNo,
-          ifscCode,
-          branchName,
-          accountType,
-          gstApplicable,
-          gstNo: gstApplicable ? gstNo : null,
-          panNo,
-          stateCode: gstApplicable ? stateCode : null,
-          city: gstApplicable ? city : null,
-          gstType: gstApplicable ? gstType : null,
-          financialYearStart,
-          companyType,
-          marketCategory,
+          companies: companies.map(c => ({
+            companyName: c.companyName,
+            address: c.address,
+            pincode: c.pincode,
+            state: c.state,
+            phone: c.phone,
+            email: c.email,
+            currencySymbol: c.currencySymbol,
+            nationName: c.nationName,
+            gstApplicable: c.gstApplicable,
+            gstNo: c.gstApplicable ? c.gstNo : null,
+            panNo: c.panNo,
+            stateCode: c.gstApplicable ? c.stateCode : null,
+            city: c.gstApplicable ? c.city : null,
+            gstType: c.gstApplicable ? c.gstType : null,
+            bankName: c.bankName,
+            bankAccountName: c.bankAccountName,
+            accountNo: c.accountNo,
+            ifscCode: c.ifscCode,
+            branchName: c.branchName,
+            accountType: c.accountType,
+            financialYearStart: c.financialYearStart,
+            companyType: c.companyType,
+            marketCategory: c.marketCategory,
+          })),
         }),
       });
 
@@ -150,7 +189,7 @@ export default function SetupCompanyPage() {
               Register Your Company
             </h2>
             <p className="text-sm text-muted-foreground">
-              Please enter your textile organization details to initialize your workspace.
+              Please enter your organization details to initialize your workspace. You can set up multiple companies now or manage them later.
             </p>
           </div>
 
@@ -160,10 +199,57 @@ export default function SetupCompanyPage() {
             </div>
           )}
 
+          {/* Companies Tabs */}
+          <div className="flex flex-wrap items-center gap-2 border-b pb-4">
+            {companies.map((c, idx) => (
+              <div key={idx} className="flex items-center gap-1 bg-muted/20 p-1 rounded-md border border-border">
+                <button
+                  type="button"
+                  onClick={() => setActiveIdx(idx)}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded transition-colors ${
+                    idx === activeIdx
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {c.companyName.trim() || `Company ${idx + 1}`}
+                  {idx === 0 && " (Primary)"}
+                </button>
+                {idx > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCompanies(prev => prev.filter((_, i) => i !== idx));
+                      if (activeIdx >= idx) {
+                        setActiveIdx(prev => Math.max(0, prev - 1));
+                      }
+                    }}
+                    className="p-1 text-muted-foreground hover:text-danger rounded hover:bg-danger/10"
+                    title="Remove Company"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => {
+                setCompanies(prev => [...prev, createEmptyCompanyState()]);
+                setActiveIdx(companies.length);
+              }}
+              className="px-3 py-1.5 text-xs font-semibold rounded border border-dashed border-primary text-primary bg-background hover:bg-primary/5 transition-colors"
+            >
+              + Add Another Company
+            </button>
+          </div>
+
           <form className="space-y-8" onSubmit={handleSubmit}>
             {/* Section 1: General Details */}
             <div className="space-y-4">
-              <h3 className="text-lg font-bold border-b pb-2 text-foreground">General Details</h3>
+              <h3 className="text-lg font-bold border-b pb-2 text-foreground">
+                General Details {companies.length > 1 && `(${currentCompany.companyName || `Company ${activeIdx + 1}`})`}
+              </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="col-span-1 sm:col-span-2">
                   <label htmlFor="companyName" className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
@@ -177,8 +263,8 @@ export default function SetupCompanyPage() {
                       id="companyName"
                       type="text"
                       required
-                      value={companyName}
-                      onChange={(e) => setCompanyName(e.target.value)}
+                      value={currentCompany.companyName}
+                      onChange={(e) => updateCurrent({ companyName: e.target.value })}
                       className="w-full h-10 rounded-md border border-input bg-background pl-10 pr-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground/60"
                       placeholder="e.g. Acme Fabrics Pvt Ltd"
                     />
@@ -196,10 +282,10 @@ export default function SetupCompanyPage() {
                     <input
                       id="address"
                       type="text"
-                      value={address}
-                      onChange={(e) => setAddress(e.target.value)}
+                      value={currentCompany.address}
+                      onChange={(e) => updateCurrent({ address: e.target.value })}
                       className="w-full h-10 rounded-md border border-input bg-background pl-10 pr-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground/60"
-                      placeholder="e.g. Ring Road, Surat, India"
+                      placeholder="e.g. 101, Textile Market"
                     />
                   </div>
                 </div>
@@ -211,8 +297,8 @@ export default function SetupCompanyPage() {
                   <input
                     id="pincode"
                     type="text"
-                    value={pincode}
-                    onChange={(e) => setPincode(e.target.value)}
+                    value={currentCompany.pincode}
+                    onChange={(e) => updateCurrent({ pincode: e.target.value })}
                     className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground/60"
                     placeholder="395003"
                   />
@@ -225,8 +311,8 @@ export default function SetupCompanyPage() {
                   <input
                     id="state"
                     type="text"
-                    value={state}
-                    onChange={(e) => setState(e.target.value)}
+                    value={currentCompany.state}
+                    onChange={(e) => updateCurrent({ state: e.target.value })}
                     className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground/60"
                     placeholder="Gujarat"
                   />
@@ -243,8 +329,8 @@ export default function SetupCompanyPage() {
                     <input
                       id="phone"
                       type="text"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
+                      value={currentCompany.phone}
+                      onChange={(e) => updateCurrent({ phone: e.target.value })}
                       className="w-full h-10 rounded-md border border-input bg-background pl-10 pr-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground/60"
                       placeholder="+91 98765 43210"
                     />
@@ -262,13 +348,14 @@ export default function SetupCompanyPage() {
                     <input
                       id="email"
                       type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      value={currentCompany.email}
+                      onChange={(e) => updateCurrent({ email: e.target.value })}
                       className="w-full h-10 rounded-md border border-input bg-background pl-10 pr-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground/60"
                       placeholder="info@acmefabrics.com"
                     />
                   </div>
                 </div>
+
                 <div>
                   <label htmlFor="currencySymbol" className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
                     CURRENCY SYMBOL
@@ -279,14 +366,14 @@ export default function SetupCompanyPage() {
                     </div>
                     <select
                       id="currencySymbol"
-                      value={currencySymbol}
+                      value={currentCompany.currencySymbol}
                       onChange={(e) => {
                         const val = e.target.value;
-                        setCurrencySymbol(val);
                         const match = CURRENCIES.find((c) => c.symbol === val);
-                        if (match) {
-                          setNationName(match.nation);
-                        }
+                        updateCurrent({
+                          currencySymbol: val,
+                          nationName: match ? match.nation : currentCompany.nationName,
+                        });
                       }}
                       className="w-full h-10 rounded-md border border-input bg-background pl-10 pr-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                     >
@@ -309,14 +396,14 @@ export default function SetupCompanyPage() {
                     </div>
                     <select
                       id="nationName"
-                      value={nationName}
+                      value={currentCompany.nationName}
                       onChange={(e) => {
                         const val = e.target.value;
-                        setNationName(val);
                         const match = CURRENCIES.find((c) => c.nation === val);
-                        if (match) {
-                          setCurrencySymbol(match.symbol);
-                        }
+                        updateCurrent({
+                          nationName: val,
+                          currencySymbol: match ? match.symbol : currentCompany.currencySymbol,
+                        });
                       }}
                       className="w-full h-10 rounded-md border border-input bg-background pl-10 pr-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                     >
@@ -335,11 +422,13 @@ export default function SetupCompanyPage() {
                   </label>
                   <select
                     id="companyType"
-                    value={companyType}
+                    value={currentCompany.companyType}
                     onChange={(e) => {
                       const val = e.target.value;
-                      setCompanyType(val);
-                      setMarketCategory(MARKET_CATEGORIES[val][0]);
+                      updateCurrent({
+                        companyType: val,
+                        marketCategory: MARKET_CATEGORIES[val][0],
+                      });
                     }}
                     className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   >
@@ -355,11 +444,11 @@ export default function SetupCompanyPage() {
                   </label>
                   <select
                     id="marketCategory"
-                    value={marketCategory}
-                    onChange={(e) => setMarketCategory(e.target.value)}
+                    value={currentCompany.marketCategory}
+                    onChange={(e) => updateCurrent({ marketCategory: e.target.value })}
                     className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   >
-                    {MARKET_CATEGORIES[companyType]?.map((cat) => (
+                    {MARKET_CATEGORIES[currentCompany.companyType]?.map((cat) => (
                       <option key={cat} value={cat}>
                         {cat}
                       </option>
@@ -379,8 +468,8 @@ export default function SetupCompanyPage() {
                       id="financialYearStart"
                       type="date"
                       required
-                      value={financialYearStart}
-                      onChange={(e) => setFinancialYearStart(e.target.value)}
+                      value={currentCompany.financialYearStart}
+                      onChange={(e) => updateCurrent({ financialYearStart: e.target.value })}
                       className="w-full h-10 rounded-md border border-input bg-background pl-10 pr-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                     />
                   </div>
@@ -395,8 +484,8 @@ export default function SetupCompanyPage() {
                 <label className="flex items-center gap-2 cursor-pointer text-sm font-normal text-muted-foreground select-none">
                   <input
                     type="checkbox"
-                    checked={gstApplicable}
-                    onChange={(e) => setGstApplicable(e.target.checked)}
+                    checked={currentCompany.gstApplicable}
+                    onChange={(e) => updateCurrent({ gstApplicable: e.target.checked })}
                     className="h-4 w-4 rounded border-input text-primary focus:ring-primary bg-background"
                   />
                   GST Applicable
@@ -415,15 +504,15 @@ export default function SetupCompanyPage() {
                     <input
                       id="panNo"
                       type="text"
-                      value={panNo}
-                      onChange={(e) => setPanNo(e.target.value)}
+                      value={currentCompany.panNo}
+                      onChange={(e) => updateCurrent({ panNo: e.target.value })}
                       className="w-full h-10 rounded-md border border-input bg-background pl-10 pr-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground/60"
                       placeholder="ABCDE1234F"
                     />
                   </div>
                 </div>
 
-                {gstApplicable && (
+                {currentCompany.gstApplicable && (
                   <>
                     <div>
                       <label htmlFor="gstNo" className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
@@ -436,9 +525,9 @@ export default function SetupCompanyPage() {
                         <input
                           id="gstNo"
                           type="text"
-                          required={gstApplicable}
-                          value={gstNo}
-                          onChange={(e) => setGstNo(e.target.value)}
+                          required={currentCompany.gstApplicable}
+                          value={currentCompany.gstNo}
+                          onChange={(e) => updateCurrent({ gstNo: e.target.value })}
                           className="w-full h-10 rounded-md border border-input bg-background pl-10 pr-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground/60"
                           placeholder="24AAAAB1234C1Z1"
                         />
@@ -452,9 +541,9 @@ export default function SetupCompanyPage() {
                       <input
                         id="stateCode"
                         type="text"
-                        required={gstApplicable}
-                        value={stateCode}
-                        onChange={(e) => setStateCode(e.target.value)}
+                        required={currentCompany.gstApplicable}
+                        value={currentCompany.stateCode}
+                        onChange={(e) => updateCurrent({ stateCode: e.target.value })}
                         className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground/60"
                         placeholder="24"
                       />
@@ -467,9 +556,9 @@ export default function SetupCompanyPage() {
                       <input
                         id="city"
                         type="text"
-                        required={gstApplicable}
-                        value={city}
-                        onChange={(e) => setCity(e.target.value)}
+                        required={currentCompany.gstApplicable}
+                        value={currentCompany.city}
+                        onChange={(e) => updateCurrent({ city: e.target.value })}
                         className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground/60"
                         placeholder="Surat"
                       />
@@ -481,8 +570,8 @@ export default function SetupCompanyPage() {
                       </label>
                       <select
                         id="gstType"
-                        value={gstType}
-                        onChange={(e) => setGstType(e.target.value)}
+                        value={currentCompany.gstType}
+                        onChange={(e) => updateCurrent({ gstType: e.target.value })}
                         className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                       >
                         <option value="regular">Regular</option>
@@ -504,31 +593,29 @@ export default function SetupCompanyPage() {
                     SELECT BANK
                   </label>
                   <select
-                    value={customBankActive ? "custom" : selectedBankIndex ?? ""}
+                    value={currentCompany.customBankActive ? "custom" : currentCompany.selectedBankIndex ?? ""}
                     onChange={(e) => {
                       const val = e.target.value;
                       if (val === "custom") {
-                        setCustomBankActive(true);
-                        setCustomIfscActive(true);
-                        setBankName("");
-                        setIfscCode("");
-                        setBranchName("");
-                        setSelectedBankIndex(null);
+                        updateCurrent({
+                          customBankActive: true,
+                          customIfscActive: true,
+                          bankName: "",
+                          ifscCode: "",
+                          branchName: "",
+                          selectedBankIndex: null,
+                        });
                       } else {
-                        setCustomBankActive(false);
-                        setCustomIfscActive(false);
                         const bankIndex = Number(val);
                         const bank = BANK_LIST[bankIndex];
-                        setBankName(bank.bankName);
-                        setSelectedBankIndex(bankIndex);
-                        
-                        if (bank.branches.length > 0) {
-                          setIfscCode(bank.branches[0].ifscCode);
-                          setBranchName(bank.branches[0].branchName);
-                        } else {
-                          setIfscCode("");
-                          setBranchName("");
-                        }
+                        updateCurrent({
+                          customBankActive: false,
+                          customIfscActive: false,
+                          bankName: bank.bankName,
+                          selectedBankIndex: bankIndex,
+                          ifscCode: bank.branches.length > 0 ? bank.branches[0].ifscCode : "",
+                          branchName: bank.branches.length > 0 ? bank.branches[0].branchName : "",
+                        });
                       }
                     }}
                     className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
@@ -542,7 +629,7 @@ export default function SetupCompanyPage() {
                   </select>
                 </div>
 
-                {customBankActive ? (
+                {currentCompany.customBankActive ? (
                   <div>
                     <label htmlFor="bankName" className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
                       BANK NAME
@@ -550,8 +637,8 @@ export default function SetupCompanyPage() {
                     <input
                       id="bankName"
                       type="text"
-                      value={bankName}
-                      onChange={(e) => setBankName(e.target.value)}
+                      value={currentCompany.bankName}
+                      onChange={(e) => updateCurrent({ bankName: e.target.value })}
                       className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground/60"
                       placeholder="e.g. State Bank of India"
                     />
@@ -562,7 +649,7 @@ export default function SetupCompanyPage() {
                       BANK NAME
                     </label>
                     <span className="text-sm font-semibold text-foreground px-3 h-10 flex items-center bg-muted/20 border rounded-md">
-                      {bankName}
+                      {currentCompany.bankName}
                     </span>
                   </div>
                 )}
@@ -574,8 +661,8 @@ export default function SetupCompanyPage() {
                   <input
                     id="bankAccountName"
                     type="text"
-                    value={bankAccountName}
-                    onChange={(e) => setBankAccountName(e.target.value)}
+                    value={currentCompany.bankAccountName}
+                    onChange={(e) => updateCurrent({ bankAccountName: e.target.value })}
                     className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground/60"
                     placeholder="e.g. Acme Fabrics Pvt Ltd"
                   />
@@ -588,8 +675,8 @@ export default function SetupCompanyPage() {
                   <input
                     id="accountNo"
                     type="text"
-                    value={accountNo}
-                    onChange={(e) => setAccountNo(e.target.value)}
+                    value={currentCompany.accountNo}
+                    onChange={(e) => updateCurrent({ accountNo: e.target.value })}
                     className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground/60"
                     placeholder="e.g. 123456789012"
                   />
@@ -599,30 +686,34 @@ export default function SetupCompanyPage() {
                   <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
                     SELECT BRANCH / IFSC
                   </label>
-                  {customBankActive ? (
+                  {currentCompany.customBankActive ? (
                     <span className="text-sm text-muted-foreground px-3 h-10 flex items-center bg-muted/10 border rounded-md select-none">
                       Type custom details below
                     </span>
                   ) : (
                     <select
-                      value={customIfscActive ? "custom" : BANK_LIST[selectedBankIndex!].branches.findIndex(b => b.ifscCode === ifscCode)}
+                      value={currentCompany.customIfscActive ? "custom" : BANK_LIST[currentCompany.selectedBankIndex!].branches.findIndex(b => b.ifscCode === currentCompany.ifscCode)}
                       onChange={(e) => {
                         const val = e.target.value;
                         if (val === "custom") {
-                          setCustomIfscActive(true);
-                          setIfscCode("");
-                          setBranchName("");
+                          updateCurrent({
+                            customIfscActive: true,
+                            ifscCode: "",
+                            branchName: "",
+                          });
                         } else {
-                          setCustomIfscActive(false);
                           const branchIndex = Number(val);
-                          const branch = BANK_LIST[selectedBankIndex!].branches[branchIndex];
-                          setIfscCode(branch.ifscCode);
-                          setBranchName(branch.branchName);
+                          const branch = BANK_LIST[currentCompany.selectedBankIndex!].branches[branchIndex];
+                          updateCurrent({
+                            customIfscActive: false,
+                            ifscCode: branch.ifscCode,
+                            branchName: branch.branchName,
+                          });
                         }
                       }}
                       className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                     >
-                      {BANK_LIST[selectedBankIndex!].branches.map((b, idx) => (
+                      {BANK_LIST[currentCompany.selectedBankIndex!].branches.map((b, idx) => (
                         <option key={b.ifscCode} value={idx}>
                           {b.branchName} ({b.ifscCode})
                         </option>
@@ -639,9 +730,9 @@ export default function SetupCompanyPage() {
                   <input
                     id="ifscCode"
                     type="text"
-                    disabled={!customIfscActive}
-                    value={ifscCode}
-                    onChange={(e) => setIfscCode(e.target.value.toUpperCase())}
+                    disabled={!currentCompany.customIfscActive}
+                    value={currentCompany.ifscCode}
+                    onChange={(e) => updateCurrent({ ifscCode: e.target.value.toUpperCase() })}
                     className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground/60 disabled:bg-muted/30 disabled:text-muted-foreground"
                     placeholder="e.g. SBIN0001234"
                   />
@@ -654,9 +745,9 @@ export default function SetupCompanyPage() {
                   <input
                     id="branchName"
                     type="text"
-                    disabled={!customIfscActive}
-                    value={branchName}
-                    onChange={(e) => setBranchName(e.target.value)}
+                    disabled={!currentCompany.customIfscActive}
+                    value={currentCompany.branchName}
+                    onChange={(e) => updateCurrent({ branchName: e.target.value })}
                     className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground/60 disabled:bg-muted/30 disabled:text-muted-foreground"
                     placeholder="e.g. Ring Road Branch"
                   />
@@ -668,8 +759,8 @@ export default function SetupCompanyPage() {
                   </label>
                   <select
                     id="accountType"
-                    value={accountType}
-                    onChange={(e) => setAccountType(e.target.value)}
+                    value={currentCompany.accountType}
+                    onChange={(e) => updateCurrent({ accountType: e.target.value })}
                     className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   >
                     <option value="current">Current Account</option>

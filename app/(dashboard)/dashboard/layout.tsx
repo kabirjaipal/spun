@@ -3,7 +3,7 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { mCompanies } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and, or, isNull } from "drizzle-orm";
 import { getUserPagePermissions } from "@/lib/permissions";
 import DashboardSidebar, { SidebarProvider } from "@/components/DashboardSidebar";
 import DashboardHeader from "@/components/DashboardHeader";
@@ -24,6 +24,8 @@ export default async function DashboardLayout({
   // Fetch company details
   let companyName = "No Company";
   let financialYearStart: string | null = null;
+  let userCompanies: { companyId: number; companyName: string }[] = [];
+
   if (session.user.companyId) {
     const company = await db.query.mCompanies.findFirst({
       where: eq(mCompanies.companyId, Number(session.user.companyId)),
@@ -45,6 +47,20 @@ export default async function DashboardLayout({
           // No fallback
         }
       }
+
+      // Fetch only the main companies created by this user during setup
+      userCompanies = await db.query.mCompanies.findMany({
+        where: and(
+          eq(mCompanies.createdBy, session.user.id),
+          isNull(mCompanies.parentCompanyId),
+          isNull(mCompanies.deletedOn)
+        ),
+        columns: {
+          companyId: true,
+          companyName: true,
+        },
+        orderBy: mCompanies.companyName,
+      });
     }
   }
 
@@ -70,6 +86,8 @@ export default async function DashboardLayout({
           <DashboardHeader
             companyName={companyName}
             financialYearStart={financialYearStart}
+            userCompanies={userCompanies}
+            currentCompanyId={session.user.companyId ? Number(session.user.companyId) : null}
           />
 
           {/* Content Container */}

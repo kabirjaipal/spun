@@ -1,8 +1,16 @@
 import { db } from "@/lib/db";
-import { mCompanies, mUsers, mLedgerGroups, mInventoryGroups, mUnitsOfMeasurement } from "@/lib/db/schema";
+import {
+  mCompanies,
+  mUsers,
+  mLedgerGroups,
+  mInventoryGroups,
+  mUnitsOfMeasurement,
+  mLedgers,
+} from "@/lib/db/schema";
 import { auth } from "@/auth";
-import { eq, sql, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
+import { DEFAULT_UNITS, DEFAULT_LEDGER_GROUPS, DEFAULT_INVENTORY_GROUPS } from "@/lib/constants";
 
 export async function POST(request: Request) {
   try {
@@ -12,68 +20,113 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const {
-      companyName,
-      gstNo,
-      panNo,
-      address,
-      financialYearStart,
-      pincode,
-      state,
-      phone,
-      email,
-      currencySymbol,
-      nationName,
-      bankName,
-      bankAccountName,
-      accountNo,
-      ifscCode,
-      branchName,
-      accountType,
-      gstApplicable,
-      gstType,
-      stateCode,
-      city,
-      companyType,
-      marketCategory,
-    } = body;
+    
+    // Support both an array of companies or a single company object
+    const companiesList = body.companies || [body];
 
-    if (!companyName) {
+    if (!companiesList.length) {
       return NextResponse.json(
-        { error: "Company name is required" },
+        { error: "At least one company details are required" },
         { status: 400 }
       );
     }
 
     const result = await db.transaction(async (tx) => {
-      // Check if a company with the same name already exists (case-insensitive)
-      const existingCompany = await tx.query.mCompanies.findFirst({
-        where: (companies, { eq, sql }) => eq(sql`lower(${companies.companyName})`, companyName.toLowerCase()),
-      });
+      let rootCompanyId: number | null = null;
 
-      if (existingCompany) {
-        // Check if there is any user associated with this company
-        const existingUser = await tx.query.mUsers.findFirst({
-          where: (users, { eq }) => eq(users.companyId, Number(existingCompany.companyId)),
-        });
+      for (let i = 0; i < companiesList.length; i++) {
+        const comp = companiesList[i];
+        const {
+          companyName,
+          gstNo,
+          panNo,
+          address,
+          financialYearStart,
+          pincode,
+          state,
+          phone,
+          email,
+          currencySymbol,
+          nationName,
+          bankName,
+          bankAccountName,
+          accountNo,
+          ifscCode,
+          branchName,
+          accountType,
+          gstApplicable,
+          gstType,
+          stateCode,
+          city,
+          companyType,
+          marketCategory,
+        } = comp;
 
-        if (existingUser && existingUser.id !== session.user.id) {
-          throw new Error("Company with this name already exists");
+        if (!companyName) {
+          throw new Error("Company name is required for all companies");
         }
 
-        // Reuse the existing company, link user to it
-        await tx
-          .update(mUsers)
-          .set({ 
-            companyId: Number(existingCompany.companyId),
-            role: "company"
-          })
-          .where(eq(mUsers.id, session.user.id));
+        // For the first company (root), check if it already exists to allow update
+        if (i === 0) {
+          const existingCompany = await tx.query.mCompanies.findFirst({
+            where: (companies, { eq, sql }) =>
+              eq(sql`lower(${companies.companyName})`, companyName.toLowerCase()),
+          });
 
-        // Update the company details
-        await tx
-          .update(mCompanies)
-          .set({
+          if (existingCompany) {
+            // Check if there is any user associated with this company
+            const existingUser = await tx.query.mUsers.findFirst({
+              where: (users, { eq }) =>
+                eq(users.companyId, Number(existingCompany.companyId)),
+            });
+
+            if (existingUser && existingUser.id !== session.user.id) {
+              throw new Error("Company with this name already exists");
+            }
+
+            // Reuse the existing company
+            rootCompanyId = Number(existingCompany.companyId);
+
+            // Update the company details
+            await tx
+              .update(mCompanies)
+              .set({
+                gstNo: gstNo ? gstNo.trim().toUpperCase() : null,
+                panNo: panNo ? panNo.trim().toUpperCase() : null,
+                address: address || null,
+                pincode: pincode || null,
+                state: state || null,
+                phone: phone || null,
+                email: email || null,
+                currencySymbol: currencySymbol || null,
+                nationName: nationName || null,
+                bankName: bankName || null,
+                bankAccountName: bankAccountName || null,
+                accountNo: accountNo || null,
+                ifscCode: ifscCode || null,
+                branchName: branchName || null,
+                accountType: accountType || null,
+                gstApplicable: !!gstApplicable,
+                gstType: gstType || null,
+                stateCode: stateCode || null,
+                city: city || null,
+                financialYearStart: financialYearStart || null,
+                companyType: companyType || "general",
+                marketCategory: marketCategory || null,
+                updatedBy: session.user.id,
+              })
+              .where(eq(mCompanies.companyId, existingCompany.companyId));
+            
+            continue; // Skip inserting this as a new company
+          }
+        }
+
+        // Insert new company
+        const [newCompany] = await tx
+          .insert(mCompanies)
+          .values({
+            parentCompanyId: null,
+            companyName,
             gstNo: gstNo ? gstNo.trim().toUpperCase() : null,
             panNo: panNo ? panNo.trim().toUpperCase() : null,
             address: address || null,
@@ -96,131 +149,70 @@ export async function POST(request: Request) {
             financialYearStart: financialYearStart || null,
             companyType: companyType || "general",
             marketCategory: marketCategory || null,
+            createdBy: session.user.id,
             updatedBy: session.user.id,
           })
-          .where(eq(mCompanies.companyId, existingCompany.companyId));
+          .returning({ companyId: mCompanies.companyId });
 
-        return existingCompany;
+        const insertedCompanyId = Number(newCompany.companyId);
+
+        if (i === 0) {
+          rootCompanyId = insertedCompanyId;
+        }
+
+        // Seed default ledger groups
+        await tx.insert(mLedgerGroups).values(
+          DEFAULT_LEDGER_GROUPS.map((groupName) => ({
+            companyId: insertedCompanyId,
+            groupName,
+            isSystem: true,
+            createdBy: session.user.id,
+            updatedBy: session.user.id,
+          }))
+        );
+
+        // Seed default inventory groups
+        await tx.insert(mInventoryGroups).values(
+          DEFAULT_INVENTORY_GROUPS.map((groupName) => ({
+            companyId: insertedCompanyId,
+            groupName,
+            createdBy: session.user.id,
+            updatedBy: session.user.id,
+          }))
+        );
+
+        // Seed default units of measurement
+        await tx.insert(mUnitsOfMeasurement).values(
+          DEFAULT_UNITS.map((u) => ({
+            companyId: insertedCompanyId,
+            unitCode: u.code,
+            unitName: u.name,
+            isFixed: true,
+            createdBy: session.user.id,
+            updatedBy: session.user.id,
+          }))
+        );
       }
 
-      // 1. Create company
-      const [newCompany] = await tx
-        .insert(mCompanies)
-        .values({
-          companyName,
-          gstNo: gstNo ? gstNo.trim().toUpperCase() : null,
-          panNo: panNo ? panNo.trim().toUpperCase() : null,
-          address: address || null,
-          pincode: pincode || null,
-          state: state || null,
-          phone: phone || null,
-          email: email || null,
-          currencySymbol: currencySymbol || null,
-          nationName: nationName || null,
-          bankName: bankName || null,
-          bankAccountName: bankAccountName || null,
-          accountNo: accountNo || null,
-          ifscCode: ifscCode || null,
-          branchName: branchName || null,
-          accountType: accountType || null,
-          gstApplicable: !!gstApplicable,
-          gstType: gstType || null,
-          stateCode: stateCode || null,
-          city: city || null,
-          financialYearStart: financialYearStart || null,
-          companyType: companyType || "general",
-          marketCategory: marketCategory || null,
-          createdBy: session.user.id,
-          updatedBy: session.user.id,
-        })
-        .returning({ companyId: mCompanies.companyId });
-
-      // Seed default ledger groups
-      const defaultGroups = [
-        "Capital Account",
-        "Sales Account",
-        "Purchase Account",
-        "Bank Account",
-        "Stock in Hand",
-        "Sales Return",
-        "Purchase Return",
-        "Direct Expenses",
-        "Indirect Income",
-        "Profit & Loss",
-        "Unsecured Loans",
-        "Secured Loans",
-        "Deposits & Advance Assets",
-        "Fixed Assets",
-        "Investment",
-        "Loan (Assets)",
-        "Preliminary Expenses",
-        "Cash in Hand",
-        "Provisions",
-        "Sundry Debtors",
-        "Sundry Creditors",
-        "Suspense Account"
-      ];
-
-      await tx.insert(mLedgerGroups).values(
-        defaultGroups.map((groupName) => ({
-          companyId: Number(newCompany.companyId),
-          groupName,
-          isSystem: true,
-          createdBy: session.user.id,
-          updatedBy: session.user.id,
-        }))
-      );
-
-      // Seed default inventory groups
-      const defaultInvGroups = ["Consumable", "Selling"];
-      await tx.insert(mInventoryGroups).values(
-        defaultInvGroups.map((groupName) => ({
-          companyId: Number(newCompany.companyId),
-          groupName,
-          createdBy: session.user.id,
-          updatedBy: session.user.id,
-        }))
-      );
-
-      // Seed default units of measurement
-      const defaultUnits = [
-        { code: "PCS", name: "Pieces" },
-        { code: "MTR", name: "Meters" },
-        { code: "KGS", name: "Kilograms" },
-        { code: "GRM", name: "Grams" },
-        { code: "LTR", name: "Liters" },
-        { code: "BOX", name: "BOX" },
-      ];
-      await tx.insert(mUnitsOfMeasurement).values(
-        defaultUnits.map((u) => ({
-          companyId: Number(newCompany.companyId),
-          unitCode: u.code,
-          unitName: u.name,
-          isFixed: true,
-          createdBy: session.user.id,
-          updatedBy: session.user.id,
-        }))
-      );
-
-      // 2. Associate user with company and assign role
+      // Associate user with root company
       await tx
         .update(mUsers)
-        .set({ 
-          companyId: Number(newCompany.companyId),
-          role: "company"
+        .set({
+          companyId: rootCompanyId!,
+          role: "company",
         })
         .where(eq(mUsers.id, session.user.id));
 
-      return newCompany;
+      return { companyId: rootCompanyId! };
     });
 
     return NextResponse.json({
-      message: "Company set up successfully",
+      message: "Companies set up successfully",
       companyId: result.companyId,
     });
   } catch (error: any) {
     return NextResponse.json(
-      { error: error.message || "Failed to set up company" },
+      { error: error.message || "Failed to set up companies" },
       { status: 500 }
     );
   }

@@ -22,3 +22,39 @@ export const MARKET_CATEGORIES: Record<string, string[]> = {
   diamond: ["Polished Diamonds", "Rough Diamonds", "Diamond Manufacturing", "Jewellery", "Other"],
   general: ["Retail", "Wholesale", "Services", "Manufacturing", "Distribution", "Other"],
 };
+
+export const DEFAULT_UNITS = [
+  { code: "PCS", name: "Pieces" },
+  { code: "MTR", name: "Meters" },
+  { code: "KGS", name: "Kilograms" },
+  { code: "GRM", name: "Grams" },
+  { code: "LTR", name: "Liters" },
+  { code: "BOX", name: "BOX" },
+];
+
+export const DEFAULT_LEDGER_GROUPS = [
+  "Capital Account",
+  "Sales Account",
+  "Purchase Account",
+  "Bank Account",
+  "Stock in Hand",
+  "Sales Return",
+  "Purchase Return",
+  "Direct Expenses",
+  "Indirect Income",
+  "Profit & Loss",
+  "Unsecured Loans",
+  "Secured Loans",
+  "Deposits & Advance Assets",
+  "Fixed Assets",
+  "Investment",
+  "Loan (Assets)",
+  "Preliminary Expenses",
+  "Cash in Hand",
+  "Provisions",
+  "Sundry Debtors",
+  "Sundry Creditors",
+  "Suspense Account",
+];
+
+export const DEFAULT_INVENTORY_GROUPS = ["Consumable", "Selling"];
