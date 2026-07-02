@@ -434,7 +434,6 @@ export default function PurchaseClient({
 
       {/* Main Form Fields */}
       <div className="grid gap-6 md:grid-cols-3">
-        {/* Company & Main Details */}
         {/* Party & Document Details */}
         <div className="md:col-span-2 rounded-lg border border-border bg-card p-5 space-y-4 shadow-sm">
           <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">Party & Document Details</h2>
@@ -447,7 +446,7 @@ export default function PurchaseClient({
                 <button type="button" onClick={() => setShowPartyModal(true)} className="text-[10px] font-bold text-primary hover:underline uppercase">+ New Party</button>
               </div>
               <Select value={selectedCompany} onValueChange={setSelectedCompany}>
-                <SelectTrigger className="h-9">
+                <SelectTrigger className="h-10">
                   <SelectValue placeholder="Choose name" />
                 </SelectTrigger>
                 <SelectContent>
@@ -463,33 +462,33 @@ export default function PurchaseClient({
             {/* Remarks */}
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold uppercase text-foreground">Remarks</Label>
-              <Input value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Voucher descriptions" className="h-9" />
+              <Input value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Voucher descriptions" className="h-10" />
             </div>
 
             {/* Voucher / Sr No & Voucher Date */}
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold uppercase text-foreground">Voucher / Sr No.</Label>
-              <Input value={voucherNo} onChange={(e) => setVoucherNo(e.target.value)} placeholder="e.g. SR-1001" className="h-9" />
+              <Input value={voucherNo} onChange={(e) => setVoucherNo(e.target.value)} placeholder="e.g. SR-1001" className="h-10" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold uppercase text-foreground">Voucher Date</Label>
-              <Input type="date" value={voucherDate} onChange={(e) => setVoucherDate(e.target.value)} className="h-9" />
+              <Input type="date" value={voucherDate} onChange={(e) => setVoucherDate(e.target.value)} className="h-10" />
             </div>
 
             {/* Invoice Number & Invoice Date */}
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold uppercase text-foreground">Invoice Number</Label>
-              <Input value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} placeholder="e.g. INV-2025" className="h-9" />
+              <Input value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} placeholder="e.g. INV-2025" className="h-10" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold uppercase text-foreground">Invoice Date</Label>
-              <Input type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} className="h-9" />
+              <Input type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} className="h-10" />
             </div>
 
             {/* Name of Goods Purchased */}
             <div className="space-y-1.5 md:col-span-2">
               <Label className="text-xs font-semibold uppercase text-foreground">Name of Goods Purchased</Label>
-              <Input value={goodsName} onChange={(e) => setGoodsName(e.target.value)} placeholder="e.g. Cotton fabric, Polyester yarn, Chemicals" className="h-9" />
+              <Input value={goodsName} onChange={(e) => setGoodsName(e.target.value)} placeholder="e.g. Cotton fabric, Polyester yarn, Chemicals" className="h-10" />
             </div>
 
             {/* Broker & Haste */}
@@ -499,7 +498,7 @@ export default function PurchaseClient({
                 <button type="button" onClick={() => setShowBrokerDialog(true)} className="text-[10px] font-bold text-primary hover:underline uppercase">+ New Broker</button>
               </div>
               <Select value={broker} onValueChange={setBroker}>
-                <SelectTrigger className="h-9 w-full">
+                <SelectTrigger className="h-10 w-full">
                   <SelectValue placeholder="Choose Broker" />
                 </SelectTrigger>
                 <SelectContent>
@@ -518,7 +517,7 @@ export default function PurchaseClient({
                 <button type="button" onClick={() => setShowHasteDialog(true)} className="text-[10px] font-bold text-primary hover:underline uppercase">+ New Haste</button>
               </div>
               <Select value={haste} onValueChange={setHaste}>
-                <SelectTrigger className="h-9 w-full">
+                <SelectTrigger className="h-10 w-full">
                   <SelectValue placeholder="Choose Haste" />
                 </SelectTrigger>
                 <SelectContent>
@@ -539,237 +538,269 @@ export default function PurchaseClient({
 
           <div className="space-y-1.5">
             <Label className="text-xs font-semibold uppercase text-foreground">LR No.</Label>
-            <Input value={lrNo} onChange={(e) => setLrNo(e.target.value)} placeholder="Lorry Receipt No." className="h-9" />
+            <Input value={lrNo} onChange={(e) => setLrNo(e.target.value)} placeholder="Lorry Receipt No." className="h-10" />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold uppercase text-foreground">LR Date</Label>
-              <Input type="date" value={lrDate} onChange={(e) => setLrDate(e.target.value)} className="h-9" />
+              <Input type="date" value={lrDate} onChange={(e) => setLrDate(e.target.value)} className="h-10" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold uppercase text-foreground">Transport</Label>
-              <Input value={transport} onChange={(e) => setTransport(e.target.value)} placeholder="Transport Service" className="h-9" />
+              <Input value={transport} onChange={(e) => setTransport(e.target.value)} placeholder="Transport Service" className="h-10" />
             </div>
           </div>
 
           <div className="space-y-1.5">
             <Label className="text-xs font-semibold uppercase text-foreground">Vehicle No.</Label>
-            <Input value={vehicleNo} onChange={(e) => setVehicleNo(e.target.value)} placeholder="e.g. GJ-05-XX-XXXX" className="h-9" />
+            <Input value={vehicleNo} onChange={(e) => setVehicleNo(e.target.value)} placeholder="e.g. GJ-05-XX-XXXX" className="h-10" />
           </div>
         </div>
       </div>
 
-      {/* Line Items Table */}
-      <div className="rounded-lg border border-border bg-card p-5 shadow-sm space-y-4">
-        <div className="flex items-center justify-between border-b border-border pb-3">
+      {/* Line Items Container */}
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-3">
           <div>
             <h2 className="text-sm font-bold text-foreground uppercase tracking-wide">Purchase Items & Fabric details</h2>
             <p className="text-xs text-muted-foreground mt-0.5">Input PCS count, main meters (Qty), and fold percentage.</p>
           </div>
-          <Button variant="outline" size="sm" onClick={addLine} className="h-8 text-xs font-semibold uppercase">
-            <Plus className="h-3.5 w-3.5 mr-1" /> Add Line Item
+          <Button variant="outline" onClick={addLine} className="h-10 text-sm font-semibold uppercase">
+            <Plus className="h-4 w-4 mr-2" /> Add Line Item
           </Button>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[1600px]">
-            <thead>
-              <tr className="border-b border-border text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                <th className="py-2 pr-4 w-[18%]">Item</th>
-                <th className="py-2 px-3 w-[8%]">HSN Code</th>
-                <th className="py-2 px-3 w-[5%] text-right">Fold</th>
-                <th className="py-2 px-3 w-[7%] text-right">PCS</th>
-                <th className="py-2 px-3 w-[7%] text-right">Meter</th>
-                <th className="py-2 px-3 w-[5%]">Unit</th>
-                <th className="py-2 px-3 w-[7%] text-right">Rate</th>
-                <th className="py-2 px-3 w-[8%] text-right">Amount</th>
-                <th className="py-2 px-3 w-[8%] text-right">Net Amount</th>
-                <th className="py-2 px-3 w-[7%]">GST Rate</th>
-                <th className="py-2 px-3 w-[6%] text-right">CGST %</th>
-                <th className="py-2 px-3 w-[6%] text-right">SGST %</th>
-                <th className="py-2 px-3 w-[6%] text-right">IGST %</th>
-                <th className="py-2 px-3 w-[8%] text-right">Net Amt</th>
-                <th className="py-2 pl-4 w-[3%]"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {lineItems.map((line, index) => {
-                const totals = lineTotals[index];
-                return (
-                  <tr key={line.id} className="border-b border-border/40 hover:bg-muted/30">
-                    <td className="py-3 pr-4">
-                      <div className="space-y-1">
-                        <Select value={line.inventoryId} onValueChange={(val) => updateLine(line.id, "inventoryId", val)}>
-                          <SelectTrigger className="h-9 w-full">
-                            <SelectValue placeholder="Select Item" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {inventory.map((p) => (
-                              <SelectItem key={p.inventoryId} value={String(p.inventoryId)}>
-                                {p.inventoryCode} — {p.inventoryName}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <div className="text-right">
-                          <button
-                            type="button"
-                            onClick={() => router.push("/dashboard/inventory")}
-                            className="text-[9px] font-bold text-primary hover:underline uppercase"
-                          >
-                            + New Item
-                          </button>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-3 px-3">
-                      <Input
-                        value={line.hsnCode}
-                        onChange={(e) => updateLine(line.id, "hsnCode", e.target.value)}
-                        className="h-9 w-full"
-                        placeholder="HSN Code"
-                      />
-                    </td>
-                    <td className="py-3 px-3">
-                      <Input
-                        type="number"
-                        value={line.fold}
-                        onChange={(e) => updateLine(line.id, "fold", e.target.value)}
-                        className="h-9 text-right"
-                        placeholder="100"
-                      />
-                    </td>
-                    <td className="py-3 px-1.5">
-                      <div className="flex items-center gap-1">
-                        <Input
-                          type="number"
-                          value={line.pcs}
-                          onChange={(e) => updateLine(line.id, "pcs", e.target.value)}
-                          onBlur={() => {
-                            const num = parseInt(line.pcs) || 0;
-                            if (num > 0 && (!line.pieceMeters || line.pieceMeters.length !== num)) {
-                              setActivePieceLineId(line.id);
-                            }
-                          }}
-                          className="h-9 text-right w-full min-w-[50px] p-1.5"
-                        />
-                        {(parseInt(line.pcs) || 0) > 0 && (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            className="h-8 w-8 px-0 flex-shrink-0"
-                            onClick={() => setActivePieceLineId(line.id)}
-                            title="Enter Piece Meters"
-                          >
-                            ⚙️
-                          </Button>
-                        )}
-                      </div>
-                    </td>
-                    <td className="py-3 px-3">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={line.quantity}
-                        onChange={(e) => updateLine(line.id, "quantity", e.target.value)}
-                        className="h-9 text-right font-medium"
-                      />
-                    </td>
-                    <td className="py-3 px-3">
-                      <Select value={line.unitType} onValueChange={(val) => updateLine(line.id, "unitType", val as any)}>
-                        <SelectTrigger className="h-9 w-full">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="meter">Meter</SelectItem>
-                          <SelectItem value="pcs">Pcs</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </td>
-                    <td className="py-3 px-3">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={line.rate}
-                        onChange={(e) => updateLine(line.id, "rate", e.target.value)}
-                        className="h-9 text-right font-semibold"
-                      />
-                    </td>
-                    <td className="py-3 px-3 text-right font-semibold text-foreground">
-                      ₹{totals?.amount.toFixed(2)}
-                    </td>
-                    <td className="py-3 px-3 text-right font-semibold text-foreground">
-                      ₹{totals?.netAmount.toFixed(2)}
-                    </td>
-                    <td className="py-3 px-3">
-                      <Select value={line.gstRateId} onValueChange={(val) => updateLine(line.id, "gstRateId", val)}>
-                        <SelectTrigger className="h-9 w-full">
-                          <SelectValue placeholder="Tax %" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {taxRates.map((t) => (
-                            <SelectItem key={t.taxRateId} value={String(t.taxRateId)}>
-                              {t.taxName} ({t.taxPercent}%)
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </td>
-                    <td className="py-3 px-3">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        placeholder={isInterstate ? "0.00" : totals?.cgstPercent.toFixed(2)}
-                        value={isInterstate ? "" : (line.cgst || "")}
-                        onChange={(e) => updateLine(line.id, "cgst", e.target.value)}
-                        disabled={isInterstate}
-                        className="h-9 text-right font-medium w-20 ml-auto"
-                      />
-                    </td>
-                    <td className="py-3 px-3">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        placeholder={isInterstate ? "0.00" : totals?.sgstPercent.toFixed(2)}
-                        value={isInterstate ? "" : (line.sgst || "")}
-                        onChange={(e) => updateLine(line.id, "sgst", e.target.value)}
-                        disabled={isInterstate}
-                        className="h-9 text-right font-medium w-20 ml-auto"
-                      />
-                    </td>
-                    <td className="py-3 px-3">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        placeholder={!isInterstate ? "0.00" : totals?.igstPercent.toFixed(2)}
-                        value={!isInterstate ? "" : (line.igst || "")}
-                        onChange={(e) => updateLine(line.id, "igst", e.target.value)}
-                        disabled={!isInterstate}
-                        className="h-9 text-right font-medium w-20 ml-auto"
-                      />
-                    </td>
-                    <td className="py-3 px-3 text-right font-bold text-foreground">
-                      ₹{totals?.net.toFixed(2)}
-                    </td>
-                    <td className="py-3 pl-4 text-center">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeLine(line.id)}
-                        disabled={lineItems.length === 1}
-                        className="text-danger hover:bg-danger/10 hover:text-danger h-8 w-8"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
+        <div className="space-y-4">
+          {lineItems.map((line, index) => {
+            const totals = lineTotals[index];
+            return (
+              <div key={line.id} className="rounded-lg border border-border bg-card p-5 shadow-sm space-y-4 relative">
+                {/* Header Row */}
+                <div className="flex items-center justify-between border-b border-border pb-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                    Item #{index + 1}
+                  </span>
+                  {lineItems.length > 1 && (
+                    <Button
+                      variant="ghost"
+                      onClick={() => removeLine(line.id)}
+                      className="text-danger hover:bg-danger/10 hover:text-danger h-9 px-3 text-xs uppercase font-semibold flex items-center gap-1.5"
+                    >
+                      <Trash2 className="h-4 w-4" /> Remove Item
+                    </Button>
+                  )}
+                </div>
 
-          </table>
+                {/* Input Fields Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                  {/* Select Item */}
+                  <div className="md:col-span-3 space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase text-foreground">Select Item</Label>
+                    <Select value={line.inventoryId} onValueChange={(val) => updateLine(line.id, "inventoryId", val)}>
+                      <SelectTrigger className="h-10 w-full">
+                        <SelectValue placeholder="Select Item" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {inventory.map((p) => (
+                          <SelectItem key={p.inventoryId} value={String(p.inventoryId)}>
+                            {p.inventoryCode} — {p.inventoryName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <div className="text-right">
+                      <button
+                        type="button"
+                        onClick={() => router.push("/dashboard/inventory")}
+                        className="text-[10px] font-bold text-primary hover:underline uppercase"
+                      >
+                        + New Item
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* HSN Code */}
+                  <div className="md:col-span-2 space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase text-foreground">HSN Code</Label>
+                    <Input
+                      value={line.hsnCode}
+                      onChange={(e) => updateLine(line.id, "hsnCode", e.target.value)}
+                      className="h-10 w-full"
+                      placeholder="HSN Code"
+                    />
+                  </div>
+
+                  {/* Fold */}
+                  <div className="md:col-span-1 space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase text-foreground">Fold %</Label>
+                    <Input
+                      type="number"
+                      value={line.fold}
+                      onChange={(e) => updateLine(line.id, "fold", e.target.value)}
+                      className="h-10 text-right"
+                      placeholder="100"
+                    />
+                  </div>
+
+                  {/* PCS */}
+                  <div className="md:col-span-2 space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase text-foreground">PCS</Label>
+                    <div className="flex items-center gap-1.5">
+                      <Input
+                        type="number"
+                        value={line.pcs}
+                        onChange={(e) => updateLine(line.id, "pcs", e.target.value)}
+                        onBlur={() => {
+                          const num = parseInt(line.pcs) || 0;
+                          if (num > 0 && (!line.pieceMeters || line.pieceMeters.length !== num)) {
+                            setActivePieceLineId(line.id);
+                          }
+                        }}
+                        className="h-10 text-right w-full"
+                      />
+                      {(parseInt(line.pcs) || 0) > 0 && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-10 px-3 flex-shrink-0"
+                          onClick={() => setActivePieceLineId(line.id)}
+                          title="Enter Piece Meters"
+                        >
+                          ⚙️
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Quantity */}
+                  <div className="md:col-span-2 space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase text-foreground">Quantity</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={line.quantity}
+                      onChange={(e) => updateLine(line.id, "quantity", e.target.value)}
+                      className="h-10 text-right font-medium"
+                    />
+                  </div>
+
+                  {/* Unit */}
+                  <div className="md:col-span-2 space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase text-foreground">Unit</Label>
+                    <Select value={line.unitType} onValueChange={(val) => updateLine(line.id, "unitType", val as any)}>
+                      <SelectTrigger className="h-10 w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="meter">Meter</SelectItem>
+                        <SelectItem value="pcs">Pcs</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Rate */}
+                  <div className="md:col-span-3 space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase text-foreground">Rate (₹)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={line.rate}
+                      onChange={(e) => updateLine(line.id, "rate", e.target.value)}
+                      className="h-10 text-right font-semibold"
+                    />
+                  </div>
+
+                  {/* GST Rate */}
+                  <div className="md:col-span-3 space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase text-foreground">GST Rate</Label>
+                    <Select value={line.gstRateId} onValueChange={(val) => updateLine(line.id, "gstRateId", val)}>
+                      <SelectTrigger className="h-10 w-full">
+                        <SelectValue placeholder="Tax %" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {taxRates.map((t) => (
+                          <SelectItem key={t.taxRateId} value={String(t.taxRateId)}>
+                            {t.taxName} ({t.taxPercent}%)
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* CGST */}
+                  <div className="md:col-span-2 space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase text-foreground">CGST %</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      placeholder={isInterstate ? "0.00" : totals?.cgstPercent.toFixed(2)}
+                      value={isInterstate ? "" : (line.cgst || "")}
+                      onChange={(e) => updateLine(line.id, "cgst", e.target.value)}
+                      disabled={isInterstate}
+                      className="h-10 text-right font-medium"
+                    />
+                  </div>
+
+                  {/* SGST */}
+                  <div className="md:col-span-2 space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase text-foreground">SGST %</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      placeholder={isInterstate ? "0.00" : totals?.sgstPercent.toFixed(2)}
+                      value={isInterstate ? "" : (line.sgst || "")}
+                      onChange={(e) => updateLine(line.id, "sgst", e.target.value)}
+                      disabled={isInterstate}
+                      className="h-10 text-right font-medium"
+                    />
+                  </div>
+
+                  {/* IGST */}
+                  <div className="md:col-span-2 space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase text-foreground">IGST %</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      placeholder={!isInterstate ? "0.00" : totals?.igstPercent.toFixed(2)}
+                      value={!isInterstate ? "" : (line.igst || "")}
+                      onChange={(e) => updateLine(line.id, "igst", e.target.value)}
+                      disabled={!isInterstate}
+                      className="h-10 text-right font-medium"
+                    />
+                  </div>
+                </div>
+
+                {/* Calculations Summary Strip */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4 bg-muted/30 p-3 rounded-lg border border-border/50 text-xs mt-2">
+                  <div className="space-y-0.5">
+                    <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px]">Amount</span>
+                    <span className="font-semibold text-foreground text-sm">₹{totals?.amount.toFixed(2)}</span>
+                  </div>
+                  <div className="space-y-0.5">
+                    <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px]">Net Amount</span>
+                    <span className="font-semibold text-foreground text-sm">₹{totals?.netAmount.toFixed(2)}</span>
+                  </div>
+                  <div className="space-y-0.5">
+                    <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px]">CGST</span>
+                    <span className="font-medium text-muted-foreground text-sm">₹{totals?.cgst.toFixed(2)}</span>
+                  </div>
+                  <div className="space-y-0.5">
+                    <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px]">SGST</span>
+                    <span className="font-medium text-muted-foreground text-sm">₹{totals?.sgst.toFixed(2)}</span>
+                  </div>
+                  <div className="space-y-0.5">
+                    <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px]">IGST</span>
+                    <span className="font-medium text-muted-foreground text-sm">₹{totals?.igst.toFixed(2)}</span>
+                  </div>
+                  <div className="space-y-0.5">
+                    <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px] text-primary">Net Total</span>
+                    <span className="font-bold text-foreground text-sm">₹{totals?.net.toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 

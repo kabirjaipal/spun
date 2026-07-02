@@ -416,57 +416,56 @@ export default function SalesClient({
 
       {/* Main Form Fields */}
       <div className="grid gap-6 md:grid-cols-3">
-        {/* Party & Main Details */}
-        <div className="rounded-lg border border-border bg-card p-5 space-y-4 shadow-sm">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">Party Details</h2>
+        {/* Party & Document Details */}
+        <div className="rounded-lg border border-border bg-card p-5 space-y-4 shadow-sm md:col-span-2">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">Party & Document Details</h2>
           
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs font-semibold uppercase text-foreground">Party</Label>
-              {canCreate && (
-                <button
-                  type="button"
-                  onClick={() => setShowPartyModal(true)}
-                  className="text-[10px] font-bold text-primary hover:underline uppercase"
-                >
-                  + New Party
-                </button>
-              )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Party Selection */}
+            <div className="space-y-1.5 sm:col-span-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold uppercase text-foreground">Party</Label>
+                {canCreate && (
+                  <button
+                    type="button"
+                    onClick={() => setShowPartyModal(true)}
+                    className="text-[10px] font-bold text-primary hover:underline uppercase"
+                  >
+                    + New Party
+                  </button>
+                )}
+              </div>
+              <Select value={selectedParty} onValueChange={setSelectedParty}>
+                <SelectTrigger className="h-10">
+                  <SelectValue placeholder="Choose party" />
+                </SelectTrigger>
+                <SelectContent>
+                  {localParties.map((c) => (
+                    <SelectItem key={c.partyId} value={String(c.partyId)}>
+                      {c.partyName} {c.gstNo ? `(${c.gstNo})` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <Select value={selectedParty} onValueChange={setSelectedParty}>
-              <SelectTrigger className="h-9">
-                <SelectValue placeholder="Choose party" />
-              </SelectTrigger>
-              <SelectContent>
-                {localParties.map((c) => (
-                  <SelectItem key={c.partyId} value={String(c.partyId)}>
-                    {c.partyName} {c.gstNo ? `(${c.gstNo})` : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
 
+            {/* Invoice No. */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase text-foreground">Invoice No.</Label>
+              <Input value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} placeholder="e.g. INV-1020" className="h-10" />
+            </div>
 
-        </div>
+            {/* Voucher Date */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase text-foreground">Voucher Date</Label>
+              <Input type="date" value={voucherDate} onChange={(e) => setVoucherDate(e.target.value)} className="h-10" />
+            </div>
 
-        {/* Voucher Info */}
-        <div className="rounded-lg border border-border bg-card p-5 space-y-4 shadow-sm">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">Document Details</h2>
-
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold uppercase text-foreground">Invoice No.</Label>
-            <Input value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} placeholder="e.g. INV-1020" className="h-9" />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold uppercase text-foreground">Voucher Date</Label>
-            <Input type="date" value={voucherDate} onChange={(e) => setVoucherDate(e.target.value)} className="h-9" />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold uppercase text-foreground">Remarks</Label>
-            <Input value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Voucher descriptions" className="h-9" />
+            {/* Remarks */}
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label className="text-xs font-semibold uppercase text-foreground">Remarks</Label>
+              <Input value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Voucher descriptions" className="h-10" />
+            </div>
           </div>
         </div>
 
@@ -536,140 +535,153 @@ export default function SalesClient({
           </div>
       </div>
 
-      {/* Line Items Table */}
-      <div className="rounded-lg border border-border bg-card p-5 shadow-sm space-y-4">
-        <div className="flex items-center justify-between border-b border-border pb-3">
+      {/* Line Items Container */}
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-3">
           <div>
             <h2 className="text-sm font-bold text-foreground uppercase tracking-wide">Sales Items & Fabric details</h2>
             <p className="text-xs text-muted-foreground mt-0.5">Input PCS count, main meters (Qty), and fold percentage.</p>
           </div>
-          <Button variant="outline" size="sm" onClick={addLine} className="h-8 text-xs font-semibold uppercase">
-            <Plus className="h-3.5 w-3.5 mr-1" /> Add Line Item
+          <Button variant="outline" onClick={addLine} className="h-10 text-sm font-semibold uppercase">
+            <Plus className="h-4 w-4 mr-2" /> Add Line Item
           </Button>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[1600px]">
-            <thead>
-              <tr className="border-b border-border text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                <th className="py-2 pr-4 w-[16%]">Item</th>
-                <th className="py-2 px-3 w-[5%] text-right">Fold</th>
-                <th className="py-2 px-3 w-[5%] text-right">PCS</th>
-                <th className="py-2 px-3 w-[7%] text-right">Quantity</th>
-                <th className="py-2 px-3 w-[7%] text-right">Rate</th>
-                <th className="py-2 px-3 w-[9%]">GST Rate</th>
-                <th className="py-2 px-3 w-[8%] text-right">Amount</th>
-                <th className="py-2 px-3 w-[8%] text-right">Net Amount</th>
-                <th className="py-2 px-3 w-[7%] text-right">CGST</th>
-                <th className="py-2 px-3 w-[7%] text-right">SGST</th>
-                <th className="py-2 px-3 w-[7%] text-right">IGST</th>
-                <th className="py-2 px-3 w-[10%] text-right">Net Amt</th>
-                <th className="py-2 pl-4 w-[4%]"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {lineItems.map((line, index) => {
-                const totals = lineTotals[index];
-                return (
-                  <tr key={line.id} className="border-b border-border/40 hover:bg-muted/30">
-                    <td className="py-3 pr-4">
-                      <Select value={line.inventoryId} onValueChange={(val) => updateLine(line.id, "inventoryId", val)}>
-                        <SelectTrigger className="h-9 w-full">
-                          <SelectValue placeholder="Select Item" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {inventory.map((p) => (
-                            <SelectItem key={p.inventoryId} value={String(p.inventoryId)}>
-                              {p.inventoryCode} — {p.inventoryName}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </td>
-                    <td className="py-3 px-3">
-                      <Input
-                        type="number"
-                        value={line.fold}
-                        onChange={(e) => updateLine(line.id, "fold", e.target.value)}
-                        className="h-9 text-right"
-                        placeholder="100"
-                      />
-                    </td>
-                    <td className="py-3 px-3">
-                      <Input
-                        type="number"
-                        value={line.pcs}
-                        onChange={(e) => updateLine(line.id, "pcs", e.target.value)}
-                        className="h-9 text-right"
-                      />
-                    </td>
-                    <td className="py-3 px-3">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={line.quantity}
-                        onChange={(e) => updateLine(line.id, "quantity", e.target.value)}
-                        className="h-9 text-right font-medium"
-                      />
-                    </td>
+        <div className="space-y-4">
+          {lineItems.map((line, index) => {
+            const totals = lineTotals[index];
+            return (
+              <div key={line.id} className="rounded-lg border border-border bg-card p-5 shadow-sm space-y-4 relative">
+                {/* Header Row */}
+                <div className="flex items-center justify-between border-b border-border pb-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                    Item #{index + 1}
+                  </span>
+                  {lineItems.length > 1 && (
+                    <Button
+                      variant="ghost"
+                      onClick={() => removeLine(line.id)}
+                      className="text-danger hover:bg-danger/10 hover:text-danger h-9 px-3 text-xs uppercase font-semibold flex items-center gap-1.5"
+                    >
+                      <Trash2 className="h-4 w-4" /> Remove Item
+                    </Button>
+                  )}
+                </div>
 
-                    <td className="py-3 px-3">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={line.rate}
-                        onChange={(e) => updateLine(line.id, "rate", e.target.value)}
-                        className="h-9 text-right font-semibold"
-                      />
-                    </td>
-                    <td className="py-3 px-3">
-                      <Select value={line.gstRateId} onValueChange={(val) => updateLine(line.id, "gstRateId", val)}>
-                        <SelectTrigger className="h-9 w-full">
-                          <SelectValue placeholder="Tax %" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {taxRates.map((t) => (
-                            <SelectItem key={t.taxRateId} value={String(t.taxRateId)}>
-                              {t.taxName} ({t.taxPercent}%)
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </td>
-                    <td className="py-3 px-3 text-right font-medium text-foreground">
-                      ₹{totals?.amount.toFixed(2)}
-                    </td>
-                    <td className="py-3 px-3 text-right font-medium text-foreground">
-                      ₹{totals?.netAmount.toFixed(2)}
-                    </td>
-                    <td className="py-3 px-3 text-right font-medium text-muted-foreground">
-                      ₹{totals?.cgst.toFixed(2)}
-                    </td>
-                    <td className="py-3 px-3 text-right font-medium text-muted-foreground">
-                      ₹{totals?.sgst.toFixed(2)}
-                    </td>
-                    <td className="py-3 px-3 text-right font-medium text-muted-foreground">
-                      ₹{totals?.igst.toFixed(2)}
-                    </td>
-                    <td className="py-3 px-3 text-right font-bold text-foreground">
-                      ₹{totals?.net.toFixed(2)}
-                    </td>
-                    <td className="py-3 pl-4 text-center">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeLine(line.id)}
-                        disabled={lineItems.length === 1}
-                        className="text-danger hover:bg-danger/10 hover:text-danger h-8 w-8"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                {/* Input Fields Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                  {/* Select Item */}
+                  <div className="md:col-span-4 space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase text-foreground">Select Item</Label>
+                    <Select value={line.inventoryId} onValueChange={(val) => updateLine(line.id, "inventoryId", val)}>
+                      <SelectTrigger className="h-10 w-full">
+                        <SelectValue placeholder="Select Item" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {inventory.map((p) => (
+                          <SelectItem key={p.inventoryId} value={String(p.inventoryId)}>
+                            {p.inventoryCode} — {p.inventoryName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Fold */}
+                  <div className="md:col-span-1 space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase text-foreground">Fold %</Label>
+                    <Input
+                      type="number"
+                      value={line.fold}
+                      onChange={(e) => updateLine(line.id, "fold", e.target.value)}
+                      className="h-10 text-right"
+                      placeholder="100"
+                    />
+                  </div>
+
+                  {/* PCS */}
+                  <div className="md:col-span-1 space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase text-foreground">PCS</Label>
+                    <Input
+                      type="number"
+                      value={line.pcs}
+                      onChange={(e) => updateLine(line.id, "pcs", e.target.value)}
+                      className="h-10 text-right"
+                    />
+                  </div>
+
+                  {/* Quantity */}
+                  <div className="md:col-span-2 space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase text-foreground">Quantity (Mtrs)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={line.quantity}
+                      onChange={(e) => updateLine(line.id, "quantity", e.target.value)}
+                      className="h-10 text-right font-medium"
+                    />
+                  </div>
+
+                  {/* Rate */}
+                  <div className="md:col-span-2 space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase text-foreground">Rate (₹)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={line.rate}
+                      onChange={(e) => updateLine(line.id, "rate", e.target.value)}
+                      className="h-10 text-right font-semibold"
+                    />
+                  </div>
+
+                  {/* GST Rate */}
+                  <div className="md:col-span-2 space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase text-foreground">GST Rate</Label>
+                    <Select value={line.gstRateId} onValueChange={(val) => updateLine(line.id, "gstRateId", val)}>
+                      <SelectTrigger className="h-10 w-full">
+                        <SelectValue placeholder="Tax %" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {taxRates.map((t) => (
+                          <SelectItem key={t.taxRateId} value={String(t.taxRateId)}>
+                            {t.taxName} ({t.taxPercent}%)
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Calculations Summary Strip */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4 bg-muted/30 p-3 rounded-lg border border-border/50 text-xs mt-2">
+                  <div className="space-y-0.5">
+                    <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px]">Amount</span>
+                    <span className="font-semibold text-foreground text-sm">₹{totals?.amount.toFixed(2)}</span>
+                  </div>
+                  <div className="space-y-0.5">
+                    <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px]">Net Amount</span>
+                    <span className="font-semibold text-foreground text-sm">₹{totals?.netAmount.toFixed(2)}</span>
+                  </div>
+                  <div className="space-y-0.5">
+                    <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px]">CGST</span>
+                    <span className="font-medium text-muted-foreground text-sm">₹{totals?.cgst.toFixed(2)}</span>
+                  </div>
+                  <div className="space-y-0.5">
+                    <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px]">SGST</span>
+                    <span className="font-medium text-muted-foreground text-sm">₹{totals?.sgst.toFixed(2)}</span>
+                  </div>
+                  <div className="space-y-0.5">
+                    <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px]">IGST</span>
+                    <span className="font-medium text-muted-foreground text-sm">₹{totals?.igst.toFixed(2)}</span>
+                  </div>
+                  <div className="space-y-0.5">
+                    <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px] text-primary">Net Total</span>
+                    <span className="font-bold text-foreground text-sm">₹{totals?.net.toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 

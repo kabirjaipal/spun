@@ -388,71 +388,72 @@ export default function MillInwardClient({
 
       {/* Main Form Fields */}
       <div className="grid gap-6 md:grid-cols-3">
-        {/* Mill & Outward Lot selection */}
-        <div className="rounded-lg border border-border bg-card p-5 space-y-4 shadow-sm">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">Party & Lot</h2>
-
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs font-semibold uppercase text-foreground">Mill Party</Label>
-              {canCreate && (
-                <button
-                  type="button"
-                  onClick={() => setShowMillModal(true)}
-                  className="text-[10px] font-bold text-primary hover:underline uppercase"
-                >
-                  + New Mill Party
-                </button>
-              )}
+        {/* Party & Document Details */}
+        <div className="md:col-span-2 rounded-lg border border-border bg-card p-5 space-y-4 shadow-sm">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">Party & Document Details</h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Mill Party */}
+            <div className="space-y-1.5 md:col-span-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold uppercase text-foreground">Mill Party</Label>
+                {canCreate && (
+                  <button
+                    type="button"
+                    onClick={() => setShowMillModal(true)}
+                    className="text-[10px] font-bold text-primary hover:underline uppercase"
+                  >
+                    + New Mill Party
+                  </button>
+                )}
+              </div>
+              <Select value={selectedMill} onValueChange={(v) => { setSelectedMill(v); setSelectedVoucherId(""); }}>
+                <SelectTrigger className="h-10">
+                  <SelectValue placeholder="Choose Mill party" />
+                </SelectTrigger>
+                <SelectContent>
+                  {localMills.map((m) => (
+                    <SelectItem key={m.millId} value={String(m.millId)}>
+                      {m.millName} {m.gstNo ? `(${m.gstNo})` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <Select value={selectedMill} onValueChange={(v) => { setSelectedMill(v); setSelectedVoucherId(""); }}>
-              <SelectTrigger className="h-9">
-                <SelectValue placeholder="Choose Mill party" />
-              </SelectTrigger>
-              <SelectContent>
-                {localMills.map((m) => (
-                  <SelectItem key={m.millId} value={String(m.millId)}>
-                    {m.millName} {m.gstNo ? `(${m.gstNo})` : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
 
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold uppercase text-foreground">Outward Lot No / Challan</Label>
-            <Select value={selectedVoucherId} onValueChange={setSelectedVoucherId} disabled={!selectedMill}>
-              <SelectTrigger className="h-9">
-                <SelectValue placeholder={selectedMill ? "Select Outward Lot" : "Select Mill first"} />
-              </SelectTrigger>
-              <SelectContent>
-                {partyOutwardVouchers.map((v) => (
-                  <SelectItem key={v.voucherId} value={String(v.voucherId)}>
-                    Lot: {v.lotNo || "N/A"} (MO: {v.voucherNo})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
+            {/* Outward Lot No / Challan */}
+            <div className="space-y-1.5 md:col-span-2">
+              <Label className="text-xs font-semibold uppercase text-foreground">Outward Lot No / Challan</Label>
+              <Select value={selectedVoucherId} onValueChange={setSelectedVoucherId} disabled={!selectedMill}>
+                <SelectTrigger className="h-10">
+                  <SelectValue placeholder={selectedMill ? "Select Outward Lot" : "Select Mill first"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {partyOutwardVouchers.map((v) => (
+                    <SelectItem key={v.voucherId} value={String(v.voucherId)}>
+                      Lot: {v.lotNo || "N/A"} (MO: {v.voucherNo})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-        {/* Voucher Info */}
-        <div className="rounded-lg border border-border bg-card p-5 space-y-4 shadow-sm">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">Document Details</h2>
+            {/* Inward Challan No. */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase text-foreground">Inward Challan No.</Label>
+              <Input value={voucherNo} onChange={(e) => setVoucherNo(e.target.value)} placeholder="e.g. MI-5002" className="h-10" />
+            </div>
 
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold uppercase text-foreground">Inward Challan No.</Label>
-            <Input value={voucherNo} onChange={(e) => setVoucherNo(e.target.value)} placeholder="e.g. MI-5002" className="h-9" />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
+            {/* Inward Date */}
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold uppercase text-foreground">Inward Date</Label>
-              <Input type="date" value={voucherDate} onChange={(e) => setVoucherDate(e.target.value)} className="h-9" />
+              <Input type="date" value={voucherDate} onChange={(e) => setVoucherDate(e.target.value)} className="h-10" />
             </div>
-            <div className="space-y-1.5">
+
+            {/* Remarks */}
+            <div className="space-y-1.5 md:col-span-2">
               <Label className="text-xs font-semibold uppercase text-foreground">Remarks</Label>
-              <Input value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Notes" className="h-9" />
+              <Input value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Notes" className="h-10" />
             </div>
           </div>
         </div>
@@ -468,7 +469,7 @@ export default function MillInwardClient({
                 <button type="button" onClick={() => setShowBrokerDialog(true)} className="text-[10px] font-bold text-primary hover:underline uppercase">+ New Broker</button>
               </div>
               <Select value={broker} onValueChange={setBroker}>
-                <SelectTrigger className="h-9 w-full">
+                <SelectTrigger className="h-10 w-full">
                   <SelectValue placeholder="Choose Broker" />
                 </SelectTrigger>
                 <SelectContent>
@@ -486,7 +487,7 @@ export default function MillInwardClient({
                 <button type="button" onClick={() => setShowHasteDialog(true)} className="text-[10px] font-bold text-primary hover:underline uppercase">+ New Haste</button>
               </div>
               <Select value={haste} onValueChange={setHaste}>
-                <SelectTrigger className="h-9 w-full">
+                <SelectTrigger className="h-10 w-full">
                   <SelectValue placeholder="Choose Haste" />
                 </SelectTrigger>
                 <SelectContent>
@@ -503,155 +504,184 @@ export default function MillInwardClient({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold uppercase text-foreground">Vehicle No.</Label>
-              <Input value={vehicleNo} onChange={(e) => setVehicleNo(e.target.value)} placeholder="Vehicle No" className="h-9" />
+              <Input value={vehicleNo} onChange={(e) => setVehicleNo(e.target.value)} placeholder="Vehicle No" className="h-10" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold uppercase text-foreground">Person/Driver</Label>
-              <Input value={personName} onChange={(e) => setPersonName(e.target.value)} placeholder="Name" className="h-9" />
+              <Input value={personName} onChange={(e) => setPersonName(e.target.value)} placeholder="Name" className="h-10" />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold uppercase text-foreground">LR No.</Label>
-              <Input value={lrNo} onChange={(e) => setLrNo(e.target.value)} placeholder="LR No" className="h-9" />
+              <Input value={lrNo} onChange={(e) => setLrNo(e.target.value)} placeholder="LR No" className="h-10" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold uppercase text-foreground">LR Date</Label>
-              <Input type="date" value={lrDate} onChange={(e) => setLrDate(e.target.value)} className="h-9" />
+              <Input type="date" value={lrDate} onChange={(e) => setLrDate(e.target.value)} className="h-10" />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Line Items Table */}
+      {/* Line Items Container */}
       {lineItems.length > 0 && (
-        <div className="rounded-lg border border-border bg-card p-5 shadow-sm space-y-4">
-          <div className="flex items-center justify-between border-b border-border pb-3">
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-3">
             <div>
               <h2 className="text-sm font-bold text-foreground uppercase tracking-wide">Inward Items, Shortage & Matching</h2>
               <p className="text-xs text-muted-foreground mt-0.5">Edit inward PCS/Quantity and view calculated shortage.</p>
             </div>
-            <Button variant="outline" onClick={addLine} className="h-9 text-xs font-semibold uppercase">
-              <Plus className="h-3.5 w-3.5 mr-1" /> Add Custom Item
+            <Button variant="outline" onClick={addLine} className="h-10 text-xs font-semibold uppercase">
+              <Plus className="h-4 w-4 mr-2" /> Add Custom Item
             </Button>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[1600px]">
-              <thead>
-                <tr className="border-b border-border text-xs font-bold uppercase text-muted-foreground">
-                <th className="py-2 pr-2 w-[14%]">Item</th>
-                  <th className="py-2 px-2 w-[8%]">HSN Code</th>
-                  <th className="py-2 px-2 w-[6%] text-center">Fold%</th>
-                  <th className="py-2 px-2 w-[8%] text-center">Outward PCS</th>
-                  <th className="py-2 px-2 w-[8%] text-center">Inward PCS</th>
-                  <th className="py-2 px-2 w-[8%] text-center">Outward Qty</th>
-                  <th className="py-2 px-2 w-[8%] text-center">Inward Qty</th>
-                  <th className="py-2 px-2 w-[8%] text-center">Shortage %</th>
-                  <th className="py-2 px-2 w-[8%]">Rate</th>
-                  <th className="py-2 px-2 w-[8%] text-right">Amount</th>
-                  <th className="py-2 px-2 w-[8%] text-right">Net Amount</th>
-                  <th className="py-2 pl-2 w-[4%]"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border text-sm">
-                {lineItems.map((line, index) => {
-                  const totals = lineTotals[index];
-                  return (
-                    <tr key={line.id} className="hover:bg-muted/30">
-                      <td className="py-3 pr-2">
-                        <Select value={line.inventoryId} onValueChange={(v) => updateLine(line.id, "inventoryId", v)}>
-                          <SelectTrigger className="h-9">
-                            <SelectValue placeholder="Item" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {inventory.map((p) => (
-                              <SelectItem key={p.inventoryId} value={String(p.inventoryId)}>
-                                {p.inventoryName}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </td>
-                      <td className="py-3 px-2">
-                        <Input
-                          value={line.hsnCode}
-                          onChange={(e) => updateLine(line.id, "hsnCode", e.target.value)}
-                          placeholder="HSN Code"
-                          className="h-9 font-mono text-xs"
-                        />
-                      </td>
+          <div className="space-y-4">
+            {lineItems.map((line, index) => {
+              const totals = lineTotals[index];
+              return (
+                <div key={line.id} className="rounded-lg border border-border bg-card p-5 shadow-sm space-y-4 relative">
+                  {/* Header Row */}
+                  <div className="flex items-center justify-between border-b border-border pb-2">
+                    <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                      Item #{index + 1}
+                    </span>
+                    <Button
+                      variant="ghost"
+                      onClick={() => removeLine(line.id)}
+                      className="text-danger hover:bg-danger/10 hover:text-danger h-9 px-3 text-xs uppercase font-semibold flex items-center gap-1.5"
+                    >
+                      <Trash2 className="h-4 w-4" /> Remove Row
+                    </Button>
+                  </div>
 
-                      <td className="py-3 px-2">
-                        <Input
-                          type="number"
-                          value={line.fold}
-                          onChange={(e) => updateLine(line.id, "fold", e.target.value)}
-                          className="h-9 font-mono text-xs text-center"
-                        />
-                      </td>
+                  {/* Input Fields Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                    {/* Select Item */}
+                    <div className="md:col-span-4 space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase text-foreground">Select Item</Label>
+                      <Select value={line.inventoryId} onValueChange={(v) => updateLine(line.id, "inventoryId", v)}>
+                        <SelectTrigger className="h-10 w-full">
+                          <SelectValue placeholder="Item" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {inventory.map((p) => (
+                            <SelectItem key={p.inventoryId} value={String(p.inventoryId)}>
+                              {p.inventoryName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                      <td className="py-3 px-2 text-center font-mono text-xs text-muted-foreground">
+                    {/* HSN Code */}
+                    <div className="md:col-span-2 space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase text-foreground">HSN Code</Label>
+                      <Input
+                        value={line.hsnCode}
+                        onChange={(e) => updateLine(line.id, "hsnCode", e.target.value)}
+                        placeholder="HSN Code"
+                        className="h-10"
+                      />
+                    </div>
+
+                    {/* Fold % */}
+                    <div className="md:col-span-2 space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase text-foreground">Fold %</Label>
+                      <Input
+                        type="number"
+                        value={line.fold}
+                        onChange={(e) => updateLine(line.id, "fold", e.target.value)}
+                        className="h-10 text-right"
+                      />
+                    </div>
+
+                    {/* Inward PCS */}
+                    <div className="md:col-span-2 space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase text-foreground">Inward PCS</Label>
+                      <Input
+                        type="number"
+                        value={line.pcs}
+                        onChange={(e) => updateLine(line.id, "pcs", e.target.value)}
+                        className="h-10 text-right"
+                      />
+                    </div>
+
+                    {/* Inward Qty */}
+                    <div className="md:col-span-2 space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase text-foreground">Inward Qty</Label>
+                      <Input
+                        type="number"
+                        value={line.quantity}
+                        onChange={(e) => updateLine(line.id, "quantity", e.target.value)}
+                        className="h-10 text-right"
+                      />
+                    </div>
+
+                    {/* Outward PCS */}
+                    <div className="md:col-span-3 space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase text-muted-foreground">Outward PCS</Label>
+                      <div className="h-10 flex items-center bg-muted/40 px-3 rounded-lg border border-border/50 text-xs font-medium text-muted-foreground">
                         {line.outwardPcs}
-                      </td>
+                      </div>
+                    </div>
 
-                      <td className="py-3 px-2">
-                        <Input
-                          type="number"
-                          value={line.pcs}
-                          onChange={(e) => updateLine(line.id, "pcs", e.target.value)}
-                          className="h-9 font-mono text-xs text-center"
-                        />
-                      </td>
-
-                      <td className="py-3 px-2 text-center font-mono text-xs text-muted-foreground">
+                    {/* Outward Qty */}
+                    <div className="md:col-span-3 space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase text-muted-foreground">Outward Qty</Label>
+                      <div className="h-10 flex items-center bg-muted/40 px-3 rounded-lg border border-border/50 text-xs font-medium text-muted-foreground">
                         {line.outwardQuantity}
-                      </td>
+                      </div>
+                    </div>
 
-                      <td className="py-3 px-2">
-                        <Input
-                          type="number"
-                          value={line.quantity}
-                          onChange={(e) => updateLine(line.id, "quantity", e.target.value)}
-                          className="h-9 font-mono text-xs text-center"
-                        />
-                      </td>
+                    {/* Shortage % */}
+                    <div className="md:col-span-3 space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase text-muted-foreground">Shortage %</Label>
+                      <div className="h-10 flex items-center bg-muted/40 px-3 rounded-lg border border-border/50 text-xs font-bold text-destructive">
+                        {totals.shortagePercent > 0 ? (
+                          <span>{totals.shortagePercent.toFixed(2)}%</span>
+                        ) : (
+                          <span className="text-success">No Shortage</span>
+                        )}
+                      </div>
+                    </div>
 
-                      <td className="py-3 px-2 text-center font-mono text-xs font-bold text-destructive">
-                        {totals.shortagePercent > 0 ? `${totals.shortagePercent.toFixed(2)}%` : "-"}
-                      </td>
+                    {/* Rate */}
+                    <div className="md:col-span-3 space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase text-foreground">Rate (₹)</Label>
+                      <Input
+                        type="number"
+                        value={line.rate}
+                        onChange={(e) => updateLine(line.id, "rate", e.target.value)}
+                        className="h-10 text-right"
+                      />
+                    </div>
+                  </div>
 
-                      <td className="py-3 px-2">
-                        <Input
-                          type="number"
-                          value={line.rate}
-                          onChange={(e) => updateLine(line.id, "rate", e.target.value)}
-                          className="h-9 font-mono text-xs text-right"
-                        />
-                      </td>
-
-                      <td className="py-3 px-2 text-right font-mono font-bold text-foreground">
-                        ₹ {totals.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                      </td>
-                      <td className="py-3 px-2 text-right font-mono font-bold text-foreground">
-                        ₹ {totals.netAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                      </td>
-
-                      <td className="py-3 pl-2 text-center">
-                        <button
-                          type="button"
-                          onClick={() => removeLine(line.id)}
-                          className="text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                  {/* Calculations Summary Strip */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-muted/30 p-3 rounded-lg border border-border/50 text-xs mt-2">
+                    <div className="space-y-0.5">
+                      <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px]">Amount</span>
+                      <span className="font-semibold text-foreground text-sm">₹ {totals.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="space-y-0.5">
+                      <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px]">Net Amount</span>
+                      <span className="font-semibold text-foreground text-sm">₹ {totals.netAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="space-y-0.5">
+                      <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px]">GST Tax</span>
+                      <span className="font-semibold text-muted-foreground text-sm">₹ {totals.totalTax.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="space-y-0.5">
+                      <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px] text-primary">Net Total</span>
+                      <span className="font-bold text-foreground text-sm">₹ {totals.net.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
           {/* Summary Footer */}
@@ -663,7 +693,7 @@ export default function MillInwardClient({
                 <select
                   value={printRate ? "yes" : "no"}
                   onChange={(e) => setPrintRate(e.target.value === "yes")}
-                  className="h-9 rounded border border-border bg-background px-3 py-1 font-semibold uppercase text-xs"
+                  className="h-10 rounded border border-border bg-background px-3 py-1 font-semibold uppercase text-xs text-foreground"
                 >
                   <option value="yes">Print Rate (Yes)</option>
                   <option value="no">Print Rate (No)</option>
@@ -673,7 +703,7 @@ export default function MillInwardClient({
                 <select
                   value={printAmount ? "yes" : "no"}
                   onChange={(e) => setPrintAmount(e.target.value === "yes")}
-                  className="h-9 rounded border border-border bg-background px-3 py-1 font-semibold uppercase text-xs"
+                  className="h-10 rounded border border-border bg-background px-3 py-1 font-semibold uppercase text-xs text-foreground"
                 >
                   <option value="yes">Print Amount (Yes)</option>
                   <option value="no">Print Amount (No)</option>

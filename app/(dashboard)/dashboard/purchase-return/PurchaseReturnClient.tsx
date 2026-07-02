@@ -411,7 +411,7 @@ export default function PurchaseReturnClient({
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold uppercase text-foreground">Company (Party)</Label>
               <Select value={selectedCompany} onValueChange={setSelectedCompany}>
-                <SelectTrigger className="h-9">
+                <SelectTrigger className="h-10">
                   <SelectValue placeholder="Choose company" />
                 </SelectTrigger>
                 <SelectContent>
@@ -426,16 +426,16 @@ export default function PurchaseReturnClient({
 
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold uppercase text-foreground">Remarks</Label>
-              <Input value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Return reasons" className="h-9" />
+              <Input value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Return reasons" className="h-10" />
             </div>
 
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold uppercase text-foreground">Return No.</Label>
-              <Input value={voucherNo} readOnly placeholder="Fetching..." className="h-9 bg-muted cursor-not-allowed font-mono font-semibold" />
+              <Input value={voucherNo} readOnly placeholder="Fetching..." className="h-10 bg-muted cursor-not-allowed font-mono font-semibold" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold uppercase text-foreground">Return Date</Label>
-              <Input type="date" value={voucherDate} onChange={(e) => setVoucherDate(e.target.value)} className="h-9" />
+              <Input type="date" value={voucherDate} onChange={(e) => setVoucherDate(e.target.value)} className="h-10" />
             </div>
 
             {selectedCompany && (
@@ -454,7 +454,7 @@ export default function PurchaseReturnClient({
                         if (inv) handleToggleInvoice(inv);
                       }}
                     >
-                      <SelectTrigger className="h-9 w-full">
+                      <SelectTrigger className="h-10 w-full">
                         <SelectValue placeholder="Click to select/toggle purchase invoices" />
                       </SelectTrigger>
                       <SelectContent>
@@ -499,264 +499,223 @@ export default function PurchaseReturnClient({
 
           <div className="space-y-1.5">
             <Label className="text-xs font-semibold uppercase text-foreground">LR No.</Label>
-            <Input value={lrNo} onChange={(e) => setLrNo(e.target.value)} placeholder="Lorry Receipt No." className="h-9" />
+            <Input value={lrNo} onChange={(e) => setLrNo(e.target.value)} placeholder="Lorry Receipt No." className="h-10" />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold uppercase text-foreground">LR Date</Label>
-              <Input type="date" value={lrDate} onChange={(e) => setLrDate(e.target.value)} className="h-9" />
+              <Input type="date" value={lrDate} onChange={(e) => setLrDate(e.target.value)} className="h-10" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold uppercase text-foreground">Transport</Label>
-              <Input value={transport} onChange={(e) => setTransport(e.target.value)} placeholder="Transport Service" className="h-9" />
+              <Input value={transport} onChange={(e) => setTransport(e.target.value)} placeholder="Transport Service" className="h-10" />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Return Items Table */}
-      <div className="rounded-lg border border-border bg-card p-5 shadow-sm space-y-4">
+      {/* Return Items Container */}
+      <div className="space-y-4">
         <h2 className="text-sm font-bold text-foreground uppercase tracking-wide border-b border-border pb-2">Items to Return</h2>
 
-        {lineItems.length === 0 ? (
-          <p className="text-xs text-muted-foreground italic text-center py-6">Select one or more purchase invoices to populate return items.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[1300px]">
-              <thead>
-                <tr className="border-b border-border text-[10px] uppercase font-bold text-muted-foreground">
-                  <th className="py-2.5 px-2 w-[10%]">Invoice No</th>
-                  <th className="py-2.5 px-2 w-[16%]">Item Name</th>
-                  <th className="py-2.5 px-2 w-[9%]">HSN Code</th>
-                  <th className="py-2.5 px-2 w-[7%]">Original Qty</th>
-                  <th className="py-2.5 px-2 w-[4%] text-right">Fold</th>
-                  <th className="py-2.5 px-2 w-[5%] text-right">Return PCS</th>
-                  <th className="py-2.5 px-2 w-[7%] text-right">Return Qty</th>
-                  <th className="py-2.5 px-2 w-[5%]">Unit</th>
-                  <th className="py-2.5 px-2 w-[7%] text-right">Rate</th>
-                  <th className="py-2.5 px-2 w-[8%] text-right">Amount</th>
-                  <th className="py-2.5 px-2 w-[8%] text-right">Net Amount</th>
-                  <th className="py-2.5 px-2 w-[7%] text-right">CGST %</th>
-                  <th className="py-2.5 px-2 w-[7%] text-right">SGST %</th>
-                  <th className="py-2.5 px-2 w-[7%] text-right">IGST %</th>
-                  <th className="py-2.5 px-2 w-[9%] text-right">Net Amt</th>
-                  <th className="py-2.5 px-2 text-center w-20">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/60">
-                {lineItems.map((line, idx) => {
-                  const totals = lineTotals[idx] || { amount: 0, cgst: 0, sgst: 0, igst: 0, cgstPercent: 0, sgstPercent: 0, igstPercent: 0, net: 0 };
-                  const isEditing = editingLineId === line.id;
-                  return (
-                    <React.Fragment key={line.id}>
-                      <tr className={`hover:bg-muted/10 transition-colors ${isEditing ? "bg-primary/5 border-l-2 border-primary" : ""}`}>
-                        <td className="py-2.5 px-2 text-xs font-semibold text-muted-foreground">{line.invoiceNo}</td>
-                        <td className="py-2.5 px-2 text-xs font-medium text-foreground">{line.inventoryName}</td>
-                        <td className="py-2.5 px-2 text-xs text-foreground">{line.hsnCode || "—"}</td>
-                        <td className="py-2.5 px-2 text-xs text-muted-foreground">
-                          {line.originalPcs} PCS / {line.originalQuantity}
-                        </td>
-                        <td className="py-2.5 px-2 text-xs text-right text-foreground">{line.fold || "100"}%</td>
-                        <td className="py-2.5 px-2 text-xs text-right text-foreground">{line.pcs || "0"}</td>
-                        <td className="py-2.5 px-2 text-xs text-right text-foreground">{line.quantity || "0.00"}</td>
-                        <td className="py-2.5 px-2 text-xs text-muted-foreground font-medium">
-                          {inventory.find((p) => String(p.inventoryId) === line.inventoryId)?.unit || "—"}
-                        </td>
-                        <td className="py-2.5 px-2 text-xs text-right text-foreground">₹{Number(line.rate || 0).toFixed(2)}</td>
-                        <td className="py-2.5 px-2 text-xs font-semibold text-right text-foreground">
-                          ₹{totals.amount.toFixed(2)}
-                        </td>
-                        <td className="py-2.5 px-2 text-xs font-semibold text-right text-foreground">
-                          ₹{totals.netAmount.toFixed(2)}
-                        </td>
-                        <td className="py-2.5 px-2 text-xs text-right text-foreground">
-                          {isInterstate ? "—" : totals.cgstPercent.toFixed(2) + "%"}
-                        </td>
-                        <td className="py-2.5 px-2 text-xs text-right text-foreground">
-                          {isInterstate ? "—" : totals.sgstPercent.toFixed(2) + "%"}
-                        </td>
-                        <td className="py-2.5 px-2 text-xs text-right text-foreground">
-                          {!isInterstate ? "—" : totals.igstPercent.toFixed(2) + "%"}
-                        </td>
-                        <td className="py-2.5 px-2 text-xs font-bold text-right text-foreground">
-                          ₹{totals.net.toFixed(2)}
-                        </td>
-                        <td className="py-2.5 px-2 text-center">
-                          <div className="flex items-center justify-center gap-1.5">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => setEditingLineId(isEditing ? null : line.id)}
-                              className={`h-8 w-8 transition-colors ${isEditing ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-primary hover:bg-primary/5"}`}
-                              title="Edit Item Details"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => removeLine(line.id)}
-                              className="text-danger hover:bg-danger/10 hover:text-danger h-8 w-8"
-                              title="Remove Item"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
+        <div className="space-y-4">
+          {lineItems.length === 0 ? (
+            <div className="rounded-lg border border-border bg-card p-8 text-center text-muted-foreground text-xs uppercase font-medium">
+              Select one or more purchase invoices to populate return items.
+            </div>
+          ) : (
+            lineItems.map((line, index) => {
+              const totals = lineTotals[index] || { amount: 0, cgst: 0, sgst: 0, igst: 0, cgstPercent: 0, sgstPercent: 0, igstPercent: 0, net: 0, netAmount: 0 };
+              const unit = inventory.find((p) => String(p.inventoryId) === line.inventoryId)?.unit || "PCS";
+              return (
+                <div key={line.id} className="rounded-lg border border-border bg-card p-5 shadow-sm space-y-4 relative">
+                  {/* Header Row */}
+                  <div className="flex flex-wrap items-center justify-between border-b border-border pb-2 gap-2">
+                    <div>
+                      <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                        Invoice: <span className="text-foreground">{line.invoiceNo}</span> | Item #{index + 1}: <span className="text-foreground">{line.inventoryName}</span>
+                      </span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      onClick={() => removeLine(line.id)}
+                      className="text-danger hover:bg-danger/10 hover:text-danger h-9 px-3 text-xs uppercase font-semibold flex items-center gap-1.5"
+                    >
+                      <Trash2 className="h-4 w-4" /> Remove Row
+                    </Button>
+                  </div>
 
-                      {isEditing && (
-                        <tr className="bg-primary/5 border-l-2 border-primary divide-x divide-border/20">
-                          {/* Invoice No: Read only */}
-                          <td className="py-2.5 px-2 text-xs font-semibold text-muted-foreground bg-muted/20">{line.invoiceNo} (Edit)</td>
-                          {/* Item Name: Read only */}
-                          <td className="py-2.5 px-2 text-xs font-medium text-foreground bg-muted/20">{line.inventoryName}</td>
-                          {/* HSN Code: Input */}
-                          <td className="py-1 px-1">
-                            <Input
-                              value={line.hsnCode || ""}
-                              onChange={(e) => updateLine(line.id, "hsnCode", e.target.value)}
-                              className="h-8 text-xs w-full p-1.5 bg-background"
-                              placeholder="HSN"
-                            />
-                          </td>
-                          {/* Original Qty: Read only */}
-                          <td className="py-2.5 px-2 text-xs text-muted-foreground bg-muted/20">
-                            {line.originalPcs} PCS / {line.originalQuantity}
-                          </td>
-                          {/* Return Fold: Input */}
-                          <td className="py-1 px-1">
-                            <Input
-                              type="number"
-                              value={line.fold || ""}
-                              onChange={(e) => updateLine(line.id, "fold", e.target.value)}
-                              className="h-8 text-xs text-right w-full p-1.5 bg-background"
-                              placeholder="100"
-                            />
-                          </td>
-                          {/* Return PCS: Input */}
-                          <td className="py-1 px-1">
-                            <div className="flex items-center gap-1">
-                              <Input
-                                type="number"
-                                value={line.pcs || ""}
-                                onChange={(e) => updateLine(line.id, "pcs", e.target.value)}
-                                onBlur={() => {
-                                  const num = parseInt(line.pcs) || 0;
-                                  if (num > 0 && (!line.pieceMeters || line.pieceMeters.length !== num)) {
-                                    setActivePieceLineId(line.id);
-                                  }
-                                }}
-                                className="h-8 text-xs text-right w-full p-1.5 bg-background"
-                              />
-                              {(parseInt(line.pcs) || 0) > 0 && (
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="icon"
-                                  className="h-8 w-8 px-0 flex-shrink-0"
-                                  onClick={() => setActivePieceLineId(line.id)}
-                                  title="Enter Piece Meters"
-                                >
-                                  ⚙️
-                                </Button>
-                              )}
-                            </div>
-                          </td>
-                          {/* Return Qty: Input */}
-                          <td className="py-1 px-1">
-                            <Input
-                              type="number"
-                              step="0.01"
-                              value={line.quantity || ""}
-                              onChange={(e) => updateLine(line.id, "quantity", e.target.value)}
-                              className="h-8 text-xs text-right w-full p-1.5 bg-background"
-                            />
-                          </td>
-                          {/* Unit: Read only */}
-                          <td className="py-2.5 px-2 text-xs text-muted-foreground font-medium bg-muted/20">
-                            {inventory.find((p) => String(p.inventoryId) === line.inventoryId)?.unit || "—"}
-                          </td>
-                          {/* Rate: Input */}
-                          <td className="py-1 px-1">
-                            <Input
-                              type="number"
-                              step="0.01"
-                              value={line.rate || ""}
-                              onChange={(e) => updateLine(line.id, "rate", e.target.value)}
-                              className="h-8 text-xs text-right w-full p-1.5 bg-background"
-                            />
-                          </td>
-                          {/* Amount: Read only */}
-                          <td className="py-2.5 px-2 text-xs font-semibold text-right text-foreground bg-muted/20">
-                            ₹{totals.amount.toFixed(2)}
-                          </td>
-                          {/* Net Amount: Read only */}
-                          <td className="py-2.5 px-2 text-xs font-semibold text-right text-foreground bg-muted/20">
-                            ₹{totals.netAmount.toFixed(2)}
-                          </td>
-                          {/* CGST %: Input */}
-                          <td className="py-1 px-1">
-                            <Input
-                              type="number"
-                              step="0.01"
-                              placeholder={isInterstate ? "0.00" : totals.cgstPercent.toFixed(2)}
-                              value={isInterstate ? "" : (line.cgst || "")}
-                              onChange={(e) => updateLine(line.id, "cgst", e.target.value)}
-                              disabled={isInterstate}
-                              className="h-8 text-xs text-right w-full p-1.5 bg-background"
-                            />
-                          </td>
-                          {/* SGST %: Input */}
-                          <td className="py-1 px-1">
-                            <Input
-                              type="number"
-                              step="0.01"
-                              placeholder={isInterstate ? "0.00" : totals.sgstPercent.toFixed(2)}
-                              value={isInterstate ? "" : (line.sgst || "")}
-                              onChange={(e) => updateLine(line.id, "sgst", e.target.value)}
-                              disabled={isInterstate}
-                              className="h-8 text-xs text-right w-full p-1.5 bg-background"
-                            />
-                          </td>
-                          {/* IGST %: Input */}
-                          <td className="py-1 px-1">
-                            <Input
-                              type="number"
-                              step="0.01"
-                              placeholder={!isInterstate ? "0.00" : totals.igstPercent.toFixed(2)}
-                              value={!isInterstate ? "" : (line.igst || "")}
-                              onChange={(e) => updateLine(line.id, "igst", e.target.value)}
-                              disabled={!isInterstate}
-                              className="h-8 text-xs text-right w-full p-1.5 bg-background"
-                            />
-                          </td>
-                          {/* Net Amt: Read only */}
-                          <td className="py-2.5 px-2 text-xs font-bold text-right text-foreground bg-muted/20">
-                            ₹{totals.net.toFixed(2)}
-                          </td>
-                          {/* Action: Done Button */}
-                          <td className="py-2.5 px-2 text-center bg-muted/20">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => setEditingLineId(null)}
-                              className="text-success hover:bg-success/15 hover:text-success h-8 w-8"
-                              title="Done Editing"
-                            >
-                              <span className="font-bold text-base">✓</span>
-                            </Button>
-                          </td>
-                        </tr>
-                      )}
-                    </React.Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
+                  {/* Input Fields Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                    {/* HSN Code */}
+                    <div className="md:col-span-3 space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase text-foreground">HSN Code</Label>
+                      <Input
+                        value={line.hsnCode || ""}
+                        onChange={(e) => updateLine(line.id, "hsnCode", e.target.value)}
+                        placeholder="HSN Code"
+                        className="h-10"
+                      />
+                    </div>
+
+                    {/* Fold % */}
+                    <div className="md:col-span-3 space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase text-foreground">Fold %</Label>
+                      <Input
+                        type="number"
+                        value={line.fold || ""}
+                        onChange={(e) => updateLine(line.id, "fold", e.target.value)}
+                        className="h-10 text-right"
+                      />
+                    </div>
+
+                    {/* Return PCS */}
+                    <div className="md:col-span-3 space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase text-foreground">Return PCS</Label>
+                      <div className="flex items-center gap-1.5">
+                        <Input
+                          type="number"
+                          value={line.pcs || ""}
+                          onChange={(e) => updateLine(line.id, "pcs", e.target.value)}
+                          onBlur={() => {
+                            const num = parseInt(line.pcs) || 0;
+                            if (num > 0 && (!line.pieceMeters || line.pieceMeters.length !== num)) {
+                              setActivePieceLineId(line.id);
+                            }
+                          }}
+                          className="h-10 text-right w-full"
+                        />
+                        {(parseInt(line.pcs) || 0) > 0 && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-10 w-10 px-0 flex-shrink-0"
+                            onClick={() => setActivePieceLineId(line.id)}
+                            title="Enter Piece Meters"
+                          >
+                            ⚙️
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Return Qty */}
+                    <div className="md:col-span-3 space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase text-foreground">Return Qty ({unit})</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={line.quantity || ""}
+                        onChange={(e) => updateLine(line.id, "quantity", e.target.value)}
+                        className="h-10 text-right"
+                      />
+                    </div>
+
+                    {/* Rate */}
+                    <div className="md:col-span-3 space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase text-foreground">Rate (₹)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={line.rate || ""}
+                        onChange={(e) => updateLine(line.id, "rate", e.target.value)}
+                        className="h-10 text-right"
+                      />
+                    </div>
+
+                    {/* CGST % */}
+                    <div className="md:col-span-3 space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase text-foreground">CGST %</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder={isInterstate ? "0.00" : totals.cgstPercent.toFixed(2)}
+                        value={isInterstate ? "" : (line.cgst || "")}
+                        onChange={(e) => updateLine(line.id, "cgst", e.target.value)}
+                        disabled={isInterstate}
+                        className="h-10 text-right"
+                      />
+                    </div>
+
+                    {/* SGST % */}
+                    <div className="md:col-span-3 space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase text-foreground">SGST %</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder={isInterstate ? "0.00" : totals.sgstPercent.toFixed(2)}
+                        value={isInterstate ? "" : (line.sgst || "")}
+                        onChange={(e) => updateLine(line.id, "sgst", e.target.value)}
+                        disabled={isInterstate}
+                        className="h-10 text-right"
+                      />
+                    </div>
+
+                    {/* IGST % */}
+                    <div className="md:col-span-3 space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase text-foreground">IGST %</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder={!isInterstate ? "0.00" : totals.igstPercent.toFixed(2)}
+                        value={!isInterstate ? "" : (line.igst || "")}
+                        onChange={(e) => updateLine(line.id, "igst", e.target.value)}
+                        disabled={!isInterstate}
+                        className="h-10 text-right"
+                      />
+                    </div>
+
+                    {/* Original Qty stats */}
+                    <div className="md:col-span-12">
+                      <div className="text-[10px] text-muted-foreground uppercase font-semibold">
+                        Original Invoice Qty: <span className="font-bold text-foreground">{line.originalPcs} PCS / {line.originalQuantity} {unit}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Calculations Summary Strip */}
+                  <div className="grid grid-cols-2 md:grid-cols-6 gap-4 bg-muted/30 p-3 rounded-lg border border-border/50 text-xs mt-2">
+                    <div className="space-y-0.5">
+                      <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px]">Amount</span>
+                      <span className="font-semibold text-foreground text-xs">₹ {totals.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="space-y-0.5">
+                      <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px]">Net Amount</span>
+                      <span className="font-semibold text-foreground text-xs">₹ {totals.netAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="space-y-0.5">
+                      <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px]">CGST</span>
+                      <span className="font-semibold text-muted-foreground text-xs">₹ {totals.cgst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="space-y-0.5">
+                      <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px]">SGST</span>
+                      <span className="font-semibold text-muted-foreground text-xs">₹ {totals.sgst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="space-y-0.5">
+                      <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px]">IGST</span>
+                      <span className="font-semibold text-muted-foreground text-xs">₹ {totals.igst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="space-y-0.5">
+                      <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px] text-primary">Net Total</span>
+                      <span className="font-bold text-foreground text-xs">₹ {totals.net.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Summary Footer */}
+        <div className="flex flex-wrap items-center justify-between border-t border-border pt-4 gap-4 text-xs">
+          <div className="space-y-1.5 text-right font-mono ml-auto">
+            <div className="text-muted-foreground font-semibold uppercase">Total Return Amount:</div>
+            <div className="text-lg font-black text-foreground">
+              ₹ {grandTotals.total.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+            </div>
           </div>
-        )}
+        </div>
       </div>
 
       {/* Save Return Button */}
