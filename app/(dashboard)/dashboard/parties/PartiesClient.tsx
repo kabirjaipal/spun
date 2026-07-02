@@ -39,6 +39,8 @@ interface Party {
   companyType: string | null;
   marketCategory: string | null;
   financialYearStart: string | null;
+  dueDay: number;
+  pendingDueDay?: number;
 }
 
 const currentYear = new Date().getFullYear();
@@ -71,6 +73,7 @@ const EMPTY = {
   msmeRegistered: false,
   msmeType: "micro",
   msmeNo: "",
+  dueDay: 10,
 };
 
 function mergeBanks(base: BankData[], custom: BankData[]): BankData[] {
@@ -235,6 +238,7 @@ export default function PartiesClient({
       msmeRegistered: !!row.msmeRegistered,
       msmeType: row.msmeType ?? "micro",
       msmeNo: row.msmeNo ?? "",
+      dueDay: row.dueDay !== undefined ? row.dueDay : 10,
     });
 
     setSelectedBankIndex(isPreseededBank ? bankIndex : null);
@@ -267,8 +271,8 @@ export default function PartiesClient({
       if (!res.ok) {
         throw new Error(row.error || "Failed to save party");
       }
-      if (editing) setData((d) => d.map((r) => (r.companyId === editing.companyId ? row : r)));
-      else setData((d) => [...d, row]);
+      if (editing) setData((d) => d.map((r) => (r.companyId === editing.companyId ? { ...r, ...row } : r)));
+      else setData((d) => [...d, { ...row, pendingDueDay: 0 }]);
 
       const updatedBanks = captureCustomBank(form, localBanks);
       if (updatedBanks) {
@@ -503,7 +507,7 @@ export default function PartiesClient({
                     </select>
                   </div>
 
-                  <div className="col-span-1 sm:col-span-2">
+                  <div>
                     <Label htmlFor="financialYearStart" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Financial Year Start *</Label>
                     <div className="relative mt-1">
                       <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
@@ -518,6 +522,19 @@ export default function PartiesClient({
                         className="pl-10"
                       />
                     </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="dueDay" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Due Days (Credit Days) *</Label>
+                    <Input
+                      id="dueDay"
+                      type="number"
+                      required
+                      value={form.dueDay}
+                      onChange={(e) => setForm((f) => ({ ...f, dueDay: Number(e.target.value) }))}
+                      className="mt-1"
+                      placeholder="10"
+                    />
                   </div>
                 </div>
               </div>
@@ -885,12 +902,14 @@ export default function PartiesClient({
               <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">GSTIN</th>
               <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Phone</th>
               <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Type</th>
+              <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Due Days</th>
+              <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Pending Due Days</th>
               {(canUpdate || canDelete) && <th className="px-4 py-2.5 text-right text-xs font-bold uppercase tracking-wider text-muted-foreground">Actions</th>}
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 && (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-sm text-muted-foreground">
+              <tr><td colSpan={8} className="px-4 py-8 text-center text-sm text-muted-foreground">
                 {search ? "No parties match your search." : "No parties yet. Add your first one."}
               </td></tr>
             )}
@@ -901,6 +920,16 @@ export default function PartiesClient({
                 <td className="px-4 py-3 text-xs text-muted-foreground font-mono">{row.gstNo || "—"}</td>
                 <td className="px-4 py-3 text-xs text-muted-foreground">{row.phone || "—"}</td>
                 <td className="px-4 py-3 text-xs text-muted-foreground capitalize">{row.companyType || "general"}</td>
+                <td className="px-4 py-3 text-xs text-muted-foreground font-semibold">{row.dueDay}</td>
+                <td className="px-4 py-3 text-xs">
+                  {row.pendingDueDay && row.pendingDueDay > 0 ? (
+                    <Badge variant="destructive" className="font-mono text-xs font-bold">
+                      {row.pendingDueDay} Day{row.pendingDueDay !== 1 ? "s" : ""}
+                    </Badge>
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  )}
+                </td>
                 {(canUpdate || canDelete) && (
                   <td className="px-4 py-3 text-right space-x-2">
                     {canUpdate && <Button variant="ghost" size="icon-sm" onClick={() => openEdit(row)}><Pencil className="h-3.5 w-3.5" /></Button>}

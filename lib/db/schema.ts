@@ -57,6 +57,7 @@ export const mCompanies = pgTable("m_companies", {
   msmeRegistered: boolean("msme_registered").default(false).notNull(),
   msmeType: text("msme_type"), // 'micro', 'small', 'medium'
   msmeNo: text("msme_no"), // Udyam Registration Number e.g. UDYAM-GJ-01-0012345
+  dueDay: integer("due_day").default(10).notNull(),
   ...auditColumns,
 }, (table) => ({
   companyNameIdx: index("idx_m_companies_company_name").on(table.companyName),

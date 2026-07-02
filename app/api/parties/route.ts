@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { mCompanies, mLedgers, mLedgerGroups, mInventoryGroups, mUnitsOfMeasurement } from "@/lib/db/schema";
+import { mCompanies, mLedgers, mLedgerGroups, mInventoryGroups, mUnitsOfMeasurement, tVouchers } from "@/lib/db/schema";
 import { and, isNull, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { DEFAULT_UNITS, DEFAULT_LEDGER_GROUPS, DEFAULT_INVENTORY_GROUPS } from "@/lib/constants";
@@ -19,7 +19,73 @@ export async function GET() {
     .where(and(eq(mCompanies.parentCompanyId, companyId), isNull(mCompanies.deletedOn)))
     .orderBy(mCompanies.companyName);
 
-  return NextResponse.json(rows);
+  if (rows.length === 0) {
+    return NextResponse.json([]);
+  }
+
+  // Fetch vouchers to compute pending days dynamically
+  const vouchers = await db.query.tVouchers.findMany({
+    where: and(
+      eq(tVouchers.companyId, companyId),
+      isNull(tVouchers.deletedOn)
+    ),
+  });
+
+  const invoices: typeof vouchers = [];
+  const adjustments: typeof vouchers = [];
+  for (const v of vouchers) {
+    if (v.voucherType === "sale" || v.voucherType === "purchase") {
+      invoices.push(v);
+    } else if (v.voucherType === "payment" || v.voucherType === "receipt" || v.voucherType === "credit_note" || v.voucherType === "debit_note" || v.voucherType === "purchase_return") {
+      adjustments.push(v);
+    }
+  }
+
+  const paidAmounts: Record<number, number> = {};
+  for (const adj of adjustments) {
+    if (adj.billDetails && Array.isArray(adj.billDetails)) {
+      for (const item of adj.billDetails) {
+        if (item && typeof item === "object" && "voucherId" in item) {
+          const vId = Number(item.voucherId);
+          const amt = Number(item.amount) || 0;
+          paidAmounts[vId] = (paidAmounts[vId] || 0) + amt;
+        }
+      }
+    }
+  }
+
+  const maxOverdueDaysMap: Record<number, number> = {};
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  for (const inv of invoices) {
+    const netAmt = Number(inv.netAmount) || 0;
+    const paidAmt = paidAmounts[Number(inv.voucherId)] || 0;
+    const outstanding = netAmt - paidAmt;
+    if (outstanding > 0.01) {
+      const partyId = Number(inv.partyId);
+      if (!partyId) continue;
+      
+      const invDate = new Date(inv.voucherDate);
+      invDate.setHours(0, 0, 0, 0);
+      const daysSinceInvoice = Math.floor((today.getTime() - invDate.getTime()) / (1000 * 60 * 60 * 24));
+      
+      const party = rows.find((r) => r.companyId === partyId);
+      const dueDay = party ? party.dueDay : 10;
+      
+      if (daysSinceInvoice > dueDay) {
+        const overdueDays = daysSinceInvoice - dueDay;
+        maxOverdueDaysMap[partyId] = Math.max(maxOverdueDaysMap[partyId] || 0, overdueDays);
+      }
+    }
+  }
+
+  const rowsWithPending = rows.map((party) => ({
+    ...party,
+    pendingDueDay: maxOverdueDaysMap[party.companyId] || 0,
+  }));
+
+  return NextResponse.json(rowsWithPending);
 }
 
 export async function POST(request: Request) {
@@ -58,6 +124,7 @@ export async function POST(request: Request) {
     msmeRegistered,
     msmeType,
     msmeNo,
+    dueDay,
   } = body;
 
   if (!companyName) {
@@ -113,6 +180,7 @@ export async function POST(request: Request) {
           msmeRegistered: !!msmeRegistered,
           msmeType: msmeRegistered ? (msmeType || null) : null,
           msmeNo: msmeRegistered ? (msmeNo || null) : null,
+          dueDay: dueDay !== undefined ? Number(dueDay) : 10,
           createdBy: userId,
           updatedBy: userId,
         })

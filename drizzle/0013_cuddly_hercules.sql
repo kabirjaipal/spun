@@ -1,0 +1,1 @@
+ALTER TABLE "m_companies" ADD COLUMN "due_day" integer DEFAULT 10 NOT NULL;

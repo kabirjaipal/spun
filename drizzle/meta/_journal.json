@@ -92,6 +92,13 @@
       "when": 1782991718932,
       "tag": "0012_curved_proteus",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1782992085292,
+      "tag": "0013_cuddly_hercules",
+      "breakpoints": true
     }
   ]
 }
