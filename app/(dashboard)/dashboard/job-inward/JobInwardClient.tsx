@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Trash2 } from "lucide-react";
 import PrintInvoiceModal from "@/components/PrintInvoiceModal";
 import BrokerHasteDialog from "@/components/BrokerHasteDialog";
+import JobFormDrawer from "@/components/JobFormDrawer";
 
 interface JobOption {
   jobId: number;
@@ -22,6 +23,7 @@ interface InventoryOption {
   inventoryCode: string;
   unit: string;
   gstRateId: number | null;
+  hsnCode?: string | null;
 }
 
 interface TaxRateOption {
@@ -92,9 +94,23 @@ export default function JobInwardClient({
   brokersHaste: BrokerHasteOption[];
   canCreate: boolean;
 }) {
+  const [localJobs, setLocalJobs] = useState<JobOption[]>(jobs);
+  const [showJobModal, setShowJobModal] = useState(false);
+
   const [brokersHasteData, setBrokersHasteData] = useState(brokersHaste);
   const brokers = brokersHasteData.filter((r) => r.type === "broker");
   const hastes = brokersHasteData.filter((r) => r.type === "haste");
+
+  function handleJobCreated(newJob: any) {
+    const newOption: JobOption = {
+      jobId: newJob.jobId,
+      jobName: newJob.jobName,
+      address: newJob.address,
+      gstNo: newJob.gstNo,
+    };
+    setLocalJobs((prev) => [...prev, newOption]);
+    setSelectedJob(String(newJob.jobId));
+  }
 
   const [selectedJob, setSelectedJob] = useState("");
   const [selectedVoucherId, setSelectedVoucherId] = useState("");
@@ -159,8 +175,8 @@ export default function JobInwardClient({
   }, [selectedVoucherId, outwardItems, outwardVouchers]);
 
   const selectedJobDetails = useMemo(() => {
-    return jobs.find((j) => String(j.jobId) === selectedJob) || null;
-  }, [selectedJob, jobs]);
+    return localJobs.find((j) => String(j.jobId) === selectedJob) || null;
+  }, [selectedJob, localJobs]);
 
   const lineTotals = useMemo(() => {
     return lineItems.map((line) => {
@@ -207,7 +223,7 @@ export default function JobInwardClient({
           return {
             ...item,
             inventoryId: value,
-            hsnCode: prod?.inventoryCode || "",
+            hsnCode: prod?.hsnCode || "",
             gstRateId: prod?.gstRateId ? String(prod.gstRateId) : "",
           };
         }
@@ -377,13 +393,24 @@ export default function JobInwardClient({
           <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">Party & Lot</h2>
 
           <div className="space-y-1.5">
-            <Label className="text-xs font-semibold uppercase text-foreground">Job Party</Label>
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-semibold uppercase text-foreground">Job Party</Label>
+              {canCreate && (
+                <button
+                  type="button"
+                  onClick={() => setShowJobModal(true)}
+                  className="text-[10px] font-bold text-primary hover:underline uppercase"
+                >
+                  + New Job Party
+                </button>
+              )}
+            </div>
             <Select value={selectedJob} onValueChange={(v) => { setSelectedJob(v); setSelectedVoucherId(""); }}>
               <SelectTrigger className="h-9">
                 <SelectValue placeholder="Choose Job worker" />
               </SelectTrigger>
               <SelectContent>
-                {jobs.map((j) => (
+                {localJobs.map((j) => (
                   <SelectItem key={j.jobId} value={String(j.jobId)}>
                     {j.jobName} {j.gstNo ? `(${j.gstNo})` : ""}
                   </SelectItem>
@@ -499,25 +526,26 @@ export default function JobInwardClient({
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[1200px]">
+          <table className="w-full text-left border-collapse min-w-[1600px]">
             <thead>
               <tr className="border-b border-border text-xs font-bold uppercase text-muted-foreground">
-                <th className="py-2 pr-2 w-[20%]">Item</th>
+                <th className="py-2 pr-2 w-[18%]">Item</th>
+                <th className="py-2 px-2 w-[8%]">HSN Code</th>
                 <th className="py-2 px-2 w-[12%] text-center">Outward (PCS/Mtr)</th>
-                <th className="py-2 px-2 w-[6%]">Fold%</th>
-                <th className="py-2 px-2 w-[8%]">Inward PCS</th>
-                <th className="py-2 px-2 w-[10%]">Inward Meters</th>
+                <th className="py-2 px-2 w-[6%] text-center">Fold%</th>
+                <th className="py-2 px-2 w-[8%] text-center">Inward PCS</th>
+                <th className="py-2 px-2 w-[10%] text-center">Inward Meters</th>
                 <th className="py-2 px-2 w-[8%] text-center">Shortage %</th>
                 <th className="py-2 px-2 w-[8%]">Rate</th>
                 <th className="py-2 px-2 w-[8%] text-right">Amount</th>
                 <th className="py-2 px-2 w-[8%] text-right">Net Amount</th>
-                <th className="py-2 pl-2 w-[3%]"></th>
+                <th className="py-2 pl-2 w-[4%]"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border text-sm">
               {lineItems.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-8 text-center text-muted-foreground text-xs uppercase font-medium">
+                  <td colSpan={11} className="py-8 text-center text-muted-foreground text-xs uppercase font-medium">
                     No items loaded. Please select an active Outward Lot above.
                   </td>
                 </tr>
@@ -539,6 +567,14 @@ export default function JobInwardClient({
                             ))}
                           </SelectContent>
                         </Select>
+                      </td>
+                      <td className="py-3 px-2">
+                        <Input
+                          value={line.hsnCode}
+                          onChange={(e) => updateLine(line.id, "hsnCode", e.target.value)}
+                          placeholder="HSN Code"
+                          className="h-9 font-mono text-xs"
+                        />
                       </td>
 
                       <td className="py-3 px-2 text-center text-muted-foreground font-mono text-xs">
@@ -686,6 +722,11 @@ export default function JobInwardClient({
           lines={printVoucher.lines}
         />
       )}
+      <JobFormDrawer
+        isOpen={showJobModal}
+        onClose={() => setShowJobModal(false)}
+        onCreated={handleJobCreated}
+      />
     </div>
   );
 }

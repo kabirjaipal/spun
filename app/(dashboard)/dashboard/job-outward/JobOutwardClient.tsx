@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Trash2 } from "lucide-react";
 import PrintInvoiceModal from "@/components/PrintInvoiceModal";
 import BrokerHasteDialog from "@/components/BrokerHasteDialog";
+import JobFormDrawer from "@/components/JobFormDrawer";
 
 interface JobOption {
   jobId: number;
@@ -22,6 +23,7 @@ interface InventoryOption {
   inventoryCode: string;
   unit: string;
   gstRateId: number | null;
+  hsnCode?: string | null;
 }
 
 interface TaxRateOption {
@@ -77,9 +79,23 @@ export default function JobOutwardClient({
   brokersHaste: BrokerHasteOption[];
   canCreate: boolean;
 }) {
+  const [localJobs, setLocalJobs] = useState<JobOption[]>(jobs);
+  const [showJobModal, setShowJobModal] = useState(false);
+
   const [brokersHasteData, setBrokersHasteData] = useState(brokersHaste);
   const brokers = brokersHasteData.filter((r) => r.type === "broker");
   const hastes = brokersHasteData.filter((r) => r.type === "haste");
+
+  function handleJobCreated(newJob: any) {
+    const newOption: JobOption = {
+      jobId: newJob.jobId,
+      jobName: newJob.jobName,
+      address: newJob.address,
+      gstNo: newJob.gstNo,
+    };
+    setLocalJobs((prev) => [...prev, newOption]);
+    setSelectedJob(String(newJob.jobId));
+  }
 
   const [selectedJob, setSelectedJob] = useState("");
   const [voucherNo, setVoucherNo] = useState("");
@@ -106,8 +122,8 @@ export default function JobOutwardClient({
   const [printVoucher, setPrintVoucher] = useState<any>(null);
 
   const selectedJobDetails = useMemo(() => {
-    return jobs.find((j) => String(j.jobId) === selectedJob) || null;
-  }, [selectedJob, jobs]);
+    return localJobs.find((j) => String(j.jobId) === selectedJob) || null;
+  }, [selectedJob, localJobs]);
 
   const lineTotals = useMemo(() => {
     return lineItems.map((line) => {
@@ -149,7 +165,7 @@ export default function JobOutwardClient({
           return {
             ...item,
             inventoryId: value,
-            hsnCode: prod?.inventoryCode || "",
+            hsnCode: prod?.hsnCode || "",
             gstRateId: prod?.gstRateId ? String(prod.gstRateId) : "",
           };
         }
@@ -301,13 +317,24 @@ export default function JobOutwardClient({
           <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">Party Details</h2>
 
           <div className="space-y-1.5">
-            <Label className="text-xs font-semibold uppercase text-foreground">Job Party</Label>
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-semibold uppercase text-foreground">Job Party</Label>
+              {canCreate && (
+                <button
+                  type="button"
+                  onClick={() => setShowJobModal(true)}
+                  className="text-[10px] font-bold text-primary hover:underline uppercase"
+                >
+                  + New Job Party
+                </button>
+              )}
+            </div>
             <Select value={selectedJob} onValueChange={setSelectedJob}>
               <SelectTrigger className="h-9">
                 <SelectValue placeholder="Choose Job worker" />
               </SelectTrigger>
               <SelectContent>
-                {jobs.map((j) => (
+                {localJobs.map((j) => (
                   <SelectItem key={j.jobId} value={String(j.jobId)}>
                     {j.jobName} {j.gstNo ? `(${j.gstNo})` : ""}
                   </SelectItem>
@@ -427,13 +454,14 @@ export default function JobOutwardClient({
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[1100px]">
+          <table className="w-full text-left border-collapse min-w-[1600px]">
             <thead>
               <tr className="border-b border-border text-xs font-bold uppercase text-muted-foreground">
-                <th className="py-2 pr-2 w-[28%]">Item</th>
-                <th className="py-2 px-2 w-[6%]">Fold%</th>
-                <th className="py-2 px-2 w-[8%]">PCS</th>
-                <th className="py-2 px-2 w-[8%]">Meters</th>
+                <th className="py-2 pr-2 w-[22%]">Item</th>
+                <th className="py-2 px-2 w-[8%]">HSN Code</th>
+                <th className="py-2 px-2 w-[6%] text-center">Fold%</th>
+                <th className="py-2 px-2 w-[8%] text-center">PCS</th>
+                <th className="py-2 px-2 w-[8%] text-center">Meters</th>
                 <th className="py-2 px-2 w-[10%]">Job Type</th>
                 <th className="py-2 px-2 w-[8%]">Unit</th>
                 <th className="py-2 px-2 w-[8%]">Rate</th>
@@ -460,6 +488,14 @@ export default function JobOutwardClient({
                           ))}
                         </SelectContent>
                       </Select>
+                    </td>
+                    <td className="py-3 px-2">
+                      <Input
+                        value={line.hsnCode}
+                        onChange={(e) => updateLine(line.id, "hsnCode", e.target.value)}
+                        placeholder="HSN Code"
+                        className="h-9 font-mono text-xs"
+                      />
                     </td>
                     <td className="py-3 px-2">
                       <Input
@@ -621,6 +657,11 @@ export default function JobOutwardClient({
           lines={printVoucher.lines}
         />
       )}
+      <JobFormDrawer
+        isOpen={showJobModal}
+        onClose={() => setShowJobModal(false)}
+        onCreated={handleJobCreated}
+      />
     </div>
   );
 }

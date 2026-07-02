@@ -57,6 +57,7 @@ export default async function JobOutwardPage() {
         inventoryCode: item.inventoryCode,
         unit: item.unit,
         gstRateId: item.gstRateId,
+        hsnCode: item.hsnCode,
       }))}
       taxRates={taxRates.map((rate) => ({
         taxRateId: rate.taxRateId,

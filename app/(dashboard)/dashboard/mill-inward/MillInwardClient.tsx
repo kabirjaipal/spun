@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Trash2 } from "lucide-react";
 import PrintInvoiceModal from "@/components/PrintInvoiceModal";
 import BrokerHasteDialog from "@/components/BrokerHasteDialog";
+import MillFormDrawer from "@/components/MillFormDrawer";
 
 interface MillOption {
   millId: number;
@@ -22,6 +23,7 @@ interface InventoryOption {
   inventoryCode: string;
   unit: string;
   gstRateId: number | null;
+  hsnCode?: string | null;
 }
 
 interface TaxRateOption {
@@ -92,9 +94,24 @@ export default function MillInwardClient({
   brokersHaste: BrokerHasteOption[];
   canCreate: boolean;
 }) {
+  const [localMills, setLocalMills] = useState<MillOption[]>(mills);
+  const [showMillModal, setShowMillModal] = useState(false);
+
   const [brokersHasteData, setBrokersHasteData] = useState(brokersHaste);
   const brokers = brokersHasteData.filter((r) => r.type === "broker");
   const hastes = brokersHasteData.filter((r) => r.type === "haste");
+
+  function handleMillCreated(newMill: any) {
+    const newOption: MillOption = {
+      millId: newMill.millId,
+      millName: newMill.millName,
+      address: newMill.address,
+      gstNo: newMill.gstNo,
+    };
+    setLocalMills((prev) => [...prev, newOption]);
+    setSelectedMill(String(newMill.millId));
+  }
+
   const [selectedMill, setSelectedMill] = useState("");
   const [selectedVoucherId, setSelectedVoucherId] = useState("");
   const [voucherNo, setVoucherNo] = useState("");
@@ -158,8 +175,8 @@ export default function MillInwardClient({
   }, [selectedVoucherId, outwardItems, outwardVouchers]);
 
   const selectedMillDetails = useMemo(() => {
-    return mills.find((m) => String(m.millId) === selectedMill) || null;
-  }, [selectedMill, mills]);
+    return localMills.find((m) => String(m.millId) === selectedMill) || null;
+  }, [selectedMill, localMills]);
 
   const lineTotals = useMemo(() => {
     return lineItems.map((line) => {
@@ -206,7 +223,7 @@ export default function MillInwardClient({
           return {
             ...item,
             inventoryId: value,
-            hsnCode: prod?.inventoryCode || "",
+            hsnCode: prod?.hsnCode || "",
             gstRateId: prod?.gstRateId ? String(prod.gstRateId) : "",
           };
         }
@@ -376,13 +393,24 @@ export default function MillInwardClient({
           <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">Party & Lot</h2>
 
           <div className="space-y-1.5">
-            <Label className="text-xs font-semibold uppercase text-foreground">Mill Party</Label>
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-semibold uppercase text-foreground">Mill Party</Label>
+              {canCreate && (
+                <button
+                  type="button"
+                  onClick={() => setShowMillModal(true)}
+                  className="text-[10px] font-bold text-primary hover:underline uppercase"
+                >
+                  + New Mill Party
+                </button>
+              )}
+            </div>
             <Select value={selectedMill} onValueChange={(v) => { setSelectedMill(v); setSelectedVoucherId(""); }}>
               <SelectTrigger className="h-9">
                 <SelectValue placeholder="Choose Mill party" />
               </SelectTrigger>
               <SelectContent>
-                {mills.map((m) => (
+                {localMills.map((m) => (
                   <SelectItem key={m.millId} value={String(m.millId)}>
                     {m.millName} {m.gstNo ? `(${m.gstNo})` : ""}
                   </SelectItem>
@@ -510,10 +538,11 @@ export default function MillInwardClient({
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[1200px]">
+            <table className="w-full text-left border-collapse min-w-[1600px]">
               <thead>
                 <tr className="border-b border-border text-xs font-bold uppercase text-muted-foreground">
-                <th className="py-2 pr-2 w-[16%]">Item</th>
+                <th className="py-2 pr-2 w-[14%]">Item</th>
+                  <th className="py-2 px-2 w-[8%]">HSN Code</th>
                   <th className="py-2 px-2 w-[6%] text-center">Fold%</th>
                   <th className="py-2 px-2 w-[8%] text-center">Outward PCS</th>
                   <th className="py-2 px-2 w-[8%] text-center">Inward PCS</th>
@@ -544,6 +573,14 @@ export default function MillInwardClient({
                             ))}
                           </SelectContent>
                         </Select>
+                      </td>
+                      <td className="py-3 px-2">
+                        <Input
+                          value={line.hsnCode}
+                          onChange={(e) => updateLine(line.id, "hsnCode", e.target.value)}
+                          placeholder="HSN Code"
+                          className="h-9 font-mono text-xs"
+                        />
                       </td>
 
                       <td className="py-3 px-2">
@@ -690,6 +727,11 @@ export default function MillInwardClient({
           lines={printVoucher.lines}
         />
       )}
+      <MillFormDrawer
+        isOpen={showMillModal}
+        onClose={() => setShowMillModal(false)}
+        onCreated={handleMillCreated}
+      />
     </div>
   );
 }

@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Trash2 } from "lucide-react";
 import PrintInvoiceModal from "@/components/PrintInvoiceModal";
 import BrokerHasteDialog from "@/components/BrokerHasteDialog";
+import MillFormDrawer from "@/components/MillFormDrawer";
 
 interface MillOption {
   millId: number;
@@ -22,6 +23,7 @@ interface InventoryOption {
   inventoryCode: string;
   unit: string;
   gstRateId: number | null;
+  hsnCode?: string | null;
 }
 
 interface TaxRateOption {
@@ -77,9 +79,24 @@ export default function MillOutwardClient({
   brokersHaste: BrokerHasteOption[];
   canCreate: boolean;
 }) {
+  const [localMills, setLocalMills] = useState<MillOption[]>(mills);
+  const [showMillModal, setShowMillModal] = useState(false);
+
   const [brokersHasteData, setBrokersHasteData] = useState(brokersHaste);
   const brokers = brokersHasteData.filter((r) => r.type === "broker");
   const hastes = brokersHasteData.filter((r) => r.type === "haste");
+
+  function handleMillCreated(newMill: any) {
+    const newOption: MillOption = {
+      millId: newMill.millId,
+      millName: newMill.millName,
+      address: newMill.address,
+      gstNo: newMill.gstNo,
+    };
+    setLocalMills((prev) => [...prev, newOption]);
+    setSelectedMill(String(newMill.millId));
+  }
+
   const [selectedMill, setSelectedMill] = useState("");
   const [voucherNo, setVoucherNo] = useState("");
   const [voucherDate, setVoucherDate] = useState(new Date().toISOString().slice(0, 10));
@@ -105,8 +122,8 @@ export default function MillOutwardClient({
   const [printVoucher, setPrintVoucher] = useState<any>(null);
 
   const selectedMillDetails = useMemo(() => {
-    return mills.find((m) => String(m.millId) === selectedMill) || null;
-  }, [selectedMill, mills]);
+    return localMills.find((m) => String(m.millId) === selectedMill) || null;
+  }, [selectedMill, localMills]);
 
   const lineTotals = useMemo(() => {
     return lineItems.map((line) => {
@@ -148,7 +165,7 @@ export default function MillOutwardClient({
           return {
             ...item,
             inventoryId: value,
-            hsnCode: prod?.inventoryCode || "",
+            hsnCode: prod?.hsnCode || "",
             gstRateId: prod?.gstRateId ? String(prod.gstRateId) : "",
           };
         }
@@ -300,13 +317,24 @@ export default function MillOutwardClient({
           <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">Party Details</h2>
 
           <div className="space-y-1.5">
-            <Label className="text-xs font-semibold uppercase text-foreground">Mill Party</Label>
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-semibold uppercase text-foreground">Mill Party</Label>
+              {canCreate && (
+                <button
+                  type="button"
+                  onClick={() => setShowMillModal(true)}
+                  className="text-[10px] font-bold text-primary hover:underline uppercase"
+                >
+                  + New Mill Party
+                </button>
+              )}
+            </div>
             <Select value={selectedMill} onValueChange={setSelectedMill}>
               <SelectTrigger className="h-9">
                 <SelectValue placeholder="Choose Mill party" />
               </SelectTrigger>
               <SelectContent>
-                {mills.map((m) => (
+                {localMills.map((m) => (
                   <SelectItem key={m.millId} value={String(m.millId)}>
                     {m.millName} {m.gstNo ? `(${m.gstNo})` : ""}
                   </SelectItem>
@@ -429,10 +457,11 @@ export default function MillOutwardClient({
           <table className="w-full text-left border-collapse min-w-[1100px]">
             <thead>
               <tr className="border-b border-border text-xs font-bold uppercase text-muted-foreground">
-                <th className="py-2 pr-2 w-[28%]">Item</th>
-                <th className="py-2 px-2 w-[6%]">Fold%</th>
-                <th className="py-2 px-2 w-[8%]">PCS</th>
-                <th className="py-2 px-2 w-[8%]">Meters</th>
+                <th className="py-2 pr-2 w-[20%]">Item</th>
+                <th className="py-2 px-2 w-[8%]">HSN Code</th>
+                <th className="py-2 px-2 w-[6%] text-center">Fold%</th>
+                <th className="py-2 px-2 w-[8%] text-center">PCS</th>
+                <th className="py-2 px-2 w-[8%] text-center">Meters</th>
                 <th className="py-2 px-2 w-[10%]">Process Type</th>
                 <th className="py-2 px-2 w-[8%]">Per</th>
                 <th className="py-2 px-2 w-[8%]">Rate</th>
@@ -459,6 +488,14 @@ export default function MillOutwardClient({
                           ))}
                         </SelectContent>
                       </Select>
+                    </td>
+                    <td className="py-3 px-2">
+                      <Input
+                        value={line.hsnCode}
+                        onChange={(e) => updateLine(line.id, "hsnCode", e.target.value)}
+                        placeholder="HSN Code"
+                        className="h-9 font-mono text-xs"
+                      />
                     </td>
                     <td className="py-3 px-2">
                       <Input
@@ -619,6 +656,11 @@ export default function MillOutwardClient({
           lines={printVoucher.lines}
         />
       )}
+      <MillFormDrawer
+        isOpen={showMillModal}
+        onClose={() => setShowMillModal(false)}
+        onCreated={handleMillCreated}
+      />
     </div>
   );
 }
