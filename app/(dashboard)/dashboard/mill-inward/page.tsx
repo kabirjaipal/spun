@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { mMills, mInventory, mTaxRates, mCompanies, tVouchers, tVoucherItems, mBrokersHaste } from "@/lib/db/schema";
 import { and, eq, isNull } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
+import { APP_NAME } from "@/lib/constants";
 import MillInwardClient from "./MillInwardClient";
 
 export default async function MillInwardPage() {
@@ -71,7 +72,7 @@ export default async function MillInwardPage() {
 
   return (
     <MillInwardClient
-      company={company ? { companyName: company.companyName, gstNo: company.gstNo, address: company.address } : { companyName: "Texora Company" }}
+      company={company ? { companyName: company.companyName, gstNo: company.gstNo, address: company.address } : { companyName: `{APP_NAME} Company` }}
       mills={mills.map((mill) => ({
         millId: mill.millId,
         millName: mill.millName,

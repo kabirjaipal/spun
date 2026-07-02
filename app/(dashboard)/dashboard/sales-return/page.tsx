@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { mInventory, mTaxRates, mCompanies } from "@/lib/db/schema";
 import { and, eq, isNull } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
+import { APP_NAME } from "@/lib/constants";
 import SalesReturnClient from "./SalesReturnClient";
 
 export default async function SalesReturnPage() {
@@ -39,7 +40,7 @@ export default async function SalesReturnPage() {
 
   return (
     <SalesReturnClient
-      company={company ? { companyName: company.companyName, gstNo: company.gstNo, address: company.address, companyType: company.companyType, state: company.state } : { companyName: "Texora Company", companyType: "general", state: null }}
+      company={company ? { companyName: company.companyName, gstNo: company.gstNo, address: company.address, companyType: company.companyType, state: company.state } : { companyName: `{APP_NAME} Company`, companyType: "general", state: null }}
       companies={companies.map((comp) => ({
         companyId: comp.companyId,
         companyName: comp.companyName,

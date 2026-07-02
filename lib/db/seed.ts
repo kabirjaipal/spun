@@ -13,15 +13,15 @@ export async function seedDatabase() {
   // 2. Create default owner user (no company associated initially)
   await db.insert(mUsers).values({
     name: "Default Owner",
-    email: "owner@texora.com",
+    email: "owner@spun.app",
     passwordHash,
     role: "owner",
     isActive: true,
   });
 
-  console.log("Database seeded successfully! Default login: owner@texora.com / password123 (No Company)");
+  console.log("Database seeded successfully! Default login: owner@spun.app / password123 (No Company)");
 
   // 3. Call the realistic company data seed
   await seedRealData();
-  console.log("Database seeded with realistic company data! Test login: test@texora.com / password123 (Texora Trading Co.)");
+  console.log("Database seeded with realistic company data! Test login: test@spun.app / password123 (Spun Trading Co.)");
 }

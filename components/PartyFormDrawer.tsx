@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetBody, SheetFooter } from "@/components/ui/sheet";
 import { Landmark, MapPin, Calendar, FileText, Globe } from "lucide-react";
 import { BANK_LIST, type BankData } from "@/lib/banks";
-import { CURRENCIES, MARKET_CATEGORIES } from "@/lib/constants";
+import { CURRENCIES, MARKET_CATEGORIES, STORAGE_BANKS_KEY } from "@/lib/constants";
 
 interface PartyFormDrawerProps {
   isOpen: boolean;
@@ -80,7 +80,7 @@ export default function PartyFormDrawer({ isOpen, onClose, onCreated }: PartyFor
 
   const [localBanks, setLocalBanks] = useState<BankData[]>(() => {
     if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("texora_custom_banks");
+      const saved = localStorage.getItem(STORAGE_BANKS_KEY);
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
@@ -96,7 +96,7 @@ export default function PartyFormDrawer({ isOpen, onClose, onCreated }: PartyFor
   const saveCustomBanks = (updatedBanks: BankData[]) => {
     setLocalBanks(updatedBanks);
     if (typeof window !== "undefined") {
-      localStorage.setItem("texora_custom_banks", JSON.stringify(updatedBanks));
+      localStorage.setItem(STORAGE_BANKS_KEY, JSON.stringify(updatedBanks));
     }
   };
 

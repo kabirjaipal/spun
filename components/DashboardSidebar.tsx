@@ -8,6 +8,7 @@ import * as Icons from "lucide-react";
 import { UserPermission } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { APP_NAME } from "@/lib/constants";
 
 // 1. Sidebar Context and Provider for global responsive & collapse state
 interface SidebarContextType {
@@ -141,10 +142,10 @@ export default function DashboardSidebar({
             <>
               <div className="flex items-center gap-2">
                 <div className="flex h-5 w-5 items-center justify-center rounded bg-primary text-primary-foreground font-black text-xs shadow-sm shrink-0">
-                  T
+                  {APP_NAME.charAt(0)}
                 </div>
                 <span className="text-xs font-black tracking-widest text-foreground uppercase">
-                  Texora
+                  {APP_NAME}
                 </span>
               </div>
               {isMobile ? (

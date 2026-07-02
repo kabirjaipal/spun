@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
 import { SessionProvider } from "next-auth/react";
+import { APP_NAME, APP_DESCRIPTION } from "@/lib/constants";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -16,25 +17,24 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Texora — Modern ERP for Textile Businesses",
-    template: "%s · Texora",
+    default: `${APP_NAME} — Modern ERP for Textile Businesses`,
+    template: `%s · ${APP_NAME}`,
   },
-  description:
-    "Texora is a modern cloud ERP for textile businesses — manage bookkeeping, inventory, GST, vouchers, and reports in one place.",
+  description: APP_DESCRIPTION,
   keywords: ["ERP", "textile", "bookkeeping", "inventory", "GST", "vouchers", "accounting"],
-  authors: [{ name: "Texora" }],
-  creator: "Texora",
-  metadataBase: new URL("https://texora.app"),
+  authors: [{ name: APP_NAME }],
+  creator: APP_NAME,
+  metadataBase: new URL("https://spun.app"),
   openGraph: {
-    title: "Texora — Modern ERP for Textile Businesses",
+    title: `${APP_NAME} — Modern ERP for Textile Businesses`,
     description:
       "Cloud ERP built for textile businesses. Tally-standard voucher engine, inventory, GST reports, and more.",
-    siteName: "Texora",
+    siteName: APP_NAME,
     type: "website",
   },
   twitter: {
     card: "summary",
-    title: "Texora — Modern ERP for Textile Businesses",
+    title: `${APP_NAME} — Modern ERP for Textile Businesses`,
     description: "Cloud ERP built for textile businesses.",
   },
 };

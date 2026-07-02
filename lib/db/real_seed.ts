@@ -25,18 +25,18 @@ import { eq, inArray } from "drizzle-orm";
 export async function seedRealData() {
   console.log("Seeding database with realistic textile company data...");
 
-  // 1. Password hashing for user test@texora.com
+  // 1. Password hashing for user test@spun.app
   const salt = await bcrypt.genSalt(10);
   const passwordHash = await bcrypt.hash("password123", salt);
 
   await db.transaction(async (tx) => {
     // 1.5. Cleanup existing test user and associated company data
     const existingUser = await tx.query.mUsers.findFirst({
-      where: eq(mUsers.email, "test@texora.com"),
+      where: eq(mUsers.email, "test@spun.app"),
     });
 
     if (existingUser) {
-      console.log("Found existing test@texora.com user. Cleaning up old seed data...");
+      console.log("Found existing test@spun.app user. Cleaning up old seed data...");
       const testCompanyId = existingUser.companyId;
 
       // 1. Delete the user record first to resolve foreign key constraints
@@ -104,9 +104,9 @@ export async function seedRealData() {
         }
         await tx.delete(mCompanies).where(eq(mCompanies.companyId, parentId));
       }
-      console.log("Cleanup of test@texora.com data completed.");
+      console.log("Cleanup of test@spun.app data completed.");
     } else {
-      console.log("not found test@texora.com user.")
+      console.log("not found test@spun.app user.")
     }
 
     // 2. Tax Rates
@@ -131,18 +131,18 @@ export async function seedRealData() {
     // 3. Primary Company
     console.log("Inserting primary company...");
     const [company] = await tx.insert(mCompanies).values({
-      companyName: "Texora Trading Co.",
+      companyName: "Spun Trading Co.",
       gstNo: "24AAAAB1234C1Z1",
       panNo: "AAAAB1234C",
       address: "102-105, Ring Road Textile Market",
       pincode: "395002",
       state: "Gujarat",
       phone: "+91 98765 43210",
-      email: "info@texoratrading.com",
+      email: "info@spuntrading.com",
       currencySymbol: "₹",
       nationName: "India",
       bankName: "State Bank of India",
-      bankAccountName: "Texora Trading Co.",
+      bankAccountName: "Spun Trading Co.",
       accountNo: "34567890123",
       ifscCode: "SBIN0001234",
       branchName: "Ring Road Branch",
@@ -157,11 +157,11 @@ export async function seedRealData() {
     }).returning();
     const companyId = Number(company.companyId);
 
-    // 4. Seeding user test@texora.com linked to this company
+    // 4. Seeding user test@spun.app linked to this company
     console.log("Inserting test user...");
     const [user] = await tx.insert(mUsers).values({
       name: "Test User",
-      email: "test@texora.com",
+      email: "test@spun.app",
       passwordHash,
       role: "company",
       companyId: companyId,
@@ -178,18 +178,18 @@ export async function seedRealData() {
     // Second Main Company
     console.log("Inserting second main company...");
     await tx.insert(mCompanies).values({
-      companyName: "Texora Manufacturing Pvt Ltd",
+      companyName: "Spun Manufacturing Pvt Ltd",
       gstNo: "24AAACM4567D2Z2",
       panNo: "AAACM4567D",
       address: "Plot 12, GIDC Sachin",
       pincode: "394230",
       state: "Gujarat",
       phone: "+91 98765 00002",
-      email: "mfg@texora.com",
+      email: "mfg@spun.app",
       currencySymbol: "₹",
       nationName: "India",
       bankName: "HDFC Bank",
-      bankAccountName: "Texora Manufacturing Pvt Ltd",
+      bankAccountName: "Spun Manufacturing Pvt Ltd",
       accountNo: "98765432101",
       ifscCode: "HDFC0000123",
       branchName: "Sachin Branch",
@@ -208,18 +208,18 @@ export async function seedRealData() {
     // Third Main Company
     console.log("Inserting third main company...");
     await tx.insert(mCompanies).values({
-      companyName: "Texora Retail Hub",
+      companyName: "Spun Retail Hub",
       gstNo: "24AAACR7890E3Z3",
       panNo: "AAACR7890E",
       address: "Shop 1-5, City Center Mall",
       pincode: "395007",
       state: "Gujarat",
       phone: "+91 98765 00003",
-      email: "retail@texora.com",
+      email: "retail@spun.app",
       currencySymbol: "₹",
       nationName: "India",
       bankName: "ICICI Bank",
-      bankAccountName: "Texora Retail Hub",
+      bankAccountName: "Spun Retail Hub",
       accountNo: "12345678901",
       ifscCode: "ICIC0000456",
       branchName: "Adajan Branch",

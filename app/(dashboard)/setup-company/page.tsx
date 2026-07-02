@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { Building2, Landmark, MapPin, Calendar, FileText, ArrowRight, Phone, Mail, DollarSign, Globe, Trash2 } from "lucide-react";
 import { BANK_LIST, type BankData } from "@/lib/banks";
-import { CURRENCIES, MARKET_CATEGORIES } from "@/lib/constants";
+import { CURRENCIES, MARKET_CATEGORIES, APP_NAME, STORAGE_BANKS_KEY } from "@/lib/constants";
 
 interface CompanyFormState {
   companyName: string;
@@ -115,7 +115,7 @@ export default function SetupCompanyPage() {
 
   const [localBanks, setLocalBanks] = useState<BankData[]>(() => {
     if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("texora_custom_banks");
+      const saved = localStorage.getItem(STORAGE_BANKS_KEY);
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
@@ -131,7 +131,7 @@ export default function SetupCompanyPage() {
   const saveCustomBanks = (updatedBanks: BankData[]) => {
     setLocalBanks(updatedBanks);
     if (typeof window !== "undefined") {
-      localStorage.setItem("texora_custom_banks", JSON.stringify(updatedBanks));
+      localStorage.setItem(STORAGE_BANKS_KEY, JSON.stringify(updatedBanks));
     }
   };
 
@@ -268,9 +268,9 @@ export default function SetupCompanyPage() {
         
         <div className="flex items-center gap-2 z-10">
           <div className="h-8 w-8 rounded-lg bg-primary-foreground/20 flex items-center justify-center border border-primary-foreground/10">
-            <span className="font-bold text-lg tracking-wider">T</span>
+            <span className="font-bold text-lg tracking-wider">{APP_NAME.charAt(0)}</span>
           </div>
-          <span className="text-xl font-bold tracking-wider">TEXORA</span>
+          <span className="text-xl font-bold tracking-wider uppercase">{APP_NAME}</span>
         </div>
         
         <div className="space-y-8 z-10">
@@ -297,7 +297,7 @@ export default function SetupCompanyPage() {
         </div>
 
         <div className="text-xs text-primary-foreground/60 z-10">
-          © {currentYear} Texora ERP. All rights reserved.
+          © {currentYear} {APP_NAME} ERP. All rights reserved.
         </div>
       </div>
 

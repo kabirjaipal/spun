@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { APP_NAME } from "@/lib/constants";
 
 export default function RegisterForm() {
   const [name, setName] = useState("");
@@ -19,63 +20,58 @@ export default function RegisterForm() {
     setLoading(true);
 
     try {
-      const registerRes = await fetch("/api/auth/register", {
+      const signupRes = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email,
-          name,
-          password,
-        }),
+        body: JSON.stringify({ name, email, password }),
       });
 
-      const registerData = await registerRes.json();
+      const data = await signupRes.json();
 
-      if (!registerRes.ok) {
-        throw new Error(registerData.error || "Failed to register");
+      if (!signupRes.ok) {
+        throw new Error(data.message || "Failed to register");
       }
 
-      // Automatically sign in the user
-      const loginRes = await signIn("credentials", {
+      // Auto login after signup
+      const res = await signIn("credentials", {
         redirect: false,
         email,
         password,
       });
 
-      if (loginRes?.error) {
-        setError("Account created, but automatic sign-in failed. Please login manually.");
+      if (res?.error) {
+        setError("Account created but auto-login failed. Please log in manually.");
       } else {
-        // Redirect to setup company page directly
         router.push("/setup-company");
         router.refresh();
       }
     } catch (err: any) {
-      setError(err.message || "An unexpected error occurred.");
+      setError(err.message || "An unexpected error occurred");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row">
-      {/* Left Column: Hero Sidebar */}
-      <div className="hidden lg:flex lg:w-1/2 bg-primary text-primary-foreground p-12 flex-col justify-between relative overflow-hidden">
-        {/* Decorative subtle background shapes */}
-        <div className="absolute top-[-20%] left-[-20%] w-[80%] h-[80%] rounded-full bg-secondary/15 blur-3xl" />
+    <div className="min-h-screen flex flex-col lg:flex-row bg-background">
+      {/* Left Column: Branding (hidden on mobile) */}
+      <div className="hidden lg:flex w-1/2 bg-primary text-primary-foreground flex-col justify-between p-12 relative overflow-hidden select-none">
+        {/* Glow Effects */}
+        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-primary-foreground/10 blur-3xl" />
         <div className="absolute bottom-[-20%] right-[-20%] w-[80%] h-[80%] rounded-full bg-secondary/10 blur-3xl" />
         
         {/* Brand Header */}
         <div className="relative z-10 flex items-center gap-3">
           <div className="h-10 w-10 flex items-center justify-center rounded-lg bg-primary-foreground text-primary text-xl font-bold shadow-md">
-            T
+            {APP_NAME.charAt(0)}
           </div>
-          <span className="font-bold text-lg uppercase tracking-wider">Texora ERP</span>
+          <span className="font-bold text-lg uppercase tracking-wider">{APP_NAME} ERP</span>
         </div>
 
         {/* Hero Text */}
         <div className="relative z-10 space-y-6 max-w-lg my-auto">
           <h1 className="text-4xl font-extrabold tracking-tight leading-tight">
-            Start Your Journey with Texora Cloud ERP
+            Start Your Journey with {APP_NAME} Cloud ERP
           </h1>
           <p className="text-primary-foreground/80 text-sm">
             Set up your organization, configure allowed page roles, add warehouses, and begin managing your textile bookkeeping workflow in minutes.
@@ -109,7 +105,7 @@ export default function RegisterForm() {
 
         {/* Footer details */}
         <div className="relative z-10 text-xs text-primary-foreground/60">
-          © {new Date().getFullYear()} Texora. All rights reserved. Trusted by modern textile mills and traders globally.
+          © {new Date().getFullYear()} {APP_NAME}. All rights reserved. Trusted by modern textile mills and traders globally.
         </div>
       </div>
 
@@ -118,7 +114,7 @@ export default function RegisterForm() {
         <div className="w-full max-w-md space-y-8 bg-card rounded-xl border border-border p-8 shadow-sm">
           <div className="text-center lg:text-left">
             <div className="lg:hidden inline-flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-xl font-bold text-primary-foreground shadow-sm mb-4">
-              T
+              {APP_NAME.charAt(0)}
             </div>
             <h2 className="text-2xl font-bold tracking-tight text-foreground">
               Create your account

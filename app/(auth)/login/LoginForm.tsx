@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { APP_NAME } from "@/lib/constants";
 
 export default function LoginForm() {
   const [email, setEmail] = useState("");
@@ -50,9 +51,9 @@ export default function LoginForm() {
         {/* Brand Header */}
         <div className="relative z-10 flex items-center gap-3">
           <div className="h-10 w-10 flex items-center justify-center rounded-lg bg-primary-foreground text-primary text-xl font-bold shadow-md">
-            T
+            {APP_NAME.charAt(0)}
           </div>
-          <span className="font-bold text-lg uppercase tracking-wider">Texora ERP</span>
+          <span className="font-bold text-lg uppercase tracking-wider">{APP_NAME} ERP</span>
         </div>
 
         {/* Hero Text */}
@@ -92,7 +93,7 @@ export default function LoginForm() {
 
         {/* Footer details */}
         <div className="relative z-10 text-xs text-primary-foreground/60">
-          © {new Date().getFullYear()} Texora. All rights reserved. Trusted by modern textile mills and traders globally.
+          © {new Date().getFullYear()} {APP_NAME}. All rights reserved. Trusted by modern textile mills and traders globally.
         </div>
       </div>
 
@@ -101,7 +102,7 @@ export default function LoginForm() {
         <div className="w-full max-w-md space-y-8 bg-card rounded-xl border border-border p-8 shadow-sm">
           <div className="text-center lg:text-left">
             <div className="lg:hidden inline-flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-xl font-bold text-primary-foreground shadow-sm mb-4">
-              T
+              {APP_NAME.charAt(0)}
             </div>
             <h2 className="text-2xl font-bold tracking-tight text-foreground">
               Sign in to your account

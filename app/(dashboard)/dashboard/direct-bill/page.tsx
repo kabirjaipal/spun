@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { mInventory, mLedgers, mTaxRates, mCompanies, tVouchers } from "@/lib/db/schema";
 import { and, eq, isNull, desc } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
+import { APP_NAME } from "@/lib/constants";
 import DirectBillClient from "./DirectBillClient";
 
 export default async function DirectBillPage() {
@@ -64,7 +65,7 @@ export default async function DirectBillPage() {
         ...v,
         voucherDate: v.voucherDate ? new Date(v.voucherDate) : null
       }))}
-      company={company ? { companyName: company.companyName, gstNo: company.gstNo, address: company.address, state: company.state } : { companyName: "Texora Company", state: null }}
+      company={company ? { companyName: company.companyName, gstNo: company.gstNo, address: company.address, state: company.state } : { companyName: `${APP_NAME} Company`, state: null }}
       companies={companies.map((comp) => ({
         companyId: comp.companyId,
         companyName: comp.companyName,

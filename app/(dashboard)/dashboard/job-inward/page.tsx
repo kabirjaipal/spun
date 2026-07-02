@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { mJobs, mInventory, mTaxRates, mCompanies, tVouchers, tVoucherItems, mBrokersHaste } from "@/lib/db/schema";
 import { and, eq, isNull } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
+import { APP_NAME } from "@/lib/constants";
 import JobInwardClient from "./JobInwardClient";
 
 export default async function JobInwardPage() {
@@ -71,7 +72,7 @@ export default async function JobInwardPage() {
 
   return (
     <JobInwardClient
-      company={company ? { companyName: company.companyName, gstNo: company.gstNo, address: company.address } : { companyName: "Texora Company" }}
+      company={company ? { companyName: company.companyName, gstNo: company.gstNo, address: company.address } : { companyName: `{APP_NAME} Company` }}
       jobs={jobs.map((job) => ({
         jobId: job.jobId,
         jobName: job.jobName,

@@ -12,7 +12,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 # shadcn Components Rule
 - **NEVER create shadcn components manually.** Always add them via the CLI: `npx shadcn@latest add <component>`.
-- Run from the project root (`/media/kabir/Programming/Codes/Github-Projects/texora`).
+- Run from the project root (`/media/kabir/Programming/Codes/Github-Projects/spun`).
 - Check `components/ui/` first — if the component file already exists, do not add it again.
 
 # UI & UX Conventions

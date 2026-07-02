@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Pencil, Trash2, Building2, Landmark, MapPin, Calendar, FileText, Phone, Mail, DollarSign, Globe, ArrowLeft } from "lucide-react";
 import ExportButton from "@/components/ExportButton";
 import { BANK_LIST, type BankData } from "@/lib/banks";
-import { CURRENCIES, MARKET_CATEGORIES } from "@/lib/constants";
+import { CURRENCIES, MARKET_CATEGORIES, STORAGE_BANKS_KEY } from "@/lib/constants";
 
 interface Party {
   companyId: number;
@@ -120,7 +120,7 @@ export default function PartiesClient({
 
   const [localBanks, setLocalBanks] = useState<BankData[]>(() => {
     if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("texora_custom_banks");
+      const saved = localStorage.getItem(STORAGE_BANKS_KEY);
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
@@ -136,7 +136,7 @@ export default function PartiesClient({
   const saveCustomBanks = (updatedBanks: BankData[]) => {
     setLocalBanks(updatedBanks);
     if (typeof window !== "undefined") {
-      localStorage.setItem("texora_custom_banks", JSON.stringify(updatedBanks));
+      localStorage.setItem(STORAGE_BANKS_KEY, JSON.stringify(updatedBanks));
     }
   };
 

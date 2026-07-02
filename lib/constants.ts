@@ -58,3 +58,9 @@ export const DEFAULT_LEDGER_GROUPS = [
 ];
 
 export const DEFAULT_INVENTORY_GROUPS = ["Consumable", "Selling"];
+
+export const APP_NAME = "Spun";
+export const APP_DESCRIPTION = "Spun is a modern cloud ERP for textile businesses — manage bookkeeping, inventory, GST, vouchers, and reports in one place.";
+export const APP_MOTTO = "Modern ERP for Textile Businesses";
+export const STORAGE_BANKS_KEY = "spun_custom_banks";
+

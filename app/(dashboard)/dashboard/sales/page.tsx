@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { mInventory, mTaxRates, mCompanies, tVouchers, mBrokersHaste } from "@/lib/db/schema";
 import { and, eq, isNull, desc } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
+import { APP_NAME } from "@/lib/constants";
 import SalesClient from "./SalesClient";
 
 export default async function SalesPage() {
@@ -71,7 +72,7 @@ export default async function SalesPage() {
 
   return (
     <SalesClient
-      company={company ? { companyName: company.companyName, gstNo: company.gstNo, address: company.address, companyType: company.companyType, state: company.state } : { companyName: "Texora Company", companyType: "general", state: null }}
+      company={company ? { companyName: company.companyName, gstNo: company.gstNo, address: company.address, companyType: company.companyType, state: company.state } : { companyName: `{APP_NAME} Company`, companyType: "general", state: null }}
       parties={parties.map((c) => ({
         partyId: c.partyId,
         partyName: c.partyName,

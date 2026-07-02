@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { mInventory, mLedgers, mTaxRates, mCompanies, tVouchers } from "@/lib/db/schema";
 import { and, eq, isNull, desc } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
+import { APP_NAME } from "@/lib/constants";
 import CreditNoteClient from "./CreditNoteClient";
 
 export default async function CreditNotePage() {
@@ -70,7 +71,7 @@ export default async function CreditNotePage() {
         ...n,
         voucherDate: n.voucherDate ? new Date(n.voucherDate) : null
       }))}
-      company={company ? { companyName: company.companyName, gstNo: company.gstNo, address: company.address, state: company.state } : { companyName: "Texora Company", state: null }}
+      company={company ? { companyName: company.companyName, gstNo: company.gstNo, address: company.address, state: company.state } : { companyName: `{APP_NAME} Company`, state: null }}
       parties={parties.map((c) => ({
         partyId: c.partyId,
         partyName: c.partyName,
