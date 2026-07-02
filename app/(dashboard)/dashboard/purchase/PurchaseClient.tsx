@@ -12,6 +12,7 @@ import PrintInvoiceModal from "@/components/PrintInvoiceModal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import BrokerHasteDialog from "@/components/BrokerHasteDialog";
 import PieceMetersDialog from "@/components/PieceMetersDialog";
+import PartyFormDrawer from "@/components/PartyFormDrawer";
 import { calculatePreTaxDiscount } from "@/lib/utils";
 
 interface CompanyOption {
@@ -93,10 +94,10 @@ export default function PurchaseClient({
   const router = useRouter();
 
 
+  const [localCompanies, setLocalCompanies] = useState<CompanyOption[]>(companies);
+
   // Dialog States for inline creation
   const [showPartyModal, setShowPartyModal] = useState(false);
-  const [partyForm, setPartyForm] = useState({ companyName: "", gstNo: "", address: "", phone: "", email: "" });
-  const [partySaving, setPartySaving] = useState(false);
 
   const [brokersHasteData, setBrokersHasteData] = useState(brokersHaste);
 
@@ -106,26 +107,17 @@ export default function PurchaseClient({
   const brokers = brokersHasteData.filter((r) => r.type === "broker");
   const hastes = brokersHasteData.filter((r) => r.type === "haste");
 
-  async function handleCreateParty() {
-    if (!partyForm.companyName) return;
-    setPartySaving(true);
-    try {
-      const res = await fetch("/api/parties", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...partyForm, openingBalance: 0 }),
-      });
-      if (res.ok) {
-        setShowPartyModal(false);
-        router.push("/dashboard/parties");
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setPartySaving(false);
-    }
+  function handlePartyCreated(newParty: any) {
+    const newOption: CompanyOption = {
+      companyId: newParty.companyId,
+      companyName: newParty.companyName,
+      gstNo: newParty.gstNo,
+      address: newParty.address,
+      state: newParty.state,
+    };
+    setLocalCompanies((prev) => [...prev, newOption]);
+    setSelectedCompany(String(newParty.companyId));
   }
-
 
   const purchaseType = "purchase";
   const [selectedCompany, setSelectedCompany] = useState("");
@@ -176,7 +168,7 @@ export default function PurchaseClient({
  
   // Check if Interstate or Intrastate GST
   const isInterstate = useMemo(() => {
-    const subCompany = companies.find((s) => String(s.companyId) === selectedCompany);
+    const subCompany = localCompanies.find((s) => String(s.companyId) === selectedCompany);
     if (company?.state && subCompany?.state) {
       return company.state.trim().toLowerCase() !== subCompany.state.trim().toLowerCase();
     }
@@ -184,7 +176,7 @@ export default function PurchaseClient({
     const subCompanyGst = subCompany?.gstNo || "";
     if (!companyGst || !subCompanyGst) return false;
     return companyGst.slice(0, 2) !== subCompanyGst.slice(0, 2);
-  }, [company, selectedCompany, companies]);
+  }, [company, selectedCompany, localCompanies]);
 
   const lineTotals = useMemo(() => {
     const linesRaw = lineItems.map((line) => {
@@ -387,7 +379,7 @@ export default function PurchaseClient({
       setLineItems([EMPTY_LINE()]);
 
       // Print preview setup
-      const subCompany = companies.find((s) => String(s.companyId) === selectedCompany);
+      const subCompany = localCompanies.find((s) => String(s.companyId) === selectedCompany);
       setPrintVoucher({
         voucher: {
           voucherNo: body.voucherNo,
@@ -459,7 +451,7 @@ export default function PurchaseClient({
                   <SelectValue placeholder="Choose name" />
                 </SelectTrigger>
                 <SelectContent>
-                  {companies.map((s) => (
+                  {localCompanies.map((s) => (
                     <SelectItem key={s.companyId} value={String(s.companyId)}>
                       {s.companyName} {s.gstNo ? `(${s.gstNo})` : ""}
                     </SelectItem>
@@ -581,7 +573,7 @@ export default function PurchaseClient({
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[1300px]">
+          <table className="w-full text-left border-collapse min-w-[1600px]">
             <thead>
               <tr className="border-b border-border text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
                 <th className="py-2 pr-4 w-[18%]">Item</th>
@@ -919,45 +911,11 @@ export default function PurchaseClient({
       )}
 
       {/* Modals for inline creation */}
-      <Dialog open={showPartyModal} onOpenChange={setShowPartyModal}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="text-sm font-bold uppercase">New Party / Company</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">Name</Label>
-              <Input
-                placeholder="e.g. Acme Fabrics"
-                value={partyForm.companyName}
-                onChange={(e) => setPartyForm({ ...partyForm, companyName: e.target.value })}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">GSTIN</Label>
-              <Input
-                placeholder="24XXXXX0000X1ZX"
-                value={partyForm.gstNo}
-                onChange={(e) => setPartyForm({ ...partyForm, gstNo: e.target.value })}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">Address</Label>
-              <Input
-                placeholder="Address Details"
-                value={partyForm.address}
-                onChange={(e) => setPartyForm({ ...partyForm, address: e.target.value })}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowPartyModal(false)}>Cancel</Button>
-            <Button onClick={handleCreateParty} disabled={partySaving || !partyForm.companyName}>
-              {partySaving ? "Saving..." : "Create"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <PartyFormDrawer
+        isOpen={showPartyModal}
+        onClose={() => setShowPartyModal(false)}
+        onCreated={handlePartyCreated}
+      />
 
       <BrokerHasteDialog
         type="broker"

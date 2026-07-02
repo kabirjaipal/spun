@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2, Eye, FileText } from "lucide-react";
 import PrintInvoiceModal from "@/components/PrintInvoiceModal";
 import BrokerHasteDialog from "@/components/BrokerHasteDialog";
+import PartyFormDrawer from "@/components/PartyFormDrawer";
 import { calculatePreTaxDiscount } from "@/lib/utils";
 
 interface PartyOption {
@@ -94,9 +95,24 @@ export default function SalesClient({
 }) {
 
 
+  const [localParties, setLocalParties] = useState<PartyOption[]>(parties);
+  const [showPartyModal, setShowPartyModal] = useState(false);
+
   const [brokersHasteData, setBrokersHasteData] = useState(brokersHaste);
   const brokers = brokersHasteData.filter((r) => r.type === "broker");
   const hastes = brokersHasteData.filter((r) => r.type === "haste");
+
+  function handlePartyCreated(newParty: any) {
+    const newOption: PartyOption = {
+      partyId: newParty.companyId,
+      partyName: newParty.companyName,
+      gstNo: newParty.gstNo,
+      address: newParty.address,
+      state: newParty.state,
+    };
+    setLocalParties((prev) => [...prev, newOption]);
+    setSelectedParty(String(newParty.companyId));
+  }
 
   const [salesType, setSalesType] = useState<"grey" | "finished" | "other">("grey");
   const [selectedParty, setSelectedParty] = useState("");
@@ -128,7 +144,7 @@ export default function SalesClient({
 
   // Check if Interstate or Intrastate GST
   const isInterstate = useMemo(() => {
-    const party = parties.find((c) => String(c.partyId) === selectedParty);
+    const party = localParties.find((c) => String(c.partyId) === selectedParty);
     if (company?.state && party?.state) {
       return company.state.trim().toLowerCase() !== party.state.trim().toLowerCase();
     }
@@ -136,7 +152,7 @@ export default function SalesClient({
     const partyGst = party?.gstNo || "";
     if (!companyGst || !partyGst) return false;
     return companyGst.slice(0, 2) !== partyGst.slice(0, 2);
-  }, [company, selectedParty, parties]);
+  }, [company, selectedParty, localParties]);
 
   const lineTotals = useMemo(() => {
     const linesRaw = lineItems.map((line) => {
@@ -318,7 +334,7 @@ export default function SalesClient({
       const responseData = await response.json();
       setMessage("Sales voucher created successfully.");
 
-      const party = parties.find((c) => String(c.partyId) === selectedParty);
+      const party = localParties.find((c) => String(c.partyId) === selectedParty);
       const newVoucher: PastVoucher = {
         voucherId: responseData.voucherId,
         voucherNo: body.voucherNo,
@@ -405,13 +421,24 @@ export default function SalesClient({
           <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">Party Details</h2>
           
           <div className="space-y-1.5">
-            <Label className="text-xs font-semibold uppercase text-foreground">Party</Label>
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-semibold uppercase text-foreground">Party</Label>
+              {canCreate && (
+                <button
+                  type="button"
+                  onClick={() => setShowPartyModal(true)}
+                  className="text-[10px] font-bold text-primary hover:underline uppercase"
+                >
+                  + New Party
+                </button>
+              )}
+            </div>
             <Select value={selectedParty} onValueChange={setSelectedParty}>
               <SelectTrigger className="h-9">
                 <SelectValue placeholder="Choose party" />
               </SelectTrigger>
               <SelectContent>
-                {parties.map((c) => (
+                {localParties.map((c) => (
                   <SelectItem key={c.partyId} value={String(c.partyId)}>
                     {c.partyName} {c.gstNo ? `(${c.gstNo})` : ""}
                   </SelectItem>
@@ -522,7 +549,7 @@ export default function SalesClient({
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[1250px]">
+          <table className="w-full text-left border-collapse min-w-[1600px]">
             <thead>
               <tr className="border-b border-border text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
                 <th className="py-2 pr-4 w-[16%]">Item</th>
@@ -858,6 +885,11 @@ export default function SalesClient({
           lines={printVoucher.lines}
         />
       )}
+      <PartyFormDrawer
+        isOpen={showPartyModal}
+        onClose={() => setShowPartyModal(false)}
+        onCreated={handlePartyCreated}
+      />
     </div>
   );
 }
