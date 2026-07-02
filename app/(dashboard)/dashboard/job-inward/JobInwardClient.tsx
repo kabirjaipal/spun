@@ -169,18 +169,19 @@ export default function JobInwardClient({
       const rate = Number(line.rate) || 0;
       const fold = Number(line.fold) || 100;
 
-      const multiplier = line.jobRateType === "pcs" ? pcs : (qty * fold / 100);
-      const amount = Math.round((multiplier * rate) * 100) / 100;
+      const unit = line.jobRateType === "pcs" ? pcs : qty;
+      const amount = Math.round((unit * rate) * 100) / 100;
+      const netAmount = Math.round(((unit * rate * fold) / 100) * 100) / 100;
 
       const gstRatePercent = Number(line.gstRateId ? taxRates.find((t) => String(t.taxRateId) === line.gstRateId)?.taxPercent : 0) || 0;
-      const totalTax = Math.round((amount * gstRatePercent) / 100 * 100) / 100;
+      const totalTax = Math.round((netAmount * gstRatePercent) / 100 * 100) / 100;
 
       // Shortage calculation (outward - inward)
       const shortageQty = Math.max(0, line.outwardQuantity - qty);
       const shortagePcs = Math.max(0, line.outwardPcs - pcs);
       const shortagePercent = line.outwardQuantity > 0 ? Math.round((shortageQty / line.outwardQuantity) * 100 * 100) / 100 : 0;
 
-      return { amount, totalTax, net: amount + totalTax, shortageQty, shortagePcs, shortagePercent };
+      return { amount, netAmount, totalTax, net: netAmount + totalTax, shortageQty, shortagePcs, shortagePercent };
     });
   }, [lineItems, taxRates]);
 
@@ -188,10 +189,11 @@ export default function JobInwardClient({
     return lineTotals.reduce(
       (acc, item) => ({
         amount: acc.amount + item.amount,
+        netAmount: acc.netAmount + item.netAmount,
         tax: acc.tax + item.totalTax,
         total: acc.total + item.net,
       }),
-      { amount: 0, tax: 0, total: 0 }
+      { amount: 0, netAmount: 0, tax: 0, total: 0 }
     );
   }, [lineTotals]);
 
@@ -497,7 +499,7 @@ export default function JobInwardClient({
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[1100px]">
+          <table className="w-full text-left border-collapse min-w-[1200px]">
             <thead>
               <tr className="border-b border-border text-xs font-bold uppercase text-muted-foreground">
                 <th className="py-2 pr-2 w-[20%]">Item</th>
@@ -507,7 +509,8 @@ export default function JobInwardClient({
                 <th className="py-2 px-2 w-[10%]">Inward Meters</th>
                 <th className="py-2 px-2 w-[8%] text-center">Shortage %</th>
                 <th className="py-2 px-2 w-[8%]">Rate</th>
-                <th className="py-2 px-2 w-[10%] text-right">Inward Amt</th>
+                <th className="py-2 px-2 w-[8%] text-right">Amount</th>
+                <th className="py-2 px-2 w-[8%] text-right">Net Amount</th>
                 <th className="py-2 pl-2 w-[3%]"></th>
               </tr>
             </thead>
@@ -588,6 +591,9 @@ export default function JobInwardClient({
 
                       <td className="py-3 px-2 text-right font-mono font-bold text-foreground">
                         ₹ {totals.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      </td>
+                      <td className="py-3 px-2 text-right font-mono font-bold text-foreground">
+                        ₹ {totals.netAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                       </td>
 
                       <td className="py-3 pl-2 text-center">

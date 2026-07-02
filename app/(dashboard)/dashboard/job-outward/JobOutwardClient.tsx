@@ -116,14 +116,14 @@ export default function JobOutwardClient({
       const rate = Number(line.rate) || 0;
       const fold = Number(line.fold) || 100;
 
-      // Amount formula: if jobRateType is 'pcs', then pcs * rate. If 'mtr', then qty * rate * fold / 100.
-      const multiplier = line.jobRateType === "pcs" ? pcs : (qty * fold / 100);
-      const amount = Math.round((multiplier * rate) * 100) / 100;
+      const unit = line.jobRateType === "pcs" ? pcs : qty;
+      const amount = Math.round((unit * rate) * 100) / 100;
+      const netAmount = Math.round(((unit * rate * fold) / 100) * 100) / 100;
 
       const gstRatePercent = Number(line.gstRateId ? taxRates.find((t) => String(t.taxRateId) === line.gstRateId)?.taxPercent : 0) || 0;
-      const totalTax = Math.round((amount * gstRatePercent) / 100 * 100) / 100;
+      const totalTax = Math.round((netAmount * gstRatePercent) / 100 * 100) / 100;
 
-      return { amount, totalTax, net: amount + totalTax };
+      return { amount, netAmount, totalTax, net: netAmount + totalTax };
     });
   }, [lineItems, taxRates]);
 
@@ -131,10 +131,11 @@ export default function JobOutwardClient({
     return lineTotals.reduce(
       (acc, item) => ({
         amount: acc.amount + item.amount,
+        netAmount: acc.netAmount + item.netAmount,
         tax: acc.tax + item.totalTax,
         total: acc.total + item.net,
       }),
-      { amount: 0, tax: 0, total: 0 }
+      { amount: 0, netAmount: 0, tax: 0, total: 0 }
     );
   }, [lineTotals]);
 
@@ -426,17 +427,18 @@ export default function JobOutwardClient({
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[1000px]">
+          <table className="w-full text-left border-collapse min-w-[1100px]">
             <thead>
               <tr className="border-b border-border text-xs font-bold uppercase text-muted-foreground">
-                <th className="py-2 pr-2 w-[30%]">Item</th>
+                <th className="py-2 pr-2 w-[28%]">Item</th>
                 <th className="py-2 px-2 w-[6%]">Fold%</th>
                 <th className="py-2 px-2 w-[8%]">PCS</th>
-                <th className="py-2 px-2 w-[10%]">Meters</th>
+                <th className="py-2 px-2 w-[8%]">Meters</th>
                 <th className="py-2 px-2 w-[10%]">Job Type</th>
                 <th className="py-2 px-2 w-[8%]">Unit</th>
                 <th className="py-2 px-2 w-[8%]">Rate</th>
-                <th className="py-2 px-2 w-[10%] text-right">Amount</th>
+                <th className="py-2 px-2 w-[8%] text-right">Amount</th>
+                <th className="py-2 px-2 w-[8%] text-right">Net Amount</th>
                 <th className="py-2 pl-2 w-[5%]"></th>
               </tr>
             </thead>
@@ -524,6 +526,9 @@ export default function JobOutwardClient({
 
                     <td className="py-3 px-2 text-right font-mono font-bold text-foreground">
                       ₹ {totals.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                    </td>
+                    <td className="py-3 px-2 text-right font-mono font-bold text-foreground">
+                      ₹ {totals.netAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                     </td>
 
                     <td className="py-3 pl-2 text-center">

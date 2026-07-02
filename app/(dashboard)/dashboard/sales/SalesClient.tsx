@@ -139,9 +139,9 @@ export default function SalesClient({
       const fold = Number(line.fold) || 100;
       const gstRatePercent = Number(line.gstRateId ? taxRates.find((t) => String(t.taxRateId) === line.gstRateId)?.taxPercent : 0) || 0;
       
-      // Fold calculation: qty * rate * fold / 100
-      const amount = Math.round((qty * rate * fold / 100) * 100) / 100;
-      const totalTax = Math.round((amount * gstRatePercent) / 100 * 100) / 100;
+      const amount = Math.round((qty * rate) * 100) / 100;
+      const netAmount = Math.round(((qty * rate * fold) / 100) * 100) / 100;
+      const totalTax = Math.round((netAmount * gstRatePercent) / 100 * 100) / 100;
       
       let cgst = 0;
       let sgst = 0;
@@ -154,7 +154,7 @@ export default function SalesClient({
         sgst = Math.round((totalTax - cgst) * 100) / 100;
       }
 
-      return { amount, cgst, sgst, igst, totalTax, net: amount + totalTax };
+      return { amount, netAmount, cgst, sgst, igst, totalTax, net: netAmount + totalTax };
     });
   }, [lineItems, taxRates, isInterstate]);
 
@@ -162,13 +162,14 @@ export default function SalesClient({
     return lineTotals.reduce(
       (acc, item) => ({
         amount: acc.amount + item.amount,
+        netAmount: acc.netAmount + item.netAmount,
         cgst: acc.cgst + item.cgst,
         sgst: acc.sgst + item.sgst,
         igst: acc.igst + item.igst,
         tax: acc.tax + item.totalTax,
         total: acc.total + item.net,
       }),
-      { amount: 0, cgst: 0, sgst: 0, igst: 0, tax: 0, total: 0 }
+      { amount: 0, netAmount: 0, cgst: 0, sgst: 0, igst: 0, tax: 0, total: 0 }
     );
   }, [lineTotals]);
 
@@ -281,7 +282,7 @@ export default function SalesClient({
         voucherNo: body.voucherNo,
         voucherDate: body.voucherDate,
         status: "posted",
-        totalAmount: grandTotals.amount,
+        totalAmount: grandTotals.netAmount,
         taxAmount: grandTotals.tax,
         netAmount: grandTotals.total,
         remarks: body.remarks,
@@ -476,20 +477,21 @@ export default function SalesClient({
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[1100px]">
+          <table className="w-full text-left border-collapse min-w-[1250px]">
             <thead>
               <tr className="border-b border-border text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                <th className="py-2 pr-4 w-[18%]">Item</th>
-                <th className="py-2 px-3 w-[6%] text-right">Fold</th>
-                <th className="py-2 px-3 w-[6%] text-right">PCS</th>
-                <th className="py-2 px-3 w-[8%] text-right">Quantity</th>
-                <th className="py-2 px-3 w-[8%] text-right">Rate</th>
-                <th className="py-2 px-3 w-[10%]">GST Rate</th>
-                <th className="py-2 px-3 w-[10%] text-right">Taxable</th>
-                <th className="py-2 px-3 w-[8%] text-right">CGST</th>
-                <th className="py-2 px-3 w-[8%] text-right">SGST</th>
-                <th className="py-2 px-3 w-[8%] text-right">IGST</th>
-                <th className="py-2 px-3 w-[11%] text-right">Net Amt</th>
+                <th className="py-2 pr-4 w-[16%]">Item</th>
+                <th className="py-2 px-3 w-[5%] text-right">Fold</th>
+                <th className="py-2 px-3 w-[5%] text-right">PCS</th>
+                <th className="py-2 px-3 w-[7%] text-right">Quantity</th>
+                <th className="py-2 px-3 w-[7%] text-right">Rate</th>
+                <th className="py-2 px-3 w-[9%]">GST Rate</th>
+                <th className="py-2 px-3 w-[8%] text-right">Amount</th>
+                <th className="py-2 px-3 w-[8%] text-right">Net Amount</th>
+                <th className="py-2 px-3 w-[7%] text-right">CGST</th>
+                <th className="py-2 px-3 w-[7%] text-right">SGST</th>
+                <th className="py-2 px-3 w-[7%] text-right">IGST</th>
+                <th className="py-2 px-3 w-[10%] text-right">Net Amt</th>
                 <th className="py-2 pl-4 w-[4%]"></th>
               </tr>
             </thead>
@@ -564,6 +566,9 @@ export default function SalesClient({
                     </td>
                     <td className="py-3 px-3 text-right font-medium text-foreground">
                       ₹{totals?.amount.toFixed(2)}
+                    </td>
+                    <td className="py-3 px-3 text-right font-medium text-foreground">
+                      ₹{totals?.netAmount.toFixed(2)}
                     </td>
                     <td className="py-3 px-3 text-right font-medium text-muted-foreground">
                       ₹{totals?.cgst.toFixed(2)}

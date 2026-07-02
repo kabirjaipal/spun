@@ -173,9 +173,8 @@ export async function POST(request: Request) {
           const fold = Number(line.fold !== undefined ? line.fold : 100) || 100;
           const jobRateType = line.jobRateType || "mtr";
           
-          // Amount formula: if jobRateType is 'pcs', then pcs * rate. If 'mtr', then qty * rate * fold / 100.
-          const multiplier = jobRateType === "pcs" ? pcs : (qty * fold / 100);
-          const taxableAmount = Math.round((multiplier * rate) * 100) / 100;
+          const unit = jobRateType === "pcs" ? pcs : qty;
+          const taxableAmount = Math.round(((unit * rate * fold) / 100) * 100) / 100;
 
           let cgst = line.cgst !== undefined ? Number(line.cgst) : 0;
           let sgst = line.sgst !== undefined ? Number(line.sgst) : 0;

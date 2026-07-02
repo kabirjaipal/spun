@@ -206,7 +206,8 @@ export default function SalesReturnClient({
       const fold = Number(line.fold) || 100;
       const gstRatePercent = Number(line.gstRateId ? taxRates.find((t) => String(t.taxRateId) === line.gstRateId)?.taxPercent : 0) || 0;
 
-      const amount = Math.round((qty * rate * fold / 100) * 100) / 100;
+      const amount = Math.round((qty * rate) * 100) / 100;
+      const netAmount = Math.round(((qty * rate * fold) / 100) * 100) / 100;
 
       let defaultCgst = 0;
       let defaultSgst = 0;
@@ -223,13 +224,13 @@ export default function SalesReturnClient({
       const sgstPercent = isInterstate ? 0 : (line.sgst !== "" ? (Number(line.sgst) || 0) : defaultSgst);
       const igstPercent = isInterstate ? (line.igst !== "" ? (Number(line.igst) || 0) : defaultIgst) : 0;
 
-      const cgst = Math.round((amount * cgstPercent) / 100 * 100) / 100;
-      const sgst = Math.round((amount * sgstPercent) / 100 * 100) / 100;
-      const igst = Math.round((amount * igstPercent) / 100 * 100) / 100;
+      const cgst = Math.round((netAmount * cgstPercent) / 100 * 100) / 100;
+      const sgst = Math.round((netAmount * sgstPercent) / 100 * 100) / 100;
+      const igst = Math.round((netAmount * igstPercent) / 100 * 100) / 100;
 
       const totalTaxVal = cgst + sgst + igst;
 
-      return { amount, cgst, sgst, igst, cgstPercent, sgstPercent, igstPercent, totalTax: totalTaxVal, net: amount + totalTaxVal };
+      return { amount, netAmount, cgst, sgst, igst, cgstPercent, sgstPercent, igstPercent, totalTax: totalTaxVal, net: netAmount + totalTaxVal };
     });
   }, [lineItems, taxRates, isInterstate]);
 
@@ -237,13 +238,14 @@ export default function SalesReturnClient({
     return lineTotals.reduce(
       (acc, item) => ({
         amount: acc.amount + item.amount,
+        netAmount: acc.netAmount + item.netAmount,
         cgst: acc.cgst + item.cgst,
         sgst: acc.sgst + item.sgst,
         igst: acc.igst + item.igst,
         tax: acc.tax + item.totalTax,
         total: acc.total + item.net,
       }),
-      { amount: 0, cgst: 0, sgst: 0, igst: 0, tax: 0, total: 0 }
+      { amount: 0, netAmount: 0, cgst: 0, sgst: 0, igst: 0, tax: 0, total: 0 }
     );
   }, [lineTotals]);
 
@@ -445,19 +447,20 @@ export default function SalesReturnClient({
           <p className="text-xs text-muted-foreground italic text-center py-6">Select one or more sales invoices to populate return items.</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[1200px]">
+            <table className="w-full text-left border-collapse min-w-[1300px]">
               <thead>
                 <tr className="border-b border-border text-[10px] uppercase font-bold text-muted-foreground">
                   <th className="py-2.5 px-2 w-[10%]">Invoice No</th>
-                  <th className="py-2.5 px-2 w-[18%]">Item Name</th>
-                  <th className="py-2.5 px-2 w-[10%]">HSN Code</th>
-                  <th className="py-2.5 px-2 w-[8%]">Original Qty</th>
+                  <th className="py-2.5 px-2 w-[16%]">Item Name</th>
+                  <th className="py-2.5 px-2 w-[9%]">HSN Code</th>
+                  <th className="py-2.5 px-2 w-[7%]">Original Qty</th>
                   <th className="py-2.5 px-2 w-[4%] text-right">Fold</th>
-                  <th className="py-2.5 px-2 w-[6%] text-right">Return PCS</th>
-                  <th className="py-2.5 px-2 w-[8%] text-right">Return Qty</th>
-                  <th className="py-2.5 px-2 w-[6%]">Unit</th>
-                  <th className="py-2.5 px-2 w-[8%] text-right">Rate</th>
-                  <th className="py-2.5 px-2 w-[9%] text-right">Taxable</th>
+                  <th className="py-2.5 px-2 w-[5%] text-right">Return PCS</th>
+                  <th className="py-2.5 px-2 w-[7%] text-right">Return Qty</th>
+                  <th className="py-2.5 px-2 w-[5%]">Unit</th>
+                  <th className="py-2.5 px-2 w-[7%] text-right">Rate</th>
+                  <th className="py-2.5 px-2 w-[8%] text-right">Amount</th>
+                  <th className="py-2.5 px-2 w-[8%] text-right">Net Amount</th>
                   <th className="py-2.5 px-2 w-[7%] text-right">CGST %</th>
                   <th className="py-2.5 px-2 w-[7%] text-right">SGST %</th>
                   <th className="py-2.5 px-2 w-[7%] text-right">IGST %</th>
@@ -524,6 +527,9 @@ export default function SalesReturnClient({
                       </td>
                       <td className="py-2 px-2 text-xs font-semibold text-right text-foreground">
                         ₹{totals.amount.toFixed(2)}
+                      </td>
+                      <td className="py-2 px-2 text-xs font-semibold text-right text-foreground">
+                        ₹{totals.netAmount.toFixed(2)}
                       </td>
                       <td className="py-2 px-2">
                         <Input

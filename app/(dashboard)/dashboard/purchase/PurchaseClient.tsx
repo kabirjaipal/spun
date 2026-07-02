@@ -188,9 +188,9 @@ export default function PurchaseClient({
       const fold = Number(line.fold) || 100;
       const gstRatePercent = Number(line.gstRateId ? taxRates.find((t) => String(t.taxRateId) === line.gstRateId)?.taxPercent : 0) || 0;
       
-      // Amount formula: if unitType is 'pcs', then pcs * rate. If 'meter', then qty * rate * fold / 100.
-      const multiplier = line.unitType === "pcs" ? pcs : (qty * fold / 100);
-      const amount = Math.round((multiplier * rate) * 100) / 100;
+      const unit = line.unitType === "pcs" ? pcs : qty;
+      const amount = Math.round((unit * rate) * 100) / 100;
+      const netAmount = Math.round(((unit * rate * fold) / 100) * 100) / 100;
       
       let defaultCgst = 0;
       let defaultSgst = 0;
@@ -207,13 +207,13 @@ export default function PurchaseClient({
       const sgstPercent = isInterstate ? 0 : (line.sgst !== "" ? (Number(line.sgst) || 0) : defaultSgst);
       const igstPercent = isInterstate ? (line.igst !== "" ? (Number(line.igst) || 0) : defaultIgst) : 0;
 
-      const cgst = Math.round((amount * cgstPercent) / 100 * 100) / 100;
-      const sgst = Math.round((amount * sgstPercent) / 100 * 100) / 100;
-      const igst = Math.round((amount * igstPercent) / 100 * 100) / 100;
+      const cgst = Math.round((netAmount * cgstPercent) / 100 * 100) / 100;
+      const sgst = Math.round((netAmount * sgstPercent) / 100 * 100) / 100;
+      const igst = Math.round((netAmount * igstPercent) / 100 * 100) / 100;
 
       const totalTaxVal = cgst + sgst + igst;
 
-      return { amount, cgst, sgst, igst, cgstPercent, sgstPercent, igstPercent, totalTax: totalTaxVal, net: amount + totalTaxVal };
+      return { amount, netAmount, cgst, sgst, igst, cgstPercent, sgstPercent, igstPercent, totalTax: totalTaxVal, net: netAmount + totalTaxVal };
     });
   }, [lineItems, taxRates, isInterstate]);
 
@@ -221,13 +221,14 @@ export default function PurchaseClient({
     return lineTotals.reduce(
       (acc, item) => ({
         amount: acc.amount + item.amount,
+        netAmount: acc.netAmount + item.netAmount,
         cgst: acc.cgst + item.cgst,
         sgst: acc.sgst + item.sgst,
         igst: acc.igst + item.igst,
         tax: acc.tax + item.totalTax,
         total: acc.total + item.net,
       }),
-      { amount: 0, cgst: 0, sgst: 0, igst: 0, tax: 0, total: 0 }
+      { amount: 0, netAmount: 0, cgst: 0, sgst: 0, igst: 0, tax: 0, total: 0 }
     );
   }, [lineTotals]);
 
@@ -346,7 +347,7 @@ export default function PurchaseClient({
           voucherDate: body.voucherDate,
           voucherType: "purchase",
           remarks: body.remarks,
-          totalAmount: grandTotals.amount,
+          totalAmount: grandTotals.netAmount,
           taxAmount: grandTotals.tax,
           netAmount: grandTotals.total,
         },
@@ -532,22 +533,23 @@ export default function PurchaseClient({
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[1200px]">
+          <table className="w-full text-left border-collapse min-w-[1300px]">
             <thead>
               <tr className="border-b border-border text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                <th className="py-2 pr-4 w-[20%]">Item</th>
-                <th className="py-2 px-3 w-[10%]">HSN Code</th>
-                <th className="py-2 px-3 w-[6%] text-right">Fold</th>
-                <th className="py-2 px-3 w-[8%] text-right">PCS</th>
-                <th className="py-2 px-3 w-[8%] text-right">Meter</th>
-                <th className="py-2 px-3 w-[6%]">Unit</th>
-                <th className="py-2 px-3 w-[8%] text-right">Rate</th>
-                <th className="py-2 px-3 w-[9%] text-right">Taxable</th>
-                <th className="py-2 px-3 w-[8%]">GST Rate</th>
-                <th className="py-2 px-3 w-[7%] text-right">CGST %</th>
-                <th className="py-2 px-3 w-[7%] text-right">SGST %</th>
-                <th className="py-2 px-3 w-[7%] text-right">IGST %</th>
-                <th className="py-2 px-3 w-[9%] text-right">Net Amt</th>
+                <th className="py-2 pr-4 w-[18%]">Item</th>
+                <th className="py-2 px-3 w-[8%]">HSN Code</th>
+                <th className="py-2 px-3 w-[5%] text-right">Fold</th>
+                <th className="py-2 px-3 w-[7%] text-right">PCS</th>
+                <th className="py-2 px-3 w-[7%] text-right">Meter</th>
+                <th className="py-2 px-3 w-[5%]">Unit</th>
+                <th className="py-2 px-3 w-[7%] text-right">Rate</th>
+                <th className="py-2 px-3 w-[8%] text-right">Amount</th>
+                <th className="py-2 px-3 w-[8%] text-right">Net Amount</th>
+                <th className="py-2 px-3 w-[7%]">GST Rate</th>
+                <th className="py-2 px-3 w-[6%] text-right">CGST %</th>
+                <th className="py-2 px-3 w-[6%] text-right">SGST %</th>
+                <th className="py-2 px-3 w-[6%] text-right">IGST %</th>
+                <th className="py-2 px-3 w-[8%] text-right">Net Amt</th>
                 <th className="py-2 pl-4 w-[3%]"></th>
               </tr>
             </thead>
@@ -657,6 +659,9 @@ export default function PurchaseClient({
                     </td>
                     <td className="py-3 px-3 text-right font-semibold text-foreground">
                       ₹{totals?.amount.toFixed(2)}
+                    </td>
+                    <td className="py-3 px-3 text-right font-semibold text-foreground">
+                      ₹{totals?.netAmount.toFixed(2)}
                     </td>
                     <td className="py-3 px-3">
                       <Select value={line.gstRateId} onValueChange={(val) => updateLine(line.id, "gstRateId", val)}>

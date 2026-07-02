@@ -123,6 +123,7 @@ export default function DirectBillClient({
       const qty = Number(item.quantity) || 0;
       const rate = Number(item.rate) || 0;
       const fold = Number(item.fold) || 100;
+      const amount = Math.round((qty * rate) * 100) / 100;
       const taxable = Math.round((qty * rate * (fold / 100)) * 100) / 100;
 
       let taxVal = 0;
@@ -134,6 +135,7 @@ export default function DirectBillClient({
       }
 
       return {
+        amount,
         taxable,
         taxVal,
         net: taxable + taxVal,
@@ -309,7 +311,7 @@ export default function DirectBillClient({
               {lineItems.map((line, idx) => {
                 const total = lineTotals[idx];
                 return (
-                  <div key={line.id} className="grid gap-3 grid-cols-1 md:grid-cols-[1.5fr_1.5fr_1fr_1fr_1fr_1fr_1fr_auto] items-end border-b border-border/20 pb-3">
+                  <div key={line.id} className="grid gap-3 grid-cols-1 md:grid-cols-[1.2fr_1.2fr_0.6fr_0.6fr_0.6fr_0.6fr_0.8fr_0.8fr_0.8fr_0.8fr_auto] items-end border-b border-border/20 pb-3">
                     <div className="space-y-2">
                       <Label className="text-[10px] font-semibold uppercase text-muted-foreground">Item / Service</Label>
                       <Select value={line.inventoryId} onValueChange={(val) => updateLine(line.id, "inventoryId", val)}>
@@ -366,8 +368,25 @@ export default function DirectBillClient({
                       </Select>
                     </div>
 
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-semibold uppercase text-muted-foreground">Amount</Label>
+                      <div className="h-9 flex items-center justify-end px-2 font-mono text-xs border border-border bg-muted/20 rounded">
+                        ₹{total.amount.toFixed(2)}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-semibold uppercase text-muted-foreground">Net Amount</Label>
+                      <div className="h-9 flex items-center justify-end px-2 font-mono text-xs border border-border bg-muted/20 rounded">
+                        ₹{total.taxable.toFixed(2)}
+                      </div>
+                    </div>
+
                     <div className="space-y-2 text-right px-2 pb-2">
-                      <span className="text-xs font-semibold text-foreground">₹{total.net.toFixed(2)}</span>
+                      <Label className="text-[10px] font-semibold uppercase text-muted-foreground">Total</Label>
+                      <div className="h-9 flex items-center justify-end font-mono text-xs font-bold text-foreground">
+                        ₹{total.net.toFixed(2)}
+                      </div>
                     </div>
 
                     <div className="pb-1">
