@@ -663,7 +663,7 @@ export default function PurchaseClient({
                         <Button
                           type="button"
                           variant="outline"
-                          className="h-10 px-3 flex-shrink-0"
+                          className="h-10 px-3 shrink-0"
                           onClick={() => setActivePieceLineId(line.id)}
                           title="Enter Piece Meters"
                         >

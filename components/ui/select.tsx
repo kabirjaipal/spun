@@ -19,7 +19,7 @@ function SelectGroup({
   return (
     <SelectPrimitive.Group
       data-slot="select-group"
-      className={cn("scroll-my-1 p-1 has-[[data-slot=select-item]]:block hidden", className)}
+      className={cn("scroll-my-1 p-1 has-data-[slot=select-item]:block hidden", className)}
       {...props}
     />
   )
@@ -133,7 +133,7 @@ function SelectContent({
         <SelectPrimitive.Viewport
           data-position={position}
           className={cn(
-            "data-[position=popper]:h-(--radix-select-trigger-height) data-[position=popper]:w-full data-[position=popper]:min-w-(--radix-select-trigger-width) has-[[data-slot=select-item]]:[&_[data-slot=no-results]]:hidden",
+            "data-[position=popper]:h-(--radix-select-trigger-height) data-[position=popper]:w-full data-[position=popper]:min-w-(--radix-select-trigger-width) has-data-[slot=select-item]:**:data-[slot=no-results]:hidden",
             position === "popper" && ""
           )}
         >
