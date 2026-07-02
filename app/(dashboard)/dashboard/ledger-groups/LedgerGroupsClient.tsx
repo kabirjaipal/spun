@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,9 +44,35 @@ export default function LedgerGroupsClient({
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
 
-  const filtered = data.filter((r) =>
-    r.groupName.toLowerCase().includes(search.toLowerCase())
-  );
+  const hierarchicalList = useMemo(() => {
+    const list: Array<LedgerGroup & { depth: number }> = [];
+    const getNodes = (parentId: number | null, depth: number) => {
+      data.filter((g) => g.parentGroupId === parentId)
+          .sort((a, b) => a.groupName.localeCompare(b.groupName))
+          .forEach((g) => {
+            list.push({ ...g, depth });
+            getNodes(g.groupId, depth + 1);
+          });
+    };
+    getNodes(null, 0);
+
+    if (list.length < data.length) {
+      const added = new Set(list.map((l) => l.groupId));
+      data.filter((g) => !added.has(g.groupId))
+          .sort((a, b) => a.groupName.localeCompare(b.groupName))
+          .forEach((g) => {
+            list.push({ ...g, depth: 0 });
+            getNodes(g.groupId, 1);
+          });
+    }
+    return list;
+  }, [data]);
+
+  const filtered = useMemo(() => {
+    const term = search.toLowerCase().trim();
+    if (!term) return hierarchicalList;
+    return hierarchicalList.filter((g) => g.groupName.toLowerCase().includes(term));
+  }, [hierarchicalList, search]);
 
   function openCreate() {
     setEditing(null);
@@ -164,7 +190,14 @@ export default function LedgerGroupsClient({
             {filtered.map((row, i) => (
               <tr key={row.groupId} className="border-b border-border/50 hover:bg-muted/20 transition-colors">
                 <td className="px-4 py-3 text-xs text-muted-foreground">{i + 1}</td>
-                <td className="px-4 py-3 font-medium text-foreground">{row.groupName}</td>
+                <td className="py-3 font-medium text-foreground" style={{ paddingLeft: `${row.depth * 20 + 16}px` }}>
+                  <div className="flex items-center gap-1.5">
+                    {row.depth > 0 && (
+                      <span className="text-muted-foreground/35 font-normal select-none">↳</span>
+                    )}
+                    {row.groupName}
+                  </div>
+                </td>
                 <td className="px-4 py-3 text-muted-foreground">{getGroupName(row.parentGroupId)}</td>
                 <td className="px-4 py-3 text-xs text-muted-foreground">
                   {row.isSystem ? (
