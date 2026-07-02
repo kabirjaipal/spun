@@ -322,7 +322,7 @@ export default function PrintInvoiceModal({ isOpen, onClose, company, party, vou
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent side="right" showCloseButton={false} className="w-full sm:max-w-5xl p-0 flex flex-col gap-0 overflow-hidden">
+      <SheetContent side="right" showCloseButton={false} className="w-full sm:data-[side=right]:w-[45%] sm:max-w-5xl p-0 flex flex-col gap-0 overflow-hidden">
         {/* Toolbar */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-muted/40 shrink-0">
           <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetBody, SheetFooter } from "@/components/ui/sheet";
 import { Landmark, MapPin, Calendar, FileText, Globe } from "lucide-react";
 import { BANK_LIST, type BankData } from "@/lib/banks";
 import { CURRENCIES, MARKET_CATEGORIES } from "@/lib/constants";
@@ -197,18 +197,18 @@ export default function PartyFormDrawer({ isOpen, onClose, onCreated }: PartyFor
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent className="sm:max-w-[500px] w-full flex flex-col h-full p-0">
-        <SheetHeader className="px-5 py-4 border-b border-border bg-muted/30">
-          <SheetTitle className="text-sm font-bold uppercase tracking-wider text-foreground">Create New Party</SheetTitle>
+      <SheetContent className="sm:max-w-[500px] w-full">
+        <SheetHeader>
+          <SheetTitle>Create New Party</SheetTitle>
         </SheetHeader>
 
         {error && (
-          <div className="mx-5 mt-4 rounded-lg border border-danger bg-danger/10 p-3 text-xs text-danger font-medium">
+          <div className="mx-6 mt-4 rounded-lg border border-danger bg-danger/10 p-3 text-xs text-danger font-medium">
             {error}
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+        <SheetBody className="space-y-5">
           {/* REQUIRED / BASIC FIELDS */}
           <div className="space-y-3">
             <div>
@@ -745,14 +745,14 @@ export default function PartyFormDrawer({ isOpen, onClose, onCreated }: PartyFor
               </div>
             </div>
           )}
-        </div>
+        </SheetBody>
 
-        <div className="flex gap-3 px-5 py-4 border-t bg-muted/10 justify-end shrink-0">
-          <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSave} disabled={saving || !form.companyName || (form.gstApplicable && (!form.gstNo || !form.stateCode || !form.city))} size="sm">
+        <SheetFooter>
+          <Button variant="outline" size="lg" className="px-4" onClick={onClose}>Cancel</Button>
+          <Button onClick={handleSave} disabled={saving || !form.companyName || (form.gstApplicable && (!form.gstNo || !form.stateCode || !form.city))} size="lg" className="px-4">
             {saving ? "Saving..." : "Create Party"}
           </Button>
-        </div>
+        </SheetFooter>
       </SheetContent>
     </Sheet>
   );

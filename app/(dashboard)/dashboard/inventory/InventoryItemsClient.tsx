@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetBody, SheetFooter } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -276,12 +276,12 @@ export default function InventoryItemsClient({
       </div>
 
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent className="overflow-y-auto w-[420px] sm:w-[540px]">
+        <SheetContent className="data-[side=right]:w-[420px] sm:data-[side=right]:w-[540px]">
           <SheetHeader>
             <SheetTitle>{editing ? "Edit Item" : "New Item"}</SheetTitle>
           </SheetHeader>
 
-          <div className="flex-1 px-1 py-6 space-y-4">
+          <SheetBody className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Item Code</Label>
@@ -411,11 +411,11 @@ export default function InventoryItemsClient({
                 <Input id="openingStockRate" type="number" step={0.01} value={form.openingStockRate} onChange={(e) => setForm((f) => ({ ...f, openingStockRate: e.target.value }))} />
               </div>
             </div>
-          </div>
+          </SheetBody>
 
-          <SheetFooter className="mt-4">
-            <Button variant="outline" onClick={() => setSheetOpen(false)}>Cancel</Button>
-            <Button onClick={handleSave} disabled={saving || !form.inventoryCode || !form.inventoryName || !form.unit}>
+          <SheetFooter>
+            <Button variant="outline" size="lg" className="px-4" onClick={() => setSheetOpen(false)}>Cancel</Button>
+            <Button size="lg" className="px-4" onClick={handleSave} disabled={saving || !form.inventoryCode || !form.inventoryName || !form.unit}>
               {saving ? "Saving..." : editing ? "Update" : "Create"}
             </Button>
           </SheetFooter>
@@ -423,12 +423,12 @@ export default function InventoryItemsClient({
       </Sheet>
 
       <Sheet open={formulaSheetOpen} onOpenChange={setFormulaSheetOpen}>
-        <SheetContent className="overflow-y-auto w-[420px] sm:w-[540px]">
+        <SheetContent className="data-[side=right]:w-[420px] sm:data-[side=right]:w-[540px]">
           <SheetHeader>
             <SheetTitle>{formulaTarget ? `Formula: ${formulaTarget.inventoryName}` : "New Formula"}</SheetTitle>
           </SheetHeader>
 
-          <div className="flex-1 px-1 py-6 space-y-4">
+          <SheetBody className="space-y-4">
             <div className="space-y-2">
               <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Item</Label>
               <Select value={formulaTarget ? String(formulaTarget.inventoryId) : ""} onValueChange={(v) => {
@@ -458,11 +458,11 @@ export default function InventoryItemsClient({
                 </div>
               </div>
             </div>
-          </div>
+          </SheetBody>
 
-          <SheetFooter className="mt-4">
-            <Button variant="outline" onClick={() => setFormulaSheetOpen(false)}>Cancel</Button>
-            <Button onClick={handleFormulaSave} disabled={saving || !formulaTarget}>
+          <SheetFooter>
+            <Button variant="outline" size="lg" className="px-4" onClick={() => setFormulaSheetOpen(false)}>Cancel</Button>
+            <Button size="lg" className="px-4" onClick={handleFormulaSave} disabled={saving || !formulaTarget}>
               {saving ? "Saving..." : "Save Formula"}
             </Button>
           </SheetFooter>

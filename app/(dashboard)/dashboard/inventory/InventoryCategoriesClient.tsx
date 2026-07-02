@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetBody, SheetFooter } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Pencil, Trash2 } from "lucide-react";
 import ExportButton from "@/components/ExportButton";
@@ -133,16 +133,16 @@ export default function InventoryCategoriesClient({ data, setData, canCreate, ca
             <SheetTitle>{editing ? "Edit Category" : "New Category"}</SheetTitle>
           </SheetHeader>
 
-          <div className="flex-1 overflow-y-auto px-5 py-6 space-y-5">
+          <SheetBody className="space-y-5">
             <div className="space-y-2">
               <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Category Name</Label>
               <Input id="categoryName" placeholder="e.g. Cloth, Color" value={form.categoryName} onChange={(e) => setForm((f) => ({ ...f, categoryName: e.target.value }))} />
             </div>
-          </div>
+          </SheetBody>
 
           <SheetFooter>
-            <Button variant="outline" onClick={() => setSheetOpen(false)}>Cancel</Button>
-            <Button onClick={handleSave} disabled={saving || !form.categoryName.trim()}>
+            <Button variant="outline" size="lg" className="px-4" onClick={() => setSheetOpen(false)}>Cancel</Button>
+            <Button size="lg" className="px-4" onClick={handleSave} disabled={saving || !form.categoryName.trim()}>
               {saving ? "Saving..." : editing ? "Update" : "Create"}
             </Button>
           </SheetFooter>

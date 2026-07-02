@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetBody, SheetFooter } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Pencil, Trash2, FolderTree } from "lucide-react";
@@ -265,12 +265,12 @@ export default function LedgersClient({
       </div>
 
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent className="sm:max-w-xl overflow-y-auto">
+        <SheetContent className="sm:max-w-xl">
           <SheetHeader>
             <SheetTitle>{editing ? "Edit Ledger" : "New Ledger"}</SheetTitle>
           </SheetHeader>
 
-          <div className="flex-1 px-1 py-6 space-y-6">
+          <SheetBody className="space-y-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="col-span-1 sm:col-span-2 space-y-2">
                 <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Ledger Name *</Label>
@@ -365,11 +365,11 @@ export default function LedgersClient({
                 </div>
               </div>
             </div>
-          </div>
+          </SheetBody>
 
           <SheetFooter>
-            <Button variant="outline" onClick={() => setSheetOpen(false)}>Cancel</Button>
-            <Button onClick={handleSave} disabled={saving || !form.ledgerName || !form.ledgerType}>
+            <Button variant="outline" size="lg" className="px-4" onClick={() => setSheetOpen(false)}>Cancel</Button>
+            <Button size="lg" className="px-4" onClick={handleSave} disabled={saving || !form.ledgerName || !form.ledgerType}>
               {saving ? "Saving..." : editing ? "Update" : "Create"}
             </Button>
           </SheetFooter>

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetBody, SheetFooter } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -173,12 +173,12 @@ export default function JobsClient({ initialData, canCreate, canUpdate, canDelet
       </div>
 
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent className="overflow-y-auto">
+        <SheetContent>
           <SheetHeader>
             <SheetTitle>{editing ? "Edit Job Party" : "New Job Party"}</SheetTitle>
           </SheetHeader>
 
-          <div className="flex-1 px-1 py-6 space-y-4">
+          <SheetBody className="space-y-4">
             <div className="space-y-2">
               <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Party Name</Label>
               <Input id="jobName" placeholder="e.g. Balaji Job Works" value={form.jobName} onChange={(e) => setForm((f) => ({ ...f, jobName: e.target.value }))} />
@@ -243,11 +243,11 @@ export default function JobsClient({ initialData, canCreate, canUpdate, canDelet
                 </div>
               )}
             </div>
-          </div>
+          </SheetBody>
 
-          <SheetFooter className="mt-4">
-            <Button variant="outline" onClick={() => setSheetOpen(false)}>Cancel</Button>
-            <Button onClick={handleSave} disabled={saving || !form.jobName.trim()}>
+          <SheetFooter>
+            <Button variant="outline" size="lg" className="px-4" onClick={() => setSheetOpen(false)}>Cancel</Button>
+            <Button size="lg" className="px-4" onClick={handleSave} disabled={saving || !form.jobName.trim()}>
               {saving ? "Saving..." : editing ? "Update" : "Create"}
             </Button>
           </SheetFooter>

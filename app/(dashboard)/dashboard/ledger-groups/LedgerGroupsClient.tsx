@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetBody, SheetFooter } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Pencil, Trash2, ArrowLeft } from "lucide-react";
@@ -236,12 +236,12 @@ export default function LedgerGroupsClient({
       </div>
 
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent className="sm:max-w-md overflow-y-auto">
+        <SheetContent>
           <SheetHeader>
             <SheetTitle>{editing ? "Edit Ledger Group" : "New Ledger Group"}</SheetTitle>
           </SheetHeader>
 
-          <div className="flex-1 px-1 py-6 space-y-6">
+          <SheetBody className="space-y-6">
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Group Name *</Label>
@@ -274,11 +274,11 @@ export default function LedgerGroupsClient({
                 </Select>
               </div>
             </div>
-          </div>
+          </SheetBody>
 
           <SheetFooter>
-            <Button variant="outline" onClick={() => setSheetOpen(false)}>Cancel</Button>
-            <Button onClick={handleSave} disabled={saving || !form.groupName}>
+            <Button variant="outline" size="lg" className="px-4" onClick={() => setSheetOpen(false)}>Cancel</Button>
+            <Button size="lg" className="px-4" onClick={handleSave} disabled={saving || !form.groupName}>
               {saving ? "Saving..." : editing ? "Update" : "Create"}
             </Button>
           </SheetFooter>
