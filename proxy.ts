@@ -21,7 +21,9 @@ export const proxy = auth((request) => {
   }
 
   if (!request.auth?.user?.id) {
-    return NextResponse.redirect(new URL("/login", request.nextUrl));
+    const loginUrl = new URL("/login", request.nextUrl);
+    loginUrl.searchParams.set("callbackUrl", pathname + request.nextUrl.search);
+    return NextResponse.redirect(loginUrl);
   }
 
   const { user } = request.auth;

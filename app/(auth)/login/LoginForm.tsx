@@ -27,7 +27,9 @@ export default function LoginForm() {
       if (res?.error) {
         setError("Invalid email or password");
       } else {
-        router.push("/dashboard");
+        const params = new URLSearchParams(window.location.search);
+        const callbackUrl = params.get("callbackUrl") || "/dashboard";
+        router.push(callbackUrl);
         router.refresh();
       }
     } catch (err) {
@@ -130,7 +132,9 @@ export default function LoginForm() {
               onClick={async () => {
                 setLoading(true);
                 try {
-                  await signIn("google", { callbackUrl: "/dashboard" });
+                  const params = new URLSearchParams(window.location.search);
+                  const callbackUrl = params.get("callbackUrl") || "/dashboard";
+                  await signIn("google", { callbackUrl });
                 } catch (err) {
                   setLoading(false);
                 }
