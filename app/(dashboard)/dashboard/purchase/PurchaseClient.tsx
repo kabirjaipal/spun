@@ -12,6 +12,7 @@ import PrintInvoiceModal from "@/components/PrintInvoiceModal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import BrokerHasteDialog from "@/components/BrokerHasteDialog";
 import PieceMetersDialog from "@/components/PieceMetersDialog";
+import { calculatePreTaxDiscount } from "@/lib/utils";
 
 interface CompanyOption {
   companyId: number;
@@ -149,6 +150,11 @@ export default function PurchaseClient({
   const [message, setMessage] = useState<string | null>(null);
   const [printVoucher, setPrintVoucher] = useState<any>(null);
 
+  const [discountType, setDiscountType] = useState<"percentage" | "value">("percentage");
+  const [discountValue, setDiscountValue] = useState("");
+  const [discountType2, setDiscountType2] = useState<"percentage" | "value">("percentage");
+  const [discountValue2, setDiscountValue2] = useState("");
+
   // Piece meters modal state
   const [activePieceLineId, setActivePieceLineId] = useState<string | null>(null);
 
@@ -181,17 +187,29 @@ export default function PurchaseClient({
   }, [company, selectedCompany, companies]);
 
   const lineTotals = useMemo(() => {
-    return lineItems.map((line) => {
+    const linesRaw = lineItems.map((line) => {
       const pcs = Number(line.pcs) || 0;
       const qty = Number(line.quantity) || 0;
       const rate = Number(line.rate) || 0;
       const fold = Number(line.fold) || 100;
-      const gstRatePercent = Number(line.gstRateId ? taxRates.find((t) => String(t.taxRateId) === line.gstRateId)?.taxPercent : 0) || 0;
       
       const unit = line.unitType === "pcs" ? pcs : qty;
       const amount = Math.round((unit * rate) * 100) / 100;
       const netAmount = Math.round(((unit * rate * fold) / 100) * 100) / 100;
+      return { line, amount, netAmount };
+    });
+
+    const rawTotal = linesRaw.reduce((sum, item) => sum + item.netAmount, 0);
+    const discountValNum = Number(discountValue) || 0;
+
+    return linesRaw.map(({ line, amount, netAmount }) => {
+      const gstRatePercent = Number(line.gstRateId ? taxRates.find((t) => String(t.taxRateId) === line.gstRateId)?.taxPercent : 0) || 0;
       
+      const lineDiscount1 = calculatePreTaxDiscount(netAmount, rawTotal, discountType, discountValue);
+      const lineDiscount2 = calculatePreTaxDiscount(netAmount, rawTotal, discountType2, discountValue2);
+      const lineDiscount = lineDiscount1 + lineDiscount2;
+      const discountedNetAmount = Math.max(0, Math.round((netAmount - lineDiscount) * 100) / 100);
+
       let defaultCgst = 0;
       let defaultSgst = 0;
       let defaultIgst = 0;
@@ -207,30 +225,53 @@ export default function PurchaseClient({
       const sgstPercent = isInterstate ? 0 : (line.sgst !== "" ? (Number(line.sgst) || 0) : defaultSgst);
       const igstPercent = isInterstate ? (line.igst !== "" ? (Number(line.igst) || 0) : defaultIgst) : 0;
 
-      const cgst = Math.round((netAmount * cgstPercent) / 100 * 100) / 100;
-      const sgst = Math.round((netAmount * sgstPercent) / 100 * 100) / 100;
-      const igst = Math.round((netAmount * igstPercent) / 100 * 100) / 100;
+      const cgst = Math.round((discountedNetAmount * cgstPercent) / 100 * 100) / 100;
+      const sgst = Math.round((discountedNetAmount * sgstPercent) / 100 * 100) / 100;
+      const igst = Math.round((discountedNetAmount * igstPercent) / 100 * 100) / 100;
 
       const totalTaxVal = cgst + sgst + igst;
 
-      return { amount, netAmount, cgst, sgst, igst, cgstPercent, sgstPercent, igstPercent, totalTax: totalTaxVal, net: netAmount + totalTaxVal };
+      return {
+        amount,
+        rawNetAmount: netAmount,
+        netAmount: discountedNetAmount,
+        lineDiscount,
+        cgst,
+        sgst,
+        igst,
+        cgstPercent,
+        sgstPercent,
+        igstPercent,
+        totalTax: totalTaxVal,
+        net: discountedNetAmount + totalTaxVal,
+      };
     });
-  }, [lineItems, taxRates, isInterstate]);
+  }, [lineItems, taxRates, isInterstate, discountType, discountValue, discountType2, discountValue2]);
 
   const grandTotals = useMemo(() => {
     return lineTotals.reduce(
       (acc, item) => ({
         amount: acc.amount + item.amount,
+        rawNetAmount: acc.rawNetAmount + item.rawNetAmount,
         netAmount: acc.netAmount + item.netAmount,
+        discount: acc.discount + item.lineDiscount,
         cgst: acc.cgst + item.cgst,
         sgst: acc.sgst + item.sgst,
         igst: acc.igst + item.igst,
         tax: acc.tax + item.totalTax,
         total: acc.total + item.net,
       }),
-      { amount: 0, netAmount: 0, cgst: 0, sgst: 0, igst: 0, tax: 0, total: 0 }
+      { amount: 0, rawNetAmount: 0, netAmount: 0, discount: 0, cgst: 0, sgst: 0, igst: 0, tax: 0, total: 0 }
     );
   }, [lineTotals]);
+
+  const discount1Amt = useMemo(() => {
+    return lineTotals.reduce((sum, item) => sum + calculatePreTaxDiscount(item.rawNetAmount, grandTotals.rawNetAmount, discountType, discountValue), 0);
+  }, [lineTotals, grandTotals.rawNetAmount, discountType, discountValue]);
+
+  const discount2Amt = useMemo(() => {
+    return lineTotals.reduce((sum, item) => sum + calculatePreTaxDiscount(item.rawNetAmount, grandTotals.rawNetAmount, discountType2, discountValue2), 0);
+  }, [lineTotals, grandTotals.rawNetAmount, discountType2, discountValue2]);
 
   function updateLine(id: string, field: keyof LineItem, value: string) {
     setLineItems((items) =>
@@ -297,6 +338,10 @@ export default function PurchaseClient({
         personName,
         printRate: true,
         printAmount: true,
+        discountType: discountValue ? discountType : null,
+        discountValue: discountValue ? Number(discountValue) : null,
+        discountType2: discountValue2 ? discountType2 : null,
+        discountValue2: discountValue2 ? Number(discountValue2) : null,
         lineItems: validLines.map((line) => {
           const totals = lineTotals[lineItems.indexOf(line)];
           return {
@@ -337,6 +382,8 @@ export default function PurchaseClient({
       setLrNo("");
       setLrDate("");
       setTransport("");
+      setDiscountValue("");
+      setDiscountValue2("");
       setLineItems([EMPTY_LINE()]);
 
       // Print preview setup
@@ -362,6 +409,7 @@ export default function PurchaseClient({
           const qty = Number(line.quantity) || 0;
           const rt = Number(line.rate) || 0;
           const fd = Number(line.fold) || 100;
+          const totals = lineTotals[lineItems.indexOf(line)];
           return {
             inventoryCode: prod?.inventoryCode || "PROD",
             inventoryName: prod?.inventoryName || "Item",
@@ -369,7 +417,7 @@ export default function PurchaseClient({
             unit: prod?.unit || "MTR",
             rate: rt,
             fold: fd,
-            amount: Math.round((qty * rt * fd / 100) * 100) / 100,
+            amount: totals?.netAmount || 0,
             gstPercent: Number(tr?.taxPercent || 0),
           };
         }),
@@ -730,6 +778,123 @@ export default function PurchaseClient({
             </tbody>
 
           </table>
+        </div>
+      </div>
+
+      {/* Summary and Save Section */}
+      <div className="grid gap-6 md:grid-cols-3 pt-4">
+        {/* Discount Section */}
+        <div className="rounded-lg border border-border bg-card p-5 space-y-4 shadow-sm">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">Apply Discounts</h2>
+          
+          {/* Discount 1 */}
+          <div className="grid grid-cols-2 gap-3 pb-3 border-b border-border/40">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase text-foreground">Discount 1 Value</Label>
+              <Input
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={discountValue}
+                onChange={(e) => setDiscountValue(e.target.value)}
+                className="h-9"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase text-foreground">Type</Label>
+              <Select value={discountType} onValueChange={(val) => setDiscountType(val as any)}>
+                <SelectTrigger className="h-9 w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="percentage">Percentage (%)</SelectItem>
+                  <SelectItem value="value">Flat Value (₹)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Discount 2 */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase text-foreground">Discount 2 Value</Label>
+              <Input
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={discountValue2}
+                onChange={(e) => setDiscountValue2(e.target.value)}
+                className="h-9"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase text-foreground">Type</Label>
+              <Select value={discountType2} onValueChange={(val) => setDiscountType2(val as any)}>
+                <SelectTrigger className="h-9 w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="percentage">Percentage (%)</SelectItem>
+                  <SelectItem value="value">Flat Value (₹)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+
+        {/* Empty Column */}
+        <div className="hidden md:block"></div>
+
+        {/* Totals Breakdown */}
+        <div className="rounded-lg border border-border bg-card p-5 space-y-3 shadow-sm text-sm">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">Summary</h2>
+          
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Subtotal (Before Discount):</span>
+            <span className="font-semibold text-foreground">₹{grandTotals.rawNetAmount.toFixed(2)}</span>
+          </div>
+
+          {discount1Amt > 0 && (
+            <div className="flex justify-between text-danger">
+              <span>Discount 1 ({discountType === "percentage" ? `${Number(discountValue)}%` : "Flat"}):</span>
+              <span>-₹{discount1Amt.toFixed(2)}</span>
+            </div>
+          )}
+
+          {discount2Amt > 0 && (
+            <div className="flex justify-between text-danger">
+              <span>Discount 2 ({discountType2 === "percentage" ? `${Number(discountValue2)}%` : "Flat"}):</span>
+              <span>-₹{discount2Amt.toFixed(2)}</span>
+            </div>
+          )}
+
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Taxable Value:</span>
+            <span className="font-semibold text-foreground">₹{grandTotals.netAmount.toFixed(2)}</span>
+          </div>
+
+          {!isInterstate ? (
+            <>
+              <div className="flex justify-between text-muted-foreground">
+                <span>CGST:</span>
+                <span>₹{grandTotals.cgst.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-muted-foreground">
+                <span>SGST:</span>
+                <span>₹{grandTotals.sgst.toFixed(2)}</span>
+              </div>
+            </>
+          ) : (
+            <div className="flex justify-between text-muted-foreground">
+              <span>IGST:</span>
+              <span>₹{grandTotals.igst.toFixed(2)}</span>
+            </div>
+          )}
+
+          <div className="flex justify-between border-t border-border pt-2 text-base font-bold">
+            <span>Grand Total:</span>
+            <span className="text-foreground">₹{grandTotals.total.toFixed(2)}</span>
+          </div>
         </div>
       </div>
 

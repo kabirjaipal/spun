@@ -4,6 +4,7 @@ import { and, eq, isNull, desc, inArray, or } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { writeAuditLog } from "@/lib/audit";
+import { calculatePreTaxDiscount } from "@/lib/utils";
 
 const DEFAULT_PREFIXES: Record<string, string> = {
   sale: "INV-",
@@ -57,7 +58,11 @@ export async function POST(request: Request) {
     printAmount = true,
     parentVoucherId,
     billDetails,
-    isReversal
+    isReversal,
+    discountType,
+    discountValue,
+    discountType2,
+    discountValue2
   } = body;
 
   if (!voucherType || !voucherNo || !voucherDate) {
@@ -166,7 +171,8 @@ export async function POST(request: Request) {
           throw new Error("Line items are required for this voucher type");
         }
 
-        for (const line of lineItems) {
+        let rawTotal = 0;
+        const linesInfo = lineItems.map((line) => {
           const pcs = Number(line.pcs) || 0;
           const qty = Number(line.quantity) || 0;
           const rate = Number(line.rate) || 0;
@@ -174,7 +180,16 @@ export async function POST(request: Request) {
           const jobRateType = line.jobRateType || "mtr";
           
           const unit = jobRateType === "pcs" ? pcs : qty;
-          const taxableAmount = Math.round(((unit * rate * fold) / 100) * 100) / 100;
+          const rawTaxableAmount = Math.round(((unit * rate * fold) / 100) * 100) / 100;
+          rawTotal += rawTaxableAmount;
+          return { line, rawTaxableAmount, pcs, qty, rate, fold, jobRateType };
+        });
+
+        for (const { line, rawTaxableAmount, pcs, qty, rate, fold, jobRateType } of linesInfo) {
+          const lineDiscount1 = calculatePreTaxDiscount(rawTaxableAmount, rawTotal, discountType, discountValue);
+          const lineDiscount2 = calculatePreTaxDiscount(rawTaxableAmount, rawTotal, discountType2, discountValue2);
+          const totalLineDiscount = lineDiscount1 + lineDiscount2;
+          const taxableAmount = Math.max(0, Math.round((rawTaxableAmount - totalLineDiscount) * 100) / 100);
 
           let cgst = line.cgst !== undefined ? Number(line.cgst) : 0;
           let sgst = line.sgst !== undefined ? Number(line.sgst) : 0;
@@ -259,6 +274,10 @@ export async function POST(request: Request) {
           parentVoucherId: parentVoucherId ? Number(parentVoucherId) : null,
           cashBankLedgerId: cashBankLedgerId ? Number(cashBankLedgerId) : null,
           billDetails: billDetails || null,
+          discountType: discountType || null,
+          discountValue: discountValue ? String(discountValue) : null,
+          discountType2: discountType2 || null,
+          discountValue2: discountValue2 ? String(discountValue2) : null,
           createdBy: userId,
           updatedBy: userId,
         })
@@ -731,6 +750,10 @@ export async function GET(request: Request) {
       lotNo: tVouchers.lotNo,
       parentVoucherId: tVouchers.parentVoucherId,
       cashBankLedgerId: tVouchers.cashBankLedgerId,
+      discountType: tVouchers.discountType,
+      discountValue: tVouchers.discountValue,
+      discountType2: tVouchers.discountType2,
+      discountValue2: tVouchers.discountValue2,
       partyName: mCompanies.companyName,
       partyGst: mCompanies.gstNo,
       partyAddress: mCompanies.address,

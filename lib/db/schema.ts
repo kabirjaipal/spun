@@ -334,6 +334,10 @@ export const tVouchers = pgTable("t_vouchers", {
   parentVoucherId: bigint("parent_voucher_id", { mode: "number" }),
   cashBankLedgerId: bigint("cash_bank_ledger_id", { mode: "number" }).references(() => mLedgers.ledgerId),
   billDetails: jsonb("bill_details"),
+  discountType: text("discount_type"), // 'percentage' or 'value'
+  discountValue: numeric("discount_value", { precision: 15, scale: 2 }),
+  discountType2: text("discount_type_2"), // 'percentage' or 'value'
+  discountValue2: numeric("discount_value_2", { precision: 15, scale: 2 }),
 
   ...auditColumns,
 }, (table) => ({
