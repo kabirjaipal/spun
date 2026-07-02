@@ -177,8 +177,9 @@ export default function MillInwardClient({
       // Shortage calculation (outward - inward)
       const shortageQty = Math.max(0, line.outwardQuantity - qty);
       const shortagePcs = Math.max(0, line.outwardPcs - pcs);
+      const shortagePercent = line.outwardQuantity > 0 ? Math.round((shortageQty / line.outwardQuantity) * 100 * 100) / 100 : 0;
 
-      return { amount, totalTax, net: amount + totalTax, shortageQty, shortagePcs };
+      return { amount, totalTax, net: amount + totalTax, shortageQty, shortagePcs, shortagePercent };
     });
   }, [lineItems, taxRates]);
 
@@ -516,7 +517,7 @@ export default function MillInwardClient({
                   <th className="py-2 px-2 w-[8%] text-center">Inward PCS</th>
                   <th className="py-2 px-2 w-[10%] text-center">Outward Qty</th>
                   <th className="py-2 px-2 w-[10%] text-center">Inward Qty</th>
-                  <th className="py-2 px-2 w-[8%] text-center">Shortage</th>
+                  <th className="py-2 px-2 w-[8%] text-center">Shortage %</th>
                   <th className="py-2 px-2 w-[8%]">Rate</th>
                   <th className="py-2 px-2 w-[10%] text-right">Amount</th>
                   <th className="py-2 pl-2 w-[4%]"></th>
@@ -578,7 +579,7 @@ export default function MillInwardClient({
                       </td>
 
                       <td className="py-3 px-2 text-center font-mono text-xs font-bold text-destructive">
-                        {totals.shortageQty > 0 ? `${totals.shortageQty.toFixed(2)}` : "0.00"}
+                        {totals.shortagePercent > 0 ? `${totals.shortagePercent.toFixed(2)}%` : "-"}
                       </td>
 
                       <td className="py-3 px-2">

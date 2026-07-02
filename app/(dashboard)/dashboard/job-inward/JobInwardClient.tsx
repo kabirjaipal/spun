@@ -178,8 +178,9 @@ export default function JobInwardClient({
       // Shortage calculation (outward - inward)
       const shortageQty = Math.max(0, line.outwardQuantity - qty);
       const shortagePcs = Math.max(0, line.outwardPcs - pcs);
+      const shortagePercent = line.outwardQuantity > 0 ? Math.round((shortageQty / line.outwardQuantity) * 100 * 100) / 100 : 0;
 
-      return { amount, totalTax, net: amount + totalTax, shortageQty, shortagePcs };
+      return { amount, totalTax, net: amount + totalTax, shortageQty, shortagePcs, shortagePercent };
     });
   }, [lineItems, taxRates]);
 
@@ -504,7 +505,7 @@ export default function JobInwardClient({
                 <th className="py-2 px-2 w-[6%]">Fold%</th>
                 <th className="py-2 px-2 w-[8%]">Inward PCS</th>
                 <th className="py-2 px-2 w-[10%]">Inward Meters</th>
-                <th className="py-2 px-2 w-[8%] text-center">Shortage</th>
+                <th className="py-2 px-2 w-[8%] text-center">Shortage %</th>
                 <th className="py-2 px-2 w-[8%]">Rate</th>
                 <th className="py-2 px-2 w-[10%] text-right">Inward Amt</th>
                 <th className="py-2 pl-2 w-[3%]"></th>
@@ -569,9 +570,11 @@ export default function JobInwardClient({
                       </td>
 
                       <td className="py-3 px-2 text-center text-destructive font-mono font-bold text-xs">
-                        {totals.shortagePcs > 0 && <span>{totals.shortagePcs} Pcs </span>}
-                        {totals.shortageQty > 0 && <span>{totals.shortageQty.toFixed(2)} Mtr</span>}
-                        {totals.shortagePcs === 0 && totals.shortageQty === 0 && <span className="text-success">-</span>}
+                        {totals.shortagePercent > 0 ? (
+                          <span>{totals.shortagePercent.toFixed(2)}%</span>
+                        ) : (
+                          <span className="text-success">-</span>
+                        )}
                       </td>
 
                       <td className="py-3 px-2">
