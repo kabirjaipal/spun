@@ -99,6 +99,27 @@ export default function PurchaseReturnClient({
   const [voucherNo, setVoucherNo] = useState(""); // Purchase Return No
   const [voucherDate, setVoucherDate] = useState(new Date().toISOString().slice(0, 10));
 
+  const fetchNextVoucherNo = async () => {
+    try {
+      const res = await fetch("/api/vouchers/next-number?type=purchase_return");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.nextVoucherNo) {
+          setVoucherNo(data.nextVoucherNo);
+        }
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        console.error("Failed to fetch next voucher number:", res.status, errData);
+      }
+    } catch (err) {
+      console.error("Error fetching next voucher number:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchNextVoucherNo();
+  }, []);
+
   // Logistics
   const [lrNo, setLrNo] = useState("");
   const [lrDate, setLrDate] = useState(new Date().toISOString().slice(0, 10));
@@ -328,7 +349,7 @@ export default function PurchaseReturnClient({
       }
 
       setMessage("Purchase Return created successfully.");
-      setVoucherNo("");
+      fetchNextVoucherNo();
       setRemarks("");
       setLrNo("");
       setLrDate("");
@@ -383,7 +404,7 @@ export default function PurchaseReturnClient({
 
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold uppercase text-foreground">Return No.</Label>
-              <Input value={voucherNo} onChange={(e) => setVoucherNo(e.target.value)} placeholder="e.g. PR-001" className="h-9" />
+              <Input value={voucherNo} readOnly placeholder="Fetching..." className="h-9 bg-muted cursor-not-allowed font-mono font-semibold" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold uppercase text-foreground">Return Date</Label>

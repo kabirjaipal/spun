@@ -1,9 +1,25 @@
 import { db } from "@/lib/db";
-import { mLedgers, mInventory, mTaxRates, mJobs, mMills, mCompanies, tVouchers, tVoucherEntries, tStockMovements, tVoucherItems } from "@/lib/db/schema";
+import { mLedgers, mInventory, mTaxRates, mJobs, mMills, mCompanies, tVouchers, tVoucherEntries, tStockMovements, tVoucherItems, mVoucherSequences } from "@/lib/db/schema";
 import { and, eq, isNull, desc, sql, inArray, or } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { writeAuditLog } from "@/lib/audit";
+
+const DEFAULT_PREFIXES: Record<string, string> = {
+  sale: "INV-",
+  purchase: "PUR-",
+  purchase_return: "PR-",
+  credit_note: "CN-",
+  debit_note: "DN-",
+  receipt: "REC-",
+  payment: "PAY-",
+  journal: "JR-",
+  job_outward: "JO-",
+  job_inward: "JI-",
+  mill_outward: "MO-",
+  mill_inward: "MI-",
+};
+
 
 export async function POST(request: Request) {
   const session = await auth();
@@ -50,6 +66,36 @@ export async function POST(request: Request) {
 
   try {
     const [voucher] = await db.transaction(async (tx) => {
+      // Handle sequence number generation
+      let finalVoucherNo = voucherNo;
+      const seq = await tx.query.mVoucherSequences.findFirst({
+        where: and(
+          eq(mVoucherSequences.companyId, companyId),
+          eq(mVoucherSequences.voucherType, voucherType)
+        ),
+      });
+
+      if (seq) {
+        finalVoucherNo = `${seq.prefix}${seq.nextNumber}`;
+        await tx
+          .update(mVoucherSequences)
+          .set({ nextNumber: seq.nextNumber + 1 })
+          .where(eq(mVoucherSequences.sequenceId, seq.sequenceId));
+      } else {
+        const prefix = DEFAULT_PREFIXES[voucherType] || `${voucherType.toUpperCase().substring(0, 3)}-`;
+        await tx
+          .insert(mVoucherSequences)
+          .values({
+            companyId,
+            voucherType,
+            prefix,
+            nextNumber: 2,
+            createdBy: userId,
+            updatedBy: userId,
+          });
+        finalVoucherNo = `${prefix}1`;
+      }
+
       // Determine interstate vs intrastate GST based on state/GSTIN prefix
       const company = await tx.query.mCompanies.findFirst({
         where: eq(mCompanies.companyId, companyId),
@@ -190,7 +236,7 @@ export async function POST(request: Request) {
         .values({
           companyId,
           voucherType,
-          voucherNo,
+          voucherNo: finalVoucherNo,
           voucherDate: String(voucherDate),
           partyId: partyId ? Number(partyId) : null,
           remarks: remarks || null,

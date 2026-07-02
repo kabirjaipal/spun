@@ -207,6 +207,20 @@ export const mBrokersHaste = pgTable("m_brokers_haste", {
   typeIdx: index("idx_m_brokers_haste_type").on(table.type),
 }));
 
+export const mVoucherSequences = pgTable("m_voucher_sequences", {
+  sequenceId: serial("sequence_id").primaryKey(),
+  companyId: bigint("company_id", { mode: "number" })
+    .references(() => mCompanies.companyId)
+    .notNull(),
+  voucherType: text("voucher_type").notNull(),
+  prefix: text("prefix").notNull(),
+  nextNumber: integer("next_number").default(1).notNull(),
+  ...auditColumns,
+}, (table) => ({
+  companyVoucherTypeIdx: index("idx_m_voucher_sequences_company_type").on(table.companyId, table.voucherType),
+}));
+
+
 export const mJobs = pgTable("m_jobs", {
   jobId: serial("job_id").primaryKey(),
   companyId: bigint("company_id", { mode: "number" })
