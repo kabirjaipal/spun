@@ -501,9 +501,9 @@ export default function JobInwardClient({
               <tr className="border-b border-border text-xs font-bold uppercase text-muted-foreground">
                 <th className="py-2 pr-2 w-[20%]">Item</th>
                 <th className="py-2 px-2 w-[12%] text-center">Outward (PCS/Mtr)</th>
+                <th className="py-2 px-2 w-[6%]">Fold%</th>
                 <th className="py-2 px-2 w-[8%]">Inward PCS</th>
                 <th className="py-2 px-2 w-[10%]">Inward Meters</th>
-                <th className="py-2 px-2 w-[6%]">Fold%</th>
                 <th className="py-2 px-2 w-[8%] text-center">Shortage</th>
                 <th className="py-2 px-2 w-[8%]">Rate</th>
                 <th className="py-2 px-2 w-[10%] text-right">Inward Amt</th>
@@ -544,6 +544,15 @@ export default function JobInwardClient({
                       <td className="py-3 px-2">
                         <Input
                           type="number"
+                          value={line.fold}
+                          onChange={(e) => updateLine(line.id, "fold", e.target.value)}
+                          className="h-9 font-mono text-xs text-center"
+                        />
+                      </td>
+
+                      <td className="py-3 px-2">
+                        <Input
+                          type="number"
                           value={line.pcs}
                           onChange={(e) => updateLine(line.id, "pcs", e.target.value)}
                           className="h-9 font-mono text-xs text-center"
@@ -555,15 +564,6 @@ export default function JobInwardClient({
                           type="number"
                           value={line.quantity}
                           onChange={(e) => updateLine(line.id, "quantity", e.target.value)}
-                          className="h-9 font-mono text-xs text-center"
-                        />
-                      </td>
-
-                      <td className="py-3 px-2">
-                        <Input
-                          type="number"
-                          value={line.fold}
-                          onChange={(e) => updateLine(line.id, "fold", e.target.value)}
                           className="h-9 font-mono text-xs text-center"
                         />
                       </td>

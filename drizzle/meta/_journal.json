@@ -71,6 +71,13 @@
       "when": 1782928671619,
       "tag": "0009_fast_overlord",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1782971381062,
+      "tag": "0010_heavy_professor_monster",
+      "breakpoints": true
     }
   ]
 }

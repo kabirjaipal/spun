@@ -335,6 +335,11 @@ export default function DirectBillClient({
                     </div>
 
                     <div className="space-y-2">
+                      <Label className="text-[10px] font-semibold uppercase text-muted-foreground">Fold %</Label>
+                      <Input type="number" value={line.fold} onChange={(e) => updateLine(line.id, "fold", e.target.value)} placeholder="100" />
+                    </div>
+
+                    <div className="space-y-2">
                       <Label className="text-[10px] font-semibold uppercase text-muted-foreground">PCS</Label>
                       <Input type="number" value={line.pcs} onChange={(e) => updateLine(line.id, "pcs", e.target.value)} />
                     </div>

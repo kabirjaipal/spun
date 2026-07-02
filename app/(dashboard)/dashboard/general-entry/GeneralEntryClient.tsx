@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Plus, X, ArrowLeft, Trash2 } from "lucide-react";
+import { formatDate } from "@/lib/utils";
 
 interface JournalItem {
   voucherId: number;
@@ -341,7 +342,7 @@ export default function GeneralEntryClient({
                   <tr key={voucher.voucherId} className="hover:bg-muted/10">
                     <td className="py-3 px-4 font-semibold text-foreground">{voucher.voucherNo}</td>
                     <td className="py-3 px-4">
-                      {voucher.voucherDate ? new Date(voucher.voucherDate).toLocaleDateString() : "—"}
+                      {formatDate(voucher.voucherDate)}
                     </td>
                     <td className="py-3 px-4 text-muted-foreground">{voucher.remarks || "—"}</td>
                     <td className="py-3 px-4 text-right font-semibold text-foreground">

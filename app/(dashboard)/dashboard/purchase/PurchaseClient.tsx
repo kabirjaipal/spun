@@ -11,6 +11,7 @@ import { Plus, Trash2, Printer } from "lucide-react";
 import PrintInvoiceModal from "@/components/PrintInvoiceModal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import BrokerHasteDialog from "@/components/BrokerHasteDialog";
+import PieceMetersDialog from "@/components/PieceMetersDialog";
 
 interface CompanyOption {
   companyId: number;
@@ -53,6 +54,7 @@ interface LineItem {
   sgst: string;
   igst: string;
   unitType: "pcs" | "meter";
+  pieceMeters?: string[];
 }
 
 const EMPTY_LINE = (): LineItem => ({
@@ -68,6 +70,7 @@ const EMPTY_LINE = (): LineItem => ({
   sgst: "",
   igst: "",
   unitType: "meter",
+  pieceMeters: [],
 });
 
 
@@ -145,6 +148,25 @@ export default function PurchaseClient({
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [printVoucher, setPrintVoucher] = useState<any>(null);
+
+  // Piece meters modal state
+  const [activePieceLineId, setActivePieceLineId] = useState<string | null>(null);
+
+  function handleSavePieceMeters(meters: string[]) {
+    if (!activePieceLineId) return;
+    const sum = meters.reduce((acc, val) => acc + (parseFloat(val) || 0), 0);
+    setLineItems((items) =>
+      items.map((item) => {
+        if (item.id !== activePieceLineId) return item;
+        return {
+          ...item,
+          pieceMeters: meters,
+          quantity: sum > 0 ? sum.toFixed(4) : item.quantity,
+        };
+      })
+    );
+    setActivePieceLineId(null);
+  }
  
   // Check if Interstate or Intrastate GST
   const isInterstate = useMemo(() => {
@@ -163,7 +185,7 @@ export default function PurchaseClient({
       const pcs = Number(line.pcs) || 0;
       const qty = Number(line.quantity) || 0;
       const rate = Number(line.rate) || 0;
-      const fold = 100;
+      const fold = Number(line.fold) || 100;
       const gstRatePercent = Number(line.gstRateId ? taxRates.find((t) => String(t.taxRateId) === line.gstRateId)?.taxPercent : 0) || 0;
       
       // Amount formula: if unitType is 'pcs', then pcs * rate. If 'meter', then qty * rate * fold / 100.
@@ -288,6 +310,7 @@ export default function PurchaseClient({
             sgst: totals?.sgst || 0,
             igst: totals?.igst || 0,
             jobRateType: line.unitType,
+            pieceMeters: line.pieceMeters,
           };
         }),
       };
@@ -513,10 +536,11 @@ export default function PurchaseClient({
             <thead>
               <tr className="border-b border-border text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
                 <th className="py-2 pr-4 w-[20%]">Item</th>
-                <th className="py-2 px-3 w-[12%]">HSN Code</th>
-                <th className="py-2 px-3 w-[6%] text-right">PCS</th>
+                <th className="py-2 px-3 w-[10%]">HSN Code</th>
+                <th className="py-2 px-3 w-[6%] text-right">Fold</th>
+                <th className="py-2 px-3 w-[8%] text-right">PCS</th>
                 <th className="py-2 px-3 w-[8%] text-right">Meter</th>
-                <th className="py-2 px-3 w-[8%]">Unit</th>
+                <th className="py-2 px-3 w-[6%]">Unit</th>
                 <th className="py-2 px-3 w-[8%] text-right">Rate</th>
                 <th className="py-2 px-3 w-[9%] text-right">Taxable</th>
                 <th className="py-2 px-3 w-[8%]">GST Rate</th>
@@ -568,10 +592,39 @@ export default function PurchaseClient({
                     <td className="py-3 px-3">
                       <Input
                         type="number"
-                        value={line.pcs}
-                        onChange={(e) => updateLine(line.id, "pcs", e.target.value)}
+                        value={line.fold}
+                        onChange={(e) => updateLine(line.id, "fold", e.target.value)}
                         className="h-9 text-right"
+                        placeholder="100"
                       />
+                    </td>
+                    <td className="py-3 px-1.5">
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="number"
+                          value={line.pcs}
+                          onChange={(e) => updateLine(line.id, "pcs", e.target.value)}
+                          onBlur={() => {
+                            const num = parseInt(line.pcs) || 0;
+                            if (num > 0 && (!line.pieceMeters || line.pieceMeters.length !== num)) {
+                              setActivePieceLineId(line.id);
+                            }
+                          }}
+                          className="h-9 text-right w-full min-w-[50px] p-1.5"
+                        />
+                        {(parseInt(line.pcs) || 0) > 0 && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="h-8 w-8 px-0 flex-shrink-0"
+                            onClick={() => setActivePieceLineId(line.id)}
+                            title="Enter Piece Meters"
+                          >
+                            ⚙️
+                          </Button>
+                        )}
+                      </div>
                     </td>
                     <td className="py-3 px-3">
                       <Input
@@ -754,6 +807,19 @@ export default function PurchaseClient({
           setBrokersHasteData((prev) => [...prev, item]);
         }}
       />
+
+      {(() => {
+        const activeLine = lineItems.find((l) => l.id === activePieceLineId);
+        return activeLine ? (
+          <PieceMetersDialog
+            isOpen={!!activePieceLineId}
+            onClose={() => setActivePieceLineId(null)}
+            pcsCount={parseInt(activeLine.pcs) || 0}
+            initialMeters={activeLine.pieceMeters || []}
+            onSave={handleSavePieceMeters}
+          />
+        ) : null;
+      })()}
     </div>
   );
 }

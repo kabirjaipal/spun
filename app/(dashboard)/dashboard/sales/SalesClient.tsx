@@ -136,7 +136,7 @@ export default function SalesClient({
     return lineItems.map((line) => {
       const qty = Number(line.quantity) || 0;
       const rate = Number(line.rate) || 0;
-      const fold = 100;
+      const fold = Number(line.fold) || 100;
       const gstRatePercent = Number(line.gstRateId ? taxRates.find((t) => String(t.taxRateId) === line.gstRateId)?.taxPercent : 0) || 0;
       
       // Fold calculation: qty * rate * fold / 100
@@ -476,16 +476,21 @@ export default function SalesClient({
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[900px]">
+          <table className="w-full text-left border-collapse min-w-[1100px]">
             <thead>
               <tr className="border-b border-border text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                <th className="py-2 pr-4 w-[25%]">Item</th>
-                <th className="py-2 px-3 w-[8%] text-right">PCS</th>
-                <th className="py-2 px-3 w-[10%] text-right">Quantity</th>
-                <th className="py-2 px-3 w-[10%] text-right">Rate</th>
+                <th className="py-2 pr-4 w-[18%]">Item</th>
+                <th className="py-2 px-3 w-[6%] text-right">Fold</th>
+                <th className="py-2 px-3 w-[6%] text-right">PCS</th>
+                <th className="py-2 px-3 w-[8%] text-right">Quantity</th>
+                <th className="py-2 px-3 w-[8%] text-right">Rate</th>
                 <th className="py-2 px-3 w-[10%]">GST Rate</th>
-                <th className="py-2 px-3 w-[12%] text-right">Net Taxable</th>
-                <th className="py-2 pl-4 w-[5%]"></th>
+                <th className="py-2 px-3 w-[10%] text-right">Taxable</th>
+                <th className="py-2 px-3 w-[8%] text-right">CGST</th>
+                <th className="py-2 px-3 w-[8%] text-right">SGST</th>
+                <th className="py-2 px-3 w-[8%] text-right">IGST</th>
+                <th className="py-2 px-3 w-[11%] text-right">Net Amt</th>
+                <th className="py-2 pl-4 w-[4%]"></th>
               </tr>
             </thead>
             <tbody>
@@ -506,6 +511,15 @@ export default function SalesClient({
                           ))}
                         </SelectContent>
                       </Select>
+                    </td>
+                    <td className="py-3 px-3">
+                      <Input
+                        type="number"
+                        value={line.fold}
+                        onChange={(e) => updateLine(line.id, "fold", e.target.value)}
+                        className="h-9 text-right"
+                        placeholder="100"
+                      />
                     </td>
                     <td className="py-3 px-3">
                       <Input
@@ -548,8 +562,20 @@ export default function SalesClient({
                         </SelectContent>
                       </Select>
                     </td>
-                    <td className="py-3 px-3 text-right font-bold text-foreground">
+                    <td className="py-3 px-3 text-right font-medium text-foreground">
                       ₹{totals?.amount.toFixed(2)}
+                    </td>
+                    <td className="py-3 px-3 text-right font-medium text-muted-foreground">
+                      ₹{totals?.cgst.toFixed(2)}
+                    </td>
+                    <td className="py-3 px-3 text-right font-medium text-muted-foreground">
+                      ₹{totals?.sgst.toFixed(2)}
+                    </td>
+                    <td className="py-3 px-3 text-right font-medium text-muted-foreground">
+                      ₹{totals?.igst.toFixed(2)}
+                    </td>
+                    <td className="py-3 px-3 text-right font-bold text-foreground">
+                      ₹{totals?.net.toFixed(2)}
                     </td>
                     <td className="py-3 pl-4 text-center">
                       <Button

@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Trash2, Loader2 } from "lucide-react";
+import { formatDate } from "@/lib/utils";
 
 interface CompanyOption {
   companyId: number;
@@ -202,7 +203,7 @@ export default function SalesReturnClient({
     return lineItems.map((line) => {
       const qty = Number(line.quantity) || 0;
       const rate = Number(line.rate) || 0;
-      const fold = 100;
+      const fold = Number(line.fold) || 100;
       const gstRatePercent = Number(line.gstRateId ? taxRates.find((t) => String(t.taxRateId) === line.gstRateId)?.taxPercent : 0) || 0;
 
       const amount = Math.round((qty * rate * fold / 100) * 100) / 100;
@@ -404,7 +405,7 @@ export default function SalesReturnClient({
                           onChange={() => handleToggleInvoice(inv)}
                           className="rounded border-border text-primary focus:ring-primary h-3.5 w-3.5"
                         />
-                        <span>{inv.voucherNo} ({new Date(inv.voucherDate).toLocaleDateString()}) - ₹{Number(inv.netAmount).toFixed(2)}</span>
+                        <span>{inv.voucherNo} ({formatDate(inv.voucherDate)}) - ₹{Number(inv.netAmount).toFixed(2)}</span>
                       </label>
                     ))}
                   </div>
@@ -450,7 +451,8 @@ export default function SalesReturnClient({
                   <th className="py-2.5 px-2 w-[10%]">Invoice No</th>
                   <th className="py-2.5 px-2 w-[18%]">Item Name</th>
                   <th className="py-2.5 px-2 w-[10%]">HSN Code</th>
-                  <th className="py-2.5 px-2 w-[12%]">Original Qty</th>
+                  <th className="py-2.5 px-2 w-[8%]">Original Qty</th>
+                  <th className="py-2.5 px-2 w-[4%] text-right">Fold</th>
                   <th className="py-2.5 px-2 w-[6%] text-right">Return PCS</th>
                   <th className="py-2.5 px-2 w-[8%] text-right">Return Qty</th>
                   <th className="py-2.5 px-2 w-[6%]">Unit</th>
@@ -480,6 +482,15 @@ export default function SalesReturnClient({
                       </td>
                       <td className="py-2 px-2 text-xs text-muted-foreground">
                         {line.originalPcs} PCS / {line.originalQuantity}
+                      </td>
+                      <td className="py-2 px-2">
+                        <Input
+                          type="number"
+                          value={line.fold || ""}
+                          onChange={(e) => updateLine(line.id, "fold", e.target.value)}
+                          className="h-8 text-xs text-right w-full"
+                          placeholder="100"
+                        />
                       </td>
                       <td className="py-2 px-2">
                         <Input

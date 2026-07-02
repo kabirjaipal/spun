@@ -1,0 +1,1 @@
+ALTER TABLE "t_voucher_items" ADD COLUMN "piece_meters" text;

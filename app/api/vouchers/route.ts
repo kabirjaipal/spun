@@ -352,6 +352,7 @@ export async function POST(request: Request) {
             netAmount: String(line.lineNet),
             jobType: line.jobType || null,
             jobRateType: line.jobRateType || null,
+            pieceMeters: line.pieceMeters ? JSON.stringify(line.pieceMeters) : null,
             createdBy: userId,
             updatedBy: userId,
           });
@@ -439,6 +440,7 @@ export async function POST(request: Request) {
             netAmount: String(line.lineNet),
             jobType: line.jobType || null,
             jobRateType: line.jobRateType || null,
+            pieceMeters: line.pieceMeters ? JSON.stringify(line.pieceMeters) : null,
             createdBy: userId,
             updatedBy: userId,
           });
@@ -500,6 +502,7 @@ export async function POST(request: Request) {
             netAmount: String(line.lineNet),
             jobType: line.jobType || null,
             jobRateType: line.jobRateType || null,
+            pieceMeters: line.pieceMeters ? JSON.stringify(line.pieceMeters) : null,
             createdBy: userId,
             updatedBy: userId,
           });
@@ -802,6 +805,7 @@ export async function GET(request: Request) {
         sgst: tVoucherItems.sgst,
         igst: tVoucherItems.igst,
         netAmount: tVoucherItems.netAmount,
+        pieceMeters: tVoucherItems.pieceMeters,
       })
       .from(tVoucherItems)
       .leftJoin(mInventory, eq(tVoucherItems.inventoryId, mInventory.inventoryId))
@@ -810,7 +814,20 @@ export async function GET(request: Request) {
     const itemsGrouped = items.reduce((acc: any, item) => {
       const vId = Number(item.voucherId);
       if (!acc[vId]) acc[vId] = [];
-      acc[vId].push(item);
+
+      let parsedMeters = [];
+      if (item.pieceMeters) {
+        try {
+          parsedMeters = JSON.parse(item.pieceMeters);
+        } catch (e) {
+          console.error("Error parsing piece_meters:", e);
+        }
+      }
+
+      acc[vId].push({
+        ...item,
+        pieceMeters: parsedMeters,
+      });
       return acc;
     }, {});
 

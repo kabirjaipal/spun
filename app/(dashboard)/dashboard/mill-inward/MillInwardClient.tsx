@@ -511,11 +511,11 @@ export default function MillInwardClient({
               <thead>
                 <tr className="border-b border-border text-xs font-bold uppercase text-muted-foreground">
                 <th className="py-2 pr-2 w-[18%]">Item</th>
-                <th className="py-2 px-2 w-[8%] text-center">Outward PCS</th>
+                  <th className="py-2 px-2 w-[6%] text-center">Fold%</th>
+                  <th className="py-2 px-2 w-[8%] text-center">Outward PCS</th>
                   <th className="py-2 px-2 w-[8%] text-center">Inward PCS</th>
                   <th className="py-2 px-2 w-[10%] text-center">Outward Qty</th>
                   <th className="py-2 px-2 w-[10%] text-center">Inward Qty</th>
-                  <th className="py-2 px-2 w-[6%] text-center">Fold%</th>
                   <th className="py-2 px-2 w-[8%] text-center">Shortage</th>
                   <th className="py-2 px-2 w-[8%]">Rate</th>
                   <th className="py-2 px-2 w-[10%] text-right">Amount</th>
@@ -542,6 +542,15 @@ export default function MillInwardClient({
                         </Select>
                       </td>
 
+                      <td className="py-3 px-2">
+                        <Input
+                          type="number"
+                          value={line.fold}
+                          onChange={(e) => updateLine(line.id, "fold", e.target.value)}
+                          className="h-9 font-mono text-xs text-center"
+                        />
+                      </td>
+
                       <td className="py-3 px-2 text-center font-mono text-xs text-muted-foreground">
                         {line.outwardPcs}
                       </td>
@@ -564,15 +573,6 @@ export default function MillInwardClient({
                           type="number"
                           value={line.quantity}
                           onChange={(e) => updateLine(line.id, "quantity", e.target.value)}
-                          className="h-9 font-mono text-xs text-center"
-                        />
-                      </td>
-
-                      <td className="py-3 px-2">
-                        <Input
-                          type="number"
-                          value={line.fold}
-                          onChange={(e) => updateLine(line.id, "fold", e.target.value)}
                           className="h-9 font-mono text-xs text-center"
                         />
                       </td>

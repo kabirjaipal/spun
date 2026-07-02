@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Trash2, Loader2, Edit } from "lucide-react";
+import PieceMetersDialog from "@/components/PieceMetersDialog";
+import { formatDate } from "@/lib/utils";
 
 interface CompanyOption {
   companyId: number;
@@ -58,6 +60,7 @@ interface PurchaseInvoice {
     sgst: string;
     igst: string;
     netAmount: string;
+    pieceMeters?: string[];
   }>;
 }
 
@@ -78,6 +81,7 @@ interface ReturnLineItem {
   cgst: string;
   sgst: string;
   igst: string;
+  pieceMeters?: string[];
 }
 
 export default function PurchaseReturnClient({
@@ -134,6 +138,25 @@ export default function PurchaseReturnClient({
   // Line items for return & editing state
   const [lineItems, setLineItems] = useState<ReturnLineItem[]>([]);
   const [editingLineId, setEditingLineId] = useState<string | null>(null);
+
+  // Piece meters modal state
+  const [activePieceLineId, setActivePieceLineId] = useState<string | null>(null);
+
+  function handleSavePieceMeters(meters: string[]) {
+    if (!activePieceLineId) return;
+    const sum = meters.reduce((acc, val) => acc + (parseFloat(val) || 0), 0);
+    setLineItems((items) =>
+      items.map((item) => {
+        if (item.id !== activePieceLineId) return item;
+        return {
+          ...item,
+          pieceMeters: meters,
+          quantity: sum > 0 ? sum.toFixed(4) : item.quantity,
+        };
+      })
+    );
+    setActivePieceLineId(null);
+  }
 
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -201,6 +224,7 @@ export default function PurchaseReturnClient({
         cgst: "",
         sgst: "",
         igst: "",
+        pieceMeters: line.pieceMeters || [],
       }));
       setLineItems((items) => [...items, ...newItems]);
     }
@@ -223,7 +247,7 @@ export default function PurchaseReturnClient({
     return lineItems.map((line) => {
       const qty = Number(line.quantity) || 0;
       const rate = Number(line.rate) || 0;
-      const fold = 100;
+      const fold = Number(line.fold) || 100;
       const gstRatePercent = Number(line.gstRateId ? taxRates.find((t) => String(t.taxRateId) === line.gstRateId)?.taxPercent : 0) || 0;
 
       const amount = Math.round((qty * rate * fold / 100) * 100) / 100;
@@ -333,6 +357,7 @@ export default function PurchaseReturnClient({
             cgst: totals?.cgst || 0,
             sgst: totals?.sgst || 0,
             igst: totals?.igst || 0,
+            pieceMeters: line.pieceMeters,
           };
         }),
       };
@@ -435,7 +460,7 @@ export default function PurchaseReturnClient({
                           const isSelected = selectedInvoiceIds.includes(inv.voucherId);
                           return (
                             <SelectItem key={inv.voucherId} value={String(inv.voucherId)}>
-                              {isSelected ? "✓ " : ""}{inv.voucherNo} ({new Date(inv.voucherDate).toLocaleDateString()}) - ₹{Number(inv.netAmount).toFixed(2)}
+                              {isSelected ? "✓ " : ""}{inv.voucherNo} ({formatDate(inv.voucherDate)}) - ₹{Number(inv.netAmount).toFixed(2)}
                             </SelectItem>
                           );
                         })}
@@ -502,7 +527,8 @@ export default function PurchaseReturnClient({
                   <th className="py-2.5 px-2 w-[10%]">Invoice No</th>
                   <th className="py-2.5 px-2 w-[18%]">Item Name</th>
                   <th className="py-2.5 px-2 w-[10%]">HSN Code</th>
-                  <th className="py-2.5 px-2 w-[12%]">Original Qty</th>
+                  <th className="py-2.5 px-2 w-[8%]">Original Qty</th>
+                  <th className="py-2.5 px-2 w-[4%] text-right">Fold</th>
                   <th className="py-2.5 px-2 w-[6%] text-right">Return PCS</th>
                   <th className="py-2.5 px-2 w-[8%] text-right">Return Qty</th>
                   <th className="py-2.5 px-2 w-[6%]">Unit</th>
@@ -528,6 +554,7 @@ export default function PurchaseReturnClient({
                         <td className="py-2.5 px-2 text-xs text-muted-foreground">
                           {line.originalPcs} PCS / {line.originalQuantity}
                         </td>
+                        <td className="py-2.5 px-2 text-xs text-right text-foreground">{line.fold || "100"}%</td>
                         <td className="py-2.5 px-2 text-xs text-right text-foreground">{line.pcs || "0"}</td>
                         <td className="py-2.5 px-2 text-xs text-right text-foreground">{line.quantity || "0.00"}</td>
                         <td className="py-2.5 px-2 text-xs text-muted-foreground font-medium">
@@ -592,14 +619,44 @@ export default function PurchaseReturnClient({
                           <td className="py-2.5 px-2 text-xs text-muted-foreground bg-muted/20">
                             {line.originalPcs} PCS / {line.originalQuantity}
                           </td>
-                          {/* Return PCS: Input */}
+                          {/* Return Fold: Input */}
                           <td className="py-1 px-1">
                             <Input
                               type="number"
-                              value={line.pcs || ""}
-                              onChange={(e) => updateLine(line.id, "pcs", e.target.value)}
+                              value={line.fold || ""}
+                              onChange={(e) => updateLine(line.id, "fold", e.target.value)}
                               className="h-8 text-xs text-right w-full p-1.5 bg-background"
+                              placeholder="100"
                             />
+                          </td>
+                          {/* Return PCS: Input */}
+                          <td className="py-1 px-1">
+                            <div className="flex items-center gap-1">
+                              <Input
+                                type="number"
+                                value={line.pcs || ""}
+                                onChange={(e) => updateLine(line.id, "pcs", e.target.value)}
+                                onBlur={() => {
+                                  const num = parseInt(line.pcs) || 0;
+                                  if (num > 0 && (!line.pieceMeters || line.pieceMeters.length !== num)) {
+                                    setActivePieceLineId(line.id);
+                                  }
+                                }}
+                                className="h-8 text-xs text-right w-full p-1.5 bg-background"
+                              />
+                              {(parseInt(line.pcs) || 0) > 0 && (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="icon"
+                                  className="h-8 w-8 px-0 flex-shrink-0"
+                                  onClick={() => setActivePieceLineId(line.id)}
+                                  title="Enter Piece Meters"
+                                >
+                                  ⚙️
+                                </Button>
+                              )}
+                            </div>
                           </td>
                           {/* Return Qty: Input */}
                           <td className="py-1 px-1">
@@ -700,6 +757,19 @@ export default function PurchaseReturnClient({
       </div>
 
       {message && <div className="rounded-lg border border-border bg-muted/65 p-4 text-sm text-center font-medium text-foreground">{message}</div>}
+
+      {(() => {
+        const activeLine = lineItems.find((l) => l.id === activePieceLineId);
+        return activeLine ? (
+          <PieceMetersDialog
+            isOpen={!!activePieceLineId}
+            onClose={() => setActivePieceLineId(null)}
+            pcsCount={parseInt(activeLine.pcs) || 0}
+            initialMeters={activeLine.pieceMeters || []}
+            onSave={handleSavePieceMeters}
+          />
+        ) : null;
+      })()}
     </div>
   );
 }

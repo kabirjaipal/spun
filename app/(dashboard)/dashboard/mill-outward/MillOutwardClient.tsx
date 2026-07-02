@@ -24,12 +24,6 @@ interface InventoryOption {
   gstRateId: number | null;
 }
 
-interface LedgerOption {
-  ledgerId: number;
-  ledgerName: string;
-  ledgerType: string;
-}
-
 interface TaxRateOption {
   taxRateId: number;
   taxName: string;
@@ -45,7 +39,6 @@ interface BrokerHasteOption {
 interface LineItem {
   id: string;
   inventoryId: string;
-  ledgerId: string;
   hsnCode: string;
   pcs: string;
   quantity: string; // meter / quantity
@@ -59,7 +52,6 @@ interface LineItem {
 const EMPTY_LINE = (): LineItem => ({
   id: crypto.randomUUID(),
   inventoryId: "",
-  ledgerId: "",
   hsnCode: "",
   pcs: "0",
   quantity: "0",
@@ -74,7 +66,6 @@ export default function MillOutwardClient({
   company,
   mills,
   inventory,
-  ledgers,
   taxRates,
   brokersHaste,
   canCreate,
@@ -82,7 +73,6 @@ export default function MillOutwardClient({
   company: { companyName: string; gstNo?: string | null; address?: string | null };
   mills: MillOption[];
   inventory: InventoryOption[];
-  ledgers: LedgerOption[];
   taxRates: TaxRateOption[];
   brokersHaste: BrokerHasteOption[];
   canCreate: boolean;
@@ -183,9 +173,9 @@ export default function MillOutwardClient({
       return;
     }
 
-    const validLines = lineItems.filter((line) => line.inventoryId && line.ledgerId);
+    const validLines = lineItems.filter((line) => line.inventoryId);
     if (validLines.length === 0) {
-      setMessage("Add at least one item with item and ledger specified.");
+      setMessage("Add at least one item.");
       return;
     }
 
@@ -213,7 +203,6 @@ export default function MillOutwardClient({
           const totals = lineTotals[lineItems.indexOf(line)];
           return {
             inventoryId: Number(line.inventoryId),
-            ledgerId: Number(line.ledgerId),
             hsnCode: line.hsnCode,
             pcs: Number(line.pcs || 0),
             quantity: Number(line.quantity || 0),
@@ -439,11 +428,10 @@ export default function MillOutwardClient({
           <table className="w-full text-left border-collapse min-w-[1000px]">
             <thead>
               <tr className="border-b border-border text-xs font-bold uppercase text-muted-foreground">
-                <th className="py-2 pr-2 w-[22%]">Item</th>
-                <th className="py-2 px-2 w-[18%]">Ledger</th>
+                <th className="py-2 pr-2 w-[30%]">Item</th>
+                <th className="py-2 px-2 w-[6%]">Fold%</th>
                 <th className="py-2 px-2 w-[8%]">PCS</th>
                 <th className="py-2 px-2 w-[10%]">Meters</th>
-                <th className="py-2 px-2 w-[6%]">Fold%</th>
                 <th className="py-2 px-2 w-[10%]">Process Type</th>
                 <th className="py-2 px-2 w-[8%]">Per</th>
                 <th className="py-2 px-2 w-[8%]">Rate</th>
@@ -470,20 +458,13 @@ export default function MillOutwardClient({
                         </SelectContent>
                       </Select>
                     </td>
-
                     <td className="py-3 px-2">
-                      <Select value={line.ledgerId} onValueChange={(v) => updateLine(line.id, "ledgerId", v)}>
-                        <SelectTrigger className="h-9">
-                          <SelectValue placeholder="Select ledger" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {ledgers.map((l) => (
-                            <SelectItem key={l.ledgerId} value={String(l.ledgerId)}>
-                              {l.ledgerName}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Input
+                        type="number"
+                        value={line.fold}
+                        onChange={(e) => updateLine(line.id, "fold", e.target.value)}
+                        className="h-9 font-mono text-xs text-center"
+                      />
                     </td>
 
                     <td className="py-3 px-2">
@@ -500,15 +481,6 @@ export default function MillOutwardClient({
                         type="number"
                         value={line.quantity}
                         onChange={(e) => updateLine(line.id, "quantity", e.target.value)}
-                        className="h-9 font-mono text-xs text-center"
-                      />
-                    </td>
-
-                    <td className="py-3 px-2">
-                      <Input
-                        type="number"
-                        value={line.fold}
-                        onChange={(e) => updateLine(line.id, "fold", e.target.value)}
                         className="h-9 font-mono text-xs text-center"
                       />
                     </td>

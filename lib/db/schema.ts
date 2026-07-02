@@ -364,6 +364,7 @@ export const tVoucherItems = pgTable("t_voucher_items", {
   // Job / Mill specific columns
   jobType: text("job_type"),
   jobRateType: text("job_rate_type"), // 'pcs', 'mtr'
+  pieceMeters: text("piece_meters"),
 
   ...auditColumns,
 }, (table) => ({

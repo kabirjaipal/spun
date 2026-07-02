@@ -15,6 +15,9 @@ import {
   tVoucherItems,
   tVoucherEntries,
   tStockMovements,
+  mBrokersHaste,
+  mVoucherSequences,
+  tAuditLogs,
 } from "./schema";
 import bcrypt from "bcryptjs";
 import { eq, inArray } from "drizzle-orm";
@@ -86,6 +89,15 @@ export async function seedRealData() {
         await tx.delete(mJobs).where(inArray(mJobs.companyId, companyIds));
         await tx.delete(mMills).where(inArray(mMills.companyId, companyIds));
 
+        // Delete brokers & haste
+        await tx.delete(mBrokersHaste).where(inArray(mBrokersHaste.companyId, companyIds));
+
+        // Delete voucher sequences
+        await tx.delete(mVoucherSequences).where(inArray(mVoucherSequences.companyId, companyIds));
+
+        // Delete audit logs
+        await tx.delete(tAuditLogs).where(eq(tAuditLogs.createdBy, existingUser.id));
+
         // I. Delete companies (sub-companies first to respect FK)
         if (subComps.length > 0) {
           await tx.delete(mCompanies).where(inArray(mCompanies.companyId, subComps.map(c => Number(c.companyId))));
@@ -156,6 +168,72 @@ export async function seedRealData() {
       isActive: true,
     }).returning();
     const userId = user.id;
+
+    // Link primary company to this user
+    await tx.update(mCompanies).set({
+      createdBy: userId,
+      updatedBy: userId,
+    }).where(eq(mCompanies.companyId, companyId));
+
+    // Second Main Company
+    console.log("Inserting second main company...");
+    await tx.insert(mCompanies).values({
+      companyName: "Texora Manufacturing Pvt Ltd",
+      gstNo: "24AAACM4567D2Z2",
+      panNo: "AAACM4567D",
+      address: "Plot 12, GIDC Sachin",
+      pincode: "394230",
+      state: "Gujarat",
+      phone: "+91 98765 00002",
+      email: "mfg@texora.com",
+      currencySymbol: "₹",
+      nationName: "India",
+      bankName: "HDFC Bank",
+      bankAccountName: "Texora Manufacturing Pvt Ltd",
+      accountNo: "98765432101",
+      ifscCode: "HDFC0000123",
+      branchName: "Sachin Branch",
+      accountType: "current",
+      gstApplicable: true,
+      gstType: "regular",
+      stateCode: "24",
+      city: "Surat",
+      financialYearStart: "2026-04-01",
+      companyType: "textiles",
+      marketCategory: "Manufacturing",
+      createdBy: userId,
+      updatedBy: userId,
+    });
+
+    // Third Main Company
+    console.log("Inserting third main company...");
+    await tx.insert(mCompanies).values({
+      companyName: "Texora Retail Hub",
+      gstNo: "24AAACR7890E3Z3",
+      panNo: "AAACR7890E",
+      address: "Shop 1-5, City Center Mall",
+      pincode: "395007",
+      state: "Gujarat",
+      phone: "+91 98765 00003",
+      email: "retail@texora.com",
+      currencySymbol: "₹",
+      nationName: "India",
+      bankName: "ICICI Bank",
+      bankAccountName: "Texora Retail Hub",
+      accountNo: "12345678901",
+      ifscCode: "ICIC0000456",
+      branchName: "Adajan Branch",
+      accountType: "current",
+      gstApplicable: true,
+      gstType: "regular",
+      stateCode: "24",
+      city: "Surat",
+      financialYearStart: "2026-04-01",
+      companyType: "textiles",
+      marketCategory: "Retail",
+      createdBy: userId,
+      updatedBy: userId,
+    });
 
     // 5. Ledger Groups
     console.log("Inserting ledger groups...");
@@ -377,6 +455,15 @@ export async function seedRealData() {
       createdBy: userId,
       updatedBy: userId,
     }).returning();
+
+    // 11.5 Brokers and Haste
+    console.log("Inserting brokers and haste...");
+    await tx.insert(mBrokersHaste).values([
+      { companyId, name: "Rajesh Brokerage", type: "broker", createdBy: userId, updatedBy: userId },
+      { companyId, name: "Shyam Tex Broker", type: "broker", createdBy: userId, updatedBy: userId },
+      { companyId, name: "Amit Logistics", type: "haste", createdBy: userId, updatedBy: userId },
+      { companyId, name: "Vijay Transport Agent", type: "haste", createdBy: userId, updatedBy: userId },
+    ]);
 
     // 12. Parties (formerly Customers)
     console.log("Inserting parties...");
