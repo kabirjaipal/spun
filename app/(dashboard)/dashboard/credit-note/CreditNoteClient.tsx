@@ -211,9 +211,9 @@ export default function CreditNoteClient({
       return;
     }
 
-    const validLines = lineItems.filter((l) => l.inventoryId && l.ledgerId && Number(l.quantity) > 0);
+    const validLines = lineItems.filter((l) => l.inventoryId && Number(l.quantity) > 0);
     if (validLines.length === 0) {
-      setMessage("At least one valid line with item, ledger, and quantity is required.");
+      setMessage("At least one valid line with item and quantity is required.");
       return;
     }
 
@@ -232,7 +232,6 @@ export default function CreditNoteClient({
         parentVoucherId: selectedInvoice ? Number(selectedInvoice) : null,
         lineItems: validLines.map((line) => ({
           inventoryId: Number(line.inventoryId),
-          ledgerId: Number(line.ledgerId),
           hsnCode: line.hsnCode,
           pcs: Number(line.pcs),
           quantity: Number(line.quantity),
@@ -352,7 +351,7 @@ export default function CreditNoteClient({
               {lineItems.map((line, idx) => {
                 const total = lineTotals[idx];
                 return (
-                  <div key={line.id} className="grid gap-3 grid-cols-1 md:grid-cols-[1.5fr_1.5fr_1fr_1fr_1fr_1fr_1fr_auto] items-end border-b border-border/20 pb-3">
+                  <div key={line.id} className="grid gap-3 grid-cols-1 md:grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_auto] items-end border-b border-border/20 pb-3">
                     <div className="space-y-2">
                       <Label className="text-[10px] font-semibold uppercase text-muted-foreground">Item</Label>
                       <Select value={line.inventoryId} onValueChange={(val) => updateLine(line.id, "inventoryId", val)}>
@@ -360,18 +359,6 @@ export default function CreditNoteClient({
                         <SelectContent>
                           {inventory.map((p) => (
                             <SelectItem key={p.inventoryId} value={String(p.inventoryId)}>{p.inventoryName}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-[10px] font-semibold uppercase text-muted-foreground">Revenue/Returns Ledger</Label>
-                      <Select value={line.ledgerId} onValueChange={(val) => updateLine(line.id, "ledgerId", val)}>
-                        <SelectTrigger><SelectValue placeholder="Select Ledger" /></SelectTrigger>
-                        <SelectContent>
-                          {salesReturnLedgers.map((l) => (
-                            <SelectItem key={l.ledgerId} value={String(l.ledgerId)}>{l.ledgerName}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>

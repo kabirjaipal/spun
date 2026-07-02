@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { mLedgers, mInventory, mTaxRates, mJobs, mMills, mCompanies, tVouchers, tVoucherEntries, tStockMovements, tVoucherItems, mVoucherSequences } from "@/lib/db/schema";
-import { and, eq, isNull, desc, sql, inArray, or } from "drizzle-orm";
+import { and, eq, isNull, desc, inArray, or } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { writeAuditLog } from "@/lib/audit";
@@ -304,35 +304,6 @@ export async function POST(request: Request) {
           updatedBy: userId,
         });
 
-        // Look up default revenue/sales ledger for this company
-        let defaultRevenueLedger = await tx.query.mLedgers.findFirst({
-          where: and(
-            eq(mLedgers.companyId, companyId),
-            voucherType === "credit_note"
-              ? or(sql`lower(${mLedgers.ledgerName}) like '%sales return%'`, sql`lower(${mLedgers.ledgerName}) like '%sale return%'`)
-              : or(sql`lower(${mLedgers.ledgerName}) like '%sales%'`, sql`lower(${mLedgers.ledgerName}) like '%sale%'`),
-            isNull(mLedgers.deletedOn)
-          ),
-        });
-
-        // Fallback to general sales ledger if sales return ledger not found
-        if (!defaultRevenueLedger && voucherType === "credit_note") {
-          defaultRevenueLedger = await tx.query.mLedgers.findFirst({
-            where: and(
-              eq(mLedgers.companyId, companyId),
-              or(sql`lower(${mLedgers.ledgerName}) like '%sales%'`, sql`lower(${mLedgers.ledgerName}) like '%sale%'`),
-              isNull(mLedgers.deletedOn)
-            ),
-          });
-        }
-
-        // Ultimate fallback to first general ledger of company
-        if (!defaultRevenueLedger) {
-          defaultRevenueLedger = await tx.query.mLedgers.findFirst({
-            where: and(eq(mLedgers.companyId, companyId), isNull(mLedgers.deletedOn)),
-          });
-        }
-
         // 2. Insert item details, ledger postings, and stock movements
         for (const line of processedLines) {
           await tx.insert(tVoucherItems).values({
@@ -356,20 +327,18 @@ export async function POST(request: Request) {
             updatedBy: userId,
           });
 
-          // Credit / Debit Revenue Account
-          const lineLedgerId = Number(line.ledgerId) || (defaultRevenueLedger ? Number(defaultRevenueLedger.ledgerId) : NaN);
-          if (isNaN(lineLedgerId)) {
-            throw new Error("Revenue ledger not found for the company");
+          // Credit / Debit Revenue Account — only if ledgerId explicitly provided
+          const lineLedgerId = Number(line.ledgerId) || 0;
+          if (lineLedgerId) {
+            await tx.insert(tVoucherEntries).values({
+              voucherId: voucherIdNum,
+              ledgerId: lineLedgerId,
+              entryType: voucherType === "sale" ? "credit" : "debit",
+              amount: String(line.taxableAmount),
+              createdBy: userId,
+              updatedBy: userId,
+            });
           }
-
-          await tx.insert(tVoucherEntries).values({
-            voucherId: voucherIdNum,
-            ledgerId: lineLedgerId,
-            entryType: voucherType === "sale" ? "credit" : "debit",
-            amount: String(line.taxableAmount),
-            createdBy: userId,
-            updatedBy: userId,
-          });
 
           // Tax Ledger Entries
           const taxLedger = await getOrCreateTaxLedger();
@@ -409,7 +378,6 @@ export async function POST(request: Request) {
         if (!partyLedger) throw new Error("Party ledger not found");
 
         const companyEntryType = (voucherType === "purchase" || voucherType === "direct_bill") ? "credit" : "debit";
-        const expenseEntryType = (voucherType === "purchase" || voucherType === "direct_bill") ? "debit" : "credit";
         const taxEntryType = (voucherType === "purchase" || voucherType === "direct_bill") ? "debit" : "credit";
 
         await tx.insert(tVoucherEntries).values({
