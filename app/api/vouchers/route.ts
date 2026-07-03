@@ -1,5 +1,17 @@
 import { db } from "@/lib/db";
-import { mLedgers, mInventory, mTaxRates, mJobs, mMills, mCompanies, tVouchers, tVoucherEntries, tStockMovements, tVoucherItems, mVoucherSequences } from "@/lib/db/schema";
+import {
+  mLedgers,
+  mInventory,
+  mTaxRates,
+  mJobs,
+  mMills,
+  mCompanies,
+  tVouchers,
+  tVoucherEntries,
+  tStockMovements,
+  tVoucherItems,
+  mVoucherSequences,
+} from "@/lib/db/schema";
 import { and, eq, isNull, desc, inArray, or } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
@@ -20,7 +32,6 @@ const DEFAULT_PREFIXES: Record<string, string> = {
   mill_outward: "MO-",
   mill_inward: "MI-",
 };
-
 
 export async function POST(request: Request) {
   const session = await auth();
@@ -43,6 +54,7 @@ export async function POST(request: Request) {
     goodsName,
     partyId,
     remarks,
+    jobStatus,
     lineItems,
     cashBankLedgerId,
     totalAmount,
@@ -64,11 +76,14 @@ export async function POST(request: Request) {
     discountType2,
     discountValue2,
     extraCharges,
-    extraChargesData
+    extraChargesData,
   } = body;
 
   if (!voucherType || !voucherNo || !voucherDate) {
-    return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Missing required fields" },
+      { status: 400 },
+    );
   }
 
   try {
@@ -80,7 +95,7 @@ export async function POST(request: Request) {
       const seq = await tx.query.mVoucherSequences.findFirst({
         where: and(
           eq(mVoucherSequences.companyId, companyId),
-          eq(mVoucherSequences.voucherType, voucherType)
+          eq(mVoucherSequences.voucherType, voucherType),
         ),
       });
 
@@ -91,17 +106,17 @@ export async function POST(request: Request) {
           .set({ nextNumber: seq.nextNumber + 1 })
           .where(eq(mVoucherSequences.sequenceId, seq.sequenceId));
       } else {
-        const prefix = DEFAULT_PREFIXES[voucherType] || `${voucherType.toUpperCase().substring(0, 3)}-`;
-        await tx
-          .insert(mVoucherSequences)
-          .values({
-            companyId,
-            voucherType,
-            prefix,
-            nextNumber: 2,
-            createdBy: userId,
-            updatedBy: userId,
-          });
+        const prefix =
+          DEFAULT_PREFIXES[voucherType] ||
+          `${voucherType.toUpperCase().substring(0, 3)}-`;
+        await tx.insert(mVoucherSequences).values({
+          companyId,
+          voucherType,
+          prefix,
+          nextNumber: 2,
+          createdBy: userId,
+          updatedBy: userId,
+        });
         finalVoucherNo = `${prefix}1`;
       }
 
@@ -116,25 +131,39 @@ export async function POST(request: Request) {
       let partyStateCode = "";
 
       if (partyId) {
-        if (voucherType === "sale" || voucherType === "credit_note" || voucherType === "debit_note" || voucherType === "purchase_return") {
+        if (
+          voucherType === "sale" ||
+          voucherType === "credit_note" ||
+          voucherType === "debit_note" ||
+          voucherType === "purchase_return"
+        ) {
           const cust = await tx.query.mCompanies.findFirst({
             where: eq(mCompanies.companyId, Number(partyId)),
           });
           partyGstNo = cust?.gstNo || "";
           partyState = cust?.state || "";
-        } else if (voucherType === "purchase" || voucherType === "direct_bill") {
+        } else if (
+          voucherType === "purchase" ||
+          voucherType === "direct_bill"
+        ) {
           const compObj = await tx.query.mCompanies.findFirst({
             where: eq(mCompanies.companyId, Number(partyId)),
           });
           partyGstNo = compObj?.gstNo || "";
           partyState = compObj?.state || "";
-        } else if (voucherType === "job_outward" || voucherType === "job_inward") {
+        } else if (
+          voucherType === "job_outward" ||
+          voucherType === "job_inward"
+        ) {
           const job = await tx.query.mJobs.findFirst({
             where: eq(mJobs.jobId, Number(partyId)),
           });
           partyGstNo = job?.gstNo || "";
           partyStateCode = job?.stateCode || "";
-        } else if (voucherType === "mill_outward" || voucherType === "mill_inward") {
+        } else if (
+          voucherType === "mill_outward" ||
+          voucherType === "mill_inward"
+        ) {
           const mill = await tx.query.mMills.findFirst({
             where: eq(mMills.millId, Number(partyId)),
           });
@@ -145,9 +174,12 @@ export async function POST(request: Request) {
 
       let isInterstate = false;
       if (companyState && partyState) {
-        isInterstate = companyState.trim().toLowerCase() !== partyState.trim().toLowerCase();
+        isInterstate =
+          companyState.trim().toLowerCase() !== partyState.trim().toLowerCase();
       } else if (company?.stateCode && partyStateCode) {
-        isInterstate = company.stateCode.trim().toLowerCase() !== partyStateCode.trim().toLowerCase();
+        isInterstate =
+          company.stateCode.trim().toLowerCase() !==
+          partyStateCode.trim().toLowerCase();
       } else if (companyGst && partyGstNo) {
         isInterstate = companyGst.slice(0, 2) !== partyGstNo.slice(0, 2);
       }
@@ -182,28 +214,58 @@ export async function POST(request: Request) {
           const rate = Number(line.rate) || 0;
           const fold = Number(line.fold !== undefined ? line.fold : 100) || 100;
           const jobRateType = line.jobRateType || "mtr";
-          
+
           const unit = jobRateType === "pcs" ? pcs : qty;
-          const rawTaxableAmount = Math.round(((unit * rate * fold) / 100) * 100) / 100;
+          const rawTaxableAmount =
+            Math.round(((unit * rate * fold) / 100) * 100) / 100;
           rawTotal += rawTaxableAmount;
           return { line, rawTaxableAmount, pcs, qty, rate, fold, jobRateType };
         });
 
-        for (const { line, rawTaxableAmount, pcs, qty, rate, fold, jobRateType } of linesInfo) {
-          const lineDiscount1 = calculatePreTaxDiscount(rawTaxableAmount, rawTotal, discountType, discountValue);
-          const lineDiscount2 = calculatePreTaxDiscount(rawTaxableAmount, rawTotal, discountType2, discountValue2);
+        for (const {
+          line,
+          rawTaxableAmount,
+          pcs,
+          qty,
+          rate,
+          fold,
+          jobRateType,
+        } of linesInfo) {
+          const lineDiscount1 = calculatePreTaxDiscount(
+            rawTaxableAmount,
+            rawTotal,
+            discountType,
+            discountValue,
+          );
+          const lineDiscount2 = calculatePreTaxDiscount(
+            rawTaxableAmount,
+            rawTotal,
+            discountType2,
+            discountValue2,
+          );
           const totalLineDiscount = lineDiscount1 + lineDiscount2;
-          const taxableAmount = Math.max(0, Math.round((rawTaxableAmount - totalLineDiscount) * 100) / 100);
+          const taxableAmount = Math.max(
+            0,
+            Math.round((rawTaxableAmount - totalLineDiscount) * 100) / 100,
+          );
 
           let cgst = line.cgst !== undefined ? Number(line.cgst) : 0;
           let sgst = line.sgst !== undefined ? Number(line.sgst) : 0;
           let igst = line.igst !== undefined ? Number(line.igst) : 0;
 
-          if (line.gstRateId && line.cgst === undefined && line.sgst === undefined && line.igst === undefined) {
-            const taxRate = await tx.query.mTaxRates.findFirst({ where: eq(mTaxRates.taxRateId, Number(line.gstRateId)) });
+          if (
+            line.gstRateId &&
+            line.cgst === undefined &&
+            line.sgst === undefined &&
+            line.igst === undefined
+          ) {
+            const taxRate = await tx.query.mTaxRates.findFirst({
+              where: eq(mTaxRates.taxRateId, Number(line.gstRateId)),
+            });
             if (taxRate) {
               const taxPercent = Number(taxRate.taxPercent || 0);
-              const totalTax = Math.round((taxableAmount * taxPercent) / 100 * 100) / 100;
+              const totalTax =
+                Math.round(((taxableAmount * taxPercent) / 100) * 100) / 100;
               if (isInterstate) {
                 igst = totalTax;
               } else {
@@ -240,10 +302,16 @@ export async function POST(request: Request) {
         if (!Array.isArray(lineItems) || lineItems.length === 0) {
           throw new Error("Line items are required for journal vouchers");
         }
-        const debits = lineItems.filter((l: any) => l.entryType === "debit").reduce((sum: number, l: any) => sum + Number(l.amount || 0), 0);
-        const credits = lineItems.filter((l: any) => l.entryType === "credit").reduce((sum: number, l: any) => sum + Number(l.amount || 0), 0);
+        const debits = lineItems
+          .filter((l: any) => l.entryType === "debit")
+          .reduce((sum: number, l: any) => sum + Number(l.amount || 0), 0);
+        const credits = lineItems
+          .filter((l: any) => l.entryType === "credit")
+          .reduce((sum: number, l: any) => sum + Number(l.amount || 0), 0);
         if (Math.abs(debits - credits) > 0.01) {
-          throw new Error("Debits and credits do not balance in journal voucher");
+          throw new Error(
+            "Debits and credits do not balance in journal voucher",
+          );
         }
         computedTotal = debits;
         computedNet = debits;
@@ -259,11 +327,12 @@ export async function POST(request: Request) {
           voucherDate: String(voucherDate),
           partyId: partyId ? Number(partyId) : null,
           remarks: remarks || null,
+          jobStatus: jobStatus || null,
           status: "posted",
           totalAmount: String(computedTotal),
           taxAmount: String(computedTax),
           netAmount: String(computedNet),
-           broker: broker || null,
+          broker: broker || null,
           haste: haste || null,
           lrNo: lrNo || null,
           lrDate: lrDate ? String(lrDate) : null,
@@ -295,7 +364,11 @@ export async function POST(request: Request) {
       // Helper to find or create a Tax/GST ledger
       const getOrCreateTaxLedger = async () => {
         let ledger = await tx.query.mLedgers.findFirst({
-          where: and(eq(mLedgers.companyId, companyId), eq(mLedgers.ledgerType, "tax"), isNull(mLedgers.deletedOn)),
+          where: and(
+            eq(mLedgers.companyId, companyId),
+            eq(mLedgers.ledgerType, "tax"),
+            isNull(mLedgers.deletedOn),
+          ),
         });
         if (!ledger) {
           const [newL] = await tx
@@ -318,7 +391,7 @@ export async function POST(request: Request) {
           where: and(
             eq(mLedgers.companyId, companyId),
             eq(mLedgers.ledgerName, "Freight & Other Charges A/c"),
-            isNull(mLedgers.deletedOn)
+            isNull(mLedgers.deletedOn),
           ),
         });
         if (!ledger) {
@@ -341,7 +414,12 @@ export async function POST(request: Request) {
       if (voucherType === "sale" || voucherType === "credit_note") {
         // 1. Debit Party Ledger
         const partyLedger = await tx.query.mLedgers.findFirst({
-          where: and(eq(mLedgers.referenceId, Number(partyId)), eq(mLedgers.ledgerType, "company"), eq(mLedgers.companyId, companyId), isNull(mLedgers.deletedOn))
+          where: and(
+            eq(mLedgers.referenceId, Number(partyId)),
+            eq(mLedgers.ledgerType, "company"),
+            eq(mLedgers.companyId, companyId),
+            isNull(mLedgers.deletedOn),
+          ),
         });
         if (!partyLedger) throw new Error("Party ledger not found");
 
@@ -372,7 +450,9 @@ export async function POST(request: Request) {
             netAmount: String(line.lineNet),
             jobType: line.jobType || null,
             jobRateType: line.jobRateType || null,
-            pieceMeters: line.pieceMeters ? JSON.stringify(line.pieceMeters) : null,
+            pieceMeters: line.pieceMeters
+              ? JSON.stringify(line.pieceMeters)
+              : null,
             createdBy: userId,
             updatedBy: userId,
           });
@@ -405,7 +485,9 @@ export async function POST(request: Request) {
           }
 
           // Stock movements
-          const item = await tx.query.mInventory.findFirst({ where: eq(mInventory.inventoryId, Number(line.inventoryId)) });
+          const item = await tx.query.mInventory.findFirst({
+            where: eq(mInventory.inventoryId, Number(line.inventoryId)),
+          });
           if (item) {
             await tx.insert(tStockMovements).values({
               companyId,
@@ -432,15 +514,31 @@ export async function POST(request: Request) {
             updatedBy: userId,
           });
         }
-      } else if (voucherType === "purchase" || voucherType === "debit_note" || voucherType === "purchase_return" || voucherType === "direct_bill") {
+      } else if (
+        voucherType === "purchase" ||
+        voucherType === "debit_note" ||
+        voucherType === "purchase_return" ||
+        voucherType === "direct_bill"
+      ) {
         // 1. Credit Party Ledger
         const partyLedger = await tx.query.mLedgers.findFirst({
-          where: and(eq(mLedgers.referenceId, Number(partyId)), eq(mLedgers.ledgerType, "company"), eq(mLedgers.companyId, companyId), isNull(mLedgers.deletedOn))
+          where: and(
+            eq(mLedgers.referenceId, Number(partyId)),
+            eq(mLedgers.ledgerType, "company"),
+            eq(mLedgers.companyId, companyId),
+            isNull(mLedgers.deletedOn),
+          ),
         });
         if (!partyLedger) throw new Error("Party ledger not found");
 
-        const companyEntryType = (voucherType === "purchase" || voucherType === "direct_bill") ? "credit" : "debit";
-        const taxEntryType = (voucherType === "purchase" || voucherType === "direct_bill") ? "debit" : "credit";
+        const companyEntryType =
+          voucherType === "purchase" || voucherType === "direct_bill"
+            ? "credit"
+            : "debit";
+        const taxEntryType =
+          voucherType === "purchase" || voucherType === "direct_bill"
+            ? "debit"
+            : "credit";
 
         await tx.insert(tVoucherEntries).values({
           voucherId: voucherIdNum,
@@ -469,7 +567,9 @@ export async function POST(request: Request) {
             netAmount: String(line.lineNet),
             jobType: line.jobType || null,
             jobRateType: line.jobRateType || null,
-            pieceMeters: line.pieceMeters ? JSON.stringify(line.pieceMeters) : null,
+            pieceMeters: line.pieceMeters
+              ? JSON.stringify(line.pieceMeters)
+              : null,
             createdBy: userId,
             updatedBy: userId,
           });
@@ -490,14 +590,19 @@ export async function POST(request: Request) {
 
           // Stock movements (Only for standard trading purchases, not direct non-trading bills)
           if (voucherType !== "direct_bill") {
-            const item = await tx.query.mInventory.findFirst({ where: eq(mInventory.inventoryId, Number(line.inventoryId)) });
+            const item = await tx.query.mInventory.findFirst({
+              where: eq(mInventory.inventoryId, Number(line.inventoryId)),
+            });
             if (item) {
               await tx.insert(tStockMovements).values({
                 companyId,
                 inventoryId: Number(item.inventoryId),
                 voucherId: voucherIdNum,
-                movementType: voucherType === "purchase" ? "purchase" : "adjustment",
-                quantity: String(voucherType === "purchase" ? line.qty : -line.qty),
+                movementType:
+                  voucherType === "purchase" ? "purchase" : "adjustment",
+                quantity: String(
+                  voucherType === "purchase" ? line.qty : -line.qty,
+                ),
                 rate: String(line.rate),
                 amount: String(line.taxableAmount),
                 createdBy: userId,
@@ -509,7 +614,10 @@ export async function POST(request: Request) {
 
         if (extraChargesNum > 0) {
           const extraLedger = await getOrCreateExtraChargesLedger();
-          const extraEntryType = (voucherType === "purchase" || voucherType === "direct_bill") ? "debit" : "credit";
+          const extraEntryType =
+            voucherType === "purchase" || voucherType === "direct_bill"
+              ? "debit"
+              : "credit";
           await tx.insert(tVoucherEntries).values({
             voucherId: voucherIdNum,
             ledgerId: Number(extraLedger.ledgerId),
@@ -544,18 +652,25 @@ export async function POST(request: Request) {
             netAmount: String(line.lineNet),
             jobType: line.jobType || null,
             jobRateType: line.jobRateType || null,
-            pieceMeters: line.pieceMeters ? JSON.stringify(line.pieceMeters) : null,
+            pieceMeters: line.pieceMeters
+              ? JSON.stringify(line.pieceMeters)
+              : null,
             createdBy: userId,
             updatedBy: userId,
           });
 
           // Stock movements
-          const item = await tx.query.mInventory.findFirst({ where: eq(mInventory.inventoryId, Number(line.inventoryId)) });
+          const item = await tx.query.mInventory.findFirst({
+            where: eq(mInventory.inventoryId, Number(line.inventoryId)),
+          });
           if (item) {
             let movementTypeStr = "adjustment";
             let movementQty = line.qty;
 
-            if (voucherType === "job_outward" || voucherType === "mill_outward") {
+            if (
+              voucherType === "job_outward" ||
+              voucherType === "mill_outward"
+            ) {
               // Outward sends raw/grey stock out
               movementQty = -line.qty;
             } else {
@@ -577,9 +692,17 @@ export async function POST(request: Request) {
           }
         }
       } else if (voucherType === "receipt") {
-        if (!cashBankLedgerId || !partyId) throw new Error("Cash/Bank and Party account are required for Receipts");
+        if (!cashBankLedgerId || !partyId)
+          throw new Error(
+            "Cash/Bank and Party account are required for Receipts",
+          );
         const partyLedger = await tx.query.mLedgers.findFirst({
-          where: and(eq(mLedgers.referenceId, Number(partyId)), eq(mLedgers.ledgerType, "company"), eq(mLedgers.companyId, companyId), isNull(mLedgers.deletedOn))
+          where: and(
+            eq(mLedgers.referenceId, Number(partyId)),
+            eq(mLedgers.ledgerType, "company"),
+            eq(mLedgers.companyId, companyId),
+            isNull(mLedgers.deletedOn),
+          ),
         });
         if (!partyLedger) throw new Error("Party ledger not found");
 
@@ -606,9 +729,17 @@ export async function POST(request: Request) {
           updatedBy: userId,
         });
       } else if (voucherType === "payment") {
-        if (!cashBankLedgerId || !partyId) throw new Error("Cash/Bank and Party account are required for Payments");
+        if (!cashBankLedgerId || !partyId)
+          throw new Error(
+            "Cash/Bank and Party account are required for Payments",
+          );
         const partyLedger = await tx.query.mLedgers.findFirst({
-          where: and(eq(mLedgers.referenceId, Number(partyId)), eq(mLedgers.ledgerType, "company"), eq(mLedgers.companyId, companyId), isNull(mLedgers.deletedOn))
+          where: and(
+            eq(mLedgers.referenceId, Number(partyId)),
+            eq(mLedgers.ledgerType, "company"),
+            eq(mLedgers.companyId, companyId),
+            isNull(mLedgers.deletedOn),
+          ),
         });
         if (!partyLedger) throw new Error("Party ledger not found");
 
@@ -662,15 +793,19 @@ export async function POST(request: Request) {
     return NextResponse.json(voucher, { status: 201 });
   } catch (error: any) {
     console.error("Voucher error:", error);
-    return NextResponse.json({ error: error.message || "Failed to create voucher" }, { status: 500 });
+    return NextResponse.json(
+      { error: error.message || "Failed to create voucher" },
+      { status: 500 },
+    );
   }
 }
 
-
 export async function GET(request: Request) {
   const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!session.user.companyId) return NextResponse.json({ error: "No company" }, { status: 400 });
+  if (!session?.user?.id)
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session.user.companyId)
+    return NextResponse.json({ error: "No company" }, { status: 400 });
 
   const companyId = Number(session.user.companyId);
   const { searchParams } = new URL(request.url);
@@ -679,14 +814,21 @@ export async function GET(request: Request) {
   const includeItems = searchParams.get("includeItems") === "true";
 
   if (type === "outstanding") {
-    if (!partyId) return NextResponse.json({ error: "partyId is required" }, { status: 400 });
+    if (!partyId)
+      return NextResponse.json(
+        { error: "partyId is required" },
+        { status: 400 },
+      );
     const pId = Number(partyId);
-    
+
     let invoiceType = searchParams.get("invoiceType");
 
     if (!invoiceType) {
       const subCompany = await db.query.mCompanies.findFirst({
-        where: and(eq(mCompanies.companyId, pId), eq(mCompanies.parentCompanyId, companyId))
+        where: and(
+          eq(mCompanies.companyId, pId),
+          eq(mCompanies.parentCompanyId, companyId),
+        ),
       });
 
       if (!subCompany) {
@@ -711,8 +853,8 @@ export async function GET(request: Request) {
           eq(tVouchers.companyId, companyId),
           eq(tVouchers.voucherType, invoiceType),
           eq(tVouchers.partyId, pId),
-          isNull(tVouchers.deletedOn)
-        )
+          isNull(tVouchers.deletedOn),
+        ),
       )
       .orderBy(desc(tVouchers.voucherDate));
 
@@ -726,10 +868,14 @@ export async function GET(request: Request) {
       .where(
         and(
           eq(tVouchers.companyId, companyId),
-          inArray(tVouchers.voucherType, [paymentType, noteType, "purchase_return"]),
+          inArray(tVouchers.voucherType, [
+            paymentType,
+            noteType,
+            "purchase_return",
+          ]),
           eq(tVouchers.partyId, pId),
-          isNull(tVouchers.deletedOn)
-        )
+          isNull(tVouchers.deletedOn),
+        ),
       );
 
     const paidAmounts: Record<number, number> = {};
@@ -748,10 +894,13 @@ export async function GET(request: Request) {
     const ledger = await db.query.mLedgers.findFirst({
       where: and(
         eq(mLedgers.referenceId, pId),
-        or(eq(mLedgers.ledgerType, "company"), eq(mLedgers.ledgerType, "customer")),
+        or(
+          eq(mLedgers.ledgerType, "company"),
+          eq(mLedgers.ledgerType, "customer"),
+        ),
         eq(mLedgers.companyId, companyId),
-        isNull(mLedgers.deletedOn)
-      )
+        isNull(mLedgers.deletedOn),
+      ),
     });
 
     const outstandingInvoices = invoices
@@ -856,7 +1005,10 @@ export async function GET(request: Request) {
         pieceMeters: tVoucherItems.pieceMeters,
       })
       .from(tVoucherItems)
-      .leftJoin(mInventory, eq(tVoucherItems.inventoryId, mInventory.inventoryId))
+      .leftJoin(
+        mInventory,
+        eq(tVoucherItems.inventoryId, mInventory.inventoryId),
+      )
       .where(and(isNull(tVoucherItems.deletedOn)));
 
     const itemsGrouped = items.reduce((acc: any, item) => {

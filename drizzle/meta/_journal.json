@@ -120,6 +120,13 @@
       "when": 1783086955001,
       "tag": "0016_clammy_starhawk",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1783104078374,
+      "tag": "0017_wide_skreet",
+      "breakpoints": true
     }
   ]
 }

@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Plus, Trash2, Edit } from "lucide-react";
 import PrintInvoiceModal from "@/components/PrintInvoiceModal";
 import BrokerHasteDialog from "@/components/BrokerHasteDialog";
@@ -140,6 +141,9 @@ export default function JobInwardClient({
   const [lrDate, setLrDate] = useState(new Date().toISOString().slice(0, 10));
   const [transport, setTransport] = useState("");
   const [remarks, setRemarks] = useState("");
+  const [jobStatus, setJobStatus] = useState<"finished" | "refinished">(
+    "finished",
+  );
   const [vehicleNo, setVehicleNo] = useState("");
   const [personName, setPersonName] = useState("");
 
@@ -451,6 +455,7 @@ export default function JobInwardClient({
         voucherDate,
         partyId: Number(selectedJob),
         remarks: remarks || "Job Inward Challan",
+        jobStatus,
         broker,
         haste,
         lrNo,
@@ -499,6 +504,7 @@ export default function JobInwardClient({
       setMessage("Job Inward Challan created successfully.");
       fetchNextVoucherNo();
       setRemarks("");
+      setJobStatus("finished");
       setBroker("");
       setHaste("");
       setLrNo("");
@@ -688,6 +694,31 @@ export default function JobInwardClient({
                 placeholder="Notes"
                 className="h-10"
               />
+            </div>
+
+            <div className="space-y-1.5 md:col-span-2">
+              <Label className="text-xs font-semibold uppercase text-foreground">
+                JOB CONDITION
+              </Label>
+              <RadioGroup
+                value={jobStatus}
+                onValueChange={(value) =>
+                  setJobStatus(value as "finished" | "refinished")
+                }
+                className="flex flex-wrap gap-4"
+              >
+                {(["finished", "refinished"] as const).map((value) => (
+                  <div key={value} className="flex items-center space-x-2">
+                    <RadioGroupItem value={value} id={`job-inward-${value}`} />
+                    <Label
+                      htmlFor={`job-inward-${value}`}
+                      className="text-sm font-medium text-foreground capitalize"
+                    >
+                      {value}
+                    </Label>
+                  </div>
+                ))}
+              </RadioGroup>
             </div>
           </div>
         </div>
