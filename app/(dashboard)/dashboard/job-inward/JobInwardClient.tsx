@@ -9,6 +9,7 @@ import { Plus, Trash2 } from "lucide-react";
 import PrintInvoiceModal from "@/components/PrintInvoiceModal";
 import BrokerHasteDialog from "@/components/BrokerHasteDialog";
 import JobFormDrawer from "@/components/JobFormDrawer";
+import PieceMetersDialog from "@/components/PieceMetersDialog";
 
 interface JobOption {
   jobId: number;
@@ -58,6 +59,7 @@ interface OutwardItem {
   jobType: string | null;
   jobRateType: string | null;
   gstRateId: number | null;
+  pieceMeters?: string[] | null;
 }
 
 interface LineItem {
@@ -73,6 +75,7 @@ interface LineItem {
   jobType: string;
   jobRateType: "pcs" | "mtr";
   gstRateId: string;
+  pieceMeters?: string[];
 }
 
 export default function JobInwardClient({
@@ -132,6 +135,7 @@ export default function JobInwardClient({
   const [printAmount, setPrintAmount] = useState(true);
 
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
+  const [activePieceLineId, setActivePieceLineId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [printVoucher, setPrintVoucher] = useState<any>(null);
@@ -163,6 +167,7 @@ export default function JobInwardClient({
       jobType: item.jobType || "dyeing",
       jobRateType: (item.jobRateType || "mtr") as "pcs" | "mtr",
       gstRateId: item.gstRateId ? String(item.gstRateId) : "",
+      pieceMeters: item.pieceMeters || [],
     }));
 
     setLineItems(itemsMapped);
@@ -231,6 +236,36 @@ export default function JobInwardClient({
         return { ...item, [field]: value };
       })
     );
+  }
+
+  function handleSavePieceMeters(meters: string[]) {
+    if (!activePieceLineId) return;
+    setLineItems((prev) =>
+      prev.map((item) => {
+        if (item.id !== activePieceLineId) return item;
+        let pcs = 0;
+        let totalQty = 0;
+        for (const m of meters) {
+          if (m.includes('x')) {
+            const [pStr, qStr] = m.split('x');
+            const p = parseInt(pStr) || 0;
+            const q = parseFloat(qStr) || 0;
+            pcs += p;
+            totalQty += p * q;
+          } else {
+            pcs += 1;
+            totalQty += parseFloat(m) || 0;
+          }
+        }
+        return {
+          ...item,
+          pcs: String(pcs),
+          quantity: String(totalQty),
+          pieceMeters: meters,
+        };
+      })
+    );
+    setActivePieceLineId(null);
   }
 
   function addLine() {
@@ -307,6 +342,7 @@ export default function JobInwardClient({
             gstRateId: line.gstRateId ? Number(line.gstRateId) : null,
             taxableAmount: totals.amount,
             lineNet: totals.net,
+            pieceMeters: line.pieceMeters,
           };
         }),
       };
@@ -594,22 +630,35 @@ export default function JobInwardClient({
                     {/* Inward PCS */}
                     <div className="md:col-span-2 space-y-1.5">
                       <Label className="text-xs font-semibold uppercase text-foreground">Inward PCS</Label>
-                      <Input
-                        type="number"
-                        value={line.pcs}
-                        onChange={(e) => updateLine(line.id, "pcs", e.target.value)}
-                        className="h-10 text-right"
-                      />
+                      <div className="flex items-center gap-1.5">
+                        <Input
+                          type="number"
+                          value={line.pcs}
+                          onChange={(e) => updateLine(line.id, "pcs", e.target.value)}
+                          readOnly={!!(line.pieceMeters && line.pieceMeters.length > 0)}
+                          className={`h-10 text-right w-full ${line.pieceMeters && line.pieceMeters.length > 0 ? "bg-muted cursor-not-allowed" : ""}`}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-10 px-3 shrink-0"
+                          onClick={() => setActivePieceLineId(line.id)}
+                          title="Enter Piece Meters"
+                        >
+                          ⚙️
+                        </Button>
+                      </div>
                     </div>
 
-                    {/* Inward Meters */}
+                    {/* Inward Qty */}
                     <div className="md:col-span-2 space-y-1.5">
-                      <Label className="text-xs font-semibold uppercase text-foreground">Inward Meters</Label>
+                      <Label className="text-xs font-semibold uppercase text-foreground">Inward Qty</Label>
                       <Input
                         type="number"
                         value={line.quantity}
                         onChange={(e) => updateLine(line.id, "quantity", e.target.value)}
-                        className="h-10 text-right"
+                        readOnly={!!(line.pieceMeters && line.pieceMeters.length > 0)}
+                        className={`h-10 text-right ${line.pieceMeters && line.pieceMeters.length > 0 ? "bg-muted cursor-not-allowed" : ""}`}
                       />
                     </div>
 
@@ -748,6 +797,19 @@ export default function JobInwardClient({
         onClose={() => setShowJobModal(false)}
         onCreated={handleJobCreated}
       />
+      {(() => {
+        const activeLine = lineItems.find((l) => l.id === activePieceLineId);
+        return activeLine ? (
+          <PieceMetersDialog
+            isOpen={!!activePieceLineId}
+            onClose={() => setActivePieceLineId(null)}
+            pcsCount={parseInt(activeLine.pcs) || 0}
+            quantityCount={parseFloat(activeLine.quantity) || 0}
+            initialMeters={activeLine.pieceMeters || []}
+            onSave={handleSavePieceMeters}
+          />
+        ) : null;
+      })()}
     </div>
   );
 }

@@ -11,6 +11,7 @@ import PrintInvoiceModal from "@/components/PrintInvoiceModal";
 import BrokerHasteDialog from "@/components/BrokerHasteDialog";
 import PartyFormDrawer from "@/components/PartyFormDrawer";
 import { calculatePreTaxDiscount } from "@/lib/utils";
+import PieceMetersDialog from "@/components/PieceMetersDialog";
 
 interface PartyOption {
   partyId: number;
@@ -43,6 +44,7 @@ interface LineItem {
   fold: string; // fold percentage (default 100)
   rate: string;
   gstRateId: string;
+  pieceMeters?: string[];
 }
 
 interface PastVoucher {
@@ -72,6 +74,7 @@ const EMPTY_LINE = (): LineItem => ({
   fold: "100",
   rate: "0",
   gstRateId: "",
+  pieceMeters: [],
 });
 
 const fmt = (n: number) => `₹${n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
@@ -132,6 +135,7 @@ export default function SalesClient({
   const [personName, setPersonName] = useState("");
 
   const [lineItems, setLineItems] = useState<LineItem[]>([EMPTY_LINE()]);
+  const [activePieceLineId, setActivePieceLineId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [printVoucher, setPrintVoucher] = useState<any>(null);
@@ -248,6 +252,36 @@ export default function SalesClient({
     );
   }
 
+  function handleSavePieceMeters(meters: string[]) {
+    if (!activePieceLineId) return;
+    setLineItems((prev) =>
+      prev.map((item) => {
+        if (item.id !== activePieceLineId) return item;
+        let pcs = 0;
+        let totalQty = 0;
+        for (const m of meters) {
+          if (m.includes('x')) {
+            const [pStr, qStr] = m.split('x');
+            const p = parseInt(pStr) || 0;
+            const q = parseFloat(qStr) || 0;
+            pcs += p;
+            totalQty += p * q;
+          } else {
+            pcs += 1;
+            totalQty += parseFloat(m) || 0;
+          }
+        }
+        return {
+          ...item,
+          pcs: String(pcs),
+          quantity: String(totalQty),
+          pieceMeters: meters,
+        };
+      })
+    );
+    setActivePieceLineId(null);
+  }
+
   function addLine() {
     setLineItems((items) => [...items, EMPTY_LINE()]);
   }
@@ -317,6 +351,7 @@ export default function SalesClient({
           fold: Number(line.fold || 100),
           rate: Number(line.rate),
           gstRateId: line.gstRateId ? Number(line.gstRateId) : null,
+          pieceMeters: line.pieceMeters,
         })),
       };
 
@@ -602,12 +637,24 @@ export default function SalesClient({
                   {/* PCS */}
                   <div className="md:col-span-1 space-y-1.5">
                     <Label className="text-xs font-semibold uppercase text-foreground">PCS</Label>
-                    <Input
-                      type="number"
-                      value={line.pcs}
-                      onChange={(e) => updateLine(line.id, "pcs", e.target.value)}
-                      className="h-10 text-right"
-                    />
+                    <div className="flex items-center gap-1.5">
+                      <Input
+                        type="number"
+                        value={line.pcs}
+                        onChange={(e) => updateLine(line.id, "pcs", e.target.value)}
+                        readOnly={!!(line.pieceMeters && line.pieceMeters.length > 0)}
+                        className={`h-10 text-right w-full ${line.pieceMeters && line.pieceMeters.length > 0 ? "bg-muted cursor-not-allowed" : ""}`}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-10 px-3 shrink-0"
+                        onClick={() => setActivePieceLineId(line.id)}
+                        title="Enter Piece Meters"
+                      >
+                        ⚙️
+                      </Button>
+                    </div>
                   </div>
 
                   {/* Quantity */}
@@ -618,7 +665,8 @@ export default function SalesClient({
                       step="0.01"
                       value={line.quantity}
                       onChange={(e) => updateLine(line.id, "quantity", e.target.value)}
-                      className="h-10 text-right font-medium"
+                      readOnly={!!(line.pieceMeters && line.pieceMeters.length > 0)}
+                      className={`h-10 text-right font-medium ${line.pieceMeters && line.pieceMeters.length > 0 ? "bg-muted cursor-not-allowed" : ""}`}
                     />
                   </div>
 
@@ -902,6 +950,19 @@ export default function SalesClient({
         onClose={() => setShowPartyModal(false)}
         onCreated={handlePartyCreated}
       />
+      {(() => {
+        const activeLine = lineItems.find((l) => l.id === activePieceLineId);
+        return activeLine ? (
+          <PieceMetersDialog
+            isOpen={!!activePieceLineId}
+            onClose={() => setActivePieceLineId(null)}
+            pcsCount={parseInt(activeLine.pcs) || 0}
+            quantityCount={parseFloat(activeLine.quantity) || 0}
+            initialMeters={activeLine.pieceMeters || []}
+            onSave={handleSavePieceMeters}
+          />
+        ) : null;
+      })()}
     </div>
   );
 }

@@ -9,6 +9,7 @@ import { Plus, Trash2 } from "lucide-react";
 import PrintInvoiceModal from "@/components/PrintInvoiceModal";
 import BrokerHasteDialog from "@/components/BrokerHasteDialog";
 import MillFormDrawer from "@/components/MillFormDrawer";
+import PieceMetersDialog from "@/components/PieceMetersDialog";
 
 interface MillOption {
   millId: number;
@@ -49,6 +50,7 @@ interface LineItem {
   jobType: string; // e.g. processing, finishing, weaving etc.
   jobRateType: "pcs" | "mtr";
   gstRateId: string;
+  pieceMeters?: string[];
 }
 
 const EMPTY_LINE = (): LineItem => ({
@@ -62,6 +64,7 @@ const EMPTY_LINE = (): LineItem => ({
   jobType: "processing",
   jobRateType: "mtr",
   gstRateId: "",
+  pieceMeters: [],
 });
 
 export default function MillOutwardClient({
@@ -117,6 +120,7 @@ export default function MillOutwardClient({
   const [printAmount, setPrintAmount] = useState(true);
 
   const [lineItems, setLineItems] = useState<LineItem[]>([EMPTY_LINE()]);
+  const [activePieceLineId, setActivePieceLineId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [printVoucher, setPrintVoucher] = useState<any>(null);
@@ -175,6 +179,36 @@ export default function MillOutwardClient({
     );
   }
 
+  function handleSavePieceMeters(meters: string[]) {
+    if (!activePieceLineId) return;
+    setLineItems((prev) =>
+      prev.map((item) => {
+        if (item.id !== activePieceLineId) return item;
+        let pcs = 0;
+        let totalQty = 0;
+        for (const m of meters) {
+          if (m.includes('x')) {
+            const [pStr, qStr] = m.split('x');
+            const p = parseInt(pStr) || 0;
+            const q = parseFloat(qStr) || 0;
+            pcs += p;
+            totalQty += p * q;
+          } else {
+            pcs += 1;
+            totalQty += parseFloat(m) || 0;
+          }
+        }
+        return {
+          ...item,
+          pcs: String(pcs),
+          quantity: String(totalQty),
+          pieceMeters: meters,
+        };
+      })
+    );
+    setActivePieceLineId(null);
+  }
+
   function addLine() {
     setLineItems((items) => [...items, EMPTY_LINE()]);
   }
@@ -231,6 +265,7 @@ export default function MillOutwardClient({
             gstRateId: line.gstRateId ? Number(line.gstRateId) : null,
             taxableAmount: totals.amount,
             lineNet: totals.net,
+            pieceMeters: line.pieceMeters,
           };
         }),
       };
@@ -507,12 +542,24 @@ export default function MillOutwardClient({
                     </td>
 
                     <td className="py-3 px-2">
-                      <Input
-                        type="number"
-                        value={line.pcs}
-                        onChange={(e) => updateLine(line.id, "pcs", e.target.value)}
-                        className="h-9 font-mono text-xs text-center"
-                      />
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="number"
+                          value={line.pcs}
+                          onChange={(e) => updateLine(line.id, "pcs", e.target.value)}
+                          readOnly={!!(line.pieceMeters && line.pieceMeters.length > 0)}
+                          className={`h-9 font-mono text-xs text-center w-full ${line.pieceMeters && line.pieceMeters.length > 0 ? "bg-muted cursor-not-allowed" : ""}`}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-9 px-2 shrink-0 text-[10px]"
+                          onClick={() => setActivePieceLineId(line.id)}
+                          title="Enter Piece Meters"
+                        >
+                          ⚙️
+                        </Button>
+                      </div>
                     </td>
 
                     <td className="py-3 px-2">
@@ -520,7 +567,8 @@ export default function MillOutwardClient({
                         type="number"
                         value={line.quantity}
                         onChange={(e) => updateLine(line.id, "quantity", e.target.value)}
-                        className="h-9 font-mono text-xs text-center"
+                        readOnly={!!(line.pieceMeters && line.pieceMeters.length > 0)}
+                        className={`h-9 font-mono text-xs text-center ${line.pieceMeters && line.pieceMeters.length > 0 ? "bg-muted cursor-not-allowed" : ""}`}
                       />
                     </td>
 
@@ -661,6 +709,19 @@ export default function MillOutwardClient({
         onClose={() => setShowMillModal(false)}
         onCreated={handleMillCreated}
       />
+      {(() => {
+        const activeLine = lineItems.find((l) => l.id === activePieceLineId);
+        return activeLine ? (
+          <PieceMetersDialog
+            isOpen={!!activePieceLineId}
+            onClose={() => setActivePieceLineId(null)}
+            pcsCount={parseInt(activeLine.pcs) || 0}
+            quantityCount={parseFloat(activeLine.quantity) || 0}
+            initialMeters={activeLine.pieceMeters || []}
+            onSave={handleSavePieceMeters}
+          />
+        ) : null;
+      })()}
     </div>
   );
 }

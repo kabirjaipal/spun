@@ -9,6 +9,7 @@ import { Plus, Trash2 } from "lucide-react";
 import PrintInvoiceModal from "@/components/PrintInvoiceModal";
 import BrokerHasteDialog from "@/components/BrokerHasteDialog";
 import JobFormDrawer from "@/components/JobFormDrawer";
+import PieceMetersDialog from "@/components/PieceMetersDialog";
 
 interface JobOption {
   jobId: number;
@@ -49,6 +50,7 @@ interface LineItem {
   jobType: string; // e.g. dyeing, printing, etc.
   jobRateType: "pcs" | "mtr";
   gstRateId: string;
+  pieceMeters?: string[];
 }
 
 const EMPTY_LINE = (): LineItem => ({
@@ -62,6 +64,7 @@ const EMPTY_LINE = (): LineItem => ({
   jobType: "dyeing",
   jobRateType: "mtr",
   gstRateId: "",
+  pieceMeters: [],
 });
 
 export default function JobOutwardClient({
@@ -117,6 +120,7 @@ export default function JobOutwardClient({
   const [printAmount, setPrintAmount] = useState(true);
 
   const [lineItems, setLineItems] = useState<LineItem[]>([EMPTY_LINE()]);
+  const [activePieceLineId, setActivePieceLineId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [printVoucher, setPrintVoucher] = useState<any>(null);
@@ -175,6 +179,36 @@ export default function JobOutwardClient({
     );
   }
 
+  function handleSavePieceMeters(meters: string[]) {
+    if (!activePieceLineId) return;
+    setLineItems((prev) =>
+      prev.map((item) => {
+        if (item.id !== activePieceLineId) return item;
+        let pcs = 0;
+        let totalQty = 0;
+        for (const m of meters) {
+          if (m.includes('x')) {
+            const [pStr, qStr] = m.split('x');
+            const p = parseInt(pStr) || 0;
+            const q = parseFloat(qStr) || 0;
+            pcs += p;
+            totalQty += p * q;
+          } else {
+            pcs += 1;
+            totalQty += parseFloat(m) || 0;
+          }
+        }
+        return {
+          ...item,
+          pcs: String(pcs),
+          quantity: String(totalQty),
+          pieceMeters: meters,
+        };
+      })
+    );
+    setActivePieceLineId(null);
+  }
+
   function addLine() {
     setLineItems((items) => [...items, EMPTY_LINE()]);
   }
@@ -231,6 +265,7 @@ export default function JobOutwardClient({
             gstRateId: line.gstRateId ? Number(line.gstRateId) : null,
             taxableAmount: totals.amount,
             lineNet: totals.net,
+            pieceMeters: line.pieceMeters,
           };
         }),
       };
@@ -521,12 +556,24 @@ export default function JobOutwardClient({
                   {/* PCS */}
                   <div className="md:col-span-2 space-y-1.5">
                     <Label className="text-xs font-semibold uppercase text-foreground">PCS</Label>
-                    <Input
-                      type="number"
-                      value={line.pcs}
-                      onChange={(e) => updateLine(line.id, "pcs", e.target.value)}
-                      className="h-10 text-right"
-                    />
+                    <div className="flex items-center gap-1.5">
+                      <Input
+                        type="number"
+                        value={line.pcs}
+                        onChange={(e) => updateLine(line.id, "pcs", e.target.value)}
+                        readOnly={!!(line.pieceMeters && line.pieceMeters.length > 0)}
+                        className={`h-10 text-right w-full ${line.pieceMeters && line.pieceMeters.length > 0 ? "bg-muted cursor-not-allowed" : ""}`}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-10 px-3 shrink-0"
+                        onClick={() => setActivePieceLineId(line.id)}
+                        title="Enter Piece Meters"
+                      >
+                        ⚙️
+                      </Button>
+                    </div>
                   </div>
 
                   {/* Quantity (Meters) */}
@@ -536,7 +583,8 @@ export default function JobOutwardClient({
                       type="number"
                       value={line.quantity}
                       onChange={(e) => updateLine(line.id, "quantity", e.target.value)}
-                      className="h-10 text-right"
+                      readOnly={!!(line.pieceMeters && line.pieceMeters.length > 0)}
+                      className={`h-10 text-right ${line.pieceMeters && line.pieceMeters.length > 0 ? "bg-muted cursor-not-allowed" : ""}`}
                     />
                   </div>
 
@@ -702,6 +750,19 @@ export default function JobOutwardClient({
         onClose={() => setShowJobModal(false)}
         onCreated={handleJobCreated}
       />
+      {(() => {
+        const activeLine = lineItems.find((l) => l.id === activePieceLineId);
+        return activeLine ? (
+          <PieceMetersDialog
+            isOpen={!!activePieceLineId}
+            onClose={() => setActivePieceLineId(null)}
+            pcsCount={parseInt(activeLine.pcs) || 0}
+            quantityCount={parseFloat(activeLine.quantity) || 0}
+            initialMeters={activeLine.pieceMeters || []}
+            onSave={handleSavePieceMeters}
+          />
+        ) : null;
+      })()}
     </div>
   );
 }

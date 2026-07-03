@@ -144,14 +144,28 @@ export default function PurchaseReturnClient({
 
   function handleSavePieceMeters(meters: string[]) {
     if (!activePieceLineId) return;
-    const sum = meters.reduce((acc, val) => acc + (parseFloat(val) || 0), 0);
-    setLineItems((items) =>
-      items.map((item) => {
+    setLineItems((prev) =>
+      prev.map((item) => {
         if (item.id !== activePieceLineId) return item;
+        let pcs = 0;
+        let totalQty = 0;
+        for (const m of meters) {
+          if (m.includes('x')) {
+            const [pStr, qStr] = m.split('x');
+            const p = parseInt(pStr) || 0;
+            const q = parseFloat(qStr) || 0;
+            pcs += p;
+            totalQty += p * q;
+          } else {
+            pcs += 1;
+            totalQty += parseFloat(m) || 0;
+          }
+        }
         return {
           ...item,
+          pcs: String(pcs),
+          quantity: totalQty > 0 ? String(parseFloat(totalQty.toFixed(2))) : item.quantity,
           pieceMeters: meters,
-          quantity: sum > 0 ? sum.toFixed(4) : item.quantity,
         };
       })
     );
@@ -578,25 +592,18 @@ export default function PurchaseReturnClient({
                           type="number"
                           value={line.pcs || ""}
                           onChange={(e) => updateLine(line.id, "pcs", e.target.value)}
-                          onBlur={() => {
-                            const num = parseInt(line.pcs) || 0;
-                            if (num > 0 && (!line.pieceMeters || line.pieceMeters.length !== num)) {
-                              setActivePieceLineId(line.id);
-                            }
-                          }}
-                          className="h-10 text-right w-full"
+                          readOnly={!!(line.pieceMeters && line.pieceMeters.length > 0)}
+                          className={`h-10 text-right w-full ${line.pieceMeters && line.pieceMeters.length > 0 ? "bg-muted cursor-not-allowed" : ""}`}
                         />
-                        {(parseInt(line.pcs) || 0) > 0 && (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="h-10 w-10 px-0 shrink-0"
-                            onClick={() => setActivePieceLineId(line.id)}
-                            title="Enter Piece Meters"
-                          >
-                            ⚙️
-                          </Button>
-                        )}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-10 w-10 px-0 shrink-0"
+                          onClick={() => setActivePieceLineId(line.id)}
+                          title="Enter Piece Meters"
+                        >
+                          ⚙️
+                        </Button>
                       </div>
                     </div>
 
@@ -608,7 +615,8 @@ export default function PurchaseReturnClient({
                         step="0.01"
                         value={line.quantity || ""}
                         onChange={(e) => updateLine(line.id, "quantity", e.target.value)}
-                        className="h-10 text-right"
+                        readOnly={!!(line.pieceMeters && line.pieceMeters.length > 0)}
+                        className={`h-10 text-right ${line.pieceMeters && line.pieceMeters.length > 0 ? "bg-muted cursor-not-allowed" : ""}`}
                       />
                     </div>
 
@@ -734,6 +742,7 @@ export default function PurchaseReturnClient({
             isOpen={!!activePieceLineId}
             onClose={() => setActivePieceLineId(null)}
             pcsCount={parseInt(activeLine.pcs) || 0}
+            quantityCount={parseFloat(activeLine.quantity) || 0}
             initialMeters={activeLine.pieceMeters || []}
             onSave={handleSavePieceMeters}
           />
