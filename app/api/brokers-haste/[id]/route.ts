@@ -13,7 +13,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const { id } = await params;
   const companyId = Number(session.user.companyId);
   const userId = session.user.id;
-  const { name, type } = await request.json();
+  const { name, type, panCard, gst, address, phone } = await request.json();
 
   if (!name) {
     return NextResponse.json({ error: "name is required" }, { status: 400 });
@@ -26,6 +26,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     const updateData: Record<string, any> = {
       name: name.trim(),
+      panCard: panCard?.trim() || null,
+      gst: gst?.trim() || null,
+      address: address?.trim() || null,
+      phone: phone?.trim() || null,
       updatedBy: userId,
       updatedOn: new Date(),
     };

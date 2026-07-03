@@ -81,6 +81,10 @@ export default async function GatewayPage() {
         id: r.id,
         name: r.name,
         type: r.type,
+        panCard: r.panCard,
+        gst: r.gst,
+        address: r.address,
+        phone: r.phone,
       }))}
       permissions={{
         ledgers: {

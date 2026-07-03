@@ -202,6 +202,10 @@ export const mBrokersHaste = pgTable("m_brokers_haste", {
     .notNull(),
   name: text("name").notNull(),
   type: text("type").notNull(), // 'broker' | 'haste'
+  panCard: text("pan_card"),
+  gst: text("gst"),
+  address: text("address"),
+  phone: text("phone"),
   ...auditColumns,
 }, (table) => ({
   companyIdIdx: index("idx_m_brokers_haste_company_id").on(table.companyId),

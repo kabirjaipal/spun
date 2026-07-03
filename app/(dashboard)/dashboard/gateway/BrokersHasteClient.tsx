@@ -15,6 +15,10 @@ interface BrokerHaste {
   id: number;
   name: string;
   type: string;
+  panCard?: string | null;
+  gst?: string | null;
+  address?: string | null;
+  phone?: string | null;
 }
 
 interface Props {
@@ -25,7 +29,14 @@ interface Props {
   canExport: boolean;
 }
 
-const EMPTY = { name: "", type: "broker" as "broker" | "haste" };
+const EMPTY = {
+  name: "",
+  type: "broker" as "broker" | "haste",
+  panCard: "",
+  gst: "",
+  address: "",
+  phone: "",
+};
 
 export default function BrokersHasteClient({ initialData, canCreate, canUpdate, canDelete, canExport }: Props) {
   const [data, setData] = useState(initialData);
@@ -45,13 +56,27 @@ export default function BrokersHasteClient({ initialData, canCreate, canUpdate, 
 
   function openCreate() {
     setEditing(null);
-    setForm({ name: "", type: activeType as "broker" | "haste" });
+    setForm({
+      name: "",
+      type: activeType,
+      panCard: "",
+      gst: "",
+      address: "",
+      phone: "",
+    });
     setSheetOpen(true);
   }
 
   function openEdit(row: BrokerHaste) {
     setEditing(row);
-    setForm({ name: row.name, type: row.type as "broker" | "haste" });
+    setForm({
+      name: row.name,
+      type: row.type as "broker" | "haste",
+      panCard: row.panCard || "",
+      gst: row.gst || "",
+      address: row.address || "",
+      phone: row.phone || "",
+    });
     setSheetOpen(true);
   }
 
@@ -62,7 +87,14 @@ export default function BrokersHasteClient({ initialData, canCreate, canUpdate, 
     const res = await fetch(url, {
       method: editing ? "PATCH" : "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: form.name.trim(), type: form.type }),
+      body: JSON.stringify({
+        name: form.name.trim(),
+        type: form.type,
+        panCard: form.type === "broker" && form.panCard.trim() ? form.panCard.trim() : null,
+        gst: form.type === "broker" && form.gst.trim() ? form.gst.trim() : null,
+        address: form.type === "broker" && form.address.trim() ? form.address.trim() : null,
+        phone: form.type === "broker" && form.phone.trim() ? form.phone.trim() : null,
+      }),
     });
     const row = await res.json();
     if (editing) setData((d) => d.map((r) => (r.id === editing.id ? row : r)));
@@ -92,8 +124,8 @@ export default function BrokersHasteClient({ initialData, canCreate, canUpdate, 
           <Input placeholder="Search..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-48" />
           <ExportButton
             filename={`${activeType}s.csv`}
-            headers={["Name", "Type"]}
-            keys={["name", "type"]}
+            headers={activeType === "broker" ? ["Name", "PAN Card", "GST", "Phone", "Address", "Type"] : ["Name", "Type"]}
+            keys={activeType === "broker" ? ["name", "panCard", "gst", "phone", "address", "type"] : ["name", "type"]}
             rows={filtered}
             canExport={canExport}
           />
@@ -128,17 +160,33 @@ export default function BrokersHasteClient({ initialData, canCreate, canUpdate, 
           <thead>
             <tr className="border-b border-border bg-muted/40">
               <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Name</th>
+              {activeType === "broker" && (
+                <>
+                  <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">PAN</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">GST</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Phone</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Address</th>
+                </>
+              )}
               <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Type</th>
               {(canUpdate || canDelete) && <th className="px-4 py-2.5 text-right text-xs font-bold uppercase tracking-wider text-muted-foreground">Actions</th>}
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 && (
-              <tr><td colSpan={3} className="px-4 py-8 text-center text-sm text-muted-foreground">No records found.</td></tr>
+              <tr><td colSpan={activeType === "broker" ? 7 : 3} className="px-4 py-8 text-center text-sm text-muted-foreground">No records found.</td></tr>
             )}
             {filtered.map((row) => (
               <tr key={row.id} className="border-b border-border/50 hover:bg-muted/20 transition-colors">
                 <td className="px-4 py-3 font-medium text-foreground">{row.name}</td>
+                {activeType === "broker" && (
+                  <>
+                    <td className="px-4 py-3 text-muted-foreground">{row.panCard || "-"}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{row.gst || "-"}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{row.phone || "-"}</td>
+                    <td className="px-4 py-3 text-muted-foreground max-w-[200px] truncate">{row.address || "-"}</td>
+                  </>
+                )}
                 <td className="px-4 py-3">
                   <Badge variant={row.type === "broker" ? "default" : "secondary"} className="text-[10px] uppercase">
                     {row.type}
@@ -185,6 +233,26 @@ export default function BrokersHasteClient({ initialData, canCreate, canUpdate, 
                 </SelectContent>
               </Select>
             </div>
+            {form.type === "broker" && (
+              <>
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">PAN Card</Label>
+                  <Input placeholder="Enter PAN Card" value={form.panCard} onChange={(e) => setForm((f) => ({ ...f, panCard: e.target.value }))} />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">GST</Label>
+                  <Input placeholder="Enter GST" value={form.gst} onChange={(e) => setForm((f) => ({ ...f, gst: e.target.value }))} />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Phone Number</Label>
+                  <Input placeholder="Enter Phone Number" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Address</Label>
+                  <Input placeholder="Enter Address" value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} />
+                </div>
+              </>
+            )}
           </SheetBody>
 
           <SheetFooter>

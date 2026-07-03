@@ -35,7 +35,7 @@ export async function POST(request: Request) {
 
   const companyId = Number(session.user.companyId);
   const userId = session.user.id;
-  const { name, type } = await request.json();
+  const { name, type, panCard, gst, address, phone } = await request.json();
 
   if (!name || !type) {
     return NextResponse.json({ error: "name and type are required" }, { status: 400 });
@@ -52,6 +52,10 @@ export async function POST(request: Request) {
         companyId,
         name: name.trim(),
         type,
+        panCard: panCard?.trim() || null,
+        gst: gst?.trim() || null,
+        address: address?.trim() || null,
+        phone: phone?.trim() || null,
         createdBy: userId,
         updatedBy: userId,
       })
