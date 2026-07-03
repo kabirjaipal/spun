@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -183,6 +183,22 @@ export default function MillInwardClient({
     );
   }
   const [printVoucher, setPrintVoucher] = useState<any>(null);
+
+  const fetchNextVoucherNo = async () => {
+    try {
+      const res = await fetch("/api/vouchers/next-number?type=mill_inward");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.nextVoucherNo) setVoucherNo(data.nextVoucherNo);
+      }
+    } catch (err) {
+      console.error("Error fetching next mill inward voucher number:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchNextVoucherNo();
+  }, []);
 
   // Filter outward lots based on selected mill party
   const partyOutwardVouchers = useMemo(() => {
@@ -481,7 +497,7 @@ export default function MillInwardClient({
       }
 
       setMessage("Mill Inward Challan created successfully.");
-      setVoucherNo("");
+      fetchNextVoucherNo();
       setRemarks("");
       setBroker("");
       setHaste("");

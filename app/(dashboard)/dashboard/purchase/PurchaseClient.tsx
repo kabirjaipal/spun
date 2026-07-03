@@ -1,15 +1,27 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2, Printer } from "lucide-react";
 import PrintInvoiceModal from "@/components/PrintInvoiceModal";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import BrokerHasteDialog from "@/components/BrokerHasteDialog";
 import PieceMetersDialog from "@/components/PieceMetersDialog";
 import PartyFormDrawer from "@/components/PartyFormDrawer";
@@ -75,7 +87,6 @@ const EMPTY_LINE = (): LineItem => ({
   pieceMeters: [],
 });
 
-
 export default function PurchaseClient({
   company,
   companies,
@@ -84,7 +95,13 @@ export default function PurchaseClient({
   brokersHaste,
   canCreate,
 }: {
-  company: { companyName: string; gstNo?: string | null; address?: string | null; companyType?: string; state?: string | null };
+  company: {
+    companyName: string;
+    gstNo?: string | null;
+    address?: string | null;
+    companyType?: string;
+    state?: string | null;
+  };
   companies: CompanyOption[];
   inventory: InventoryOption[];
   taxRates: TaxRateOption[];
@@ -93,8 +110,8 @@ export default function PurchaseClient({
 }) {
   const router = useRouter();
 
-
-  const [localCompanies, setLocalCompanies] = useState<CompanyOption[]>(companies);
+  const [localCompanies, setLocalCompanies] =
+    useState<CompanyOption[]>(companies);
 
   // Dialog States for inline creation
   const [showPartyModal, setShowPartyModal] = useState(false);
@@ -122,11 +139,15 @@ export default function PurchaseClient({
   const purchaseType = "purchase";
   const [selectedCompany, setSelectedCompany] = useState("");
   const [voucherNo, setVoucherNo] = useState("");
-  const [voucherDate, setVoucherDate] = useState(new Date().toISOString().slice(0, 10));
+  const [voucherDate, setVoucherDate] = useState(
+    new Date().toISOString().slice(0, 10),
+  );
   const [invoiceNo, setInvoiceNo] = useState("");
-  const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().slice(0, 10));
+  const [invoiceDate, setInvoiceDate] = useState(
+    new Date().toISOString().slice(0, 10),
+  );
   const [goodsName, setGoodsName] = useState("");
-  
+
   // Textile-specific logistics fields
   const [broker, setBroker] = useState("");
   const [haste, setHaste] = useState("");
@@ -136,25 +157,58 @@ export default function PurchaseClient({
   const [remarks, setRemarks] = useState("");
   const [vehicleNo, setVehicleNo] = useState("");
   const [personName, setPersonName] = useState("");
-  
+
   const [lineItems, setLineItems] = useState<LineItem[]>([EMPTY_LINE()]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [printVoucher, setPrintVoucher] = useState<any>(null);
 
-  const [discountType, setDiscountType] = useState<"percentage" | "value">("percentage");
+  const [discountType, setDiscountType] = useState<"percentage" | "value">(
+    "percentage",
+  );
   const [discountValue, setDiscountValue] = useState("");
-  const [discountType2, setDiscountType2] = useState<"percentage" | "value">("percentage");
+  const [discountType2, setDiscountType2] = useState<"percentage" | "value">(
+    "percentage",
+  );
   const [discountValue2, setDiscountValue2] = useState("");
 
-  type ExtraCharge = { id: string; label: string; value: string; type: "percentage" | "value" };
+  type ExtraCharge = {
+    id: string;
+    label: string;
+    value: string;
+    type: "percentage" | "value";
+  };
   const [extraCharges, setExtraCharges] = useState<ExtraCharge[]>([]);
-  function updateExtraCharge(id: string, field: keyof ExtraCharge, value: string) {
-    setExtraCharges(prev => prev.map(c => c.id === id ? { ...c, [field]: value } : c));
+  function updateExtraCharge(
+    id: string,
+    field: keyof ExtraCharge,
+    value: string,
+  ) {
+    setExtraCharges((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, [field]: value } : c)),
+    );
   }
 
+  const fetchNextVoucherNo = async () => {
+    try {
+      const res = await fetch("/api/vouchers/next-number?type=purchase");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.nextVoucherNo) setVoucherNo(data.nextVoucherNo);
+      }
+    } catch (err) {
+      console.error("Error fetching next purchase voucher number:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchNextVoucherNo();
+  }, []);
+
   // Piece meters modal state
-  const [activePieceLineId, setActivePieceLineId] = useState<string | null>(null);
+  const [activePieceLineId, setActivePieceLineId] = useState<string | null>(
+    null,
+  );
 
   function handleSavePieceMeters(meters: string[]) {
     if (!activePieceLineId) return;
@@ -164,8 +218,8 @@ export default function PurchaseClient({
         let pcs = 0;
         let totalQty = 0;
         for (const m of meters) {
-          if (m.includes('x')) {
-            const [pStr, qStr] = m.split('x');
+          if (m.includes("x")) {
+            const [pStr, qStr] = m.split("x");
             const p = parseInt(pStr) || 0;
             const q = parseFloat(qStr) || 0;
             pcs += p;
@@ -178,19 +232,27 @@ export default function PurchaseClient({
         return {
           ...item,
           pcs: String(pcs),
-          quantity: totalQty > 0 ? String(parseFloat(totalQty.toFixed(2))) : item.quantity,
+          quantity:
+            totalQty > 0
+              ? String(parseFloat(totalQty.toFixed(2)))
+              : item.quantity,
           pieceMeters: meters,
         };
-      })
+      }),
     );
     setActivePieceLineId(null);
   }
- 
+
   // Check if Interstate or Intrastate GST
   const isInterstate = useMemo(() => {
-    const subCompany = localCompanies.find((s) => String(s.companyId) === selectedCompany);
+    const subCompany = localCompanies.find(
+      (s) => String(s.companyId) === selectedCompany,
+    );
     if (company?.state && subCompany?.state) {
-      return company.state.trim().toLowerCase() !== subCompany.state.trim().toLowerCase();
+      return (
+        company.state.trim().toLowerCase() !==
+        subCompany.state.trim().toLowerCase()
+      );
     }
     const companyGst = company?.gstNo || "";
     const subCompanyGst = subCompany?.gstNo || "";
@@ -204,9 +266,9 @@ export default function PurchaseClient({
       const qty = Number(line.quantity) || 0;
       const rate = Number(line.rate) || 0;
       const fold = Number(line.fold) || 100;
-      
+
       const unit = line.unitType === "pcs" ? pcs : qty;
-      const amount = Math.round((unit * rate) * 100) / 100;
+      const amount = Math.round(unit * rate * 100) / 100;
       const netAmount = Math.round(((unit * rate * fold) / 100) * 100) / 100;
       return { line, amount, netAmount };
     });
@@ -215,12 +277,31 @@ export default function PurchaseClient({
     const discountValNum = Number(discountValue) || 0;
 
     return linesRaw.map(({ line, amount, netAmount }) => {
-      const gstRatePercent = Number(line.gstRateId ? taxRates.find((t) => String(t.taxRateId) === line.gstRateId)?.taxPercent : 0) || 0;
-      
-      const lineDiscount1 = calculatePreTaxDiscount(netAmount, rawTotal, discountType, discountValue);
-      const lineDiscount2 = calculatePreTaxDiscount(netAmount, rawTotal, discountType2, discountValue2);
+      const gstRatePercent =
+        Number(
+          line.gstRateId
+            ? taxRates.find((t) => String(t.taxRateId) === line.gstRateId)
+                ?.taxPercent
+            : 0,
+        ) || 0;
+
+      const lineDiscount1 = calculatePreTaxDiscount(
+        netAmount,
+        rawTotal,
+        discountType,
+        discountValue,
+      );
+      const lineDiscount2 = calculatePreTaxDiscount(
+        netAmount,
+        rawTotal,
+        discountType2,
+        discountValue2,
+      );
       const lineDiscount = lineDiscount1 + lineDiscount2;
-      const discountedNetAmount = Math.max(0, Math.round((netAmount - lineDiscount) * 100) / 100);
+      const discountedNetAmount = Math.max(
+        0,
+        Math.round((netAmount - lineDiscount) * 100) / 100,
+      );
 
       let defaultCgst = 0;
       let defaultSgst = 0;
@@ -233,13 +314,28 @@ export default function PurchaseClient({
         defaultSgst = gstRatePercent / 2;
       }
 
-      const cgstPercent = isInterstate ? 0 : (line.cgst !== "" ? (Number(line.cgst) || 0) : defaultCgst);
-      const sgstPercent = isInterstate ? 0 : (line.sgst !== "" ? (Number(line.sgst) || 0) : defaultSgst);
-      const igstPercent = isInterstate ? (line.igst !== "" ? (Number(line.igst) || 0) : defaultIgst) : 0;
+      const cgstPercent = isInterstate
+        ? 0
+        : line.cgst !== ""
+          ? Number(line.cgst) || 0
+          : defaultCgst;
+      const sgstPercent = isInterstate
+        ? 0
+        : line.sgst !== ""
+          ? Number(line.sgst) || 0
+          : defaultSgst;
+      const igstPercent = isInterstate
+        ? line.igst !== ""
+          ? Number(line.igst) || 0
+          : defaultIgst
+        : 0;
 
-      const cgst = Math.round((discountedNetAmount * cgstPercent) / 100 * 100) / 100;
-      const sgst = Math.round((discountedNetAmount * sgstPercent) / 100 * 100) / 100;
-      const igst = Math.round((discountedNetAmount * igstPercent) / 100 * 100) / 100;
+      const cgst =
+        Math.round(((discountedNetAmount * cgstPercent) / 100) * 100) / 100;
+      const sgst =
+        Math.round(((discountedNetAmount * sgstPercent) / 100) * 100) / 100;
+      const igst =
+        Math.round(((discountedNetAmount * igstPercent) / 100) * 100) / 100;
 
       const totalTaxVal = cgst + sgst + igst;
 
@@ -258,7 +354,15 @@ export default function PurchaseClient({
         net: discountedNetAmount + totalTaxVal,
       };
     });
-  }, [lineItems, taxRates, isInterstate, discountType, discountValue, discountType2, discountValue2]);
+  }, [
+    lineItems,
+    taxRates,
+    isInterstate,
+    discountType,
+    discountValue,
+    discountType2,
+    discountValue2,
+  ]);
 
   const grandTotals = useMemo(() => {
     return lineTotals.reduce(
@@ -273,22 +377,53 @@ export default function PurchaseClient({
         tax: acc.tax + item.totalTax,
         total: acc.total + item.net,
       }),
-      { amount: 0, rawNetAmount: 0, netAmount: 0, discount: 0, cgst: 0, sgst: 0, igst: 0, tax: 0, total: 0 }
+      {
+        amount: 0,
+        rawNetAmount: 0,
+        netAmount: 0,
+        discount: 0,
+        cgst: 0,
+        sgst: 0,
+        igst: 0,
+        tax: 0,
+        total: 0,
+      },
     );
   }, [lineTotals]);
 
   const discount1Amt = useMemo(() => {
-    return lineTotals.reduce((sum, item) => sum + calculatePreTaxDiscount(item.rawNetAmount, grandTotals.rawNetAmount, discountType, discountValue), 0);
+    return lineTotals.reduce(
+      (sum, item) =>
+        sum +
+        calculatePreTaxDiscount(
+          item.rawNetAmount,
+          grandTotals.rawNetAmount,
+          discountType,
+          discountValue,
+        ),
+      0,
+    );
   }, [lineTotals, grandTotals.rawNetAmount, discountType, discountValue]);
 
   const discount2Amt = useMemo(() => {
-    return lineTotals.reduce((sum, item) => sum + calculatePreTaxDiscount(item.rawNetAmount, grandTotals.rawNetAmount, discountType2, discountValue2), 0);
+    return lineTotals.reduce(
+      (sum, item) =>
+        sum +
+        calculatePreTaxDiscount(
+          item.rawNetAmount,
+          grandTotals.rawNetAmount,
+          discountType2,
+          discountValue2,
+        ),
+      0,
+    );
   }, [lineTotals, grandTotals.rawNetAmount, discountType2, discountValue2]);
 
   const totalExtraCharges = useMemo(() => {
     return extraCharges.reduce((sum, c) => {
       if (!c.value) return sum;
-      if (c.type === "percentage") return sum + (grandTotals.total * Number(c.value)) / 100;
+      if (c.type === "percentage")
+        return sum + (grandTotals.total * Number(c.value)) / 100;
       return sum + Number(c.value);
     }, 0);
   }, [extraCharges, grandTotals.total]);
@@ -314,7 +449,7 @@ export default function PurchaseClient({
         }
 
         return { ...item, [field]: value };
-      })
+      }),
     );
   }
 
@@ -334,7 +469,12 @@ export default function PurchaseClient({
       return;
     }
 
-    const validLines = lineItems.filter((line) => line.inventoryId && Number(line.quantity) >= 0 && Number(line.rate) >= 0);
+    const validLines = lineItems.filter(
+      (line) =>
+        line.inventoryId &&
+        Number(line.quantity) >= 0 &&
+        Number(line.rate) >= 0,
+    );
     if (validLines.length === 0) {
       setMessage("Add at least one line item with item, quantity, and rate.");
       return;
@@ -367,7 +507,9 @@ export default function PurchaseClient({
         discountType2: discountValue2 ? discountType2 : null,
         discountValue2: discountValue2 ? Number(discountValue2) : null,
         extraCharges: totalExtraCharges,
-        extraChargesData: extraCharges.filter(c => c.value).map(({ id, ...rest }) => rest),
+        extraChargesData: extraCharges
+          .filter((c) => c.value)
+          .map(({ id, ...rest }) => rest),
         lineItems: validLines.map((line) => {
           const totals = lineTotals[lineItems.indexOf(line)];
           return {
@@ -399,7 +541,7 @@ export default function PurchaseClient({
       }
 
       setMessage("Purchase voucher created successfully.");
-      setVoucherNo("");
+      fetchNextVoucherNo();
       setInvoiceNo("");
       setGoodsName("");
       setRemarks("");
@@ -414,7 +556,9 @@ export default function PurchaseClient({
       setLineItems([EMPTY_LINE()]);
 
       // Print preview setup
-      const subCompany = localCompanies.find((s) => String(s.companyId) === selectedCompany);
+      const subCompany = localCompanies.find(
+        (s) => String(s.companyId) === selectedCompany,
+      );
       setPrintVoucher({
         voucher: {
           voucherNo: body.voucherNo,
@@ -425,7 +569,9 @@ export default function PurchaseClient({
           taxAmount: grandTotals.tax,
           netAmount: finalGrandTotal,
           extraCharges: totalExtraCharges,
-          extraChargesData: extraCharges.filter(c => c.value).map(({ id, ...rest }) => rest),
+          extraChargesData: extraCharges
+            .filter((c) => c.value)
+            .map(({ id, ...rest }) => rest),
         },
         party: {
           name: subCompany?.companyName || "Name",
@@ -433,8 +579,12 @@ export default function PurchaseClient({
           address: subCompany?.address,
         },
         lines: validLines.map((line) => {
-          const prod = inventory.find((p) => String(p.inventoryId) === line.inventoryId);
-          const tr = taxRates.find((t) => String(t.taxRateId) === line.gstRateId);
+          const prod = inventory.find(
+            (p) => String(p.inventoryId) === line.inventoryId,
+          );
+          const tr = taxRates.find(
+            (t) => String(t.taxRateId) === line.gstRateId,
+          );
           const qty = Number(line.quantity) || 0;
           const rt = Number(line.rate) || 0;
           const fd = Number(line.fold) || 100;
@@ -452,7 +602,9 @@ export default function PurchaseClient({
         }),
       });
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Unable to save voucher.");
+      setMessage(
+        error instanceof Error ? error.message : "Unable to save voucher.",
+      );
     } finally {
       setSaving(false);
     }
@@ -463,26 +615,42 @@ export default function PurchaseClient({
       {/* Top Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-foreground uppercase">Purchase Invoice Entry</h1>
-          <p className="text-sm text-muted-foreground">Record textile purchases, fold calculations, and logistics details.</p>
+          <h1 className="text-xl font-bold tracking-tight text-foreground uppercase">
+            Purchase Invoice Entry
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Record textile purchases, fold calculations, and logistics details.
+          </p>
         </div>
-
       </div>
 
       {/* Main Form Fields */}
       <div className="grid gap-6 md:grid-cols-3">
         {/* Party & Document Details */}
         <div className="md:col-span-2 rounded-lg border border-border bg-card p-5 space-y-4 shadow-sm">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">Party & Document Details</h2>
-          
+          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">
+            Party & Document Details
+          </h2>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Party Name */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label className="text-xs font-semibold uppercase text-foreground">Name</Label>
-                <button type="button" onClick={() => setShowPartyModal(true)} className="text-[10px] font-bold text-primary hover:underline uppercase">+ New Party</button>
+                <Label className="text-xs font-semibold uppercase text-foreground">
+                  Name
+                </Label>
+                <button
+                  type="button"
+                  onClick={() => setShowPartyModal(true)}
+                  className="text-[10px] font-bold text-primary hover:underline uppercase"
+                >
+                  + New Party
+                </button>
               </div>
-              <Select value={selectedCompany} onValueChange={setSelectedCompany}>
+              <Select
+                value={selectedCompany}
+                onValueChange={setSelectedCompany}
+              >
                 <SelectTrigger className="h-10">
                   <SelectValue placeholder="Choose name" />
                 </SelectTrigger>
@@ -498,41 +666,91 @@ export default function PurchaseClient({
 
             {/* Remarks */}
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">Remarks</Label>
-              <Input value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Voucher descriptions" className="h-10" />
+              <Label className="text-xs font-semibold uppercase text-foreground">
+                Remarks
+              </Label>
+              <Input
+                value={remarks}
+                onChange={(e) => setRemarks(e.target.value)}
+                placeholder="Voucher descriptions"
+                className="h-10"
+              />
             </div>
 
             {/* Voucher / Sr No & Voucher Date */}
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">Voucher / Sr No.</Label>
-              <Input value={voucherNo} onChange={(e) => setVoucherNo(e.target.value)} placeholder="e.g. SR-1001" className="h-10" />
+              <Label className="text-xs font-semibold uppercase text-foreground">
+                Voucher / Sr No.
+              </Label>
+              <Input
+                value={voucherNo}
+                readOnly
+                placeholder="Fetching..."
+                className="h-10 border-border/60 bg-muted/30 text-muted-foreground shadow-none cursor-not-allowed focus-visible:ring-0 focus-visible:ring-offset-0"
+              />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">Voucher Date</Label>
-              <Input type="date" value={voucherDate} onChange={(e) => setVoucherDate(e.target.value)} className="h-10" />
+              <Label className="text-xs font-semibold uppercase text-foreground">
+                Voucher Date
+              </Label>
+              <Input
+                type="date"
+                value={voucherDate}
+                onChange={(e) => setVoucherDate(e.target.value)}
+                className="h-10"
+              />
             </div>
 
             {/* Invoice Number & Invoice Date */}
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">Invoice Number</Label>
-              <Input value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} placeholder="e.g. INV-2025" className="h-10" />
+              <Label className="text-xs font-semibold uppercase text-foreground">
+                Invoice Number
+              </Label>
+              <Input
+                value={invoiceNo}
+                onChange={(e) => setInvoiceNo(e.target.value)}
+                placeholder="e.g. INV-2025"
+                className="h-10"
+              />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">Invoice Date</Label>
-              <Input type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} className="h-10" />
+              <Label className="text-xs font-semibold uppercase text-foreground">
+                Invoice Date
+              </Label>
+              <Input
+                type="date"
+                value={invoiceDate}
+                onChange={(e) => setInvoiceDate(e.target.value)}
+                className="h-10"
+              />
             </div>
 
             {/* Name of Goods Purchased */}
             <div className="space-y-1.5 md:col-span-2">
-              <Label className="text-xs font-semibold uppercase text-foreground">Name of Goods Purchased</Label>
-              <Input value={goodsName} onChange={(e) => setGoodsName(e.target.value)} placeholder="e.g. Cotton fabric, Polyester yarn, Chemicals" className="h-10" />
+              <Label className="text-xs font-semibold uppercase text-foreground">
+                Name of Goods Purchased
+              </Label>
+              <Input
+                value={goodsName}
+                onChange={(e) => setGoodsName(e.target.value)}
+                placeholder="e.g. Cotton fabric, Polyester yarn, Chemicals"
+                className="h-10"
+              />
             </div>
 
             {/* Broker & Haste */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label className="text-xs font-semibold uppercase text-foreground">Broker</Label>
-                <button type="button" onClick={() => setShowBrokerDialog(true)} className="text-[10px] font-bold text-primary hover:underline uppercase">+ New Broker</button>
+                <Label className="text-xs font-semibold uppercase text-foreground">
+                  Broker
+                </Label>
+                <button
+                  type="button"
+                  onClick={() => setShowBrokerDialog(true)}
+                  className="text-[10px] font-bold text-primary hover:underline uppercase"
+                >
+                  + New Broker
+                </button>
               </div>
               <Select value={broker} onValueChange={setBroker}>
                 <SelectTrigger className="h-10 w-full">
@@ -550,8 +768,16 @@ export default function PurchaseClient({
 
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label className="text-xs font-semibold uppercase text-foreground">Haste (Delivery Agent)</Label>
-                <button type="button" onClick={() => setShowHasteDialog(true)} className="text-[10px] font-bold text-primary hover:underline uppercase">+ New Haste</button>
+                <Label className="text-xs font-semibold uppercase text-foreground">
+                  Haste (Delivery Agent)
+                </Label>
+                <button
+                  type="button"
+                  onClick={() => setShowHasteDialog(true)}
+                  className="text-[10px] font-bold text-primary hover:underline uppercase"
+                >
+                  + New Haste
+                </button>
               </div>
               <Select value={haste} onValueChange={setHaste}>
                 <SelectTrigger className="h-10 w-full">
@@ -571,27 +797,57 @@ export default function PurchaseClient({
 
         {/* Logistics details */}
         <div className="rounded-lg border border-border bg-card p-5 space-y-4 shadow-sm">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">Logistics & Shipping</h2>
+          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">
+            Logistics & Shipping
+          </h2>
 
           <div className="space-y-1.5">
-            <Label className="text-xs font-semibold uppercase text-foreground">LR No.</Label>
-            <Input value={lrNo} onChange={(e) => setLrNo(e.target.value)} placeholder="Lorry Receipt No." className="h-10" />
+            <Label className="text-xs font-semibold uppercase text-foreground">
+              LR No.
+            </Label>
+            <Input
+              value={lrNo}
+              onChange={(e) => setLrNo(e.target.value)}
+              placeholder="Lorry Receipt No."
+              className="h-10"
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">LR Date</Label>
-              <Input type="date" value={lrDate} onChange={(e) => setLrDate(e.target.value)} className="h-10" />
+              <Label className="text-xs font-semibold uppercase text-foreground">
+                LR Date
+              </Label>
+              <Input
+                type="date"
+                value={lrDate}
+                onChange={(e) => setLrDate(e.target.value)}
+                className="h-10"
+              />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">Transport</Label>
-              <Input value={transport} onChange={(e) => setTransport(e.target.value)} placeholder="Transport Service" className="h-10" />
+              <Label className="text-xs font-semibold uppercase text-foreground">
+                Transport
+              </Label>
+              <Input
+                value={transport}
+                onChange={(e) => setTransport(e.target.value)}
+                placeholder="Transport Service"
+                className="h-10"
+              />
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-xs font-semibold uppercase text-foreground">Vehicle No.</Label>
-            <Input value={vehicleNo} onChange={(e) => setVehicleNo(e.target.value)} placeholder="e.g. GJ-05-XX-XXXX" className="h-10" />
+            <Label className="text-xs font-semibold uppercase text-foreground">
+              Vehicle No.
+            </Label>
+            <Input
+              value={vehicleNo}
+              onChange={(e) => setVehicleNo(e.target.value)}
+              placeholder="e.g. GJ-05-XX-XXXX"
+              className="h-10"
+            />
           </div>
         </div>
       </div>
@@ -600,10 +856,18 @@ export default function PurchaseClient({
       <div className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-3">
           <div>
-            <h2 className="text-sm font-bold text-foreground uppercase tracking-wide">Purchase Items & Fabric details</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Input PCS count, main meters (Qty), and fold percentage.</p>
+            <h2 className="text-sm font-bold text-foreground uppercase tracking-wide">
+              Purchase Items & Fabric details
+            </h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Input PCS count, main meters (Qty), and fold percentage.
+            </p>
           </div>
-          <Button variant="outline" onClick={addLine} className="h-10 text-sm font-semibold uppercase">
+          <Button
+            variant="outline"
+            onClick={addLine}
+            className="h-10 text-sm font-semibold uppercase"
+          >
             <Plus className="h-4 w-4 mr-2" /> Add Line Item
           </Button>
         </div>
@@ -612,7 +876,10 @@ export default function PurchaseClient({
           {lineItems.map((line, index) => {
             const totals = lineTotals[index];
             return (
-              <div key={line.id} className="rounded-lg border border-border bg-card p-5 shadow-sm space-y-4 relative">
+              <div
+                key={line.id}
+                className="rounded-lg border border-border bg-card p-5 shadow-sm space-y-4 relative"
+              >
                 {/* Header Row */}
                 <div className="flex items-center justify-between border-b border-border pb-2">
                   <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
@@ -633,14 +900,24 @@ export default function PurchaseClient({
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                   {/* Select Item */}
                   <div className="md:col-span-3 space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase text-foreground">Select Item</Label>
-                    <Select value={line.inventoryId} onValueChange={(val) => updateLine(line.id, "inventoryId", val)}>
+                    <Label className="text-xs font-semibold uppercase text-foreground">
+                      Select Item
+                    </Label>
+                    <Select
+                      value={line.inventoryId}
+                      onValueChange={(val) =>
+                        updateLine(line.id, "inventoryId", val)
+                      }
+                    >
                       <SelectTrigger className="h-10 w-full">
                         <SelectValue placeholder="Select Item" />
                       </SelectTrigger>
                       <SelectContent>
                         {inventory.map((p) => (
-                          <SelectItem key={p.inventoryId} value={String(p.inventoryId)}>
+                          <SelectItem
+                            key={p.inventoryId}
+                            value={String(p.inventoryId)}
+                          >
                             {p.inventoryCode} — {p.inventoryName}
                           </SelectItem>
                         ))}
@@ -659,10 +936,14 @@ export default function PurchaseClient({
 
                   {/* HSN Code */}
                   <div className="md:col-span-2 space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase text-foreground">HSN Code</Label>
+                    <Label className="text-xs font-semibold uppercase text-foreground">
+                      HSN Code
+                    </Label>
                     <Input
                       value={line.hsnCode}
-                      onChange={(e) => updateLine(line.id, "hsnCode", e.target.value)}
+                      onChange={(e) =>
+                        updateLine(line.id, "hsnCode", e.target.value)
+                      }
                       className="h-10 w-full"
                       placeholder="HSN Code"
                     />
@@ -670,11 +951,15 @@ export default function PurchaseClient({
 
                   {/* Fold */}
                   <div className="md:col-span-1 space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase text-foreground">Fold %</Label>
+                    <Label className="text-xs font-semibold uppercase text-foreground">
+                      Fold %
+                    </Label>
                     <Input
                       type="number"
                       value={line.fold}
-                      onChange={(e) => updateLine(line.id, "fold", e.target.value)}
+                      onChange={(e) =>
+                        updateLine(line.id, "fold", e.target.value)
+                      }
                       className="h-10 text-right"
                       placeholder="100"
                     />
@@ -682,13 +967,19 @@ export default function PurchaseClient({
 
                   {/* PCS */}
                   <div className="md:col-span-2 space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase text-foreground">PCS</Label>
+                    <Label className="text-xs font-semibold uppercase text-foreground">
+                      PCS
+                    </Label>
                     <div className="flex items-center gap-1.5">
                       <Input
                         type="number"
                         value={line.pcs}
-                        onChange={(e) => updateLine(line.id, "pcs", e.target.value)}
-                        readOnly={!!(line.pieceMeters && line.pieceMeters.length > 0)}
+                        onChange={(e) =>
+                          updateLine(line.id, "pcs", e.target.value)
+                        }
+                        readOnly={
+                          !!(line.pieceMeters && line.pieceMeters.length > 0)
+                        }
                         className={`h-10 text-right w-full ${line.pieceMeters && line.pieceMeters.length > 0 ? "bg-muted cursor-not-allowed" : ""}`}
                       />
                       <Button
@@ -705,21 +996,34 @@ export default function PurchaseClient({
 
                   {/* Quantity */}
                   <div className="md:col-span-2 space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase text-foreground">Quantity</Label>
+                    <Label className="text-xs font-semibold uppercase text-foreground">
+                      Quantity
+                    </Label>
                     <Input
                       type="number"
                       step="0.01"
                       value={line.quantity}
-                      onChange={(e) => updateLine(line.id, "quantity", e.target.value)}
-                      readOnly={!!(line.pieceMeters && line.pieceMeters.length > 0)}
+                      onChange={(e) =>
+                        updateLine(line.id, "quantity", e.target.value)
+                      }
+                      readOnly={
+                        !!(line.pieceMeters && line.pieceMeters.length > 0)
+                      }
                       className={`h-10 text-right font-medium ${line.pieceMeters && line.pieceMeters.length > 0 ? "bg-muted cursor-not-allowed" : ""}`}
                     />
                   </div>
 
                   {/* Unit */}
                   <div className="md:col-span-2 space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase text-foreground">Unit</Label>
-                    <Select value={line.unitType} onValueChange={(val) => updateLine(line.id, "unitType", val as any)}>
+                    <Label className="text-xs font-semibold uppercase text-foreground">
+                      Unit
+                    </Label>
+                    <Select
+                      value={line.unitType}
+                      onValueChange={(val) =>
+                        updateLine(line.id, "unitType", val as any)
+                      }
+                    >
                       <SelectTrigger className="h-10 w-full">
                         <SelectValue />
                       </SelectTrigger>
@@ -732,26 +1036,40 @@ export default function PurchaseClient({
 
                   {/* Rate */}
                   <div className="md:col-span-3 space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase text-foreground">Rate (₹)</Label>
+                    <Label className="text-xs font-semibold uppercase text-foreground">
+                      Rate (₹)
+                    </Label>
                     <Input
                       type="number"
                       step="0.01"
                       value={line.rate}
-                      onChange={(e) => updateLine(line.id, "rate", e.target.value)}
+                      onChange={(e) =>
+                        updateLine(line.id, "rate", e.target.value)
+                      }
                       className="h-10 text-right font-semibold"
                     />
                   </div>
 
                   {/* GST Rate */}
                   <div className="md:col-span-3 space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase text-foreground">GST Rate</Label>
-                    <Select value={line.gstRateId} onValueChange={(val) => updateLine(line.id, "gstRateId", val)}>
+                    <Label className="text-xs font-semibold uppercase text-foreground">
+                      GST Rate
+                    </Label>
+                    <Select
+                      value={line.gstRateId}
+                      onValueChange={(val) =>
+                        updateLine(line.id, "gstRateId", val)
+                      }
+                    >
                       <SelectTrigger className="h-10 w-full">
                         <SelectValue placeholder="Tax %" />
                       </SelectTrigger>
                       <SelectContent>
                         {taxRates.map((t) => (
-                          <SelectItem key={t.taxRateId} value={String(t.taxRateId)}>
+                          <SelectItem
+                            key={t.taxRateId}
+                            value={String(t.taxRateId)}
+                          >
                             {t.taxName} ({t.taxPercent}%)
                           </SelectItem>
                         ))}
@@ -761,13 +1079,19 @@ export default function PurchaseClient({
 
                   {/* CGST */}
                   <div className="md:col-span-2 space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase text-foreground">CGST %</Label>
+                    <Label className="text-xs font-semibold uppercase text-foreground">
+                      CGST %
+                    </Label>
                     <Input
                       type="number"
                       step="0.01"
-                      placeholder={isInterstate ? "0.00" : totals?.cgstPercent.toFixed(2)}
-                      value={isInterstate ? "" : (line.cgst || "")}
-                      onChange={(e) => updateLine(line.id, "cgst", e.target.value)}
+                      placeholder={
+                        isInterstate ? "0.00" : totals?.cgstPercent.toFixed(2)
+                      }
+                      value={isInterstate ? "" : line.cgst || ""}
+                      onChange={(e) =>
+                        updateLine(line.id, "cgst", e.target.value)
+                      }
                       disabled={isInterstate}
                       className="h-10 text-right font-medium"
                     />
@@ -775,13 +1099,19 @@ export default function PurchaseClient({
 
                   {/* SGST */}
                   <div className="md:col-span-2 space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase text-foreground">SGST %</Label>
+                    <Label className="text-xs font-semibold uppercase text-foreground">
+                      SGST %
+                    </Label>
                     <Input
                       type="number"
                       step="0.01"
-                      placeholder={isInterstate ? "0.00" : totals?.sgstPercent.toFixed(2)}
-                      value={isInterstate ? "" : (line.sgst || "")}
-                      onChange={(e) => updateLine(line.id, "sgst", e.target.value)}
+                      placeholder={
+                        isInterstate ? "0.00" : totals?.sgstPercent.toFixed(2)
+                      }
+                      value={isInterstate ? "" : line.sgst || ""}
+                      onChange={(e) =>
+                        updateLine(line.id, "sgst", e.target.value)
+                      }
                       disabled={isInterstate}
                       className="h-10 text-right font-medium"
                     />
@@ -789,13 +1119,19 @@ export default function PurchaseClient({
 
                   {/* IGST */}
                   <div className="md:col-span-2 space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase text-foreground">IGST %</Label>
+                    <Label className="text-xs font-semibold uppercase text-foreground">
+                      IGST %
+                    </Label>
                     <Input
                       type="number"
                       step="0.01"
-                      placeholder={!isInterstate ? "0.00" : totals?.igstPercent.toFixed(2)}
-                      value={!isInterstate ? "" : (line.igst || "")}
-                      onChange={(e) => updateLine(line.id, "igst", e.target.value)}
+                      placeholder={
+                        !isInterstate ? "0.00" : totals?.igstPercent.toFixed(2)
+                      }
+                      value={!isInterstate ? "" : line.igst || ""}
+                      onChange={(e) =>
+                        updateLine(line.id, "igst", e.target.value)
+                      }
                       disabled={!isInterstate}
                       className="h-10 text-right font-medium"
                     />
@@ -805,28 +1141,52 @@ export default function PurchaseClient({
                 {/* Calculations Summary Strip */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4 bg-muted/30 p-3 rounded-lg border border-border/50 text-xs mt-2">
                   <div className="space-y-0.5">
-                    <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px]">Amount</span>
-                    <span className="font-semibold text-foreground text-sm">₹{totals?.amount.toFixed(2)}</span>
+                    <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px]">
+                      Amount
+                    </span>
+                    <span className="font-semibold text-foreground text-sm">
+                      ₹{totals?.amount.toFixed(2)}
+                    </span>
                   </div>
                   <div className="space-y-0.5">
-                    <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px]">Net Amount</span>
-                    <span className="font-semibold text-foreground text-sm">₹{totals?.netAmount.toFixed(2)}</span>
+                    <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px]">
+                      Net Amount
+                    </span>
+                    <span className="font-semibold text-foreground text-sm">
+                      ₹{totals?.netAmount.toFixed(2)}
+                    </span>
                   </div>
                   <div className="space-y-0.5">
-                    <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px]">CGST</span>
-                    <span className="font-medium text-muted-foreground text-sm">₹{totals?.cgst.toFixed(2)}</span>
+                    <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px]">
+                      CGST
+                    </span>
+                    <span className="font-medium text-muted-foreground text-sm">
+                      ₹{totals?.cgst.toFixed(2)}
+                    </span>
                   </div>
                   <div className="space-y-0.5">
-                    <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px]">SGST</span>
-                    <span className="font-medium text-muted-foreground text-sm">₹{totals?.sgst.toFixed(2)}</span>
+                    <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px]">
+                      SGST
+                    </span>
+                    <span className="font-medium text-muted-foreground text-sm">
+                      ₹{totals?.sgst.toFixed(2)}
+                    </span>
                   </div>
                   <div className="space-y-0.5">
-                    <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px]">IGST</span>
-                    <span className="font-medium text-muted-foreground text-sm">₹{totals?.igst.toFixed(2)}</span>
+                    <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px]">
+                      IGST
+                    </span>
+                    <span className="font-medium text-muted-foreground text-sm">
+                      ₹{totals?.igst.toFixed(2)}
+                    </span>
                   </div>
                   <div className="space-y-0.5">
-                    <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px] text-primary">Net Total</span>
-                    <span className="font-bold text-foreground text-sm">₹{totals?.net.toFixed(2)}</span>
+                    <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px] text-primary">
+                      Net Total
+                    </span>
+                    <span className="font-bold text-foreground text-sm">
+                      ₹{totals?.net.toFixed(2)}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -839,12 +1199,16 @@ export default function PurchaseClient({
       <div className="grid gap-6 md:grid-cols-3 pt-4">
         {/* Discount Section */}
         <div className="rounded-lg border border-border bg-card p-5 space-y-4 shadow-sm">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">Apply Discounts</h2>
-          
+          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">
+            Apply Discounts
+          </h2>
+
           {/* Discount 1 */}
           <div className="grid grid-cols-2 gap-3 pb-3 border-b border-border/40">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">Discount 1 Value</Label>
+              <Label className="text-xs font-semibold uppercase text-foreground">
+                Discount 1 Value
+              </Label>
               <Input
                 type="number"
                 step="0.01"
@@ -855,8 +1219,13 @@ export default function PurchaseClient({
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">Type</Label>
-              <Select value={discountType} onValueChange={(val) => setDiscountType(val as any)}>
+              <Label className="text-xs font-semibold uppercase text-foreground">
+                Type
+              </Label>
+              <Select
+                value={discountType}
+                onValueChange={(val) => setDiscountType(val as any)}
+              >
                 <SelectTrigger className="h-9 w-full">
                   <SelectValue />
                 </SelectTrigger>
@@ -871,7 +1240,9 @@ export default function PurchaseClient({
           {/* Discount 2 */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">Discount 2 Value</Label>
+              <Label className="text-xs font-semibold uppercase text-foreground">
+                Discount 2 Value
+              </Label>
               <Input
                 type="number"
                 step="0.01"
@@ -882,8 +1253,13 @@ export default function PurchaseClient({
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">Type</Label>
-              <Select value={discountType2} onValueChange={(val) => setDiscountType2(val as any)}>
+              <Label className="text-xs font-semibold uppercase text-foreground">
+                Type
+              </Label>
+              <Select
+                value={discountType2}
+                onValueChange={(val) => setDiscountType2(val as any)}
+              >
                 <SelectTrigger className="h-9 w-full">
                   <SelectValue />
                 </SelectTrigger>
@@ -898,21 +1274,79 @@ export default function PurchaseClient({
           {/* Extra Charges */}
           <div className="pt-3 border-t border-border/40 space-y-3">
             <div className="flex items-center justify-between">
-              <Label className="text-xs font-semibold uppercase text-foreground">Extra Charges</Label>
-              <Button type="button" variant="ghost" size="sm" onClick={() => setExtraCharges(prev => [...prev, { id: crypto.randomUUID(), label: "", value: "", type: "value" }])} className="h-7 px-2 text-xs">+ Add Charge</Button>
+              <Label className="text-xs font-semibold uppercase text-foreground">
+                Extra Charges
+              </Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() =>
+                  setExtraCharges((prev) => [
+                    ...prev,
+                    {
+                      id: crypto.randomUUID(),
+                      label: "",
+                      value: "",
+                      type: "value",
+                    },
+                  ])
+                }
+                className="h-7 px-2 text-xs"
+              >
+                + Add Charge
+              </Button>
             </div>
             {extraCharges.map((charge) => (
-              <div key={charge.id} className="grid grid-cols-[1fr_90px_90px_auto] gap-2 items-center">
-                <Input placeholder="Label (e.g. Freight)" value={charge.label} onChange={(e) => updateExtraCharge(charge.id, "label", e.target.value)} className="h-9" />
-                <Input type="number" step="0.01" placeholder="0.00" value={charge.value} onChange={(e) => updateExtraCharge(charge.id, "value", e.target.value)} className="h-9" />
-                <Select value={charge.type} onValueChange={(val) => updateExtraCharge(charge.id, "type", val)}>
-                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <div
+                key={charge.id}
+                className="grid grid-cols-[1fr_90px_90px_auto] gap-2 items-center"
+              >
+                <Input
+                  placeholder="Label (e.g. Freight)"
+                  value={charge.label}
+                  onChange={(e) =>
+                    updateExtraCharge(charge.id, "label", e.target.value)
+                  }
+                  className="h-9"
+                />
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={charge.value}
+                  onChange={(e) =>
+                    updateExtraCharge(charge.id, "value", e.target.value)
+                  }
+                  className="h-9"
+                />
+                <Select
+                  value={charge.type}
+                  onValueChange={(val) =>
+                    updateExtraCharge(charge.id, "type", val)
+                  }
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="value">₹ Flat</SelectItem>
                     <SelectItem value="percentage">% Rate</SelectItem>
                   </SelectContent>
                 </Select>
-                <Button type="button" variant="ghost" size="sm" className="h-9 w-9 p-0 text-destructive hover:text-destructive" onClick={() => setExtraCharges(prev => prev.filter(c => c.id !== charge.id))}><Trash2 className="h-4 w-4" /></Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 w-9 p-0 text-destructive hover:text-destructive"
+                  onClick={() =>
+                    setExtraCharges((prev) =>
+                      prev.filter((c) => c.id !== charge.id),
+                    )
+                  }
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
               </div>
             ))}
           </div>
@@ -923,30 +1357,50 @@ export default function PurchaseClient({
 
         {/* Totals Breakdown */}
         <div className="rounded-lg border border-border bg-card p-5 space-y-3 shadow-sm text-sm">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">Summary</h2>
-          
+          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">
+            Summary
+          </h2>
+
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Subtotal (Before Discount):</span>
-            <span className="font-semibold text-foreground">₹{grandTotals.rawNetAmount.toFixed(2)}</span>
+            <span className="text-muted-foreground">
+              Subtotal (Before Discount):
+            </span>
+            <span className="font-semibold text-foreground">
+              ₹{grandTotals.rawNetAmount.toFixed(2)}
+            </span>
           </div>
 
           {discount1Amt > 0 && (
             <div className="flex justify-between text-danger">
-              <span>Discount 1 ({discountType === "percentage" ? `${Number(discountValue)}%` : "Flat"}):</span>
+              <span>
+                Discount 1 (
+                {discountType === "percentage"
+                  ? `${Number(discountValue)}%`
+                  : "Flat"}
+                ):
+              </span>
               <span>-₹{discount1Amt.toFixed(2)}</span>
             </div>
           )}
 
           {discount2Amt > 0 && (
             <div className="flex justify-between text-danger">
-              <span>Discount 2 ({discountType2 === "percentage" ? `${Number(discountValue2)}%` : "Flat"}):</span>
+              <span>
+                Discount 2 (
+                {discountType2 === "percentage"
+                  ? `${Number(discountValue2)}%`
+                  : "Flat"}
+                ):
+              </span>
               <span>-₹{discount2Amt.toFixed(2)}</span>
             </div>
           )}
 
           <div className="flex justify-between">
             <span className="text-muted-foreground">Taxable Value:</span>
-            <span className="font-semibold text-foreground">₹{grandTotals.netAmount.toFixed(2)}</span>
+            <span className="font-semibold text-foreground">
+              ₹{grandTotals.netAmount.toFixed(2)}
+            </span>
           </div>
 
           {!isInterstate ? (
@@ -967,28 +1421,49 @@ export default function PurchaseClient({
             </div>
           )}
 
-          {extraCharges.filter(c => c.value).map((c) => (
-            <div key={c.id} className="flex justify-between text-foreground">
-              <span>{c.label || "Extra Charges"} ({c.type === "percentage" ? `${c.value}%` : "Flat"}):</span>
-              <span className="font-semibold text-success">+₹{(c.type === "percentage" ? (grandTotals.total * Number(c.value)) / 100 : Number(c.value)).toFixed(2)}</span>
-            </div>
-          ))}
+          {extraCharges
+            .filter((c) => c.value)
+            .map((c) => (
+              <div key={c.id} className="flex justify-between text-foreground">
+                <span>
+                  {c.label || "Extra Charges"} (
+                  {c.type === "percentage" ? `${c.value}%` : "Flat"}):
+                </span>
+                <span className="font-semibold text-success">
+                  +₹
+                  {(c.type === "percentage"
+                    ? (grandTotals.total * Number(c.value)) / 100
+                    : Number(c.value)
+                  ).toFixed(2)}
+                </span>
+              </div>
+            ))}
 
           <div className="flex justify-between border-t border-border pt-2 text-base font-bold">
             <span>Grand Total:</span>
-            <span className="text-foreground">₹{finalGrandTotal.toFixed(2)}</span>
+            <span className="text-foreground">
+              ₹{finalGrandTotal.toFixed(2)}
+            </span>
           </div>
         </div>
       </div>
 
       {/* Save Invoice Button */}
       <div className="flex justify-end pt-4">
-        <Button onClick={handleSubmit} disabled={saving || !canCreate} className="h-10 px-8 font-bold uppercase">
+        <Button
+          onClick={handleSubmit}
+          disabled={saving || !canCreate}
+          className="h-10 px-8 font-bold uppercase"
+        >
           {saving ? "Saving Voucher..." : "Save Invoice"}
         </Button>
       </div>
 
-      {message && <div className="rounded-lg border border-border bg-muted/65 p-4 text-sm text-center font-medium text-foreground">{message}</div>}
+      {message && (
+        <div className="rounded-lg border border-border bg-muted/65 p-4 text-sm text-center font-medium text-foreground">
+          {message}
+        </div>
+      )}
 
       {printVoucher && (
         <PrintInvoiceModal

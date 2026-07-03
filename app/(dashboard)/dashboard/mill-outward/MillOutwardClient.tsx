@@ -1,10 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Plus, Trash2 } from "lucide-react";
 import PrintInvoiceModal from "@/components/PrintInvoiceModal";
 import BrokerHasteDialog from "@/components/BrokerHasteDialog";
@@ -75,7 +81,11 @@ export default function MillOutwardClient({
   brokersHaste,
   canCreate,
 }: {
-  company: { companyName: string; gstNo?: string | null; address?: string | null };
+  company: {
+    companyName: string;
+    gstNo?: string | null;
+    address?: string | null;
+  };
   mills: MillOption[];
   inventory: InventoryOption[];
   taxRates: TaxRateOption[];
@@ -102,7 +112,9 @@ export default function MillOutwardClient({
 
   const [selectedMill, setSelectedMill] = useState("");
   const [voucherNo, setVoucherNo] = useState("");
-  const [voucherDate, setVoucherDate] = useState(new Date().toISOString().slice(0, 10));
+  const [voucherDate, setVoucherDate] = useState(
+    new Date().toISOString().slice(0, 10),
+  );
 
   const [broker, setBroker] = useState("");
   const [haste, setHaste] = useState("");
@@ -120,15 +132,44 @@ export default function MillOutwardClient({
   const [printAmount, setPrintAmount] = useState(true);
 
   const [lineItems, setLineItems] = useState<LineItem[]>([EMPTY_LINE()]);
-  const [activePieceLineId, setActivePieceLineId] = useState<string | null>(null);
+  const [activePieceLineId, setActivePieceLineId] = useState<string | null>(
+    null,
+  );
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  type ExtraCharge = { id: string; label: string; value: string; type: "percentage" | "value" };
+  type ExtraCharge = {
+    id: string;
+    label: string;
+    value: string;
+    type: "percentage" | "value";
+  };
   const [extraCharges, setExtraCharges] = useState<ExtraCharge[]>([]);
-  function updateExtraCharge(id: string, field: keyof ExtraCharge, value: string) {
-    setExtraCharges(prev => prev.map(c => c.id === id ? { ...c, [field]: value } : c));
+  function updateExtraCharge(
+    id: string,
+    field: keyof ExtraCharge,
+    value: string,
+  ) {
+    setExtraCharges((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, [field]: value } : c)),
+    );
   }
   const [printVoucher, setPrintVoucher] = useState<any>(null);
+
+  const fetchNextVoucherNo = async () => {
+    try {
+      const res = await fetch("/api/vouchers/next-number?type=mill_outward");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.nextVoucherNo) setVoucherNo(data.nextVoucherNo);
+      }
+    } catch (err) {
+      console.error("Error fetching next mill outward voucher number:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchNextVoucherNo();
+  }, []);
 
   const selectedMillDetails = useMemo(() => {
     return localMills.find((m) => String(m.millId) === selectedMill) || null;
@@ -142,11 +183,18 @@ export default function MillOutwardClient({
       const fold = Number(line.fold) || 100;
 
       const unit = line.jobRateType === "pcs" ? pcs : qty;
-      const amount = Math.round((unit * rate) * 100) / 100;
+      const amount = Math.round(unit * rate * 100) / 100;
       const netAmount = Math.round(((unit * rate * fold) / 100) * 100) / 100;
 
-      const gstRatePercent = Number(line.gstRateId ? taxRates.find((t) => String(t.taxRateId) === line.gstRateId)?.taxPercent : 0) || 0;
-      const totalTax = Math.round((netAmount * gstRatePercent) / 100 * 100) / 100;
+      const gstRatePercent =
+        Number(
+          line.gstRateId
+            ? taxRates.find((t) => String(t.taxRateId) === line.gstRateId)
+                ?.taxPercent
+            : 0,
+        ) || 0;
+      const totalTax =
+        Math.round(((netAmount * gstRatePercent) / 100) * 100) / 100;
 
       return { amount, netAmount, totalTax, net: netAmount + totalTax };
     });
@@ -160,14 +208,15 @@ export default function MillOutwardClient({
         tax: acc.tax + item.totalTax,
         total: acc.total + item.net,
       }),
-      { amount: 0, netAmount: 0, tax: 0, total: 0 }
+      { amount: 0, netAmount: 0, tax: 0, total: 0 },
     );
   }, [lineTotals]);
 
   const totalExtraCharges = useMemo(() => {
     return extraCharges.reduce((sum, c) => {
       if (!c.value) return sum;
-      if (c.type === "percentage") return sum + (grandTotals.total * Number(c.value)) / 100;
+      if (c.type === "percentage")
+        return sum + (grandTotals.total * Number(c.value)) / 100;
       return sum + Number(c.value);
     }, 0);
   }, [extraCharges, grandTotals.total]);
@@ -192,7 +241,7 @@ export default function MillOutwardClient({
         }
 
         return { ...item, [field]: value };
-      })
+      }),
     );
   }
 
@@ -204,8 +253,8 @@ export default function MillOutwardClient({
         let pcs = 0;
         let totalQty = 0;
         for (const m of meters) {
-          if (m.includes('x')) {
-            const [pStr, qStr] = m.split('x');
+          if (m.includes("x")) {
+            const [pStr, qStr] = m.split("x");
             const p = parseInt(pStr) || 0;
             const q = parseFloat(qStr) || 0;
             pcs += p;
@@ -221,7 +270,7 @@ export default function MillOutwardClient({
           quantity: String(totalQty),
           pieceMeters: meters,
         };
-      })
+      }),
     );
     setActivePieceLineId(null);
   }
@@ -269,7 +318,9 @@ export default function MillOutwardClient({
         printRate,
         printAmount,
         extraCharges: totalExtraCharges,
-        extraChargesData: extraCharges.filter(c => c.value).map(({ id, ...rest }) => rest),
+        extraChargesData: extraCharges
+          .filter((c) => c.value)
+          .map(({ id, ...rest }) => rest),
         lineItems: validLines.map((line) => {
           const totals = lineTotals[lineItems.indexOf(line)];
           return {
@@ -301,7 +352,7 @@ export default function MillOutwardClient({
       }
 
       setMessage("Mill Outward Challan created successfully.");
-      setVoucherNo("");
+      fetchNextVoucherNo();
       setRemarks("");
       setBroker("");
       setHaste("");
@@ -323,7 +374,9 @@ export default function MillOutwardClient({
           taxAmount: grandTotals.tax,
           netAmount: finalGrandTotal,
           extraCharges: totalExtraCharges,
-        extraChargesData: extraCharges.filter(c => c.value).map(({ id, ...rest }) => rest),
+          extraChargesData: extraCharges
+            .filter((c) => c.value)
+            .map(({ id, ...rest }) => rest),
         },
         party: {
           name: selectedMillDetails?.millName || "Mill Party",
@@ -331,13 +384,18 @@ export default function MillOutwardClient({
           address: selectedMillDetails?.address,
         },
         lines: validLines.map((line) => {
-          const prod = inventory.find((p) => String(p.inventoryId) === line.inventoryId);
-          const tr = taxRates.find((t) => String(t.taxRateId) === line.gstRateId);
+          const prod = inventory.find(
+            (p) => String(p.inventoryId) === line.inventoryId,
+          );
+          const tr = taxRates.find(
+            (t) => String(t.taxRateId) === line.gstRateId,
+          );
           const qty = Number(line.quantity) || 0;
           const rt = Number(line.rate) || 0;
           const fd = Number(line.fold) || 100;
           const pcsVal = Number(line.pcs) || 0;
-          const amt = line.jobRateType === "pcs" ? (pcsVal * rt) : (qty * rt * fd / 100);
+          const amt =
+            line.jobRateType === "pcs" ? pcsVal * rt : (qty * rt * fd) / 100;
           return {
             inventoryCode: prod?.inventoryCode || "PROD",
             inventoryName: prod?.inventoryName || "Item",
@@ -351,7 +409,9 @@ export default function MillOutwardClient({
         }),
       });
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Unable to save voucher.");
+      setMessage(
+        error instanceof Error ? error.message : "Unable to save voucher.",
+      );
     } finally {
       setSaving(false);
     }
@@ -362,8 +422,12 @@ export default function MillOutwardClient({
       {/* Top Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-foreground uppercase">Mill Outward Entry</h1>
-          <p className="text-sm text-muted-foreground">Send grey fabric/yarn to mills for processing/finishing.</p>
+          <h1 className="text-xl font-bold tracking-tight text-foreground uppercase">
+            Mill Outward Entry
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Send grey fabric/yarn to mills for processing/finishing.
+          </p>
         </div>
       </div>
 
@@ -371,11 +435,15 @@ export default function MillOutwardClient({
       <div className="grid gap-6 md:grid-cols-3">
         {/* Mill Details */}
         <div className="rounded-lg border border-border bg-card p-5 space-y-4 shadow-sm">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">Party Details</h2>
+          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">
+            Party Details
+          </h2>
 
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <Label className="text-xs font-semibold uppercase text-foreground">Mill Party</Label>
+              <Label className="text-xs font-semibold uppercase text-foreground">
+                Mill Party
+              </Label>
               {canCreate && (
                 <button
                   type="button"
@@ -402,8 +470,16 @@ export default function MillOutwardClient({
 
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <Label className="text-xs font-semibold uppercase text-foreground">Broker</Label>
-              <button type="button" onClick={() => setShowBrokerDialog(true)} className="text-[10px] font-bold text-primary hover:underline uppercase">+ New Broker</button>
+              <Label className="text-xs font-semibold uppercase text-foreground">
+                Broker
+              </Label>
+              <button
+                type="button"
+                onClick={() => setShowBrokerDialog(true)}
+                className="text-[10px] font-bold text-primary hover:underline uppercase"
+              >
+                + New Broker
+              </button>
             </div>
             <Select value={broker} onValueChange={setBroker}>
               <SelectTrigger className="h-9 w-full">
@@ -421,8 +497,16 @@ export default function MillOutwardClient({
 
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <Label className="text-xs font-semibold uppercase text-foreground">Haste (Delivery Agent)</Label>
-              <button type="button" onClick={() => setShowHasteDialog(true)} className="text-[10px] font-bold text-primary hover:underline uppercase">+ New Haste</button>
+              <Label className="text-xs font-semibold uppercase text-foreground">
+                Haste (Delivery Agent)
+              </Label>
+              <button
+                type="button"
+                onClick={() => setShowHasteDialog(true)}
+                className="text-[10px] font-bold text-primary hover:underline uppercase"
+              >
+                + New Haste
+              </button>
             </div>
             <Select value={haste} onValueChange={setHaste}>
               <SelectTrigger className="h-9 w-full">
@@ -441,58 +525,125 @@ export default function MillOutwardClient({
 
         {/* Voucher Info */}
         <div className="rounded-lg border border-border bg-card p-5 space-y-4 shadow-sm">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">Document Details</h2>
+          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">
+            Document Details
+          </h2>
 
           <div className="space-y-1.5">
-            <Label className="text-xs font-semibold uppercase text-foreground">Challan / Sr No.</Label>
-            <Input value={voucherNo} onChange={(e) => setVoucherNo(e.target.value)} placeholder="e.g. MO-1020" className="h-9" />
+            <Label className="text-xs font-semibold uppercase text-foreground">
+              Challan No.
+            </Label>
+            <Input
+              value={voucherNo}
+              readOnly
+              placeholder="Fetching..."
+              className="h-9 border-border/60 bg-muted/30 text-muted-foreground shadow-none cursor-not-allowed focus-visible:ring-0 focus-visible:ring-offset-0"
+            />
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-xs font-semibold uppercase text-foreground">Lot No.</Label>
-            <Input value={lotNo} onChange={(e) => setLotNo(e.target.value)} placeholder="e.g. LOT-450" className="h-9" />
+            <Label className="text-xs font-semibold uppercase text-foreground">
+              Lot No.
+            </Label>
+            <Input
+              value={lotNo}
+              onChange={(e) => setLotNo(e.target.value)}
+              placeholder="e.g. LOT-450"
+              className="h-9"
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">Challan Date</Label>
-              <Input type="date" value={voucherDate} onChange={(e) => setVoucherDate(e.target.value)} className="h-9" />
+              <Label className="text-xs font-semibold uppercase text-foreground">
+                Challan Date
+              </Label>
+              <Input
+                type="date"
+                value={voucherDate}
+                onChange={(e) => setVoucherDate(e.target.value)}
+                className="h-9"
+              />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">Remarks</Label>
-              <Input value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Notes" className="h-9" />
+              <Label className="text-xs font-semibold uppercase text-foreground">
+                Remarks
+              </Label>
+              <Input
+                value={remarks}
+                onChange={(e) => setRemarks(e.target.value)}
+                placeholder="Notes"
+                className="h-9"
+              />
             </div>
           </div>
         </div>
 
         {/* Logistics details */}
         <div className="rounded-lg border border-border bg-card p-5 space-y-4 shadow-sm">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">Logistics & Shipping</h2>
+          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">
+            Logistics & Shipping
+          </h2>
 
           <div className="space-y-1.5">
-            <Label className="text-xs font-semibold uppercase text-foreground">Vehicle No.</Label>
-            <Input value={vehicleNo} onChange={(e) => setVehicleNo(e.target.value)} placeholder="e.g. GJ-05-XX-XXXX" className="h-9" />
+            <Label className="text-xs font-semibold uppercase text-foreground">
+              Vehicle No.
+            </Label>
+            <Input
+              value={vehicleNo}
+              onChange={(e) => setVehicleNo(e.target.value)}
+              placeholder="e.g. GJ-05-XX-XXXX"
+              className="h-9"
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">Driver/Person Name</Label>
-              <Input value={personName} onChange={(e) => setPersonName(e.target.value)} placeholder="Name" className="h-9" />
+              <Label className="text-xs font-semibold uppercase text-foreground">
+                Driver/Person Name
+              </Label>
+              <Input
+                value={personName}
+                onChange={(e) => setPersonName(e.target.value)}
+                placeholder="Name"
+                className="h-9"
+              />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">Transport</Label>
-              <Input value={transport} onChange={(e) => setTransport(e.target.value)} placeholder="Transport Service" className="h-9" />
+              <Label className="text-xs font-semibold uppercase text-foreground">
+                Transport
+              </Label>
+              <Input
+                value={transport}
+                onChange={(e) => setTransport(e.target.value)}
+                placeholder="Transport Service"
+                className="h-9"
+              />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">LR No.</Label>
-              <Input value={lrNo} onChange={(e) => setLrNo(e.target.value)} placeholder="LR Number" className="h-9" />
+              <Label className="text-xs font-semibold uppercase text-foreground">
+                LR No.
+              </Label>
+              <Input
+                value={lrNo}
+                onChange={(e) => setLrNo(e.target.value)}
+                placeholder="LR Number"
+                className="h-9"
+              />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">LR Date</Label>
-              <Input type="date" value={lrDate} onChange={(e) => setLrDate(e.target.value)} className="h-9" />
+              <Label className="text-xs font-semibold uppercase text-foreground">
+                LR Date
+              </Label>
+              <Input
+                type="date"
+                value={lrDate}
+                onChange={(e) => setLrDate(e.target.value)}
+                className="h-9"
+              />
             </div>
           </div>
         </div>
@@ -502,10 +653,19 @@ export default function MillOutwardClient({
       <div className="rounded-lg border border-border bg-card p-5 shadow-sm space-y-4">
         <div className="flex items-center justify-between border-b border-border pb-3">
           <div>
-            <h2 className="text-sm font-bold text-foreground uppercase tracking-wide">Mill Outward Items & Specifications</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Input inventory, PCS, meters (Qty), fold, processing types, and rates.</p>
+            <h2 className="text-sm font-bold text-foreground uppercase tracking-wide">
+              Mill Outward Items & Specifications
+            </h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Input inventory, PCS, meters (Qty), fold, processing types, and
+              rates.
+            </p>
           </div>
-          <Button variant="outline" onClick={addLine} className="h-9 text-xs font-semibold uppercase">
+          <Button
+            variant="outline"
+            onClick={addLine}
+            className="h-9 text-xs font-semibold uppercase"
+          >
             <Plus className="h-3.5 w-3.5 mr-1" /> Add Item
           </Button>
         </div>
@@ -533,13 +693,21 @@ export default function MillOutwardClient({
                 return (
                   <tr key={line.id} className="hover:bg-muted/30">
                     <td className="py-3 pr-2">
-                      <Select value={line.inventoryId} onValueChange={(v) => updateLine(line.id, "inventoryId", v)}>
+                      <Select
+                        value={line.inventoryId}
+                        onValueChange={(v) =>
+                          updateLine(line.id, "inventoryId", v)
+                        }
+                      >
                         <SelectTrigger className="h-9">
                           <SelectValue placeholder="Select item" />
                         </SelectTrigger>
                         <SelectContent>
                           {inventory.map((p) => (
-                            <SelectItem key={p.inventoryId} value={String(p.inventoryId)}>
+                            <SelectItem
+                              key={p.inventoryId}
+                              value={String(p.inventoryId)}
+                            >
                               {p.inventoryName} ({p.unit})
                             </SelectItem>
                           ))}
@@ -549,7 +717,9 @@ export default function MillOutwardClient({
                     <td className="py-3 px-2">
                       <Input
                         value={line.hsnCode}
-                        onChange={(e) => updateLine(line.id, "hsnCode", e.target.value)}
+                        onChange={(e) =>
+                          updateLine(line.id, "hsnCode", e.target.value)
+                        }
                         placeholder="HSN Code"
                         className="h-9 font-mono text-xs"
                       />
@@ -558,7 +728,9 @@ export default function MillOutwardClient({
                       <Input
                         type="number"
                         value={line.fold}
-                        onChange={(e) => updateLine(line.id, "fold", e.target.value)}
+                        onChange={(e) =>
+                          updateLine(line.id, "fold", e.target.value)
+                        }
                         className="h-9 font-mono text-xs text-center"
                       />
                     </td>
@@ -568,8 +740,12 @@ export default function MillOutwardClient({
                         <Input
                           type="number"
                           value={line.pcs}
-                          onChange={(e) => updateLine(line.id, "pcs", e.target.value)}
-                          readOnly={!!(line.pieceMeters && line.pieceMeters.length > 0)}
+                          onChange={(e) =>
+                            updateLine(line.id, "pcs", e.target.value)
+                          }
+                          readOnly={
+                            !!(line.pieceMeters && line.pieceMeters.length > 0)
+                          }
                           className={`h-9 font-mono text-xs text-center w-full ${line.pieceMeters && line.pieceMeters.length > 0 ? "bg-muted cursor-not-allowed" : ""}`}
                         />
                         <Button
@@ -588,14 +764,21 @@ export default function MillOutwardClient({
                       <Input
                         type="number"
                         value={line.quantity}
-                        onChange={(e) => updateLine(line.id, "quantity", e.target.value)}
-                        readOnly={!!(line.pieceMeters && line.pieceMeters.length > 0)}
+                        onChange={(e) =>
+                          updateLine(line.id, "quantity", e.target.value)
+                        }
+                        readOnly={
+                          !!(line.pieceMeters && line.pieceMeters.length > 0)
+                        }
                         className={`h-9 font-mono text-xs text-center ${line.pieceMeters && line.pieceMeters.length > 0 ? "bg-muted cursor-not-allowed" : ""}`}
                       />
                     </td>
 
                     <td className="py-3 px-2">
-                      <Select value={line.jobType} onValueChange={(v) => updateLine(line.id, "jobType", v)}>
+                      <Select
+                        value={line.jobType}
+                        onValueChange={(v) => updateLine(line.id, "jobType", v)}
+                      >
                         <SelectTrigger className="h-9">
                           <SelectValue placeholder="Process type" />
                         </SelectTrigger>
@@ -610,7 +793,12 @@ export default function MillOutwardClient({
                     </td>
 
                     <td className="py-3 px-2">
-                      <Select value={line.jobRateType} onValueChange={(v) => updateLine(line.id, "jobRateType", v as any)}>
+                      <Select
+                        value={line.jobRateType}
+                        onValueChange={(v) =>
+                          updateLine(line.id, "jobRateType", v as any)
+                        }
+                      >
                         <SelectTrigger className="h-9">
                           <SelectValue />
                         </SelectTrigger>
@@ -625,16 +813,24 @@ export default function MillOutwardClient({
                       <Input
                         type="number"
                         value={line.rate}
-                        onChange={(e) => updateLine(line.id, "rate", e.target.value)}
+                        onChange={(e) =>
+                          updateLine(line.id, "rate", e.target.value)
+                        }
                         className="h-9 font-mono text-xs text-right"
                       />
                     </td>
 
                     <td className="py-3 px-2 text-right font-mono font-bold text-foreground">
-                      ₹ {totals.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      ₹{" "}
+                      {totals.amount.toLocaleString("en-IN", {
+                        minimumFractionDigits: 2,
+                      })}
                     </td>
                     <td className="py-3 px-2 text-right font-mono font-bold text-foreground">
-                      ₹ {totals.netAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      ₹{" "}
+                      {totals.netAmount.toLocaleString("en-IN", {
+                        minimumFractionDigits: 2,
+                      })}
                     </td>
 
                     <td className="py-3 pl-2 text-center">
@@ -659,7 +855,9 @@ export default function MillOutwardClient({
           {/* Print Controls */}
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-2">
-              <Label className="text-xs uppercase font-semibold text-muted-foreground">Print Challan:</Label>
+              <Label className="text-xs uppercase font-semibold text-muted-foreground">
+                Print Challan:
+              </Label>
               <select
                 value={printRate ? "yes" : "no"}
                 onChange={(e) => setPrintRate(e.target.value === "yes")}
@@ -683,34 +881,101 @@ export default function MillOutwardClient({
 
           <div className="flex-1 space-y-2">
             <div className="flex items-center justify-between">
-              <Label className="text-xs font-semibold uppercase text-foreground">Extra Charges</Label>
-              <Button type="button" variant="ghost" size="sm" onClick={() => setExtraCharges(prev => [...prev, { id: crypto.randomUUID(), label: "", value: "", type: "value" }])} className="h-7 px-2 text-xs">+ Add Charge</Button>
+              <Label className="text-xs font-semibold uppercase text-foreground">
+                Extra Charges
+              </Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() =>
+                  setExtraCharges((prev) => [
+                    ...prev,
+                    {
+                      id: crypto.randomUUID(),
+                      label: "",
+                      value: "",
+                      type: "value",
+                    },
+                  ])
+                }
+                className="h-7 px-2 text-xs"
+              >
+                + Add Charge
+              </Button>
             </div>
             {extraCharges.map((charge) => (
-              <div key={charge.id} className="grid grid-cols-[1fr_90px_90px_auto] gap-2 items-center">
-                <Input placeholder="Label (e.g. Freight)" value={charge.label} onChange={(e) => updateExtraCharge(charge.id, "label", e.target.value)} className="h-9" />
-                <Input type="number" step="0.01" placeholder="0.00" value={charge.value} onChange={(e) => updateExtraCharge(charge.id, "value", e.target.value)} className="h-9" />
-                <Select value={charge.type} onValueChange={(val) => updateExtraCharge(charge.id, "type", val)}>
-                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <div
+                key={charge.id}
+                className="grid grid-cols-[1fr_90px_90px_auto] gap-2 items-center"
+              >
+                <Input
+                  placeholder="Label (e.g. Freight)"
+                  value={charge.label}
+                  onChange={(e) =>
+                    updateExtraCharge(charge.id, "label", e.target.value)
+                  }
+                  className="h-9"
+                />
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={charge.value}
+                  onChange={(e) =>
+                    updateExtraCharge(charge.id, "value", e.target.value)
+                  }
+                  className="h-9"
+                />
+                <Select
+                  value={charge.type}
+                  onValueChange={(val) =>
+                    updateExtraCharge(charge.id, "type", val)
+                  }
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="value">₹ Flat</SelectItem>
                     <SelectItem value="percentage">% Rate</SelectItem>
                   </SelectContent>
                 </Select>
-                <Button type="button" variant="ghost" size="sm" className="h-9 w-9 p-0 text-destructive hover:text-destructive" onClick={() => setExtraCharges(prev => prev.filter(c => c.id !== charge.id))}><Trash2 className="h-4 w-4" /></Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 w-9 p-0 text-destructive hover:text-destructive"
+                  onClick={() =>
+                    setExtraCharges((prev) =>
+                      prev.filter((c) => c.id !== charge.id),
+                    )
+                  }
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
               </div>
             ))}
           </div>
 
           <div className="space-y-1.5 text-right font-mono">
-            {extraCharges.filter(c => c.value).map((c) => (
-              <div key={c.id} className="text-xs text-muted-foreground">
-                {c.label || "Extra Charges"}: +₹{(c.type === "percentage" ? (grandTotals.total * Number(c.value)) / 100 : Number(c.value)).toFixed(2)}
-              </div>
-            ))}
+            {extraCharges
+              .filter((c) => c.value)
+              .map((c) => (
+                <div key={c.id} className="text-xs text-muted-foreground">
+                  {c.label || "Extra Charges"}: +₹
+                  {(c.type === "percentage"
+                    ? (grandTotals.total * Number(c.value)) / 100
+                    : Number(c.value)
+                  ).toFixed(2)}
+                </div>
+              ))}
             <div className="text-muted-foreground">Total Outward Amount:</div>
             <div className="text-lg font-black text-foreground">
-              ₹ {finalGrandTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+              ₹{" "}
+              {finalGrandTotal.toLocaleString("en-IN", {
+                minimumFractionDigits: 2,
+              })}
             </div>
           </div>
         </div>
@@ -718,8 +983,14 @@ export default function MillOutwardClient({
 
       {/* Message and Save Action */}
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-border bg-card p-5 shadow-sm">
-        <p className="text-xs font-semibold text-destructive uppercase">{message}</p>
-        <Button onClick={handleSubmit} disabled={saving} className="h-10 text-xs font-bold uppercase tracking-wider px-8 ml-auto">
+        <p className="text-xs font-semibold text-destructive uppercase">
+          {message}
+        </p>
+        <Button
+          onClick={handleSubmit}
+          disabled={saving}
+          className="h-10 text-xs font-bold uppercase tracking-wider px-8 ml-auto"
+        >
           {saving ? "Saving challan..." : "Save Mill Outward"}
         </Button>
       </div>
