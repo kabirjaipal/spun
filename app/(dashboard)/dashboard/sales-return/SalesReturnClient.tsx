@@ -4,8 +4,14 @@ import { useMemo, useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trash2, Loader2 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Trash2, Loader2, Edit } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import PieceMetersDialog from "@/components/PieceMetersDialog";
 
@@ -83,7 +89,13 @@ export default function SalesReturnClient({
   taxRates,
   canCreate,
 }: {
-  company: { companyName: string; gstNo?: string | null; address?: string | null; companyType?: string; state?: string | null };
+  company: {
+    companyName: string;
+    gstNo?: string | null;
+    address?: string | null;
+    companyType?: string;
+    state?: string | null;
+  };
   companies: CompanyOption[];
   inventory: InventoryOption[];
   taxRates: TaxRateOption[];
@@ -91,7 +103,9 @@ export default function SalesReturnClient({
 }) {
   const [selectedCompany, setSelectedCompany] = useState("");
   const [voucherNo, setVoucherNo] = useState(""); // Credit Note / Sales Return No
-  const [voucherDate, setVoucherDate] = useState(new Date().toISOString().slice(0, 10));
+  const [voucherDate, setVoucherDate] = useState(
+    new Date().toISOString().slice(0, 10),
+  );
 
   const fetchNextVoucherNo = async () => {
     try {
@@ -103,7 +117,11 @@ export default function SalesReturnClient({
         }
       } else {
         const errData = await res.json().catch(() => ({}));
-        console.error("Failed to fetch next voucher number:", res.status, errData);
+        console.error(
+          "Failed to fetch next voucher number:",
+          res.status,
+          errData,
+        );
       }
     } catch (err) {
       console.error("Error fetching next voucher number:", err);
@@ -127,15 +145,45 @@ export default function SalesReturnClient({
 
   // Line items for return
   const [lineItems, setLineItems] = useState<ReturnLineItem[]>([]);
-  const [activePieceLineId, setActivePieceLineId] = useState<string | null>(null);
+  const [activePieceLineId, setActivePieceLineId] = useState<string | null>(
+    null,
+  );
+  const [editingLineId, setEditingLineId] = useState<string | null>(null);
+  const [editFormData, setEditFormData] = useState<{
+    hsnCode: string;
+    fold: string;
+    returnPcs: string;
+    returnQty: string;
+    rate: string;
+  }>({
+    hsnCode: "",
+    fold: "",
+    returnPcs: "",
+    returnQty: "",
+    rate: "",
+  });
 
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
-  type ExtraCharge = { id: string; label: string; value: string; type: "percentage" | "value" };
+  const [printRate, setPrintRate] = useState(true);
+  const [printAmount, setPrintAmount] = useState(true);
+
+  type ExtraCharge = {
+    id: string;
+    label: string;
+    value: string;
+    type: "percentage" | "value";
+  };
   const [extraCharges, setExtraCharges] = useState<ExtraCharge[]>([]);
-  function updateExtraCharge(id: string, field: keyof ExtraCharge, value: string) {
-    setExtraCharges(prev => prev.map(c => c.id === id ? { ...c, [field]: value } : c));
+  function updateExtraCharge(
+    id: string,
+    field: keyof ExtraCharge,
+    value: string,
+  ) {
+    setExtraCharges((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, [field]: value } : c)),
+    );
   }
 
   // Fetch company invoices (sales)
@@ -150,7 +198,9 @@ export default function SalesReturnClient({
     async function fetchInvoices() {
       setLoadingInvoices(true);
       try {
-        const res = await fetch(`/api/vouchers?type=sale&partyId=${selectedCompany}&includeItems=true`);
+        const res = await fetch(
+          `/api/vouchers?type=sale&partyId=${selectedCompany}&includeItems=true`,
+        );
         if (res.ok) {
           const data = await res.json();
           setInvoices(data);
@@ -171,7 +221,9 @@ export default function SalesReturnClient({
     if (isSelected) {
       newIds = selectedInvoiceIds.filter((id) => id !== invoice.voucherId);
       // Remove lines from this invoice
-      setLineItems((items) => items.filter((item) => item.invoiceNo !== invoice.voucherNo));
+      setLineItems((items) =>
+        items.filter((item) => item.invoiceNo !== invoice.voucherNo),
+      );
     } else {
       newIds = [...selectedInvoiceIds, invoice.voucherId];
       // Add lines from this invoice
@@ -200,9 +252,14 @@ export default function SalesReturnClient({
 
   // Check if Interstate or Intrastate GST
   const isInterstate = useMemo(() => {
-    const subCompany = companies.find((s) => String(s.companyId) === selectedCompany);
+    const subCompany = companies.find(
+      (s) => String(s.companyId) === selectedCompany,
+    );
     if (company?.state && subCompany?.state) {
-      return company.state.trim().toLowerCase() !== subCompany.state.trim().toLowerCase();
+      return (
+        company.state.trim().toLowerCase() !==
+        subCompany.state.trim().toLowerCase()
+      );
     }
     const companyGst = company?.gstNo || "";
     const subCompanyGst = subCompany?.gstNo || "";
@@ -215,9 +272,15 @@ export default function SalesReturnClient({
       const qty = Number(line.quantity) || 0;
       const rate = Number(line.rate) || 0;
       const fold = Number(line.fold) || 100;
-      const gstRatePercent = Number(line.gstRateId ? taxRates.find((t) => String(t.taxRateId) === line.gstRateId)?.taxPercent : 0) || 0;
+      const gstRatePercent =
+        Number(
+          line.gstRateId
+            ? taxRates.find((t) => String(t.taxRateId) === line.gstRateId)
+                ?.taxPercent
+            : 0,
+        ) || 0;
 
-      const amount = Math.round((qty * rate) * 100) / 100;
+      const amount = Math.round(qty * rate * 100) / 100;
       const netAmount = Math.round(((qty * rate * fold) / 100) * 100) / 100;
 
       let defaultCgst = 0;
@@ -231,17 +294,40 @@ export default function SalesReturnClient({
         defaultSgst = gstRatePercent / 2;
       }
 
-      const cgstPercent = isInterstate ? 0 : (line.cgst !== "" ? (Number(line.cgst) || 0) : defaultCgst);
-      const sgstPercent = isInterstate ? 0 : (line.sgst !== "" ? (Number(line.sgst) || 0) : defaultSgst);
-      const igstPercent = isInterstate ? (line.igst !== "" ? (Number(line.igst) || 0) : defaultIgst) : 0;
+      const cgstPercent = isInterstate
+        ? 0
+        : line.cgst !== ""
+          ? Number(line.cgst) || 0
+          : defaultCgst;
+      const sgstPercent = isInterstate
+        ? 0
+        : line.sgst !== ""
+          ? Number(line.sgst) || 0
+          : defaultSgst;
+      const igstPercent = isInterstate
+        ? line.igst !== ""
+          ? Number(line.igst) || 0
+          : defaultIgst
+        : 0;
 
-      const cgst = Math.round((netAmount * cgstPercent) / 100 * 100) / 100;
-      const sgst = Math.round((netAmount * sgstPercent) / 100 * 100) / 100;
-      const igst = Math.round((netAmount * igstPercent) / 100 * 100) / 100;
+      const cgst = Math.round(((netAmount * cgstPercent) / 100) * 100) / 100;
+      const sgst = Math.round(((netAmount * sgstPercent) / 100) * 100) / 100;
+      const igst = Math.round(((netAmount * igstPercent) / 100) * 100) / 100;
 
       const totalTaxVal = cgst + sgst + igst;
 
-      return { amount, netAmount, cgst, sgst, igst, cgstPercent, sgstPercent, igstPercent, totalTax: totalTaxVal, net: netAmount + totalTaxVal };
+      return {
+        amount,
+        netAmount,
+        cgst,
+        sgst,
+        igst,
+        cgstPercent,
+        sgstPercent,
+        igstPercent,
+        totalTax: totalTaxVal,
+        net: netAmount + totalTaxVal,
+      };
     });
   }, [lineItems, taxRates, isInterstate]);
 
@@ -256,14 +342,15 @@ export default function SalesReturnClient({
         tax: acc.tax + item.totalTax,
         total: acc.total + item.net,
       }),
-      { amount: 0, netAmount: 0, cgst: 0, sgst: 0, igst: 0, tax: 0, total: 0 }
+      { amount: 0, netAmount: 0, cgst: 0, sgst: 0, igst: 0, tax: 0, total: 0 },
     );
   }, [lineTotals]);
 
   const totalExtraCharges = useMemo(() => {
     return extraCharges.reduce((sum, c) => {
       if (!c.value) return sum;
-      if (c.type === "percentage") return sum + (grandTotals.total * Number(c.value)) / 100;
+      if (c.type === "percentage")
+        return sum + (grandTotals.total * Number(c.value)) / 100;
       return sum + Number(c.value);
     }, 0);
   }, [extraCharges, grandTotals.total]);
@@ -277,7 +364,7 @@ export default function SalesReturnClient({
       items.map((item) => {
         if (item.id !== id) return item;
         return { ...item, [field]: value };
-      })
+      }),
     );
   }
 
@@ -289,8 +376,8 @@ export default function SalesReturnClient({
         let pcs = 0;
         let totalQty = 0;
         for (const m of meters) {
-          if (m.includes('x')) {
-            const [pStr, qStr] = m.split('x');
+          if (m.includes("x")) {
+            const [pStr, qStr] = m.split("x");
             const p = parseInt(pStr) || 0;
             const q = parseFloat(qStr) || 0;
             pcs += p;
@@ -306,13 +393,48 @@ export default function SalesReturnClient({
           quantity: String(totalQty),
           pieceMeters: meters,
         };
-      })
+      }),
     );
     setActivePieceLineId(null);
   }
 
   function removeLine(id: string) {
     setLineItems((items) => items.filter((item) => item.id !== id));
+  }
+
+  function openEditForm(lineId: string) {
+    const line = lineItems.find((l) => l.id === lineId);
+    if (line) {
+      setEditFormData({
+        hsnCode: line.hsnCode,
+        fold: line.fold,
+        returnPcs: line.pcs,
+        returnQty: line.quantity,
+        rate: line.rate,
+      });
+      setEditingLineId(lineId);
+    }
+  }
+
+  function closeEditForm() {
+    setEditingLineId(null);
+    setEditFormData({
+      hsnCode: "",
+      fold: "",
+      returnPcs: "",
+      returnQty: "",
+      rate: "",
+    });
+  }
+
+  function saveEditForm() {
+    if (!editingLineId) return;
+    updateLine(editingLineId, "hsnCode", editFormData.hsnCode);
+    updateLine(editingLineId, "fold", editFormData.fold);
+    updateLine(editingLineId, "pcs", editFormData.returnPcs);
+    updateLine(editingLineId, "quantity", editFormData.returnQty);
+    updateLine(editingLineId, "rate", editFormData.rate);
+    closeEditForm();
   }
 
   async function handleSubmit() {
@@ -322,7 +444,10 @@ export default function SalesReturnClient({
       return;
     }
 
-    const validLines = lineItems.filter((line) => line.inventoryId && Number(line.quantity) > 0 && Number(line.rate) >= 0);
+    const validLines = lineItems.filter(
+      (line) =>
+        line.inventoryId && Number(line.quantity) > 0 && Number(line.rate) >= 0,
+    );
     if (validLines.length === 0) {
       setMessage("Add at least one line item with valid quantity and rate.");
       return;
@@ -331,11 +456,15 @@ export default function SalesReturnClient({
     // Validate quantities do not exceed original outward quantity
     for (const line of validLines) {
       if (Number(line.quantity) > line.originalQuantity) {
-        setMessage(`Error: Quantity returned for item in invoice ${line.invoiceNo} exceeds original sold quantity (${line.originalQuantity}).`);
+        setMessage(
+          `Error: Quantity returned for item in invoice ${line.invoiceNo} exceeds original sold quantity (${line.originalQuantity}).`,
+        );
         return;
       }
       if (Number(line.pcs || 0) > line.originalPcs) {
-        setMessage(`Error: PCS returned for item in invoice ${line.invoiceNo} exceeds original sold PCS (${line.originalPcs}).`);
+        setMessage(
+          `Error: PCS returned for item in invoice ${line.invoiceNo} exceeds original sold PCS (${line.originalPcs}).`,
+        );
         return;
       }
     }
@@ -349,12 +478,16 @@ export default function SalesReturnClient({
         voucherNo,
         voucherDate,
         partyId: Number(selectedCompany),
-        remarks: remarks || `Sales Return - Against Invoices: ${selectedInvoiceIds.map(id => invoices.find(inv => inv.voucherId === id)?.voucherNo).join(", ")}`,
+        remarks:
+          remarks ||
+          `Sales Return - Against Invoices: ${selectedInvoiceIds.map((id) => invoices.find((inv) => inv.voucherId === id)?.voucherNo).join(", ")}`,
         lrNo,
         lrDate: lrDate || null,
         transport,
         extraCharges: totalExtraCharges,
-        extraChargesData: extraCharges.filter(c => c.value).map(({ id, ...rest }) => rest),
+        extraChargesData: extraCharges
+          .filter((c) => c.value)
+          .map(({ id, ...rest }) => rest),
         lineItems: validLines.map((line) => {
           const totals = lineTotals[lineItems.indexOf(line)];
           return {
@@ -394,7 +527,9 @@ export default function SalesReturnClient({
       setLineItems([]);
       setSelectedInvoiceIds([]);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Unable to save voucher.");
+      setMessage(
+        error instanceof Error ? error.message : "Unable to save voucher.",
+      );
     } finally {
       setSaving(false);
     }
@@ -405,8 +540,12 @@ export default function SalesReturnClient({
       {/* Top Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-foreground uppercase">Sales Return (Credit Note)</h1>
-          <p className="text-sm text-muted-foreground">Record returns against one or multiple sales invoices.</p>
+          <h1 className="text-xl font-bold tracking-tight text-foreground uppercase">
+            Sales Return (Credit Note)
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Record returns against one or multiple sales invoices.
+          </p>
         </div>
       </div>
 
@@ -414,12 +553,19 @@ export default function SalesReturnClient({
       <div className="grid gap-6 md:grid-cols-3">
         {/* Party, Invoices & Document Details */}
         <div className="md:col-span-2 rounded-lg border border-border bg-card p-5 space-y-4 shadow-sm">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">Party, Invoices & Document Details</h2>
-          
+          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">
+            Party, Invoices & Document Details
+          </h2>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">Company (Party)</Label>
-              <Select value={selectedCompany} onValueChange={setSelectedCompany}>
+              <Label className="text-xs font-semibold uppercase text-foreground">
+                Company (Party)
+              </Label>
+              <Select
+                value={selectedCompany}
+                onValueChange={setSelectedCompany}
+              >
                 <SelectTrigger className="h-10">
                   <SelectValue placeholder="Choose company" />
                 </SelectTrigger>
@@ -434,37 +580,71 @@ export default function SalesReturnClient({
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">Remarks</Label>
-              <Input value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Return reasons" className="h-10" />
+              <Label className="text-xs font-semibold uppercase text-foreground">
+                Remarks
+              </Label>
+              <Input
+                value={remarks}
+                onChange={(e) => setRemarks(e.target.value)}
+                placeholder="Return reasons"
+                className="h-10"
+              />
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">CR. Note / SR No.</Label>
-              <Input value={voucherNo} readOnly placeholder="Fetching..." className="h-10 bg-muted cursor-not-allowed font-mono font-semibold" />
+              <Label className="text-xs font-semibold uppercase text-foreground">
+                CR. Note / SR No.
+              </Label>
+              <Input
+                value={voucherNo}
+                readOnly
+                placeholder="Fetching..."
+                className="h-10 bg-muted cursor-not-allowed font-mono font-semibold"
+              />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">Return Date</Label>
-              <Input type="date" value={voucherDate} onChange={(e) => setVoucherDate(e.target.value)} className="h-10" />
+              <Label className="text-xs font-semibold uppercase text-foreground">
+                Return Date
+              </Label>
+              <Input
+                type="date"
+                value={voucherDate}
+                onChange={(e) => setVoucherDate(e.target.value)}
+                className="h-10"
+              />
             </div>
 
             {selectedCompany && (
               <div className="space-y-4 col-span-1 md:col-span-2">
-                <Label className="text-xs font-semibold uppercase text-foreground">Select Invoices to Return Items From</Label>
+                <Label className="text-xs font-semibold uppercase text-foreground">
+                  Select Invoices to Return Items From
+                </Label>
                 {loadingInvoices ? (
-                  <div className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /><span>Loading invoices...</span></div>
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    <span>Loading invoices...</span>
+                  </div>
                 ) : invoices.length === 0 ? (
-                  <p className="text-xs text-muted-foreground italic">No sales invoices found for this company.</p>
+                  <p className="text-xs text-muted-foreground italic">
+                    No sales invoices found for this company.
+                  </p>
                 ) : (
                   <div className="max-h-36 overflow-y-auto space-y-2 border border-border rounded p-2 bg-muted/10">
                     {invoices.map((inv) => (
-                      <label key={inv.voucherId} className="flex items-center gap-2 text-xs text-foreground cursor-pointer">
+                      <label
+                        key={inv.voucherId}
+                        className="flex items-center gap-2 text-xs text-foreground cursor-pointer"
+                      >
                         <input
                           type="checkbox"
                           checked={selectedInvoiceIds.includes(inv.voucherId)}
                           onChange={() => handleToggleInvoice(inv)}
                           className="rounded border-border text-primary focus:ring-primary h-3.5 w-3.5"
                         />
-                        <span>{inv.voucherNo} ({formatDate(inv.voucherDate)}) - ₹{Number(inv.netAmount).toFixed(2)}</span>
+                        <span>
+                          {inv.voucherNo} ({formatDate(inv.voucherDate)}) - ₹
+                          {Number(inv.netAmount).toFixed(2)}
+                        </span>
                       </label>
                     ))}
                   </div>
@@ -476,21 +656,44 @@ export default function SalesReturnClient({
 
         {/* Logistics details */}
         <div className="rounded-lg border border-border bg-card p-5 space-y-4 shadow-sm">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">Logistics & Shipping</h2>
+          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">
+            Logistics & Shipping
+          </h2>
 
           <div className="space-y-1.5">
-            <Label className="text-xs font-semibold uppercase text-foreground">LR No.</Label>
-            <Input value={lrNo} onChange={(e) => setLrNo(e.target.value)} placeholder="Lorry Receipt No." className="h-10" />
+            <Label className="text-xs font-semibold uppercase text-foreground">
+              LR No.
+            </Label>
+            <Input
+              value={lrNo}
+              onChange={(e) => setLrNo(e.target.value)}
+              placeholder="Lorry Receipt No."
+              className="h-10"
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">LR Date</Label>
-              <Input type="date" value={lrDate} onChange={(e) => setLrDate(e.target.value)} className="h-10" />
+              <Label className="text-xs font-semibold uppercase text-foreground">
+                LR Date
+              </Label>
+              <Input
+                type="date"
+                value={lrDate}
+                onChange={(e) => setLrDate(e.target.value)}
+                className="h-10"
+              />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">Transport</Label>
-              <Input value={transport} onChange={(e) => setTransport(e.target.value)} placeholder="Transport Service" className="h-10" />
+              <Label className="text-xs font-semibold uppercase text-foreground">
+                Transport
+              </Label>
+              <Input
+                value={transport}
+                onChange={(e) => setTransport(e.target.value)}
+                placeholder="Transport Service"
+                className="h-10"
+              />
             </div>
           </div>
         </div>
@@ -498,7 +701,9 @@ export default function SalesReturnClient({
 
       {/* Return Items Container */}
       <div className="space-y-4">
-        <h2 className="text-sm font-bold text-foreground uppercase tracking-wide border-b border-border pb-2">Items to Return</h2>
+        <h2 className="text-sm font-bold text-foreground uppercase tracking-wide border-b border-border pb-2">
+          Items to Return
+        </h2>
 
         <div className="space-y-4">
           {lineItems.length === 0 ? (
@@ -507,60 +712,217 @@ export default function SalesReturnClient({
             </div>
           ) : (
             lineItems.map((line, index) => {
-              const totals = lineTotals[index] || { amount: 0, cgst: 0, sgst: 0, igst: 0, cgstPercent: 0, sgstPercent: 0, igstPercent: 0, net: 0, netAmount: 0 };
-              const unit = inventory.find((p) => String(p.inventoryId) === line.inventoryId)?.unit || "PCS";
+              const totals = lineTotals[index] || {
+                amount: 0,
+                cgst: 0,
+                sgst: 0,
+                igst: 0,
+                cgstPercent: 0,
+                sgstPercent: 0,
+                igstPercent: 0,
+                net: 0,
+                netAmount: 0,
+              };
+              const unit =
+                inventory.find(
+                  (p) => String(p.inventoryId) === line.inventoryId,
+                )?.unit || "PCS";
               return (
-                <div key={line.id} className="rounded-lg border border-border bg-card p-5 shadow-sm space-y-4 relative">
+                <div
+                  key={line.id}
+                  className="rounded-lg border border-border bg-card p-5 shadow-sm space-y-4 relative"
+                >
                   {/* Header Row */}
                   <div className="flex flex-wrap items-center justify-between border-b border-border pb-2 gap-2">
                     <div>
                       <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                        Invoice: <span className="text-foreground">{line.invoiceNo}</span> | Item #{index + 1}: <span className="text-foreground">{line.inventoryName}</span>
+                        Invoice:{" "}
+                        <span className="text-foreground">
+                          {line.invoiceNo}
+                        </span>{" "}
+                        | Item #{index + 1}:{" "}
+                        <span className="text-foreground">
+                          {line.inventoryName}
+                        </span>
                       </span>
                     </div>
-                    <Button
-                      variant="ghost"
-                      onClick={() => removeLine(line.id)}
-                      className="text-danger hover:bg-danger/10 hover:text-danger h-9 px-3 text-xs uppercase font-semibold flex items-center gap-1.5"
-                    >
-                      <Trash2 className="h-4 w-4" /> Remove Row
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        onClick={() => openEditForm(line.id)}
+                        className="text-primary hover:bg-primary/10 hover:text-primary h-9 px-3 text-xs uppercase font-semibold flex items-center gap-1.5"
+                      >
+                        <Edit className="h-4 w-4" /> Edit
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        onClick={() => removeLine(line.id)}
+                        className="text-danger hover:bg-danger/10 hover:text-danger h-9 px-3 text-xs uppercase font-semibold flex items-center gap-1.5"
+                      >
+                        <Trash2 className="h-4 w-4" /> Remove Row
+                      </Button>
+                    </div>
                   </div>
+
+                  {/* Edit Form - shows when edit icon is clicked */}
+                  {editingLineId === line.id && (
+                    <div className="bg-muted/30 p-4 rounded-lg border border-border space-y-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-bold uppercase tracking-wider text-foreground">
+                          Edit Return Details
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={closeEditForm}
+                          className="h-7 px-2 text-xs"
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-semibold uppercase text-foreground">
+                            HSN Code
+                          </Label>
+                          <Input
+                            value={editFormData.hsnCode}
+                            onChange={(e) =>
+                              setEditFormData({
+                                ...editFormData,
+                                hsnCode: e.target.value,
+                              })
+                            }
+                            placeholder="HSN Code"
+                            className="h-9"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-semibold uppercase text-foreground">
+                            Fold %
+                          </Label>
+                          <Input
+                            type="number"
+                            value={editFormData.fold}
+                            onChange={(e) =>
+                              setEditFormData({
+                                ...editFormData,
+                                fold: e.target.value,
+                              })
+                            }
+                            className="h-9 text-right"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-semibold uppercase text-foreground">
+                            Return PCS
+                          </Label>
+                          <Input
+                            type="number"
+                            value={editFormData.returnPcs}
+                            onChange={(e) =>
+                              setEditFormData({
+                                ...editFormData,
+                                returnPcs: e.target.value,
+                              })
+                            }
+                            className="h-9 text-right"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-semibold uppercase text-foreground">
+                            Return Qty ({unit})
+                          </Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={editFormData.returnQty}
+                            onChange={(e) =>
+                              setEditFormData({
+                                ...editFormData,
+                                returnQty: e.target.value,
+                              })
+                            }
+                            className="h-9 text-right"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-semibold uppercase text-foreground">
+                            Rate (₹)
+                          </Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={editFormData.rate}
+                            onChange={(e) =>
+                              setEditFormData({
+                                ...editFormData,
+                                rate: e.target.value,
+                              })
+                            }
+                            className="h-9 text-right"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex justify-end">
+                        <Button
+                          onClick={saveEditForm}
+                          className="h-9 px-4 text-xs font-bold uppercase"
+                        >
+                          Save Changes
+                        </Button>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Input Fields Grid */}
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                     {/* HSN Code */}
                     <div className="md:col-span-3 space-y-1.5">
-                      <Label className="text-xs font-semibold uppercase text-foreground">HSN Code</Label>
+                      <Label className="text-xs font-semibold uppercase text-foreground">
+                        HSN Code
+                      </Label>
                       <Input
                         value={line.hsnCode || ""}
-                        onChange={(e) => updateLine(line.id, "hsnCode", e.target.value)}
+                        onChange={(e) =>
+                          updateLine(line.id, "hsnCode", e.target.value)
+                        }
                         placeholder="HSN Code"
-                        className="h-10"
+                        readOnly
+                        className="h-10 border-border/60 bg-muted/30 text-muted-foreground shadow-none cursor-not-allowed focus-visible:ring-0 focus-visible:ring-offset-0"
                       />
                     </div>
 
                     {/* Fold % */}
                     <div className="md:col-span-3 space-y-1.5">
-                      <Label className="text-xs font-semibold uppercase text-foreground">Fold %</Label>
+                      <Label className="text-xs font-semibold uppercase text-foreground">
+                        Fold %
+                      </Label>
                       <Input
                         type="number"
                         value={line.fold || ""}
-                        onChange={(e) => updateLine(line.id, "fold", e.target.value)}
-                        className="h-10 text-right"
+                        onChange={(e) =>
+                          updateLine(line.id, "fold", e.target.value)
+                        }
+                        readOnly
+                        className="h-10 text-right border-border/60 bg-muted/30 text-muted-foreground shadow-none cursor-not-allowed focus-visible:ring-0 focus-visible:ring-offset-0"
                       />
                     </div>
 
                     {/* Return PCS */}
                     <div className="md:col-span-3 space-y-1.5">
-                      <Label className="text-xs font-semibold uppercase text-foreground">Return PCS</Label>
+                      <Label className="text-xs font-semibold uppercase text-foreground">
+                        Return PCS
+                      </Label>
                       <div className="flex items-center gap-1.5">
                         <Input
                           type="number"
                           value={line.pcs || ""}
-                          onChange={(e) => updateLine(line.id, "pcs", e.target.value)}
-                          readOnly={!!(line.pieceMeters && line.pieceMeters.length > 0)}
-                          className={`h-10 text-right w-full ${line.pieceMeters && line.pieceMeters.length > 0 ? "bg-muted cursor-not-allowed" : ""}`}
+                          onChange={(e) =>
+                            updateLine(line.id, "pcs", e.target.value)
+                          }
+                          readOnly
+                          className="h-10 text-right w-full border-border/60 bg-muted/30 text-muted-foreground shadow-none cursor-not-allowed focus-visible:ring-0 focus-visible:ring-offset-0"
                         />
                         <Button
                           type="button"
@@ -576,38 +938,53 @@ export default function SalesReturnClient({
 
                     {/* Return Qty */}
                     <div className="md:col-span-3 space-y-1.5">
-                      <Label className="text-xs font-semibold uppercase text-foreground">Return Qty ({unit})</Label>
+                      <Label className="text-xs font-semibold uppercase text-foreground">
+                        Return Qty ({unit})
+                      </Label>
                       <Input
                         type="number"
                         step="0.01"
                         value={line.quantity || ""}
-                        onChange={(e) => updateLine(line.id, "quantity", e.target.value)}
-                        readOnly={!!(line.pieceMeters && line.pieceMeters.length > 0)}
-                        className={`h-10 text-right ${line.pieceMeters && line.pieceMeters.length > 0 ? "bg-muted cursor-not-allowed" : ""}`}
+                        onChange={(e) =>
+                          updateLine(line.id, "quantity", e.target.value)
+                        }
+                        readOnly
+                        className="h-10 text-right border-border/60 bg-muted/30 text-muted-foreground shadow-none cursor-not-allowed focus-visible:ring-0 focus-visible:ring-offset-0"
                       />
                     </div>
 
                     {/* Rate */}
                     <div className="md:col-span-3 space-y-1.5">
-                      <Label className="text-xs font-semibold uppercase text-foreground">Rate (₹)</Label>
+                      <Label className="text-xs font-semibold uppercase text-foreground">
+                        Rate (₹)
+                      </Label>
                       <Input
                         type="number"
                         step="0.01"
                         value={line.rate || ""}
-                        onChange={(e) => updateLine(line.id, "rate", e.target.value)}
-                        className="h-10 text-right"
+                        onChange={(e) =>
+                          updateLine(line.id, "rate", e.target.value)
+                        }
+                        readOnly
+                        className="h-10 text-right border-border/60 bg-muted/30 text-muted-foreground shadow-none cursor-not-allowed focus-visible:ring-0 focus-visible:ring-offset-0"
                       />
                     </div>
 
                     {/* CGST % */}
                     <div className="md:col-span-3 space-y-1.5">
-                      <Label className="text-xs font-semibold uppercase text-foreground">CGST %</Label>
+                      <Label className="text-xs font-semibold uppercase text-foreground">
+                        CGST %
+                      </Label>
                       <Input
                         type="number"
                         step="0.01"
-                        placeholder={isInterstate ? "0.00" : totals.cgstPercent.toFixed(2)}
-                        value={isInterstate ? "" : (line.cgst || "")}
-                        onChange={(e) => updateLine(line.id, "cgst", e.target.value)}
+                        placeholder={
+                          isInterstate ? "0.00" : totals.cgstPercent.toFixed(2)
+                        }
+                        value={isInterstate ? "" : line.cgst || ""}
+                        onChange={(e) =>
+                          updateLine(line.id, "cgst", e.target.value)
+                        }
                         disabled={isInterstate}
                         className="h-10 text-right"
                       />
@@ -615,13 +992,19 @@ export default function SalesReturnClient({
 
                     {/* SGST % */}
                     <div className="md:col-span-3 space-y-1.5">
-                      <Label className="text-xs font-semibold uppercase text-foreground">SGST %</Label>
+                      <Label className="text-xs font-semibold uppercase text-foreground">
+                        SGST %
+                      </Label>
                       <Input
                         type="number"
                         step="0.01"
-                        placeholder={isInterstate ? "0.00" : totals.sgstPercent.toFixed(2)}
-                        value={isInterstate ? "" : (line.sgst || "")}
-                        onChange={(e) => updateLine(line.id, "sgst", e.target.value)}
+                        placeholder={
+                          isInterstate ? "0.00" : totals.sgstPercent.toFixed(2)
+                        }
+                        value={isInterstate ? "" : line.sgst || ""}
+                        onChange={(e) =>
+                          updateLine(line.id, "sgst", e.target.value)
+                        }
                         disabled={isInterstate}
                         className="h-10 text-right"
                       />
@@ -629,13 +1012,19 @@ export default function SalesReturnClient({
 
                     {/* IGST % */}
                     <div className="md:col-span-3 space-y-1.5">
-                      <Label className="text-xs font-semibold uppercase text-foreground">IGST %</Label>
+                      <Label className="text-xs font-semibold uppercase text-foreground">
+                        IGST %
+                      </Label>
                       <Input
                         type="number"
                         step="0.01"
-                        placeholder={!isInterstate ? "0.00" : totals.igstPercent.toFixed(2)}
-                        value={!isInterstate ? "" : (line.igst || "")}
-                        onChange={(e) => updateLine(line.id, "igst", e.target.value)}
+                        placeholder={
+                          !isInterstate ? "0.00" : totals.igstPercent.toFixed(2)
+                        }
+                        value={!isInterstate ? "" : line.igst || ""}
+                        onChange={(e) =>
+                          updateLine(line.id, "igst", e.target.value)
+                        }
                         disabled={!isInterstate}
                         className="h-10 text-right"
                       />
@@ -644,7 +1033,11 @@ export default function SalesReturnClient({
                     {/* Original Qty stats */}
                     <div className="md:col-span-12">
                       <div className="text-[10px] text-muted-foreground uppercase font-semibold">
-                        Original Invoice Qty: <span className="font-bold text-foreground">{line.originalPcs} PCS / {line.originalQuantity} {unit}</span>
+                        Original Invoice Qty:{" "}
+                        <span className="font-bold text-foreground">
+                          {line.originalPcs} PCS / {line.originalQuantity}{" "}
+                          {unit}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -652,28 +1045,70 @@ export default function SalesReturnClient({
                   {/* Calculations Summary Strip */}
                   <div className="grid grid-cols-2 md:grid-cols-6 gap-4 bg-muted/30 p-3 rounded-lg border border-border/50 text-xs mt-2">
                     <div className="space-y-0.5">
-                      <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px]">Amount</span>
-                      <span className="font-semibold text-foreground text-xs">₹ {totals.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                      <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px]">
+                        Amount
+                      </span>
+                      <span className="font-semibold text-foreground text-xs">
+                        ₹{" "}
+                        {totals.amount.toLocaleString("en-IN", {
+                          minimumFractionDigits: 2,
+                        })}
+                      </span>
                     </div>
                     <div className="space-y-0.5">
-                      <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px]">Net Amount</span>
-                      <span className="font-semibold text-foreground text-xs">₹ {totals.netAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                      <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px]">
+                        Net Amount
+                      </span>
+                      <span className="font-semibold text-foreground text-xs">
+                        ₹{" "}
+                        {totals.netAmount.toLocaleString("en-IN", {
+                          minimumFractionDigits: 2,
+                        })}
+                      </span>
                     </div>
                     <div className="space-y-0.5">
-                      <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px]">CGST</span>
-                      <span className="font-semibold text-muted-foreground text-xs">₹ {totals.cgst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                      <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px]">
+                        CGST
+                      </span>
+                      <span className="font-semibold text-muted-foreground text-xs">
+                        ₹{" "}
+                        {totals.cgst.toLocaleString("en-IN", {
+                          minimumFractionDigits: 2,
+                        })}
+                      </span>
                     </div>
                     <div className="space-y-0.5">
-                      <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px]">SGST</span>
-                      <span className="font-semibold text-muted-foreground text-xs">₹ {totals.sgst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                      <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px]">
+                        SGST
+                      </span>
+                      <span className="font-semibold text-muted-foreground text-xs">
+                        ₹{" "}
+                        {totals.sgst.toLocaleString("en-IN", {
+                          minimumFractionDigits: 2,
+                        })}
+                      </span>
                     </div>
                     <div className="space-y-0.5">
-                      <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px]">IGST</span>
-                      <span className="font-semibold text-muted-foreground text-xs">₹ {totals.igst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                      <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px]">
+                        IGST
+                      </span>
+                      <span className="font-semibold text-muted-foreground text-xs">
+                        ₹{" "}
+                        {totals.igst.toLocaleString("en-IN", {
+                          minimumFractionDigits: 2,
+                        })}
+                      </span>
                     </div>
                     <div className="space-y-0.5">
-                      <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px] text-primary">Net Total</span>
-                      <span className="font-bold text-foreground text-xs">₹ {totals.net.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                      <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px] text-primary">
+                        Net Total
+                      </span>
+                      <span className="font-bold text-foreground text-xs">
+                        ₹{" "}
+                        {totals.net.toLocaleString("en-IN", {
+                          minimumFractionDigits: 2,
+                        })}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -683,38 +1118,133 @@ export default function SalesReturnClient({
         </div>
 
         {/* Summary Footer */}
-        <div className="border-t border-border pt-4 space-y-3">
-          <div className="space-y-2">
+        <div className="flex flex-wrap items-center justify-between border-t border-border pt-4 gap-4 text-xs">
+          {/* Print Controls */}
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2">
+              <Label className="text-xs uppercase font-semibold text-muted-foreground">
+                Print Challan:
+              </Label>
+              <select
+                value={printRate ? "yes" : "no"}
+                onChange={(e) => setPrintRate(e.target.value === "yes")}
+                className="h-10 rounded border border-border bg-background px-3 py-1 font-semibold uppercase text-xs text-foreground"
+              >
+                <option value="yes">Print Rate (Yes)</option>
+                <option value="no">Print Rate (No)</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <select
+                value={printAmount ? "yes" : "no"}
+                onChange={(e) => setPrintAmount(e.target.value === "yes")}
+                className="h-10 rounded border border-border bg-background px-3 py-1 font-semibold uppercase text-xs text-foreground"
+              >
+                <option value="yes">Print Amount (Yes)</option>
+                <option value="no">Print Amount (No)</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex-1 space-y-2">
             <div className="flex items-center justify-between">
-              <Label className="text-xs font-semibold uppercase text-foreground">Extra Charges</Label>
-              <Button type="button" variant="ghost" size="sm" onClick={() => setExtraCharges(prev => [...prev, { id: crypto.randomUUID(), label: "", value: "", type: "value" }])} className="h-7 px-2 text-xs">+ Add Charge</Button>
+              <Label className="text-xs font-semibold uppercase text-foreground">
+                Extra Charges
+              </Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() =>
+                  setExtraCharges((prev) => [
+                    ...prev,
+                    {
+                      id: crypto.randomUUID(),
+                      label: "",
+                      value: "",
+                      type: "value",
+                    },
+                  ])
+                }
+                className="h-7 px-2 text-xs"
+              >
+                + Add Charge
+              </Button>
             </div>
             {extraCharges.map((charge) => (
-              <div key={charge.id} className="grid grid-cols-[1fr_90px_90px_auto] gap-2 items-center">
-                <Input placeholder="Label (e.g. Freight)" value={charge.label} onChange={(e) => updateExtraCharge(charge.id, "label", e.target.value)} className="h-9" />
-                <Input type="number" step="0.01" placeholder="0.00" value={charge.value} onChange={(e) => updateExtraCharge(charge.id, "value", e.target.value)} className="h-9" />
-                <Select value={charge.type} onValueChange={(val) => updateExtraCharge(charge.id, "type", val)}>
-                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <div
+                key={charge.id}
+                className="grid grid-cols-[1fr_90px_90px_auto] gap-2 items-center"
+              >
+                <Input
+                  placeholder="Label (e.g. Freight)"
+                  value={charge.label}
+                  onChange={(e) =>
+                    updateExtraCharge(charge.id, "label", e.target.value)
+                  }
+                  className="h-9"
+                />
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={charge.value}
+                  onChange={(e) =>
+                    updateExtraCharge(charge.id, "value", e.target.value)
+                  }
+                  className="h-9"
+                />
+                <Select
+                  value={charge.type}
+                  onValueChange={(val) =>
+                    updateExtraCharge(charge.id, "type", val)
+                  }
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="value">₹ Flat</SelectItem>
                     <SelectItem value="percentage">% Rate</SelectItem>
                   </SelectContent>
                 </Select>
-                <Button type="button" variant="ghost" size="sm" className="h-9 w-9 p-0 text-destructive hover:text-destructive" onClick={() => setExtraCharges(prev => prev.filter(c => c.id !== charge.id))}><Trash2 className="h-4 w-4" /></Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 w-9 p-0 text-destructive hover:text-destructive"
+                  onClick={() =>
+                    setExtraCharges((prev) =>
+                      prev.filter((c) => c.id !== charge.id),
+                    )
+                  }
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
               </div>
             ))}
           </div>
-          <div className="flex justify-end">
-            <div className="space-y-1.5 text-right font-mono">
-              {extraCharges.filter(c => c.value).map((c) => (
+
+          <div className="space-y-1.5 text-right font-mono">
+            {extraCharges
+              .filter((c) => c.value)
+              .map((c) => (
                 <div key={c.id} className="text-xs text-muted-foreground">
-                  {c.label || "Extra Charges"}: +₹{(c.type === "percentage" ? (grandTotals.total * Number(c.value)) / 100 : Number(c.value)).toFixed(2)}
+                  {c.label || "Extra Charges"}: +₹
+                  {(c.type === "percentage"
+                    ? (grandTotals.total * Number(c.value)) / 100
+                    : Number(c.value)
+                  ).toFixed(2)}
                 </div>
               ))}
-              <div className="text-muted-foreground font-semibold uppercase text-xs">Total Return Amount:</div>
-              <div className="text-lg font-black text-foreground">
-                ₹ {finalGrandTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-              </div>
+            <div className="text-muted-foreground font-semibold uppercase text-xs">
+              Total Return Amount:
+            </div>
+            <div className="text-lg font-black text-foreground">
+              ₹{" "}
+              {finalGrandTotal.toLocaleString("en-IN", {
+                minimumFractionDigits: 2,
+              })}
             </div>
           </div>
         </div>
@@ -722,12 +1252,20 @@ export default function SalesReturnClient({
 
       {/* Save Return Button */}
       <div className="flex justify-end pt-4">
-        <Button onClick={handleSubmit} disabled={saving || !canCreate} className="h-10 px-8 font-bold uppercase">
+        <Button
+          onClick={handleSubmit}
+          disabled={saving || !canCreate}
+          className="h-10 px-8 font-bold uppercase"
+        >
           {saving ? "Saving Return..." : "Save Sales Return"}
         </Button>
       </div>
 
-      {message && <div className="rounded-lg border border-border bg-muted/65 p-4 text-sm text-center font-medium text-foreground">{message}</div>}
+      {message && (
+        <div className="rounded-lg border border-border bg-muted/65 p-4 text-sm text-center font-medium text-foreground">
+          {message}
+        </div>
+      )}
       {(() => {
         const activeLine = lineItems.find((l) => l.id === activePieceLineId);
         return activeLine ? (
