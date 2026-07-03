@@ -1,0 +1,1 @@
+ALTER TABLE "t_vouchers" ADD COLUMN "extra_charges_data" jsonb;

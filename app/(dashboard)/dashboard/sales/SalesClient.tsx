@@ -55,6 +55,7 @@ interface PastVoucher {
   totalAmount: number;
   taxAmount: number;
   netAmount: number;
+  extraCharges?: number | string | null;
   remarks: string | null;
   party: { name: string; gstNo: string | null; address: string | null } | null;
 }
@@ -146,6 +147,12 @@ export default function SalesClient({
   const [discountType2, setDiscountType2] = useState<"percentage" | "value">("percentage");
   const [discountValue2, setDiscountValue2] = useState("");
 
+  type ExtraCharge = { id: string; label: string; value: string; type: "percentage" | "value" };
+  const [extraCharges, setExtraCharges] = useState<ExtraCharge[]>([]);
+  function updateExtraCharge(id: string, field: keyof ExtraCharge, value: string) {
+    setExtraCharges(prev => prev.map(c => c.id === id ? { ...c, [field]: value } : c));
+  }
+
   // Check if Interstate or Intrastate GST
   const isInterstate = useMemo(() => {
     const party = localParties.find((c) => String(c.partyId) === selectedParty);
@@ -230,6 +237,18 @@ export default function SalesClient({
   const discount2Amt = useMemo(() => {
     return lineTotals.reduce((sum, item) => sum + calculatePreTaxDiscount(item.rawNetAmount, grandTotals.rawNetAmount, discountType2, discountValue2), 0);
   }, [lineTotals, grandTotals.rawNetAmount, discountType2, discountValue2]);
+
+  const totalExtraCharges = useMemo(() => {
+    return extraCharges.reduce((sum, c) => {
+      if (!c.value) return sum;
+      if (c.type === "percentage") return sum + (grandTotals.total * Number(c.value)) / 100;
+      return sum + Number(c.value);
+    }, 0);
+  }, [extraCharges, grandTotals.total]);
+
+  const finalGrandTotal = useMemo(() => {
+    return grandTotals.total + totalExtraCharges;
+  }, [grandTotals.total, totalExtraCharges]);
 
   function updateLine(id: string, field: keyof LineItem, value: string) {
     setLineItems((items) =>
@@ -343,6 +362,8 @@ export default function SalesClient({
         discountValue: discountValue ? Number(discountValue) : null,
         discountType2: discountValue2 ? discountType2 : null,
         discountValue2: discountValue2 ? Number(discountValue2) : null,
+        extraCharges: totalExtraCharges,
+        extraChargesData: extraCharges.filter(c => c.value).map(({ id, ...rest }) => rest),
         lineItems: validLines.map((line) => ({
           inventoryId: Number(line.inventoryId),
           hsnCode: line.hsnCode,
@@ -377,7 +398,8 @@ export default function SalesClient({
         status: "posted",
         totalAmount: grandTotals.netAmount,
         taxAmount: grandTotals.tax,
-        netAmount: grandTotals.total,
+        netAmount: finalGrandTotal,
+        extraCharges: extraCharges ? Number(extraCharges) : 0,
         remarks: body.remarks,
         party: party ? { name: party.partyName, gstNo: party.gstNo, address: party.address } : null,
       };
@@ -419,6 +441,7 @@ export default function SalesClient({
       setTransport("");
       setDiscountValue("");
       setDiscountValue2("");
+      setExtraCharges([]);
       setLineItems([EMPTY_LINE()]);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to save voucher.");
@@ -792,6 +815,48 @@ export default function SalesClient({
               </Select>
             </div>
           </div>
+
+          {/* Extra Charges */}
+          <div className="pt-3 border-t border-border/40 space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-semibold uppercase text-foreground">Extra Charges</Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setExtraCharges(prev => [...prev, { id: crypto.randomUUID(), label: "", value: "", type: "value" }])}
+                className="h-7 px-2 text-xs"
+              >+ Add Charge</Button>
+            </div>
+            {extraCharges.map((charge) => (
+              <div key={charge.id} className="grid grid-cols-[1fr_90px_90px_auto] gap-2 items-center">
+                <Input
+                  placeholder="Label (e.g. Freight)"
+                  value={charge.label}
+                  onChange={(e) => updateExtraCharge(charge.id, "label", e.target.value)}
+                  className="h-9"
+                />
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={charge.value}
+                  onChange={(e) => updateExtraCharge(charge.id, "value", e.target.value)}
+                  className="h-9"
+                />
+                <Select value={charge.type} onValueChange={(val) => updateExtraCharge(charge.id, "type", val)}>
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="value">₹ Flat</SelectItem>
+                    <SelectItem value="percentage">% Rate</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button type="button" variant="ghost" size="sm" className="h-9 w-9 p-0 text-destructive hover:text-destructive" onClick={() => setExtraCharges(prev => prev.filter(c => c.id !== charge.id))}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Empty Column */}
@@ -843,9 +908,16 @@ export default function SalesClient({
             </div>
           )}
 
+          {extraCharges.filter(c => c.value).map((c) => (
+            <div key={c.id} className="flex justify-between text-foreground">
+              <span>{c.label || "Extra Charges"} ({c.type === "percentage" ? `${c.value}%` : "Flat"}):</span>
+              <span className="font-semibold text-success">+₹{(c.type === "percentage" ? (grandTotals.total * Number(c.value)) / 100 : Number(c.value)).toFixed(2)}</span>
+            </div>
+          ))}
+
           <div className="flex justify-between border-t border-border pt-2 text-base font-bold">
             <span>Grand Total:</span>
-            <span className="text-foreground">₹{grandTotals.total.toFixed(2)}</span>
+            <span className="text-foreground">₹{finalGrandTotal.toFixed(2)}</span>
           </div>
         </div>
       </div>

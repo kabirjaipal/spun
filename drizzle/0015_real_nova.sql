@@ -1,0 +1,1 @@
+ALTER TABLE "t_vouchers" ADD COLUMN "extra_charges" numeric(15, 2) DEFAULT '0.00' NOT NULL;

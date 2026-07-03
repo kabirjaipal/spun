@@ -343,6 +343,8 @@ export const tVouchers = pgTable("t_vouchers", {
   discountValue: numeric("discount_value", { precision: 15, scale: 2 }),
   discountType2: text("discount_type_2"), // 'percentage' or 'value'
   discountValue2: numeric("discount_value_2", { precision: 15, scale: 2 }),
+  extraCharges: numeric("extra_charges", { precision: 15, scale: 2 }).default("0.00").notNull(),
+  extraChargesData: jsonb("extra_charges_data"),
 
   ...auditColumns,
 }, (table) => ({

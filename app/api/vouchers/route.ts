@@ -62,7 +62,9 @@ export async function POST(request: Request) {
     discountType,
     discountValue,
     discountType2,
-    discountValue2
+    discountValue2,
+    extraCharges,
+    extraChargesData
   } = body;
 
   if (!voucherType || !voucherNo || !voucherDate) {
@@ -71,6 +73,8 @@ export async function POST(request: Request) {
 
   try {
     const [voucher] = await db.transaction(async (tx) => {
+      // Support both legacy numeric extraCharges and new array extraChargesData
+      const extraChargesNum = Number(extraCharges) || 0;
       // Handle sequence number generation
       let finalVoucherNo = voucherNo;
       const seq = await tx.query.mVoucherSequences.findFirst({
@@ -228,6 +232,7 @@ export async function POST(request: Request) {
             lineNet,
           });
         }
+        computedNet = Math.round((computedNet + extraChargesNum) * 100) / 100;
       } else if (voucherType === "receipt" || voucherType === "payment") {
         computedTotal = Number(totalAmount || 0);
         computedNet = computedTotal;
@@ -278,6 +283,8 @@ export async function POST(request: Request) {
           discountValue: discountValue ? String(discountValue) : null,
           discountType2: discountType2 || null,
           discountValue2: discountValue2 ? String(discountValue2) : null,
+          extraCharges: extraCharges ? String(extraCharges) : "0.00",
+          extraChargesData: extraChargesData ?? null,
           createdBy: userId,
           updatedBy: userId,
         })
@@ -297,6 +304,30 @@ export async function POST(request: Request) {
               companyId,
               ledgerName: "GST Tax Paid/Collected",
               ledgerType: "tax",
+              createdBy: userId,
+              updatedBy: userId,
+            })
+            .returning();
+          ledger = newL;
+        }
+        return ledger;
+      };
+
+      const getOrCreateExtraChargesLedger = async () => {
+        let ledger = await tx.query.mLedgers.findFirst({
+          where: and(
+            eq(mLedgers.companyId, companyId),
+            eq(mLedgers.ledgerName, "Freight & Other Charges A/c"),
+            isNull(mLedgers.deletedOn)
+          ),
+        });
+        if (!ledger) {
+          const [newL] = await tx
+            .insert(mLedgers)
+            .values({
+              companyId,
+              ledgerName: "Freight & Other Charges A/c",
+              ledgerType: "general",
               createdBy: userId,
               updatedBy: userId,
             })
@@ -389,6 +420,18 @@ export async function POST(request: Request) {
             });
           }
         }
+
+        if (extraChargesNum > 0) {
+          const extraLedger = await getOrCreateExtraChargesLedger();
+          await tx.insert(tVoucherEntries).values({
+            voucherId: voucherIdNum,
+            ledgerId: Number(extraLedger.ledgerId),
+            entryType: voucherType === "sale" ? "credit" : "debit",
+            amount: String(extraChargesNum),
+            createdBy: userId,
+            updatedBy: userId,
+          });
+        }
       } else if (voucherType === "purchase" || voucherType === "debit_note" || voucherType === "purchase_return" || voucherType === "direct_bill") {
         // 1. Credit Party Ledger
         const partyLedger = await tx.query.mLedgers.findFirst({
@@ -462,6 +505,19 @@ export async function POST(request: Request) {
               });
             }
           }
+        }
+
+        if (extraChargesNum > 0) {
+          const extraLedger = await getOrCreateExtraChargesLedger();
+          const extraEntryType = (voucherType === "purchase" || voucherType === "direct_bill") ? "debit" : "credit";
+          await tx.insert(tVoucherEntries).values({
+            voucherId: voucherIdNum,
+            ledgerId: Number(extraLedger.ledgerId),
+            entryType: extraEntryType,
+            amount: String(extraChargesNum),
+            createdBy: userId,
+            updatedBy: userId,
+          });
         }
       } else if (
         voucherType === "job_outward" ||
@@ -754,6 +810,8 @@ export async function GET(request: Request) {
       discountValue: tVouchers.discountValue,
       discountType2: tVouchers.discountType2,
       discountValue2: tVouchers.discountValue2,
+      extraCharges: tVouchers.extraCharges,
+      extraChargesData: tVouchers.extraChargesData,
       partyName: mCompanies.companyName,
       partyGst: mCompanies.gstNo,
       partyAddress: mCompanies.address,

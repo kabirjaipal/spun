@@ -132,6 +132,12 @@ export default function SalesReturnClient({
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
+  type ExtraCharge = { id: string; label: string; value: string; type: "percentage" | "value" };
+  const [extraCharges, setExtraCharges] = useState<ExtraCharge[]>([]);
+  function updateExtraCharge(id: string, field: keyof ExtraCharge, value: string) {
+    setExtraCharges(prev => prev.map(c => c.id === id ? { ...c, [field]: value } : c));
+  }
+
   // Fetch company invoices (sales)
   useEffect(() => {
     if (!selectedCompany) {
@@ -254,6 +260,18 @@ export default function SalesReturnClient({
     );
   }, [lineTotals]);
 
+  const totalExtraCharges = useMemo(() => {
+    return extraCharges.reduce((sum, c) => {
+      if (!c.value) return sum;
+      if (c.type === "percentage") return sum + (grandTotals.total * Number(c.value)) / 100;
+      return sum + Number(c.value);
+    }, 0);
+  }, [extraCharges, grandTotals.total]);
+
+  const finalGrandTotal = useMemo(() => {
+    return grandTotals.total + totalExtraCharges;
+  }, [grandTotals.total, totalExtraCharges]);
+
   function updateLine(id: string, field: keyof ReturnLineItem, value: string) {
     setLineItems((items) =>
       items.map((item) => {
@@ -335,6 +353,8 @@ export default function SalesReturnClient({
         lrNo,
         lrDate: lrDate || null,
         transport,
+        extraCharges: totalExtraCharges,
+        extraChargesData: extraCharges.filter(c => c.value).map(({ id, ...rest }) => rest),
         lineItems: validLines.map((line) => {
           const totals = lineTotals[lineItems.indexOf(line)];
           return {
@@ -370,6 +390,7 @@ export default function SalesReturnClient({
       setLrNo("");
       setLrDate("");
       setTransport("");
+      setExtraCharges([]);
       setLineItems([]);
       setSelectedInvoiceIds([]);
     } catch (error) {
@@ -662,11 +683,38 @@ export default function SalesReturnClient({
         </div>
 
         {/* Summary Footer */}
-        <div className="flex flex-wrap items-center justify-between border-t border-border pt-4 gap-4 text-xs">
-          <div className="space-y-1.5 text-right font-mono ml-auto">
-            <div className="text-muted-foreground font-semibold uppercase">Total Return Amount:</div>
-            <div className="text-lg font-black text-foreground">
-              ₹ {grandTotals.total.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+        <div className="border-t border-border pt-4 space-y-3">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-semibold uppercase text-foreground">Extra Charges</Label>
+              <Button type="button" variant="ghost" size="sm" onClick={() => setExtraCharges(prev => [...prev, { id: crypto.randomUUID(), label: "", value: "", type: "value" }])} className="h-7 px-2 text-xs">+ Add Charge</Button>
+            </div>
+            {extraCharges.map((charge) => (
+              <div key={charge.id} className="grid grid-cols-[1fr_90px_90px_auto] gap-2 items-center">
+                <Input placeholder="Label (e.g. Freight)" value={charge.label} onChange={(e) => updateExtraCharge(charge.id, "label", e.target.value)} className="h-9" />
+                <Input type="number" step="0.01" placeholder="0.00" value={charge.value} onChange={(e) => updateExtraCharge(charge.id, "value", e.target.value)} className="h-9" />
+                <Select value={charge.type} onValueChange={(val) => updateExtraCharge(charge.id, "type", val)}>
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="value">₹ Flat</SelectItem>
+                    <SelectItem value="percentage">% Rate</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button type="button" variant="ghost" size="sm" className="h-9 w-9 p-0 text-destructive hover:text-destructive" onClick={() => setExtraCharges(prev => prev.filter(c => c.id !== charge.id))}><Trash2 className="h-4 w-4" /></Button>
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-end">
+            <div className="space-y-1.5 text-right font-mono">
+              {extraCharges.filter(c => c.value).map((c) => (
+                <div key={c.id} className="text-xs text-muted-foreground">
+                  {c.label || "Extra Charges"}: +₹{(c.type === "percentage" ? (grandTotals.total * Number(c.value)) / 100 : Number(c.value)).toFixed(2)}
+                </div>
+              ))}
+              <div className="text-muted-foreground font-semibold uppercase text-xs">Total Return Amount:</div>
+              <div className="text-lg font-black text-foreground">
+                ₹ {finalGrandTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+              </div>
             </div>
           </div>
         </div>
