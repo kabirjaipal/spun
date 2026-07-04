@@ -440,7 +440,8 @@ export async function POST(request: Request) {
         for (const line of processedLines) {
           await tx.insert(tVoucherItems).values({
             voucherId: voucherIdNum,
-            inventoryId: Number(line.inventoryId),
+            inventoryId: (line.inventoryId && !isNaN(Number(line.inventoryId))) ? Number(line.inventoryId) : null,
+            ledgerId: (line.ledgerId && !isNaN(Number(line.ledgerId))) ? Number(line.ledgerId) : null,
             hsnCode: line.hsnCode || null,
             pcs: Number(line.pcs || 0),
             quantity: String(line.qty),
@@ -489,21 +490,24 @@ export async function POST(request: Request) {
           }
 
           // Stock movements
-          const item = await tx.query.mInventory.findFirst({
-            where: eq(mInventory.inventoryId, Number(line.inventoryId)),
-          });
-          if (item) {
-            await tx.insert(tStockMovements).values({
-              companyId,
-              inventoryId: Number(item.inventoryId),
-              voucherId: voucherIdNum,
-              movementType: voucherType === "sale" ? "sale" : "adjustment",
-              quantity: String(voucherType === "sale" ? line.qty : -line.qty),
-              rate: String(line.rate),
-              amount: String(line.taxableAmount),
-              createdBy: userId,
-              updatedBy: userId,
+          const lineInventoryId = (line.inventoryId && !isNaN(Number(line.inventoryId))) ? Number(line.inventoryId) : null;
+          if (lineInventoryId) {
+            const item = await tx.query.mInventory.findFirst({
+              where: eq(mInventory.inventoryId, lineInventoryId),
             });
+            if (item) {
+              await tx.insert(tStockMovements).values({
+                companyId,
+                inventoryId: Number(item.inventoryId),
+                voucherId: voucherIdNum,
+                movementType: voucherType === "sale" ? "sale" : "adjustment",
+                quantity: String(voucherType === "sale" ? line.qty : -line.qty),
+                rate: String(line.rate),
+                amount: String(line.taxableAmount),
+                createdBy: userId,
+                updatedBy: userId,
+              });
+            }
           }
         }
 
@@ -557,7 +561,8 @@ export async function POST(request: Request) {
         for (const line of processedLines) {
           await tx.insert(tVoucherItems).values({
             voucherId: voucherIdNum,
-            inventoryId: Number(line.inventoryId),
+            inventoryId: (line.inventoryId && !isNaN(Number(line.inventoryId))) ? Number(line.inventoryId) : null,
+            ledgerId: (line.ledgerId && !isNaN(Number(line.ledgerId))) ? Number(line.ledgerId) : null,
             hsnCode: line.hsnCode || null,
             pcs: Number(line.pcs || 0),
             quantity: String(line.qty),
@@ -594,24 +599,27 @@ export async function POST(request: Request) {
 
           // Stock movements (Only for standard trading purchases, not direct non-trading bills)
           if (voucherType !== "direct_bill") {
-            const item = await tx.query.mInventory.findFirst({
-              where: eq(mInventory.inventoryId, Number(line.inventoryId)),
-            });
-            if (item) {
-              await tx.insert(tStockMovements).values({
-                companyId,
-                inventoryId: Number(item.inventoryId),
-                voucherId: voucherIdNum,
-                movementType:
-                  voucherType === "purchase" ? "purchase" : "adjustment",
-                quantity: String(
-                  voucherType === "purchase" ? line.qty : -line.qty,
-                ),
-                rate: String(line.rate),
-                amount: String(line.taxableAmount),
-                createdBy: userId,
-                updatedBy: userId,
+            const lineInventoryId = (line.inventoryId && !isNaN(Number(line.inventoryId))) ? Number(line.inventoryId) : null;
+            if (lineInventoryId) {
+              const item = await tx.query.mInventory.findFirst({
+                where: eq(mInventory.inventoryId, lineInventoryId),
               });
+              if (item) {
+                await tx.insert(tStockMovements).values({
+                  companyId,
+                  inventoryId: Number(item.inventoryId),
+                  voucherId: voucherIdNum,
+                  movementType:
+                    voucherType === "purchase" ? "purchase" : "adjustment",
+                  quantity: String(
+                    voucherType === "purchase" ? line.qty : -line.qty,
+                  ),
+                  rate: String(line.rate),
+                  amount: String(line.taxableAmount),
+                  createdBy: userId,
+                  updatedBy: userId,
+                });
+              }
             }
           }
         }
@@ -997,6 +1005,8 @@ export async function GET(request: Request) {
         inventoryName: mInventory.inventoryName,
         inventoryCode: mInventory.inventoryCode,
         unit: mInventory.unit,
+        ledgerId: tVoucherItems.ledgerId,
+        ledgerName: mLedgers.ledgerName,
         hsnCode: tVoucherItems.hsnCode,
         pcs: tVoucherItems.pcs,
         quantity: tVoucherItems.quantity,
@@ -1014,6 +1024,10 @@ export async function GET(request: Request) {
       .leftJoin(
         mInventory,
         eq(tVoucherItems.inventoryId, mInventory.inventoryId),
+      )
+      .leftJoin(
+        mLedgers,
+        eq(tVoucherItems.ledgerId, mLedgers.ledgerId),
       )
       .where(and(isNull(tVoucherItems.deletedOn)));
 
