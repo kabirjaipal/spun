@@ -683,6 +683,9 @@ export async function seedRealData() {
       goodsName?: string;
       cashBankLedgerId?: number;
       lotNo?: string;
+      bankName?: string;
+      paymentMethod?: string;
+      lrNo?: string;
     }) {
       const [v] = await tx.insert(tVouchers).values({
         companyId,
@@ -700,6 +703,9 @@ export async function seedRealData() {
         goodsName: data.goodsName || null,
         cashBankLedgerId: data.cashBankLedgerId || null,
         lotNo: data.lotNo || null,
+        bankName: data.bankName || null,
+        paymentMethod: data.paymentMethod || null,
+        lrNo: data.lrNo || null,
         printRate: true,
         printAmount: true,
         createdBy: userId,
@@ -962,6 +968,9 @@ export async function seedRealData() {
       totalAmount: "30000.00",
       taxAmount: "0.00",
       netAmount: "30000.00",
+      bankName: "HDFC Bank",
+      paymentMethod: "neft",
+      lrNo: "NFT129849201",
     });
 
     await tx.insert(tVoucherEntries).values([
@@ -980,6 +989,9 @@ export async function seedRealData() {
       totalAmount: "20000.00",
       taxAmount: "0.00",
       netAmount: "20000.00",
+      bankName: "ICICI Bank",
+      paymentMethod: "rtgs",
+      lrNo: "RTG993184910",
     });
 
     await tx.insert(tVoucherEntries).values([
@@ -1060,7 +1072,8 @@ export async function seedRealData() {
 
     await tx.insert(tVoucherItems).values({
       voucherId: vCreditNoteId,
-      inventoryId: Number(invPolySatin.inventoryId),
+      inventoryId: null,
+      ledgerId: Number(ledgerSales.ledgerId),
       hsnCode: "5407",
       pcs: 0,
       quantity: "20.0000",
@@ -1072,6 +1085,7 @@ export async function seedRealData() {
       sgst: "144.00",
       igst: "0.00",
       netAmount: "2688.00",
+      jobRateType: "mtr",
       createdBy: userId,
       updatedBy: userId,
     });
@@ -1112,7 +1126,8 @@ export async function seedRealData() {
 
     await tx.insert(tVoucherItems).values({
       voucherId: vDebitNoteId,
-      inventoryId: Number(invCottonGrey.inventoryId),
+      inventoryId: null,
+      ledgerId: Number(ledgerPurchase.ledgerId),
       hsnCode: "5208",
       pcs: 0,
       quantity: "100.0000",
@@ -1124,6 +1139,7 @@ export async function seedRealData() {
       sgst: "5.00",
       igst: "0.00",
       netAmount: "210.00",
+      jobRateType: "mtr",
       createdBy: userId,
       updatedBy: userId,
     });
