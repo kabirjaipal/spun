@@ -17,6 +17,8 @@ interface PaymentItem {
   remarks: string | null;
   partyName: string | null;
   lrNo?: string | null; // Cheque / Ref No
+  bankName?: string | null;
+  paymentMethod?: string | null;
 }
 
 interface CompanyOption {
@@ -47,6 +49,25 @@ interface BillAdjustment {
   interest: number;
 }
 
+const getFieldConfig = (method: string) => {
+  switch (method.toLowerCase()) {
+    case "cheque":
+      return { label: "Cheque No", placeholder: "Enter Cheque Number" };
+    case "neft":
+      return { label: "NEFT Ref No", placeholder: "Enter NEFT Reference Number" };
+    case "rtgs":
+      return { label: "RTGS Ref No", placeholder: "Enter RTGS Reference Number" };
+    case "imps":
+      return { label: "IMPS Ref No", placeholder: "Enter IMPS Reference Number" };
+    case "google pay":
+      return { label: "GPay Trans ID", placeholder: "Enter Google Pay Transaction ID" };
+    case "upi":
+      return { label: "UPI Ref No / UPI ID", placeholder: "Enter UPI Reference Number" };
+    default:
+      return { label: "Cheque / Reference No", placeholder: "Cheque No / Transaction ID" };
+  }
+};
+
 export default function PaymentClient({
   initialPayments,
   companies,
@@ -67,6 +88,8 @@ export default function PaymentClient({
   const [amount, setAmount] = useState("0");
   const [remarks, setRemarks] = useState("");
   const [chequeNo, setChequeNo] = useState("");
+  const [bankName, setBankName] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("");
   const [isReversal, setIsReversal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -165,6 +188,8 @@ export default function PaymentClient({
         totalAmount: finalAmount,
         remarks: isReversal ? `[RETURN CHEQUE REVERSAL] ${remarks}` : remarks,
         lrNo: chequeNo || null, // storing cheque/txn ref in lrNo
+        bankName: bankName || null,
+        paymentMethod: paymentMethod || null,
         billDetails: selectedDetails.length > 0 ? selectedDetails : null,
         isReversal,
       };
@@ -192,6 +217,8 @@ export default function PaymentClient({
         remarks: newVoucher.remarks,
         partyName: suppObj ? suppObj.companyName : `ID ${newVoucher.partyId}`,
         lrNo: newVoucher.lrNo,
+        bankName: newVoucher.bankName,
+        paymentMethod: newVoucher.paymentMethod,
       };
 
       setPayments([addedPayment, ...payments]);
@@ -205,6 +232,8 @@ export default function PaymentClient({
       setAmount("0");
       setRemarks("");
       setChequeNo("");
+      setBankName("");
+      setPaymentMethod("");
       setIsReversal(false);
       setOutstandingBills([]);
       setBillAdjustments({});
@@ -274,11 +303,6 @@ export default function PaymentClient({
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Cheque / Reference No</Label>
-              <Input value={chequeNo} onChange={(e) => setChequeNo(e.target.value)} placeholder="Cheque No / Transaction ID" />
-            </div>
-
-            <div className="space-y-2">
               <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Amount (₹)</Label>
               <Input
                 type="number"
@@ -291,6 +315,48 @@ export default function PaymentClient({
               {totalAdjusted > 0 && (
                 <p className="text-[10px] text-muted-foreground">Derived from adjusted bills below.</p>
               )}
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Remarks</Label>
+              <Input value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Payment sent against purchase invoice" />
+            </div>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-3 border-t border-border/30 pt-4">
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Bank Name</Label>
+              <Input
+                value={bankName}
+                onChange={(e) => setBankName(e.target.value)}
+                placeholder="e.g. HDFC Bank, SBI"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Payment Method</Label>
+              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                <SelectTrigger><SelectValue placeholder="Select payment method" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cheque">Cheque</SelectItem>
+                  <SelectItem value="neft">NEFT</SelectItem>
+                  <SelectItem value="rtgs">RTGS</SelectItem>
+                  <SelectItem value="imps">IMPS</SelectItem>
+                  <SelectItem value="google pay">Google Pay</SelectItem>
+                  <SelectItem value="upi">UPI</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                {getFieldConfig(paymentMethod).label}
+              </Label>
+              <Input
+                value={chequeNo}
+                onChange={(e) => setChequeNo(e.target.value)}
+                placeholder={getFieldConfig(paymentMethod).placeholder}
+              />
             </div>
           </div>
 
@@ -360,10 +426,7 @@ export default function PaymentClient({
             </div>
           )}
 
-          <div className="space-y-2">
-            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Remarks</Label>
-            <Input value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Payment sent against purchase invoice" />
-          </div>
+
         </div>
 
         {message && <div className="rounded-lg border border-border bg-muted/50 p-4 text-sm text-muted-foreground">{message}</div>}
@@ -446,7 +509,14 @@ export default function PaymentClient({
                       {payment.voucherDate ? new Date(payment.voucherDate).toISOString().slice(0, 10) : "N/A"}
                     </td>
                     <td className="px-4 py-3 text-foreground">{partyName}</td>
-                    <td className="px-4 py-3 text-muted-foreground font-mono">{payment.lrNo || "—"}</td>
+                    <td className="px-4 py-3 text-muted-foreground font-mono">
+                      {payment.lrNo || "—"}
+                      {payment.bankName && (
+                        <span className="block text-[10px] text-muted-foreground uppercase font-sans mt-0.5">
+                          {payment.paymentMethod || "Ref"}: {payment.bankName}
+                        </span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-right text-foreground">₹{Number(payment.totalAmount ?? 0).toFixed(2)}</td>
                     <td className="px-4 py-3 text-muted-foreground truncate">{payment.remarks || "—"}</td>
                   </tr>

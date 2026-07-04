@@ -442,6 +442,8 @@ export const tVouchers = pgTable(
       .default("0.00")
       .notNull(),
     extraChargesData: jsonb("extra_charges_data"),
+    bankName: text("bank_name"),
+    paymentMethod: text("payment_method"),
 
     ...auditColumns,
   },

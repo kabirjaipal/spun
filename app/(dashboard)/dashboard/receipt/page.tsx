@@ -23,6 +23,9 @@ export default async function ReceiptPage() {
         totalAmount: tVouchers.totalAmount,
         remarks: tVouchers.remarks,
         partyName: mCompanies.companyName,
+        lrNo: tVouchers.lrNo,
+        bankName: tVouchers.bankName,
+        paymentMethod: tVouchers.paymentMethod,
       })
       .from(tVouchers)
       .leftJoin(mCompanies, eq(tVouchers.partyId, mCompanies.companyId))

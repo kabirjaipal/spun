@@ -77,6 +77,8 @@ export async function POST(request: Request) {
     discountValue2,
     extraCharges,
     extraChargesData,
+    bankName,
+    paymentMethod,
   } = body;
 
   if (!voucherType || !voucherNo || !voucherDate) {
@@ -354,6 +356,8 @@ export async function POST(request: Request) {
           discountValue2: discountValue2 ? String(discountValue2) : null,
           extraCharges: extraCharges ? String(extraCharges) : "0.00",
           extraChargesData: extraChargesData ?? null,
+          bankName: bankName || null,
+          paymentMethod: paymentMethod || null,
           createdBy: userId,
           updatedBy: userId,
         })
@@ -955,6 +959,8 @@ export async function GET(request: Request) {
       lotNo: tVouchers.lotNo,
       parentVoucherId: tVouchers.parentVoucherId,
       cashBankLedgerId: tVouchers.cashBankLedgerId,
+      bankName: tVouchers.bankName,
+      paymentMethod: tVouchers.paymentMethod,
       discountType: tVouchers.discountType,
       discountValue: tVouchers.discountValue,
       discountType2: tVouchers.discountType2,
