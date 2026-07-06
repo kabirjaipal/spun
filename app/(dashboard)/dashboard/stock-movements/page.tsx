@@ -1,119 +1,131 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { mInventory, tStockMovements, tVouchers } from "@/lib/db/schema";
-import { and, eq, isNull, desc } from "drizzle-orm";
-import ExportButton from "@/components/ExportButton";
+import { mCompanies, mInventory, tStockMovements, tVouchers } from "@/lib/db/schema";
+import { and, eq, isNull, sql, or } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
+import StockMovementsClient from "./StockMovementsClient";
 
-export default async function StockMovementsPage() {
+export default async function StockMovementsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ from?: string; to?: string; inventoryId?: string }>;
+}) {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
   if (!session.user.companyId) redirect("/setup-company");
 
   const companyId = Number(session.user.companyId);
+  const params = await searchParams;
 
+  // 1. Fetch Company Info
+  const company = await db
+    .select()
+    .from(mCompanies)
+    .where(eq(mCompanies.companyId, companyId))
+    .limit(1)
+    .then((res) => res[0]);
+
+  if (!company) {
+    redirect("/setup-company");
+  }
+
+  // 2. Dynamic current FY (April start)
+  const today = new Date();
+  const fyStartYear = today.getMonth() >= 3 ? today.getFullYear() : today.getFullYear() - 1;
+  const fromDate = params.from || `${fyStartYear}-04-01`;
+  const toDate = params.to || `${fyStartYear + 1}-03-31`;
+
+  // 3. Fetch all active inventory items for filter list
+  const items = await db
+    .select({
+      inventoryId: mInventory.inventoryId,
+      inventoryName: mInventory.inventoryName,
+      unit: mInventory.unit,
+    })
+    .from(mInventory)
+    .where(and(eq(mInventory.companyId, companyId), isNull(mInventory.deletedOn)))
+    .orderBy(mInventory.inventoryName);
+
+  // 4. Construct SQL clauses for movement query
+  const whereClauses = [
+    eq(tStockMovements.companyId, companyId),
+    isNull(tStockMovements.deletedOn),
+    or(
+      isNull(tStockMovements.voucherId),
+      isNull(tVouchers.deletedOn)
+    )
+  ];
+
+  if (params.inventoryId) {
+    whereClauses.push(eq(tStockMovements.inventoryId, Number(params.inventoryId)));
+  }
+
+  // Filter based on coalesced date from voucher or creation date
+  whereClauses.push(
+    sql`coalesce(${tVouchers.voucherDate}, cast(${tStockMovements.createdOn} as date)) >= ${fromDate}`
+  );
+  whereClauses.push(
+    sql`coalesce(${tVouchers.voucherDate}, cast(${tStockMovements.createdOn} as date)) <= ${toDate}`
+  );
+
+  // 5. Query stock movements with filters applied
   const movements = await db
     .select({
       stockMovementId: tStockMovements.stockMovementId,
+      inventoryId: tStockMovements.inventoryId,
       inventoryName: mInventory.inventoryName,
+      unit: mInventory.unit,
+      voucherId: tStockMovements.voucherId,
       movementType: tStockMovements.movementType,
       quantity: tStockMovements.quantity,
       rate: tStockMovements.rate,
       amount: tStockMovements.amount,
-      voucherNo: tVouchers.voucherNo,
+      createdOn: tStockMovements.createdOn,
       voucherDate: tVouchers.voucherDate,
+      voucherNo: tVouchers.voucherNo,
+      voucherType: tVouchers.voucherType,
     })
     .from(tStockMovements)
     .leftJoin(mInventory, eq(tStockMovements.inventoryId, mInventory.inventoryId))
     .leftJoin(tVouchers, eq(tStockMovements.voucherId, tVouchers.voucherId))
-    .where(and(eq(tStockMovements.companyId, companyId), isNull(mInventory.deletedOn)))
-    .orderBy(desc(tStockMovements.createdOn))
-    .limit(20);
+    .where(and(...whereClauses))
+    .orderBy(sql`coalesce(${tVouchers.voucherDate}, cast(${tStockMovements.createdOn} as date))`);
 
-  const totalIn = movements.reduce(
-    (sum, item) => sum + (item.movementType === "purchase" || item.movementType === "opening" ? Number(item.quantity ?? 0) : 0),
-    0
-  );
-  const totalOut = movements.reduce(
-    (sum, item) => sum + (item.movementType === "sale" ? Number(item.quantity ?? 0) : 0),
-    0
-  );
-
+  // 6. Permissions
   const perms = getStaticPermissionsForRole(session.user.role as Role);
   const p = perms.find((x) => x.accessItem === "stock_movements");
   const canExport = p?.e ?? false;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4 rounded-lg border border-border bg-card p-6 shadow-sm">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Stock Movements</h1>
-          <p className="text-sm text-muted-foreground">
-            Track inventory movement by item, voucher, and movement type.
-          </p>
-        </div>
-        <ExportButton
-          filename="stock_movements.csv"
-          headers={["Item Name", "Movement Type", "Quantity", "Rate", "Amount", "Voucher No", "Voucher Date"]}
-          keys={["inventoryName", "movementType", "quantity", "rate", "amount", "voucherNo", "voucherDate"]}
-          rows={movements.map(m => ({
-            ...m,
-            voucherDate: m.voucherDate ? String(m.voucherDate) : ""
-          }))}
-          canExport={canExport}
-        />
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground">Total Inward Quantity</p>
-          <p className="mt-3 text-3xl font-bold text-foreground">{totalIn.toFixed(2)}</p>
-        </div>
-        <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground">Total Outward Quantity</p>
-          <p className="mt-3 text-3xl font-bold text-foreground">{totalOut.toFixed(2)}</p>
-        </div>
-        <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground">Recent Movements</p>
-          <p className="mt-3 text-3xl font-bold text-foreground">{movements.length}</p>
-        </div>
-      </div>
-
-      <div className="rounded-lg border border-border bg-card overflow-hidden shadow-sm">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/40 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">
-            <tr>
-              <th className="px-4 py-3">Item</th>
-              <th className="px-4 py-3">Movement</th>
-              <th className="px-4 py-3 text-right">Qty</th>
-              <th className="px-4 py-3 text-right">Rate</th>
-              <th className="px-4 py-3 text-right">Amount</th>
-              <th className="px-4 py-3">Voucher</th>
-            </tr>
-          </thead>
-          <tbody>
-            {movements.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-sm text-muted-foreground">
-                  No stock movements available.
-                </td>
-              </tr>
-            ) : (
-              movements.map((movement) => (
-                <tr key={movement.stockMovementId} className="border-t border-border/50 hover:bg-muted/10 transition-colors">
-                  <td className="px-4 py-3 font-medium text-foreground">{movement.inventoryName || "Unknown item"}</td>
-                  <td className="px-4 py-3 text-xs uppercase tracking-wide text-muted-foreground">{movement.movementType}</td>
-                  <td className="px-4 py-3 text-right text-foreground">{Number(movement.quantity ?? 0).toFixed(2)}</td>
-                  <td className="px-4 py-3 text-right text-foreground">₹{Number(movement.rate ?? 0).toFixed(2)}</td>
-                  <td className="px-4 py-3 text-right text-foreground">₹{Number(movement.amount ?? 0).toFixed(2)}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{movement.voucherNo || "N/A"}</td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
+    <StockMovementsClient
+      company={{
+        companyId: company.companyId,
+        companyName: company.companyName,
+        gstNo: company.gstNo,
+        address: company.address,
+      }}
+      items={items.map((i) => ({
+        inventoryId: Number(i.inventoryId),
+        inventoryName: i.inventoryName,
+        unit: i.unit,
+      }))}
+      movements={movements.map((m) => ({
+        stockMovementId: m.stockMovementId,
+        inventoryId: Number(m.inventoryId),
+        inventoryName: m.inventoryName || "Unknown Item",
+        unit: m.unit || "pcs",
+        voucherId: m.voucherId ? Number(m.voucherId) : null,
+        movementType: m.movementType,
+        quantity: Number(m.quantity),
+        rate: Number(m.rate),
+        amount: Number(m.amount),
+        voucherDate: m.voucherDate || m.createdOn.toISOString().split("T")[0],
+        voucherNo: m.voucherNo,
+        voucherType: m.voucherType,
+      }))}
+      canExport={canExport}
+    />
   );
 }
+

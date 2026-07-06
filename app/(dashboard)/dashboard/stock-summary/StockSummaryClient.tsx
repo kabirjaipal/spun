@@ -399,6 +399,8 @@ function StockSummaryContent({
 
       return {
         name: m.name,
+        year: m.year,
+        monthIndex: m.monthIndex,
         openingQty: startQty,
         openingValue: startValue,
         inwardQty: monthlyInQty,
@@ -574,6 +576,11 @@ function StockSummaryContent({
             {currentScreen === "groupSummary" && `Stock Group Summary: ${selectedGroup}`}
             {currentScreen === "monthly" && `Stock Item Monthly Summary: ${selectedItemDetails?.inventoryName}`}
           </p>
+          {currentScreen === "monthly" && (
+            <p className="text-[10px] text-primary font-medium normal-case mt-1 no-print">
+              * Click on any month row to view detailed transaction-level stock movements
+            </p>
+          )}
           <p className="text-xs text-muted-foreground mt-1">
             {new Date(fromParam).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })} to {new Date(toParam).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
           </p>
@@ -811,7 +818,20 @@ function StockSummaryContent({
 
                   {/* Monthly rows */}
                   {monthlyData.map((m) => (
-                    <tr key={m.name} className="hover:bg-muted/15 text-xs border-b border-border/40 transition-colors">
+                    <tr
+                      key={m.name}
+                      onClick={() => {
+                        if (selectedItemId !== null) {
+                          const pad = (n: number) => String(n).padStart(2, "0");
+                          const fromStr = `${m.year}-${pad(m.monthIndex + 1)}-01`;
+                          const lastDay = new Date(m.year, m.monthIndex + 1, 0);
+                          const toStr = `${lastDay.getFullYear()}-${pad(lastDay.getMonth() + 1)}-${pad(lastDay.getDate())}`;
+                          router.push(`/dashboard/stock-movements?inventoryId=${selectedItemId}&from=${fromStr}&to=${toStr}`);
+                        }
+                      }}
+                      className="hover:bg-muted/15 text-xs border-b border-border/40 transition-colors cursor-pointer"
+                      title="Click to view detailed movements"
+                    >
                       <td className="p-2 font-medium text-foreground border-r border-border">{m.name}</td>
                       <td className="p-2 text-right font-mono border-r border-border text-foreground">
                         {m.inwardQty > 0 ? formatQty(m.inwardQty, selectedItemDetails?.unit || "") : "—"}
