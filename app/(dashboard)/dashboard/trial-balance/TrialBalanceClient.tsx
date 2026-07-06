@@ -60,8 +60,10 @@ function TrialBalanceContent({
   const searchParams = useSearchParams();
 
   // Period state from URL or defaults
-  const fromParam = searchParams.get("from") || "2025-04-01";
-  const toParam = searchParams.get("to") || "2026-03-31";
+  // Dynamic current FY defaults (April start)
+  const fyStartYear = (() => { const m = new Date().getMonth(); const y = new Date().getFullYear(); return m >= 3 ? y : y - 1; })();
+  const fromParam = searchParams.get("from") || `${fyStartYear}-04-01`;
+  const toParam = searchParams.get("to") || `${fyStartYear + 1}-03-31`;
 
   const [startDate, setStartDate] = useState(fromParam);
   const [endDate, setEndDate] = useState(toParam);

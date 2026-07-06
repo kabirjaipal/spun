@@ -36,8 +36,11 @@ export default async function TrialBalancePage({
     redirect("/setup-company");
   }
 
-  const fromDate = params.from || "2025-04-01";
-  const toDate = params.to || "2026-03-31";
+  // Dynamic current FY (April start)
+  const today = new Date();
+  const fyStartYear = today.getMonth() >= 3 ? today.getFullYear() : today.getFullYear() - 1;
+  const fromDate = params.from || `${fyStartYear}-04-01`;
+  const toDate = params.to || `${fyStartYear + 1}-03-31`;
 
   // 2. Fetch Ledger Groups
   const groups = await db
