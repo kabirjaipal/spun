@@ -1,124 +1,150 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { mTaxRates, tVouchers } from "@/lib/db/schema";
-import { and, eq, isNull, sql } from "drizzle-orm";
-import ExportButton from "@/components/ExportButton";
+import {
+  mCompanies,
+  mTaxRates,
+  mLedgers,
+  tVouchers,
+  tVoucherItems,
+  mInventory,
+} from "@/lib/db/schema";
+import { and, eq, isNull, gte, lte } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
+import GstReportClient from "./GstReportClient";
 
-export default async function GstReportsPage() {
+export default async function GstReportsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ from?: string; to?: string }>;
+}) {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
   if (!session.user.companyId) redirect("/setup-company");
 
   const companyId = Number(session.user.companyId);
+  const params = await searchParams;
 
-  const [taxRates, taxSummary] = await Promise.all([
-    db.select().from(mTaxRates).where(isNull(mTaxRates.deletedOn)).orderBy(mTaxRates.taxPercent),
-    db
-      .select({
-        voucherType: tVouchers.voucherType,
-        taxAmount: sql<number>`coalesce(sum(${tVouchers.taxAmount}), 0)`,
-      })
-      .from(tVouchers)
-      .where(and(eq(tVouchers.companyId, companyId), isNull(tVouchers.deletedOn)))
-      .groupBy(tVouchers.voucherType),
-  ]);
+  // 1. Fetch Company Info
+  const company = await db
+    .select()
+    .from(mCompanies)
+    .where(eq(mCompanies.companyId, companyId))
+    .limit(1)
+    .then((res) => res[0]);
 
-  const totalGst = taxSummary.reduce((sum, item) => sum + Number(item.taxAmount ?? 0), 0);
+  if (!company) {
+    redirect("/setup-company");
+  }
+
+  // Dynamic current FY (April start)
+  const today = new Date();
+  const fyStartYear = today.getMonth() >= 3 ? today.getFullYear() : today.getFullYear() - 1;
+  const fromDate = params.from || `${fyStartYear}-04-01`;
+  const toDate = params.to || `${fyStartYear + 1}-03-31`;
+
+  // 2. Fetch Defined GST Rates
+  const taxRates = await db
+    .select()
+    .from(mTaxRates)
+    .where(isNull(mTaxRates.deletedOn))
+    .orderBy(mTaxRates.taxPercent);
+
+  // 3. Fetch Vouchers with Ledger details, Items, and Tax Rates
+  const rawVouchers = await db
+    .select({
+      voucherId: tVouchers.voucherId,
+      voucherNo: tVouchers.voucherNo,
+      voucherType: tVouchers.voucherType,
+      voucherDate: tVouchers.voucherDate,
+      totalAmount: tVouchers.totalAmount,
+      taxAmount: tVouchers.taxAmount,
+      netAmount: tVouchers.netAmount,
+      partyName: mLedgers.ledgerName,
+      partyGstNo: mLedgers.gstNo,
+      itemId: tVoucherItems.voucherItemId,
+      hsnCode: tVoucherItems.hsnCode,
+      quantity: tVoucherItems.quantity,
+      rate: tVoucherItems.rate,
+      taxableAmount: tVoucherItems.taxableAmount,
+      cgst: tVoucherItems.cgst,
+      sgst: tVoucherItems.sgst,
+      igst: tVoucherItems.igst,
+      itemNetAmount: tVoucherItems.netAmount,
+      taxPercent: mTaxRates.taxPercent,
+      itemName: mInventory.inventoryName,
+    })
+    .from(tVouchers)
+    .leftJoin(mLedgers, eq(tVouchers.partyId, mLedgers.ledgerId))
+    .leftJoin(tVoucherItems, eq(tVouchers.voucherId, tVoucherItems.voucherId))
+    .leftJoin(mTaxRates, eq(tVoucherItems.gstRateId, mTaxRates.taxRateId))
+    .leftJoin(mInventory, eq(tVoucherItems.inventoryId, mInventory.inventoryId))
+    .where(
+      and(
+        eq(tVouchers.companyId, companyId),
+        isNull(tVouchers.deletedOn),
+        gte(tVouchers.voucherDate, fromDate),
+        lte(tVouchers.voucherDate, toDate)
+      )
+    )
+    .orderBy(tVouchers.voucherDate);
+
+  // Group raw rows into vouchers with their items
+  const voucherMap = new Map<number, any>();
+  for (const row of rawVouchers) {
+    if (!voucherMap.has(row.voucherId)) {
+      voucherMap.set(row.voucherId, {
+        voucherId: row.voucherId,
+        voucherNo: row.voucherNo,
+        voucherType: row.voucherType,
+        voucherDate: row.voucherDate,
+        totalAmount: Number(row.totalAmount),
+        taxAmount: Number(row.taxAmount),
+        netAmount: Number(row.netAmount),
+        partyName: row.partyName,
+        partyGstNo: row.partyGstNo,
+        items: [],
+      });
+    }
+
+    if (row.itemId) {
+      voucherMap.get(row.voucherId).items.push({
+        itemId: row.itemId,
+        hsnCode: row.hsnCode,
+        quantity: Number(row.quantity),
+        rate: Number(row.rate),
+        taxableAmount: Number(row.taxableAmount),
+        cgst: Number(row.cgst),
+        sgst: Number(row.sgst),
+        igst: Number(row.igst),
+        netAmount: Number(row.itemNetAmount),
+        taxPercent: Number(row.taxPercent),
+        itemName: row.itemName,
+      });
+    }
+  }
+
+  const vouchersList = Array.from(voucherMap.values());
 
   const perms = getStaticPermissionsForRole(session.user.role as Role);
   const p = perms.find((x) => x.accessItem === "gst_reports");
   const canExport = p?.e ?? false;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4 rounded-lg border border-border bg-card p-6 shadow-sm">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">GST Reports</h1>
-          <p className="text-sm text-muted-foreground">
-            View GST collection and payment details by voucher type.
-          </p>
-        </div>
-        <ExportButton
-          filename="gst_reports.csv"
-          headers={["Voucher Type", "GST Amount"]}
-          keys={["voucherType", "taxAmount"]}
-          rows={taxSummary.map(r => ({ ...r, taxAmount: Number(r.taxAmount).toFixed(2) }))}
-          canExport={canExport}
-        />
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground">Total GST Amount</p>
-          <p className="mt-3 text-3xl font-bold text-foreground tabular-nums">₹{totalGst.toFixed(2)}</p>
-        </div>
-        <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground">GST Rate Count</p>
-          <p className="mt-3 text-3xl font-bold text-foreground tabular-nums">{taxRates.length}</p>
-        </div>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-lg border border-border bg-card overflow-hidden shadow-sm">
-          <div className="border-b border-border/50 bg-muted/40 px-4 py-3 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-            Voucher GST Summary
-          </div>
-          <table className="w-full text-sm">
-            <thead className="sr-only">
-              <tr>
-                <th>Voucher Type</th>
-                <th className="text-right">GST</th>
-              </tr>
-            </thead>
-            <tbody>
-              {taxSummary.map((row) => (
-                <tr key={row.voucherType} className="border-b border-border/50">
-                  <td className="px-4 py-4 text-sm font-medium text-foreground">{row.voucherType}</td>
-                  <td className="px-4 py-4 text-right text-foreground tabular-nums">₹{Number(row.taxAmount ?? 0).toFixed(2)}</td>
-                </tr>
-              ))}
-              {taxSummary.length === 0 && (
-                <tr>
-                  <td colSpan={2} className="px-4 py-8 text-center text-sm text-muted-foreground">
-                    No GST transactions found yet.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="rounded-lg border border-border bg-card overflow-hidden shadow-sm">
-          <div className="border-b border-border/50 bg-muted/40 px-4 py-3 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-            Defined GST Rates
-          </div>
-          <table className="w-full text-sm">
-            <thead className="sr-only">
-              <tr>
-                <th>Tax Name</th>
-                <th className="text-right">Rate</th>
-              </tr>
-            </thead>
-            <tbody>
-              {taxRates.map((rate) => (
-                <tr key={rate.taxRateId} className="border-b border-border/50">
-                  <td className="px-4 py-4 text-sm font-medium text-foreground">{rate.taxName}</td>
-                  <td className="px-4 py-4 text-right text-foreground tabular-nums">{Number(rate.taxPercent).toFixed(2)}%</td>
-                </tr>
-              ))}
-              {taxRates.length === 0 && (
-                <tr>
-                  <td colSpan={2} className="px-4 py-8 text-center text-sm text-muted-foreground">
-                    No GST rates configured yet.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+    <GstReportClient
+      company={{
+        companyId: company.companyId,
+        companyName: company.companyName,
+        gstNo: company.gstNo,
+        state: company.state,
+      }}
+      taxRates={taxRates.map((tr) => ({
+        taxRateId: tr.taxRateId,
+        taxName: tr.taxName,
+        taxPercent: Number(tr.taxPercent),
+      }))}
+      vouchers={vouchersList}
+      canExport={canExport}
+    />
   );
 }

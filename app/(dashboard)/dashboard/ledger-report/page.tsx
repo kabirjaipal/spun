@@ -77,7 +77,7 @@ export default async function LedgerReportPage({
     .orderBy(mLedgers.ledgerName);
 
   // 3. Fetch vouchers and statement entries if a specific ledger is selected
-  let selectedLedger = null;
+  let selectedLedger: any = null;
   let vouchers: any[] = [];
   let ledgerEntries: any[] = [];
   let openingBalance = 0;
