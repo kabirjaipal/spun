@@ -559,14 +559,14 @@ export default function SalesReturnClient({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">
+              <Label >
                 Company (Party)
               </Label>
               <Select
                 value={selectedCompany}
                 onValueChange={setSelectedCompany}
               >
-                <SelectTrigger className="h-10">
+                <SelectTrigger>
                   <SelectValue placeholder="Choose company" />
                 </SelectTrigger>
                 <SelectContent>
@@ -580,7 +580,7 @@ export default function SalesReturnClient({
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">
+              <Label >
                 Remarks
               </Label>
               <Input
@@ -592,18 +592,13 @@ export default function SalesReturnClient({
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">
-                CR. Note / SR No.
+              <Label >
+                Voucher No.
               </Label>
-              <Input
-                value={voucherNo}
-                readOnly
-                placeholder="Fetching..."
-                className="h-10 bg-muted cursor-not-allowed font-mono font-semibold"
-              />
+              <Input value={voucherNo} readOnly disabled placeholder="Fetching..." className="h-10" />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">
+              <Label >
                 Return Date
               </Label>
               <Input
@@ -616,7 +611,7 @@ export default function SalesReturnClient({
 
             {selectedCompany && (
               <div className="space-y-4 col-span-1 md:col-span-2">
-                <Label className="text-xs font-semibold uppercase text-foreground">
+                <Label >
                   Select Invoices to Return Items From
                 </Label>
                 {loadingInvoices ? (
@@ -661,7 +656,7 @@ export default function SalesReturnClient({
           </h2>
 
           <div className="space-y-1.5">
-            <Label className="text-xs font-semibold uppercase text-foreground">
+            <Label >
               LR No.
             </Label>
             <Input
@@ -674,7 +669,7 @@ export default function SalesReturnClient({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">
+              <Label >
                 LR Date
               </Label>
               <Input
@@ -685,7 +680,7 @@ export default function SalesReturnClient({
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">
+              <Label >
                 Transport
               </Label>
               <Input
@@ -782,7 +777,7 @@ export default function SalesReturnClient({
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
                         <div className="space-y-1.5">
-                          <Label className="text-xs font-semibold uppercase text-foreground">
+                          <Label >
                             HSN Code
                           </Label>
                           <Input
@@ -798,7 +793,7 @@ export default function SalesReturnClient({
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <Label className="text-xs font-semibold uppercase text-foreground">
+                          <Label >
                             Fold %
                           </Label>
                           <Input
@@ -814,7 +809,7 @@ export default function SalesReturnClient({
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <Label className="text-xs font-semibold uppercase text-foreground">
+                          <Label >
                             Return PCS
                           </Label>
                           <Input
@@ -830,7 +825,7 @@ export default function SalesReturnClient({
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <Label className="text-xs font-semibold uppercase text-foreground">
+                          <Label >
                             Return Qty ({unit})
                           </Label>
                           <Input
@@ -847,7 +842,7 @@ export default function SalesReturnClient({
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <Label className="text-xs font-semibold uppercase text-foreground">
+                          <Label >
                             Rate (₹)
                           </Label>
                           <Input
@@ -879,7 +874,7 @@ export default function SalesReturnClient({
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                     {/* HSN Code */}
                     <div className="md:col-span-3 space-y-1.5">
-                      <Label className="text-xs font-semibold uppercase text-foreground">
+                      <Label >
                         HSN Code
                       </Label>
                       <Input
@@ -889,13 +884,13 @@ export default function SalesReturnClient({
                         }
                         placeholder="HSN Code"
                         readOnly
-                        className="h-10 border-border/60 bg-muted/30 text-muted-foreground shadow-none cursor-not-allowed focus-visible:ring-0 focus-visible:ring-offset-0"
+                        className="h-10"
                       />
                     </div>
 
                     {/* Fold % */}
                     <div className="md:col-span-3 space-y-1.5">
-                      <Label className="text-xs font-semibold uppercase text-foreground">
+                      <Label >
                         Fold %
                       </Label>
                       <Input
@@ -905,13 +900,13 @@ export default function SalesReturnClient({
                           updateLine(line.id, "fold", e.target.value)
                         }
                         readOnly
-                        className="h-10 text-right border-border/60 bg-muted/30 text-muted-foreground shadow-none cursor-not-allowed focus-visible:ring-0 focus-visible:ring-offset-0"
+                        className="h-10 text-right"
                       />
                     </div>
 
                     {/* Return PCS */}
                     <div className="md:col-span-3 space-y-1.5">
-                      <Label className="text-xs font-semibold uppercase text-foreground">
+                      <Label >
                         Return PCS
                       </Label>
                       <div className="flex items-center gap-1.5">
@@ -922,7 +917,7 @@ export default function SalesReturnClient({
                             updateLine(line.id, "pcs", e.target.value)
                           }
                           readOnly
-                          className="h-10 text-right w-full border-border/60 bg-muted/30 text-muted-foreground shadow-none cursor-not-allowed focus-visible:ring-0 focus-visible:ring-offset-0"
+                          className="h-10 text-right w-full"
                         />
                         <Button
                           type="button"
@@ -938,7 +933,7 @@ export default function SalesReturnClient({
 
                     {/* Return Qty */}
                     <div className="md:col-span-3 space-y-1.5">
-                      <Label className="text-xs font-semibold uppercase text-foreground">
+                      <Label >
                         Return Qty ({unit})
                       </Label>
                       <Input
@@ -949,13 +944,13 @@ export default function SalesReturnClient({
                           updateLine(line.id, "quantity", e.target.value)
                         }
                         readOnly
-                        className="h-10 text-right border-border/60 bg-muted/30 text-muted-foreground shadow-none cursor-not-allowed focus-visible:ring-0 focus-visible:ring-offset-0"
+                        className="h-10 text-right"
                       />
                     </div>
 
                     {/* Rate */}
                     <div className="md:col-span-3 space-y-1.5">
-                      <Label className="text-xs font-semibold uppercase text-foreground">
+                      <Label >
                         Rate (₹)
                       </Label>
                       <Input
@@ -966,13 +961,13 @@ export default function SalesReturnClient({
                           updateLine(line.id, "rate", e.target.value)
                         }
                         readOnly
-                        className="h-10 text-right border-border/60 bg-muted/30 text-muted-foreground shadow-none cursor-not-allowed focus-visible:ring-0 focus-visible:ring-offset-0"
+                        className="h-10 text-right"
                       />
                     </div>
 
                     {/* CGST % */}
                     <div className="md:col-span-3 space-y-1.5">
-                      <Label className="text-xs font-semibold uppercase text-foreground">
+                      <Label >
                         CGST %
                       </Label>
                       <Input
@@ -992,7 +987,7 @@ export default function SalesReturnClient({
 
                     {/* SGST % */}
                     <div className="md:col-span-3 space-y-1.5">
-                      <Label className="text-xs font-semibold uppercase text-foreground">
+                      <Label >
                         SGST %
                       </Label>
                       <Input
@@ -1012,7 +1007,7 @@ export default function SalesReturnClient({
 
                     {/* IGST % */}
                     <div className="md:col-span-3 space-y-1.5">
-                      <Label className="text-xs font-semibold uppercase text-foreground">
+                      <Label >
                         IGST %
                       </Label>
                       <Input
@@ -1122,7 +1117,7 @@ export default function SalesReturnClient({
           {/* Print Controls */}
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-2">
-              <Label className="text-xs uppercase font-semibold text-muted-foreground">
+              <Label >
                 Print Challan:
               </Label>
               <select
@@ -1148,7 +1143,7 @@ export default function SalesReturnClient({
 
           <div className="flex-1 space-y-2">
             <div className="flex items-center justify-between">
-              <Label className="text-xs font-semibold uppercase text-foreground">
+              <Label >
                 Extra Charges
               </Label>
               <Button
@@ -1200,7 +1195,7 @@ export default function SalesReturnClient({
                     updateExtraCharge(charge.id, "type", val)
                   }
                 >
-                  <SelectTrigger className="h-9">
+                  <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

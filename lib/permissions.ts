@@ -38,7 +38,7 @@ export const ALL_PAGES: PageConfig[] = [
   { accessItem: "mill_inward", pageUrl: "/dashboard/mill-inward", pageTitle: "Mill Inward", pageIcon: "ArrowDownLeft", pageGroup: "Transactions", accessGroup: "company" },
   { accessItem: "receipt", pageUrl: "/dashboard/receipt", pageTitle: "Receipts", pageIcon: "ArrowDownLeft", pageGroup: "Transactions", accessGroup: "company" },
   { accessItem: "payment", pageUrl: "/dashboard/payment", pageTitle: "Payments", pageIcon: "ArrowUpRight", pageGroup: "Transactions", accessGroup: "company" },
-  { accessItem: "general_entry", pageUrl: "/dashboard/general-entry", pageTitle: "General Entry", pageIcon: "Notebook", pageGroup: "Transactions", accessGroup: "company" },
+  { accessItem: "general_entry", pageUrl: "/dashboard/journal-entry", pageTitle: "Journal Entry", pageIcon: "Notebook", pageGroup: "Transactions", accessGroup: "company" },
   { accessItem: "direct_bill", pageUrl: "/dashboard/direct-bill", pageTitle: "Direct Bill", pageIcon: "FileText", pageGroup: "Transactions", accessGroup: "company" },
   { accessItem: "credit_note", pageUrl: "/dashboard/credit-note", pageTitle: "Credit Notes", pageIcon: "FileMinus", pageGroup: "Transactions", accessGroup: "company" },
   { accessItem: "debit_note", pageUrl: "/dashboard/debit-note", pageTitle: "Debit Notes", pageIcon: "FilePlus", pageGroup: "Transactions", accessGroup: "company" },

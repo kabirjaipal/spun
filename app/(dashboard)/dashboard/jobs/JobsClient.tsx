@@ -180,22 +180,22 @@ export default function JobsClient({ initialData, canCreate, canUpdate, canDelet
 
           <SheetBody className="space-y-4">
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Party Name</Label>
+              <Label>Party Name</Label>
               <Input id="jobName" placeholder="e.g. Balaji Job Works" value={form.jobName} onChange={(e) => setForm((f) => ({ ...f, jobName: e.target.value }))} />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Address</Label>
+              <Label>Address</Label>
               <Input id="address" placeholder="123 Textile Market" value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">GSTIN</Label>
+                <Label>GSTIN</Label>
                 <Input id="gstNo" placeholder="24AAAAA1111A1Z1" value={form.gstNo} onChange={(e) => setForm((f) => ({ ...f, gstNo: e.target.value }))} />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">GST Type</Label>
+                <Label>GST Type</Label>
                 <Select value={form.gstType} onValueChange={(v) => setForm((f) => ({ ...f, gstType: v }))}>
                   <SelectTrigger id="gstType"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -209,29 +209,29 @@ export default function JobsClient({ initialData, canCreate, canUpdate, canDelet
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">City</Label>
+                <Label>City</Label>
                 <Input id="city" placeholder="Surat" value={form.city} onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))} />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">State Code</Label>
+                <Label>State Code</Label>
                 <Input id="stateCode" placeholder="24" value={form.stateCode} onChange={(e) => setForm((f) => ({ ...f, stateCode: e.target.value }))} />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Phone Number</Label>
+              <Label>Phone Number</Label>
               <Input id="phone" placeholder="9876543210" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
             </div>
 
             <div className="border-t border-border pt-4 space-y-4">
               <div className="flex items-center gap-2">
                 <input type="checkbox" id="msmeRegistered" checked={form.msmeRegistered} onChange={(e) => setForm((f) => ({ ...f, msmeRegistered: e.target.checked }))} className="w-4 h-4 accent-primary rounded" />
-                <Label htmlFor="msmeRegistered" className="text-sm font-semibold uppercase tracking-wider text-foreground cursor-pointer">MSME Registered?</Label>
+                <Label htmlFor="msmeRegistered" className="cursor-pointer">MSME Registered?</Label>
               </div>
 
               {form.msmeRegistered && (
                 <div className="space-y-2">
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">MSME Type</Label>
+                  <Label>MSME Type</Label>
                   <Select value={form.msmeType} onValueChange={(v) => setForm((f) => ({ ...f, msmeType: v }))}>
                     <SelectTrigger id="msmeType"><SelectValue /></SelectTrigger>
                     <SelectContent>

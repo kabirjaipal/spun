@@ -130,22 +130,22 @@ export default function UsersClient({
           <h2 className="text-sm font-semibold uppercase tracking-wide text-foreground">Invite / Create User</h2>
           
           <div className="space-y-2">
-            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Full Name</Label>
+            <Label>Full Name</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Full Name" required />
           </div>
 
           <div className="space-y-2">
-            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Email Address</Label>
+            <Label>Email Address</Label>
             <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="user@company.com" required />
           </div>
 
           <div className="space-y-2">
-            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Password</Label>
+            <Label>Password</Label>
             <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required />
           </div>
 
           <div className="space-y-2">
-            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">System Role</Label>
+            <Label>System Role</Label>
             <Select value={role} onValueChange={setRole}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>

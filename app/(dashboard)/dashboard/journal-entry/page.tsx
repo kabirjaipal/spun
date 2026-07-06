@@ -4,9 +4,9 @@ import { db } from "@/lib/db";
 import { mCompanies, mLedgers, tVouchers } from "@/lib/db/schema";
 import { and, eq, isNull, desc } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
-import GeneralEntryClient from "./GeneralEntryClient";
+import JournalEntryClient from "./JournalEntryClient";
 
-export default async function GeneralEntryPage() {
+export default async function JournalEntryPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
   if (!session.user.companyId) redirect("/setup-company");
@@ -44,7 +44,7 @@ export default async function GeneralEntryPage() {
   const p = perms.find((x) => x.accessItem === "journal" || x.accessItem === "general_entry");
 
   return (
-    <GeneralEntryClient
+    <JournalEntryClient
       initialJournals={journalVouchers.map(jv => ({
         ...jv,
         voucherDate: jv.voucherDate ? new Date(jv.voucherDate) : null

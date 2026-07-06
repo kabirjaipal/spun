@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
 import React, { useState } from "react";
 import { Package, Folder, Layers, Scale } from "lucide-react";
 import InventoryItemsClient, { type InventoryItem, type TaxRate, type InventoryGroup, type InventoryCategory, type UnitOfMeasurement } from "./InventoryItemsClient";
@@ -82,20 +83,17 @@ export default function InventoryClient({
             const Icon = section.icon;
             const isActive = activeSection === section.id;
             return (
-              <button
+              <Button
                 key={section.id}
                 onClick={() => setActiveSection(section.id)}
-                className={`flex items-center gap-3 w-full text-left px-3 py-2.5 rounded-lg transition-all text-sm font-medium whitespace-nowrap cursor-pointer ${
-                  isActive
-                    ? "bg-primary text-primary-foreground shadow-sm font-semibold"
-                    : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
-                }`}
+                variant={isActive ? "default" : "ghost"}
+                className="w-full justify-start"
               >
                 <Icon className="h-4 w-4 shrink-0" />
                 <div className="flex flex-col">
                   <span>{section.name}</span>
                 </div>
-              </button>
+              </Button>
             );
           })}
         </div>

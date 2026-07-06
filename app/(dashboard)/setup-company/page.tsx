@@ -1,4 +1,7 @@
 "use client";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -323,42 +326,43 @@ export default function SetupCompanyPage() {
           <div className="flex flex-wrap items-center gap-2 border-b pb-4">
             {companies.map((c, idx) => (
               <div key={idx} className="flex items-center gap-1 bg-muted/20 p-1 rounded-md border border-border">
-                <button
+                <Button
                   type="button"
+                  variant={idx === activeIdx ? "default" : "ghost"}
+                  size="sm"
                   onClick={() => handleSelectCompany(idx)}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded transition-colors ${
-                    idx === activeIdx
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
                 >
                   {c.companyName.trim() || `Company ${idx + 1}`}
                   {idx === 0 && " (Primary)"}
-                </button>
+                </Button>
                 {idx > 0 && (
-                  <button
+                  <Button
                     type="button"
+                    variant="ghost"
+                    size="icon"
                     onClick={() => {
                       setCompanies(prev => prev.filter((_, i) => i !== idx));
                       if (activeIdx >= idx) {
                         handleSelectCompany(Math.max(0, activeIdx - 1));
                       }
                     }}
-                    className="p-1 text-muted-foreground hover:text-danger rounded hover:bg-danger/10"
+                    className="h-8 w-8 text-muted-foreground hover:text-danger hover:bg-danger/10"
                     title="Remove Company"
                   >
-                    <Trash2 className="h-3 w-3" />
-                  </button>
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
                 )}
               </div>
             ))}
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               onClick={handleAddCompany}
-              className="px-3 py-1.5 text-xs font-semibold rounded border border-dashed border-primary text-primary bg-background hover:bg-primary/5 transition-colors"
+              className="border-dashed border-primary text-primary hover:bg-primary/5"
             >
               + Add Another Company
-            </button>
+            </Button>
           </div>
 
           <form className="space-y-8" onSubmit={handleSubmit}>
@@ -369,14 +373,14 @@ export default function SetupCompanyPage() {
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="col-span-1 sm:col-span-2">
-                  <label htmlFor="companyName" className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                  <Label htmlFor="companyName" className="block mb-1">
                     COMPANY NAME *
-                  </label>
+                  </Label>
                   <div className="relative">
                     <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                       <Building2 className="h-4 w-4 text-muted-foreground" />
                     </div>
-                    <input
+                    <Input
                       id="companyName"
                       type="text"
                       required
@@ -389,14 +393,14 @@ export default function SetupCompanyPage() {
                 </div>
 
                 <div className="col-span-1 sm:col-span-2">
-                  <label htmlFor="address" className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                  <Label htmlFor="address" className="block mb-1">
                     ADDRESS
-                  </label>
+                  </Label>
                   <div className="relative">
                     <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                       <MapPin className="h-4 w-4 text-muted-foreground" />
                     </div>
-                    <input
+                    <Input
                       id="address"
                       type="text"
                       value={currentCompany.address}
@@ -408,10 +412,10 @@ export default function SetupCompanyPage() {
                 </div>
 
                 <div>
-                  <label htmlFor="pincode" className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                  <Label htmlFor="pincode" className="block mb-1">
                     PINCODE
-                  </label>
-                  <input
+                  </Label>
+                  <Input
                     id="pincode"
                     type="text"
                     value={currentCompany.pincode}
@@ -422,10 +426,10 @@ export default function SetupCompanyPage() {
                 </div>
 
                 <div>
-                  <label htmlFor="state" className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                  <Label htmlFor="state" className="block mb-1">
                     STATE
-                  </label>
-                  <input
+                  </Label>
+                  <Input
                     id="state"
                     type="text"
                     value={currentCompany.state}
@@ -436,14 +440,14 @@ export default function SetupCompanyPage() {
                 </div>
 
                 <div>
-                  <label htmlFor="phone" className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                  <Label htmlFor="phone" className="block mb-1">
                     PHONE
-                  </label>
+                  </Label>
                   <div className="relative">
                     <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                       <Phone className="h-4 w-4 text-muted-foreground" />
                     </div>
-                    <input
+                    <Input
                       id="phone"
                       type="text"
                       value={currentCompany.phone}
@@ -455,14 +459,14 @@ export default function SetupCompanyPage() {
                 </div>
 
                 <div>
-                  <label htmlFor="email" className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                  <Label htmlFor="email" className="block mb-1">
                     EMAIL ADDRESS
-                  </label>
+                  </Label>
                   <div className="relative">
                     <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                       <Mail className="h-4 w-4 text-muted-foreground" />
                     </div>
-                    <input
+                    <Input
                       id="email"
                       type="email"
                       value={currentCompany.email}
@@ -474,9 +478,9 @@ export default function SetupCompanyPage() {
                 </div>
 
                 <div>
-                  <label htmlFor="currencySymbol" className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                  <Label htmlFor="currencySymbol" className="block mb-1">
                     CURRENCY SYMBOL
-                  </label>
+                  </Label>
                   <div className="relative">
                     <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                       <DollarSign className="h-4 w-4 text-muted-foreground" />
@@ -504,9 +508,9 @@ export default function SetupCompanyPage() {
                 </div>
 
                 <div>
-                  <label htmlFor="nationName" className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                  <Label htmlFor="nationName" className="block mb-1">
                     NATION NAME
-                  </label>
+                  </Label>
                   <div className="relative">
                     <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                       <Globe className="h-4 w-4 text-muted-foreground" />
@@ -534,9 +538,9 @@ export default function SetupCompanyPage() {
                 </div>
 
                 <div>
-                  <label htmlFor="companyType" className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                  <Label htmlFor="companyType" className="block mb-1">
                     COMPANY MODULE / TYPE *
-                  </label>
+                  </Label>
                   <select
                     id="companyType"
                     value={currentCompany.companyType}
@@ -556,9 +560,9 @@ export default function SetupCompanyPage() {
                 </div>
 
                 <div>
-                  <label htmlFor="marketCategory" className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                  <Label htmlFor="marketCategory" className="block mb-1">
                     MARKET CATEGORY / SUB-TYPE *
-                  </label>
+                  </Label>
                   <select
                     id="marketCategory"
                     value={currentCompany.marketCategory}
@@ -574,14 +578,14 @@ export default function SetupCompanyPage() {
                 </div>
 
                 <div className="col-span-1 sm:col-span-2">
-                  <label htmlFor="financialYearStart" className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                  <Label htmlFor="financialYearStart" className="block mb-1">
                     FINANCIAL YEAR START *
-                  </label>
+                  </Label>
                   <div className="relative">
                     <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                       <Calendar className="h-4 w-4 text-muted-foreground" />
                     </div>
-                    <input
+                    <Input
                       id="financialYearStart"
                       type="date"
                       required
@@ -598,7 +602,7 @@ export default function SetupCompanyPage() {
             <div className="space-y-4">
               <h3 className="text-lg font-bold border-b pb-2 text-foreground flex items-center justify-between">
                 <span>GST & Taxation</span>
-                <label className="flex items-center gap-2 cursor-pointer text-sm font-normal text-muted-foreground select-none">
+                <Label className="flex items-center gap-2 cursor-pointer select-none">
                   <input
                     type="checkbox"
                     checked={currentCompany.gstApplicable}
@@ -606,19 +610,19 @@ export default function SetupCompanyPage() {
                     className="h-4 w-4 rounded border-input text-primary focus:ring-primary bg-background"
                   />
                   GST Applicable
-                </label>
+                </Label>
               </h3>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="panNo" className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                  <Label htmlFor="panNo" className="block mb-1">
                     PAN NO.
-                  </label>
+                  </Label>
                   <div className="relative">
                     <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                       <FileText className="h-4 w-4 text-muted-foreground" />
                     </div>
-                    <input
+                    <Input
                       id="panNo"
                       type="text"
                       value={currentCompany.panNo}
@@ -632,14 +636,14 @@ export default function SetupCompanyPage() {
                 {currentCompany.gstApplicable && (
                   <>
                     <div>
-                      <label htmlFor="gstNo" className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                      <Label htmlFor="gstNo" className="block mb-1">
                         GSTIN
-                      </label>
+                      </Label>
                       <div className="relative">
                         <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                           <Landmark className="h-4 w-4 text-muted-foreground" />
                         </div>
-                        <input
+                        <Input
                           id="gstNo"
                           type="text"
                           required={currentCompany.gstApplicable}
@@ -652,10 +656,10 @@ export default function SetupCompanyPage() {
                     </div>
 
                     <div>
-                      <label htmlFor="stateCode" className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                      <Label htmlFor="stateCode" className="block mb-1">
                         STATE CODE
-                      </label>
-                      <input
+                      </Label>
+                      <Input
                         id="stateCode"
                         type="text"
                         required={currentCompany.gstApplicable}
@@ -667,10 +671,10 @@ export default function SetupCompanyPage() {
                     </div>
 
                     <div>
-                      <label htmlFor="city" className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                      <Label htmlFor="city" className="block mb-1">
                         CITY
-                      </label>
-                      <input
+                      </Label>
+                      <Input
                         id="city"
                         type="text"
                         required={currentCompany.gstApplicable}
@@ -682,9 +686,9 @@ export default function SetupCompanyPage() {
                     </div>
 
                     <div>
-                      <label htmlFor="gstType" className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                      <Label htmlFor="gstType" className="block mb-1">
                         REGISTRATION TYPE
-                      </label>
+                      </Label>
                       <select
                         id="gstType"
                         value={currentCompany.gstType}
@@ -705,7 +709,7 @@ export default function SetupCompanyPage() {
             <div className="space-y-4">
               <h3 className="text-lg font-bold border-b pb-2 text-foreground flex items-center justify-between">
                 <span>MSME Registration</span>
-                <label className="flex items-center gap-2 cursor-pointer text-sm font-normal text-muted-foreground select-none">
+                <Label className="flex items-center gap-2 cursor-pointer select-none">
                   <input
                     type="checkbox"
                     checked={currentCompany.msmeRegistered}
@@ -713,15 +717,15 @@ export default function SetupCompanyPage() {
                     className="h-4 w-4 rounded border-input text-primary focus:ring-primary bg-background"
                   />
                   MSME Registered
-                </label>
+                </Label>
               </h3>
 
               {currentCompany.msmeRegistered && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label htmlFor="msmeType" className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                    <Label htmlFor="msmeType" className="block mb-1">
                       MSME CATEGORY
-                    </label>
+                    </Label>
                     <select
                       id="msmeType"
                       value={currentCompany.msmeType}
@@ -735,14 +739,14 @@ export default function SetupCompanyPage() {
                   </div>
 
                   <div>
-                    <label htmlFor="msmeNo" className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                    <Label htmlFor="msmeNo" className="block mb-1">
                       UDYAM REGISTRATION NUMBER
-                    </label>
+                    </Label>
                     <div className="relative">
                       <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                         <FileText className="h-4 w-4 text-muted-foreground" />
                       </div>
-                      <input
+                      <Input
                         id="msmeNo"
                         type="text"
                         value={currentCompany.msmeNo}
@@ -761,9 +765,9 @@ export default function SetupCompanyPage() {
               <h3 className="text-lg font-bold border-b pb-2 text-foreground">Bank Account Information</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                  <Label className="block mb-1">
                     SELECT BANK
-                  </label>
+                  </Label>
                   <select
                     value={currentCompany.customBankActive ? "custom" : currentCompany.selectedBankIndex ?? ""}
                     onChange={(e) => {
@@ -803,10 +807,10 @@ export default function SetupCompanyPage() {
 
                 {currentCompany.customBankActive ? (
                   <div>
-                    <label htmlFor="bankName" className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                    <Label htmlFor="bankName" className="block mb-1">
                       BANK NAME
-                    </label>
-                    <input
+                    </Label>
+                    <Input
                       id="bankName"
                       type="text"
                       value={currentCompany.bankName}
@@ -817,9 +821,9 @@ export default function SetupCompanyPage() {
                   </div>
                 ) : (
                   <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                    <Label className="block mb-1">
                       BANK NAME
-                    </label>
+                    </Label>
                     <span className="text-sm font-semibold text-foreground px-3 h-10 flex items-center bg-muted/20 border rounded-md">
                       {currentCompany.bankName}
                     </span>
@@ -827,10 +831,10 @@ export default function SetupCompanyPage() {
                 )}
 
                 <div>
-                  <label htmlFor="bankAccountName" className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                  <Label htmlFor="bankAccountName" className="block mb-1">
                     ACCOUNT NAME
-                  </label>
-                  <input
+                  </Label>
+                  <Input
                     id="bankAccountName"
                     type="text"
                     value={currentCompany.bankAccountName}
@@ -841,10 +845,10 @@ export default function SetupCompanyPage() {
                 </div>
 
                 <div>
-                  <label htmlFor="accountNo" className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                  <Label htmlFor="accountNo" className="block mb-1">
                     ACCOUNT NUMBER
-                  </label>
-                  <input
+                  </Label>
+                  <Input
                     id="accountNo"
                     type="text"
                     value={currentCompany.accountNo}
@@ -855,9 +859,9 @@ export default function SetupCompanyPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                  <Label className="block mb-1">
                     SELECT BRANCH / IFSC
-                  </label>
+                  </Label>
                   {currentCompany.customBankActive ? (
                     <span className="text-sm text-muted-foreground px-3 h-10 flex items-center bg-muted/10 border rounded-md select-none">
                       Type custom details below
@@ -896,10 +900,10 @@ export default function SetupCompanyPage() {
                 </div>
 
                 <div>
-                  <label htmlFor="ifscCode" className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                  <Label htmlFor="ifscCode" className="block mb-1">
                     IFSC CODE
-                  </label>
-                  <input
+                  </Label>
+                  <Input
                     id="ifscCode"
                     type="text"
                     disabled={!currentCompany.customIfscActive}
@@ -911,10 +915,10 @@ export default function SetupCompanyPage() {
                 </div>
 
                 <div>
-                  <label htmlFor="branchName" className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                  <Label htmlFor="branchName" className="block mb-1">
                     BRANCH NAME
-                  </label>
-                  <input
+                  </Label>
+                  <Input
                     id="branchName"
                     type="text"
                     disabled={!currentCompany.customIfscActive}
@@ -926,9 +930,9 @@ export default function SetupCompanyPage() {
                 </div>
 
                 <div>
-                  <label htmlFor="accountType" className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                  <Label htmlFor="accountType" className="block mb-1">
                     ACCOUNT TYPE
-                  </label>
+                  </Label>
                   <select
                     id="accountType"
                     value={currentCompany.accountType}
@@ -946,21 +950,22 @@ export default function SetupCompanyPage() {
             </div>
 
             <div className="flex gap-4 pt-6 border-t">
-              <button
+              <Button
                 type="button"
+                variant="secondary"
                 onClick={() => signOut()}
-                className="flex-1 h-10 rounded-md border border-border bg-secondary px-4 text-sm font-semibold text-secondary-foreground shadow-sm hover:opacity-90 transition-opacity"
+                className="flex-1"
               >
                 SIGN OUT
-              </button>
-              <button
+              </Button>
+              <Button
                 type="submit"
                 disabled={loading}
-                className="flex-1 h-10 inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50 transition-colors"
+                className="flex-1 gap-2"
               >
                 <span>{loading ? "Registering..." : "COMPLETE SETUP"}</span>
                 <ArrowRight className="h-4 w-4" />
-              </button>
+              </Button>
             </div>
           </form>
         </div>

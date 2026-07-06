@@ -625,21 +625,23 @@ export default function SalesClient({
             {/* Party Selection */}
             <div className="space-y-1.5 sm:col-span-2">
               <div className="flex items-center justify-between">
-                <Label className="text-xs font-semibold uppercase text-foreground">
+                <Label >
                   Party
                 </Label>
                 {canCreate && (
-                  <button
+                  <Button
                     type="button"
+                    variant="link"
+                    size="sm"
                     onClick={() => setShowPartyModal(true)}
-                    className="text-[10px] font-bold text-primary hover:underline uppercase"
+                    className="p-0 h-auto"
                   >
                     + New Party
-                  </button>
+                  </Button>
                 )}
               </div>
               <Select value={selectedParty} onValueChange={setSelectedParty}>
-                <SelectTrigger className="h-10">
+                <SelectTrigger>
                   <SelectValue placeholder="Choose party" />
                 </SelectTrigger>
                 <SelectContent>
@@ -652,22 +654,17 @@ export default function SalesClient({
               </Select>
             </div>
 
-            {/* Invoice No. */}
+            {/* Voucher No. */}
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">
-                Invoice No.
+              <Label >
+                Voucher No.
               </Label>
-              <Input
-                value={invoiceNo}
-                readOnly
-                placeholder="Fetching..."
-                className="h-10 border-border/60 bg-muted/30 text-muted-foreground shadow-none cursor-not-allowed focus-visible:ring-0 focus-visible:ring-offset-0"
-              />
+              <Input value={invoiceNo} readOnly disabled placeholder="Fetching..." className="h-10" />
             </div>
 
             {/* Voucher Date */}
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">
+              <Label >
                 Voucher Date
               </Label>
               <Input
@@ -680,7 +677,7 @@ export default function SalesClient({
 
             {/* Remarks */}
             <div className="space-y-1.5 sm:col-span-2">
-              <Label className="text-xs font-semibold uppercase text-foreground">
+              <Label >
                 Remarks
               </Label>
               <Input
@@ -702,19 +699,21 @@ export default function SalesClient({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label className="text-xs font-semibold uppercase text-foreground">
+                <Label >
                   Broker
                 </Label>
-                <button
+                <Button
                   type="button"
+                  variant="link"
+                  size="sm"
                   onClick={() => setShowBrokerDialog(true)}
-                  className="text-[10px] font-bold text-primary hover:underline uppercase"
+                  className="p-0 h-auto"
                 >
                   + New Broker
-                </button>
+                </Button>
               </div>
               <Select value={broker} onValueChange={setBroker}>
-                <SelectTrigger className="h-9 w-full">
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Choose Broker" />
                 </SelectTrigger>
                 <SelectContent>
@@ -728,19 +727,21 @@ export default function SalesClient({
             </div>
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label className="text-xs font-semibold uppercase text-foreground">
+                <Label >
                   Haste (Delivery Agent)
                 </Label>
-                <button
+                <Button
                   type="button"
+                  variant="link"
+                  size="sm"
                   onClick={() => setShowHasteDialog(true)}
-                  className="text-[10px] font-bold text-primary hover:underline uppercase"
+                  className="p-0 h-auto"
                 >
                   + New Haste
-                </button>
+                </Button>
               </div>
               <Select value={haste} onValueChange={setHaste}>
-                <SelectTrigger className="h-9 w-full">
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Choose Haste" />
                 </SelectTrigger>
                 <SelectContent>
@@ -755,7 +756,7 @@ export default function SalesClient({
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-xs font-semibold uppercase text-foreground">
+            <Label >
               LR No.
             </Label>
             <Input
@@ -768,7 +769,7 @@ export default function SalesClient({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">
+              <Label >
                 LR Date
               </Label>
               <Input
@@ -779,7 +780,7 @@ export default function SalesClient({
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">
+              <Label >
                 Transport
               </Label>
               <Input
@@ -792,7 +793,7 @@ export default function SalesClient({
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-xs font-semibold uppercase text-foreground">
+            <Label >
               Vehicle No.
             </Label>
             <Input
@@ -853,7 +854,7 @@ export default function SalesClient({
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                   {/* Select Item */}
                   <div className="md:col-span-4 space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase text-foreground">
+                    <Label >
                       Select Item
                     </Label>
                     <Select
@@ -862,7 +863,7 @@ export default function SalesClient({
                         updateLine(line.id, "inventoryId", val)
                       }
                     >
-                      <SelectTrigger className="h-10 w-full">
+                      <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select Item" />
                       </SelectTrigger>
                       <SelectContent>
@@ -880,7 +881,7 @@ export default function SalesClient({
 
                   {/* Fold */}
                   <div className="md:col-span-1 space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase text-foreground">
+                    <Label >
                       Fold %
                     </Label>
                     <Input
@@ -896,7 +897,7 @@ export default function SalesClient({
 
                   {/* PCS */}
                   <div className="md:col-span-1 space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase text-foreground">
+                    <Label >
                       PCS
                     </Label>
                     <div className="flex items-center gap-1.5">
@@ -925,7 +926,7 @@ export default function SalesClient({
 
                   {/* Quantity */}
                   <div className="md:col-span-2 space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase text-foreground">
+                    <Label >
                       Quantity (Mtrs)
                     </Label>
                     <Input
@@ -944,7 +945,7 @@ export default function SalesClient({
 
                   {/* Rate */}
                   <div className="md:col-span-2 space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase text-foreground">
+                    <Label >
                       Rate (₹)
                     </Label>
                     <Input
@@ -960,7 +961,7 @@ export default function SalesClient({
 
                   {/* GST Rate */}
                   <div className="md:col-span-2 space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase text-foreground">
+                    <Label >
                       GST Rate
                     </Label>
                     <Select
@@ -969,7 +970,7 @@ export default function SalesClient({
                         updateLine(line.id, "gstRateId", val)
                       }
                     >
-                      <SelectTrigger className="h-10 w-full">
+                      <SelectTrigger className="w-full">
                         <SelectValue placeholder="Tax %" />
                       </SelectTrigger>
                       <SelectContent>
@@ -1054,7 +1055,7 @@ export default function SalesClient({
           {/* Discount 1 */}
           <div className="grid grid-cols-2 gap-3 pb-3 border-b border-border/40">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">
+              <Label >
                 Discount 1 Value
               </Label>
               <Input
@@ -1067,14 +1068,14 @@ export default function SalesClient({
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">
+              <Label >
                 Type
               </Label>
               <Select
                 value={discountType}
                 onValueChange={(val) => setDiscountType(val as any)}
               >
-                <SelectTrigger className="h-9 w-full">
+                <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -1088,7 +1089,7 @@ export default function SalesClient({
           {/* Discount 2 */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">
+              <Label >
                 Discount 2 Value
               </Label>
               <Input
@@ -1101,14 +1102,14 @@ export default function SalesClient({
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">
+              <Label >
                 Type
               </Label>
               <Select
                 value={discountType2}
                 onValueChange={(val) => setDiscountType2(val as any)}
               >
-                <SelectTrigger className="h-9 w-full">
+                <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -1122,7 +1123,7 @@ export default function SalesClient({
           {/* Extra Charges */}
           <div className="pt-3 border-t border-border/40 space-y-3">
             <div className="flex items-center justify-between">
-              <Label className="text-xs font-semibold uppercase text-foreground">
+              <Label >
                 Extra Charges
               </Label>
               <Button
@@ -1174,7 +1175,7 @@ export default function SalesClient({
                     updateExtraCharge(charge.id, "type", val)
                   }
                 >
-                  <SelectTrigger className="h-9">
+                  <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

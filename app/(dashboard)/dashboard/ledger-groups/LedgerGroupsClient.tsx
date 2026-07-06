@@ -244,7 +244,7 @@ export default function LedgerGroupsClient({
           <SheetBody className="space-y-6">
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Group Name *</Label>
+                <Label>Group Name *</Label>
                 <Input
                   id="groupName"
                   placeholder="e.g. Manufacturing Overheads"
@@ -254,7 +254,7 @@ export default function LedgerGroupsClient({
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Parent Group</Label>
+                <Label>Parent Group</Label>
                 <Select
                   value={form.parentGroupId}
                   onValueChange={(v) => setForm((f) => ({ ...f, parentGroupId: v }))}

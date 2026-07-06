@@ -135,7 +135,7 @@ export default function InventoryGroupsClient({ data, setData, canCreate, canUpd
 
           <SheetBody className="space-y-5">
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Group Name</Label>
+              <Label>Group Name</Label>
               <Input id="groupName" placeholder="e.g. Consumable, Selling" value={form.groupName} onChange={(e) => setForm((f) => ({ ...f, groupName: e.target.value }))} />
             </div>
           </SheetBody>

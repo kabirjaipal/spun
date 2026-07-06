@@ -34,7 +34,7 @@ interface JournalLine {
 
 const EMPTY_LINE: JournalLine = { id: "", ledgerId: "", entryType: "debit", amount: "0" };
 
-export default function GeneralEntryClient({
+export default function JournalEntryClient({
   initialJournals,
   ledgers,
   canCreate,
@@ -51,6 +51,22 @@ export default function GeneralEntryClient({
   const [lines, setLines] = useState<JournalLine[]>([]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+
+  const fetchNextVoucherNo = async () => {
+    try {
+      const res = await fetch("/api/vouchers/next-number?type=journal");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.nextVoucherNo) setVoucherNo(data.nextVoucherNo);
+      }
+    } catch (err) {
+      console.error("Error fetching next journal voucher number:", err);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchNextVoucherNo();
+  }, []);
 
   // Initialize with debit and credit lines when opening form
   const startCreation = () => {
@@ -73,17 +89,17 @@ export default function GeneralEntryClient({
     return Math.abs(debitTotal - creditTotal) < 0.01 && debitTotal > 0;
   }, [debitTotal, creditTotal]);
 
-  function updateLine(id: string, field: keyof JournalLine, value: string) {
+  const updateLine = (id: string, field: keyof JournalLine, value: string) => {
     setLines(items => items.map(item => item.id === id ? { ...item, [field]: value } : item));
-  }
+  };
 
-  function addLine() {
+  const addLine = () => {
     setLines(items => [...items, { ...EMPTY_LINE, id: crypto.randomUUID() }]);
-  }
+  };
 
-  function removeLine(id: string) {
+  const removeLine = (id: string) => {
     setLines(items => items.filter(item => item.id !== id));
-  }
+  };
 
   async function handleSubmit() {
     if (!canCreate) return;
@@ -145,7 +161,7 @@ export default function GeneralEntryClient({
 
       if (!response.ok) {
         const json = await response.json();
-        throw new Error(json.error || "Failed to create general entry.");
+        throw new Error(json.error || "Failed to create journal entry.");
       }
 
       const newVoucher = await response.json();
@@ -161,15 +177,16 @@ export default function GeneralEntryClient({
       };
 
       setJournals([addedJournal, ...journals]);
-      setMessage("General entry recorded successfully.");
+      setMessage("Journal entry recorded successfully.");
       setIsCreating(false);
 
       // Reset
       setVoucherNo("");
       setRemarks("");
       setLines([]);
+      fetchNextVoucherNo();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Unable to save general entry.");
+      setMessage(error instanceof Error ? error.message : "Unable to save journal entry.");
     } finally {
       setSaving(false);
     }
@@ -184,28 +201,33 @@ export default function GeneralEntryClient({
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div>
-              <h1 className="text-lg font-bold text-foreground uppercase tracking-wide">Record General Entry</h1>
+              <h1 className="text-lg font-bold text-foreground uppercase tracking-wide">Record Journal Entry</h1>
               <p className="text-xs text-muted-foreground mt-0.5">Input adjustment entries between ledger accounts.</p>
             </div>
           </div>
-          <Badge variant="secondary">General Entry</Badge>
+          <Badge variant="secondary">Journal Entry</Badge>
         </div>
 
         <div className="rounded-lg border border-border bg-card p-5 shadow-sm space-y-4">
           <div className="grid gap-4 lg:grid-cols-2">
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Voucher No</Label>
-              <Input value={voucherNo} onChange={(e) => setVoucherNo(e.target.value)} placeholder="GE-001" />
+              <Label>Voucher No</Label>
+              <Input
+                value={voucherNo}
+                readOnly
+                disabled
+                placeholder="Fetching..."
+              />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Date</Label>
+              <Label>Date</Label>
               <Input type="date" value={voucherDate} onChange={(e) => setVoucherDate(e.target.value)} />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Remarks</Label>
+            <Label>Remarks</Label>
             <Input value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Year-end adjustment / depreciation" />
           </div>
         </div>
@@ -225,9 +247,9 @@ export default function GeneralEntryClient({
             {lines.map((line) => (
               <div key={line.id} className="grid gap-4 lg:grid-cols-[1fr_2fr_1fr_auto] items-end border-b border-border/30 pb-3">
                 <div className="space-y-2">
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Type</Label>
+                  <Label>Type</Label>
                   <Select value={line.entryType} onValueChange={(value: "debit" | "credit") => updateLine(line.id, "entryType", value)}>
-                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="debit">DEBIT</SelectItem>
                       <SelectItem value="credit">CREDIT</SelectItem>
@@ -236,7 +258,7 @@ export default function GeneralEntryClient({
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Account Ledger</Label>
+                  <Label>Account Ledger</Label>
                   <Input
                     placeholder="Search or type account..."
                     value={ledgers.find((l) => String(l.ledgerId) === line.ledgerId)?.ledgerName || line.ledgerId}
@@ -258,7 +280,7 @@ export default function GeneralEntryClient({
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Amount (₹)</Label>
+                  <Label>Amount (₹)</Label>
                   <Input type="number" min="0" step="0.01" value={line.amount} onChange={(e) => updateLine(line.id, "amount", e.target.value)} className="h-9" />
                 </div>
 
@@ -307,14 +329,14 @@ export default function GeneralEntryClient({
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">General Entries</h1>
+          <h1 className="text-2xl font-bold text-foreground">Journal Entries</h1>
           <p className="text-sm text-muted-foreground">
             Track adjustment and accrual entries with general ledger postings.
           </p>
         </div>
         {canCreate && (
           <Button onClick={startCreation} className="h-10 font-semibold uppercase">
-            <Plus className="h-4 w-4 mr-1" /> Record General Entry
+            <Plus className="h-4 w-4 mr-1" /> Record Journal Entry
           </Button>
         )}
       </div>

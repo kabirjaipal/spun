@@ -353,9 +353,9 @@ export default function DebitNoteClient({
         <div className="rounded-lg border border-border bg-card p-5 shadow-sm space-y-4">
           <div className="grid gap-4 lg:grid-cols-5">
             <div className="space-y-1.5 col-span-1 md:col-span-2">
-              <Label className="text-xs font-semibold uppercase text-foreground">Company (Party)</Label>
+              <Label >Company (Party)</Label>
               <Select value={selectedCompany} onValueChange={setSelectedCompany}>
-                <SelectTrigger className="h-9">
+                <SelectTrigger>
                   <SelectValue placeholder="Choose company" />
                 </SelectTrigger>
                 <SelectContent>
@@ -369,17 +369,17 @@ export default function DebitNoteClient({
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Debit Note No</Label>
+              <Label>Debit Note No</Label>
               <Input value={voucherNo} onChange={(e) => setVoucherNo(e.target.value)} placeholder="DRN-001" />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Date</Label>
+              <Label>Date</Label>
               <Input type="date" value={voucherDate} onChange={(e) => setVoucherDate(e.target.value)} />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Against Purchase Invoice</Label>
+              <Label>Against Purchase Invoice</Label>
               <Select value={selectedInvoice} onValueChange={setSelectedInvoice}>
                 <SelectTrigger><SelectValue placeholder="Select Purchase Bill" /></SelectTrigger>
                 <SelectContent>
@@ -410,7 +410,7 @@ export default function DebitNoteClient({
                     className={`grid gap-2 grid-cols-1 ${gridColsClass} items-end border-b border-border/20 pb-3`}
                   >
                     <div className="space-y-2">
-                      <Label className="text-[10px] font-semibold uppercase text-muted-foreground">Account Head</Label>
+                      <Label >Account Head</Label>
                       <Select value={line.ledgerId} onValueChange={(val) => updateLine(line.id, "ledgerId", val)}>
                         <SelectTrigger><SelectValue placeholder="Account Head" /></SelectTrigger>
                         <SelectContent>
@@ -422,7 +422,7 @@ export default function DebitNoteClient({
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-[10px] font-semibold uppercase text-muted-foreground">PCS</Label>
+                      <Label >PCS</Label>
                       <div className="flex items-center gap-1">
                         <Input
                           type="number"
@@ -445,7 +445,7 @@ export default function DebitNoteClient({
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-[10px] font-semibold uppercase text-muted-foreground">Qty / Mtr</Label>
+                      <Label >Qty / Mtr</Label>
                       <Input
                         type="number"
                         value={line.quantity}
@@ -456,7 +456,7 @@ export default function DebitNoteClient({
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-[10px] font-semibold uppercase text-muted-foreground">Unit</Label>
+                      <Label >Unit</Label>
                       <Select value={line.unitType} onValueChange={(val) => updateLine(line.id, "unitType", val as any)}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
@@ -467,17 +467,17 @@ export default function DebitNoteClient({
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-[10px] font-semibold uppercase text-muted-foreground">Rate</Label>
+                      <Label >Rate</Label>
                       <Input type="number" value={line.rate} onChange={(e) => updateLine(line.id, "rate", e.target.value)} />
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-[10px] font-semibold uppercase text-muted-foreground">Taxable Amt</Label>
-                      <Input type="number" value={total.taxable.toFixed(2)} disabled className="bg-muted text-right font-medium" />
+                      <Label >Taxable Amt</Label>
+                      <Input type="number" value={total.taxable.toFixed(2)} disabled className="text-right" />
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-[10px] font-semibold uppercase text-muted-foreground">Tax Rate</Label>
+                      <Label >Tax Rate</Label>
                       <Select value={line.gstRateId} onValueChange={(val) => updateLine(line.id, "gstRateId", val)}>
                         <SelectTrigger><SelectValue placeholder="Tax %" /></SelectTrigger>
                         <SelectContent>
@@ -490,25 +490,25 @@ export default function DebitNoteClient({
 
                     {isInterstate ? (
                       <div className="space-y-2">
-                        <Label className="text-[10px] font-semibold uppercase text-muted-foreground">IGST</Label>
-                        <Input type="number" value={total.igst.toFixed(2)} disabled className="bg-muted text-right font-medium" />
+                        <Label >IGST</Label>
+                        <Input type="number" value={total.igst.toFixed(2)} disabled className="text-right" />
                       </div>
                     ) : (
                       <>
                         <div className="space-y-2">
-                          <Label className="text-[10px] font-semibold uppercase text-muted-foreground">CGST</Label>
-                          <Input type="number" value={total.cgst.toFixed(2)} disabled className="bg-muted text-right font-medium" />
+                          <Label >CGST</Label>
+                          <Input type="number" value={total.cgst.toFixed(2)} disabled className="text-right" />
                         </div>
                         <div className="space-y-2">
-                          <Label className="text-[10px] font-semibold uppercase text-muted-foreground">SGST</Label>
-                          <Input type="number" value={total.sgst.toFixed(2)} disabled className="bg-muted text-right font-medium" />
+                          <Label >SGST</Label>
+                          <Input type="number" value={total.sgst.toFixed(2)} disabled className="text-right" />
                         </div>
                       </>
                     )}
 
                     <div className="space-y-2">
-                      <Label className="text-[10px] font-semibold uppercase text-muted-foreground">Net Amt</Label>
-                      <Input type="number" value={total.net.toFixed(2)} disabled className="bg-muted text-right font-bold text-foreground" />
+                      <Label >Net Amt</Label>
+                      <Input type="number" value={total.net.toFixed(2)} disabled className="text-right" />
                     </div>
 
                     <div className="pb-1">
@@ -529,7 +529,7 @@ export default function DebitNoteClient({
           </div>
 
           <div className="space-y-2">
-            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Remarks</Label>
+            <Label>Remarks</Label>
             <Input value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Purchase return reason / rate adjustment details" />
           </div>
         </div>

@@ -325,7 +325,7 @@ export default function PartiesClient({
               <div className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="col-span-1 sm:col-span-2">
-                    <Label htmlFor="companyName" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Party Name *</Label>
+                    <Label htmlFor="companyName">Party Name *</Label>
                     <Input
                       id="companyName"
                       type="text"
@@ -338,7 +338,7 @@ export default function PartiesClient({
                   </div>
 
                   <div className="col-span-1 sm:col-span-2">
-                    <Label htmlFor="address" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Address</Label>
+                    <Label htmlFor="address">Address</Label>
                     <div className="relative mt-1">
                       <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                         <MapPin className="h-4 w-4 text-muted-foreground" />
@@ -355,7 +355,7 @@ export default function PartiesClient({
                   </div>
 
                   <div>
-                    <Label htmlFor="pincode" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Pincode</Label>
+                    <Label htmlFor="pincode">Pincode</Label>
                     <Input
                       id="pincode"
                       type="text"
@@ -367,7 +367,7 @@ export default function PartiesClient({
                   </div>
 
                   <div>
-                    <Label htmlFor="state" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">State</Label>
+                    <Label htmlFor="state">State</Label>
                     <Input
                       id="state"
                       type="text"
@@ -379,7 +379,7 @@ export default function PartiesClient({
                   </div>
 
                   <div>
-                    <Label htmlFor="phone" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Phone</Label>
+                    <Label htmlFor="phone">Phone</Label>
                     <div className="relative mt-1">
                       <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                         <Phone className="h-4 w-4 text-muted-foreground" />
@@ -396,7 +396,7 @@ export default function PartiesClient({
                   </div>
 
                   <div>
-                    <Label htmlFor="email" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Email Address</Label>
+                    <Label htmlFor="email">Email Address</Label>
                     <div className="relative mt-1">
                       <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                         <Mail className="h-4 w-4 text-muted-foreground" />
@@ -413,7 +413,7 @@ export default function PartiesClient({
                   </div>
 
                   <div>
-                    <Label htmlFor="currencySymbol" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Currency Symbol</Label>
+                    <Label htmlFor="currencySymbol">Currency Symbol</Label>
                     <div className="relative mt-1">
                       <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                         <DollarSign className="h-4 w-4 text-muted-foreground" />
@@ -442,7 +442,7 @@ export default function PartiesClient({
                   </div>
 
                   <div>
-                    <Label htmlFor="nationName" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Nation Name</Label>
+                    <Label htmlFor="nationName">Nation Name</Label>
                     <div className="relative mt-1">
                       <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                         <Globe className="h-4 w-4 text-muted-foreground" />
@@ -471,7 +471,7 @@ export default function PartiesClient({
                   </div>
 
                   <div>
-                    <Label htmlFor="companyType" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Party Type *</Label>
+                    <Label htmlFor="companyType">Party Type *</Label>
                     <select
                         id="companyType"
                         value={form.companyType}
@@ -492,7 +492,7 @@ export default function PartiesClient({
                   </div>
 
                   <div>
-                    <Label htmlFor="marketCategory" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Market Category *</Label>
+                    <Label htmlFor="marketCategory">Market Category *</Label>
                     <select
                         id="marketCategory"
                         value={form.marketCategory}
@@ -508,7 +508,7 @@ export default function PartiesClient({
                   </div>
 
                   <div>
-                    <Label htmlFor="financialYearStart" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Financial Year Start *</Label>
+                    <Label htmlFor="financialYearStart">Financial Year Start *</Label>
                     <div className="relative mt-1">
                       <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                         <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -525,7 +525,7 @@ export default function PartiesClient({
                   </div>
 
                   <div>
-                    <Label htmlFor="dueDay" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Due Days (Credit Days) *</Label>
+                    <Label htmlFor="dueDay">Due Days (Credit Days) *</Label>
                     <Input
                       id="dueDay"
                       type="number"
@@ -561,7 +561,7 @@ export default function PartiesClient({
               {form.msmeRegistered && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="msmeType" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">MSME Category</Label>
+                    <Label htmlFor="msmeType">MSME Category</Label>
                     <select
                       id="msmeType"
                       value={form.msmeType}
@@ -575,7 +575,7 @@ export default function PartiesClient({
                   </div>
 
                   <div>
-                    <Label htmlFor="msmeNo" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Udyam Registration No.</Label>
+                    <Label htmlFor="msmeNo">Udyam Registration No.</Label>
                     <Input
                       id="msmeNo"
                       type="text"
@@ -608,7 +608,7 @@ export default function PartiesClient({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="panNo" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">PAN No.</Label>
+                  <Label htmlFor="panNo">PAN No.</Label>
                   <div className="relative mt-1">
                     <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                       <FileText className="h-4 w-4 text-muted-foreground" />
@@ -627,7 +627,7 @@ export default function PartiesClient({
                 {form.gstApplicable && (
                   <>
                     <div>
-                      <Label htmlFor="gstNo" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">GSTIN *</Label>
+                      <Label htmlFor="gstNo">GSTIN *</Label>
                       <div className="relative mt-1">
                         <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                           <Landmark className="h-4 w-4 text-muted-foreground" />
@@ -645,7 +645,7 @@ export default function PartiesClient({
                     </div>
 
                     <div>
-                      <Label htmlFor="stateCode" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">State Code *</Label>
+                      <Label htmlFor="stateCode">State Code *</Label>
                       <Input
                         id="stateCode"
                         type="text"
@@ -658,7 +658,7 @@ export default function PartiesClient({
                     </div>
 
                     <div>
-                      <Label htmlFor="city" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">City *</Label>
+                      <Label htmlFor="city">City *</Label>
                       <Input
                         id="city"
                         type="text"
@@ -671,7 +671,7 @@ export default function PartiesClient({
                     </div>
 
                     <div>
-                      <Label htmlFor="gstType" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Registration Type</Label>
+                      <Label htmlFor="gstType">Registration Type</Label>
                       <select
                         id="gstType"
                         value={form.gstType}
@@ -699,7 +699,7 @@ export default function PartiesClient({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Select Bank</Label>
+                  <Label>Select Bank</Label>
                   <select
                     value={customBankActive ? "custom" : selectedBankIndex ?? ""}
                     onChange={(e) => {
@@ -737,7 +737,7 @@ export default function PartiesClient({
 
                 {customBankActive ? (
                   <div>
-                    <Label htmlFor="bankName" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Bank Name</Label>
+                    <Label htmlFor="bankName">Bank Name</Label>
                     <Input
                       id="bankName"
                       type="text"
@@ -749,7 +749,7 @@ export default function PartiesClient({
                   </div>
                 ) : (
                   <div>
-                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Bank Name</Label>
+                    <Label>Bank Name</Label>
                     <span className="text-sm font-semibold text-foreground px-3 h-10 mt-1 flex items-center bg-muted/20 border rounded-md">
                       {form.bankName}
                     </span>
@@ -757,7 +757,7 @@ export default function PartiesClient({
                 )}
 
                 <div>
-                  <Label htmlFor="bankAccountName" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Account Name</Label>
+                  <Label htmlFor="bankAccountName">Account Name</Label>
                   <Input
                     id="bankAccountName"
                     type="text"
@@ -769,7 +769,7 @@ export default function PartiesClient({
                 </div>
 
                 <div>
-                  <Label htmlFor="accountNo" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Account Number</Label>
+                  <Label htmlFor="accountNo">Account Number</Label>
                   <Input
                     id="accountNo"
                     type="text"
@@ -781,7 +781,7 @@ export default function PartiesClient({
                 </div>
 
                 <div>
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Select Branch / IFSC</Label>
+                  <Label>Select Branch / IFSC</Label>
                   {customBankActive ? (
                     <span className="text-sm text-muted-foreground px-3 h-10 mt-1 flex items-center bg-muted/10 border rounded-md select-none">
                       Type custom details below
@@ -818,7 +818,7 @@ export default function PartiesClient({
                 </div>
 
                 <div>
-                  <Label htmlFor="ifscCode" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">IFSC Code</Label>
+                  <Label htmlFor="ifscCode">IFSC Code</Label>
                   <Input
                     id="ifscCode"
                     type="text"
@@ -831,7 +831,7 @@ export default function PartiesClient({
                 </div>
 
                 <div>
-                  <Label htmlFor="branchName" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Branch Name</Label>
+                  <Label htmlFor="branchName">Branch Name</Label>
                   <Input
                     id="branchName"
                     type="text"
@@ -844,7 +844,7 @@ export default function PartiesClient({
                 </div>
 
                 <div>
-                  <Label htmlFor="accountType" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Account Type</Label>
+                  <Label htmlFor="accountType">Account Type</Label>
                   <select
                     id="accountType"
                     value={form.accountType}

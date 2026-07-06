@@ -135,7 +135,7 @@ export default function InventoryCategoriesClient({ data, setData, canCreate, ca
 
           <SheetBody className="space-y-5">
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Category Name</Label>
+              <Label>Category Name</Label>
               <Input id="categoryName" placeholder="e.g. Cloth, Color" value={form.categoryName} onChange={(e) => setForm((f) => ({ ...f, categoryName: e.target.value }))} />
             </div>
           </SheetBody>

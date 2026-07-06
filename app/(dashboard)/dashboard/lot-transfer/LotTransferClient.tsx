@@ -124,19 +124,19 @@ export default function LotTransferClient({
         <div className="rounded-lg border border-border bg-card p-5 shadow-sm space-y-4">
           <div className="grid gap-4 lg:grid-cols-2">
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Transfer / Ref No</Label>
+              <Label>Transfer / Ref No</Label>
               <Input value={voucherNo} onChange={(e) => setVoucherNo(e.target.value)} placeholder="TR-001" />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Date</Label>
+              <Label>Date</Label>
               <Input type="date" value={voucherDate} onChange={(e) => setVoucherDate(e.target.value)} />
             </div>
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Lot Number</Label>
+              <Label>Lot Number</Label>
               <Select value={selectedLot} onValueChange={setSelectedLot}>
                 <SelectTrigger><SelectValue placeholder="Select Lot Number" /></SelectTrigger>
                 <SelectContent>
@@ -147,17 +147,14 @@ export default function LotTransferClient({
                 </SelectContent>
               </Select>
               {selectedLot === "custom" && (
-                <Input
-                  className="mt-2"
-                  value={customLot}
-                  onChange={(e) => setCustomLot(e.target.value)}
+                <Input value={customLot} onChange={(e) => setCustomLot(e.target.value)}
                   placeholder="Enter custom lot number"
                 />
               )}
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Transfer To Party</Label>
+              <Label>Transfer To Party</Label>
               <Select value={selectedParty} onValueChange={setSelectedParty}>
                 <SelectTrigger><SelectValue placeholder="Choose Target Party" /></SelectTrigger>
                 <SelectContent>
@@ -172,7 +169,7 @@ export default function LotTransferClient({
           </div>
 
           <div className="space-y-2">
-            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Remarks</Label>
+            <Label>Remarks</Label>
             <Input value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Lot transfer for folding / processing" />
           </div>
         </div>

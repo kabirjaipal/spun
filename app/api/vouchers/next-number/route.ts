@@ -5,14 +5,14 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 
 const DEFAULT_PREFIXES: Record<string, string> = {
-  sale: "INV-",
-  purchase: "PUR-",
+  sale: "S-",
+  purchase: "P-",
   purchase_return: "PR-",
   credit_note: "CN-",
   debit_note: "DN-",
-  receipt: "REC-",
-  payment: "PAY-",
-  journal: "JR-",
+  receipt: "R-",
+  payment: "PM-",
+  journal: "J-",
   job_outward: "JO-",
   job_inward: "JI-",
   mill_outward: "MO-",

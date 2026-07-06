@@ -98,6 +98,22 @@ export default function PaymentClient({
   const [outstandingBills, setOutstandingBills] = useState<OutstandingBill[]>([]);
   const [billAdjustments, setBillAdjustments] = useState<Record<number, BillAdjustment>>({});
 
+  const fetchNextVoucherNo = async () => {
+    try {
+      const res = await fetch("/api/vouchers/next-number?type=payment");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.nextVoucherNo) setVoucherNo(data.nextVoucherNo);
+      }
+    } catch (err) {
+      console.error("Error fetching next payment voucher number:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchNextVoucherNo();
+  }, []);
+
   useEffect(() => {
     if (!selectedCompany) {
       setOutstandingBills([]);
@@ -178,6 +194,9 @@ export default function PaymentClient({
         };
       });
 
+    const selectedCashBankLedger = cashBankLedgers.find((l) => String(l.ledgerId) === selectedLedger);
+    const isCashSelected = selectedCashBankLedger?.ledgerType === "cash";
+
     try {
       const body = {
         voucherType: "payment",
@@ -187,9 +206,9 @@ export default function PaymentClient({
         cashBankLedgerId: Number(selectedLedger),
         totalAmount: finalAmount,
         remarks: isReversal ? `[RETURN CHEQUE REVERSAL] ${remarks}` : remarks,
-        lrNo: chequeNo || null, // storing cheque/txn ref in lrNo
-        bankName: bankName || null,
-        paymentMethod: paymentMethod || null,
+        lrNo: isCashSelected ? null : (chequeNo || null),
+        bankName: isCashSelected ? null : (bankName || null),
+        paymentMethod: isCashSelected ? null : (paymentMethod || null),
         billDetails: selectedDetails.length > 0 ? selectedDetails : null,
         isReversal,
       };
@@ -237,6 +256,7 @@ export default function PaymentClient({
       setIsReversal(false);
       setOutstandingBills([]);
       setBillAdjustments({});
+      fetchNextVoucherNo();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to save payment.");
     } finally {
@@ -263,17 +283,22 @@ export default function PaymentClient({
         <div className="rounded-lg border border-border bg-card p-5 shadow-sm space-y-4">
           <div className="grid gap-4 lg:grid-cols-3">
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Voucher No</Label>
-              <Input value={voucherNo} onChange={(e) => setVoucherNo(e.target.value)} placeholder="PAY-001" />
+              <Label>Voucher No</Label>
+              <Input
+                value={voucherNo}
+                readOnly
+                disabled
+                placeholder="Fetching..."
+              />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Date</Label>
+              <Label>Date</Label>
               <Input type="date" value={voucherDate} onChange={(e) => setVoucherDate(e.target.value)} />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Cash / Bank Account (Credit)</Label>
+              <Label>Cash / Bank Account (Credit)</Label>
               <Select value={selectedLedger} onValueChange={setSelectedLedger}>
                 <SelectTrigger><SelectValue placeholder="Select ledger" /></SelectTrigger>
                 <SelectContent>
@@ -289,9 +314,9 @@ export default function PaymentClient({
 
           <div className="grid gap-4 lg:grid-cols-3">
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Company (Debit)</Label>
+              <Label>Account (Debit)</Label>
               <Select value={selectedCompany} onValueChange={setSelectedCompany}>
-                <SelectTrigger><SelectValue placeholder="Choose company" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Choose account" /></SelectTrigger>
                 <SelectContent>
                   {companies.map((s) => (
                     <SelectItem key={s.companyId} value={String(s.companyId)}>
@@ -303,7 +328,7 @@ export default function PaymentClient({
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Amount (₹)</Label>
+              <Label>Amount (₹)</Label>
               <Input
                 type="number"
                 min="0"
@@ -318,47 +343,49 @@ export default function PaymentClient({
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Remarks</Label>
+              <Label>Remarks</Label>
               <Input value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Payment sent against purchase invoice" />
             </div>
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-3 border-t border-border/30 pt-4">
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Bank Name</Label>
-              <Input
-                value={bankName}
-                onChange={(e) => setBankName(e.target.value)}
-                placeholder="e.g. HDFC Bank, SBI"
-              />
-            </div>
+          {!(cashBankLedgers.find((l) => String(l.ledgerId) === selectedLedger)?.ledgerType === "cash") && (
+            <div className="grid gap-4 lg:grid-cols-3 border-t border-border/30 pt-4">
+              <div className="space-y-2">
+                <Label>Bank Name</Label>
+                <Input
+                  value={bankName}
+                  onChange={(e) => setBankName(e.target.value)}
+                  placeholder="e.g. HDFC Bank, SBI"
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Payment Method</Label>
-              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                <SelectTrigger><SelectValue placeholder="Select payment method" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="cheque">Cheque</SelectItem>
-                  <SelectItem value="neft">NEFT</SelectItem>
-                  <SelectItem value="rtgs">RTGS</SelectItem>
-                  <SelectItem value="imps">IMPS</SelectItem>
-                  <SelectItem value="google pay">Google Pay</SelectItem>
-                  <SelectItem value="upi">UPI</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+              <div className="space-y-2">
+                <Label>Payment Method</Label>
+                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                  <SelectTrigger><SelectValue placeholder="Select payment method" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cheque">Cheque</SelectItem>
+                    <SelectItem value="neft">NEFT</SelectItem>
+                    <SelectItem value="rtgs">RTGS</SelectItem>
+                    <SelectItem value="imps">IMPS</SelectItem>
+                    <SelectItem value="google pay">Google Pay</SelectItem>
+                    <SelectItem value="upi">UPI</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                {getFieldConfig(paymentMethod).label}
-              </Label>
-              <Input
-                value={chequeNo}
-                onChange={(e) => setChequeNo(e.target.value)}
-                placeholder={getFieldConfig(paymentMethod).placeholder}
-              />
+              <div className="space-y-2">
+                <Label>
+                  {getFieldConfig(paymentMethod).label}
+                </Label>
+                <Input
+                  value={chequeNo}
+                  onChange={(e) => setChequeNo(e.target.value)}
+                  placeholder={getFieldConfig(paymentMethod).placeholder}
+                />
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Cheque Return Toggle */}
           <div className="flex items-center gap-2 py-2 border-t border-b border-border/50">
@@ -369,7 +396,7 @@ export default function PaymentClient({
               onChange={(e) => setIsReversal(e.target.checked)}
               className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
             />
-            <Label htmlFor="isReversal" className="text-xs font-semibold uppercase tracking-wider text-danger cursor-pointer">
+            <Label htmlFor="isReversal" className="cursor-pointer">
               Mark as Cheque Return / Bounce Log (Reverses double entry)
             </Label>
           </div>
@@ -377,7 +404,7 @@ export default function PaymentClient({
           {/* Outstanding Bills Table Section */}
           {outstandingBills.length > 0 && (
             <div className="space-y-2 pt-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+              <Label className="block">
                 Against Outstanding Invoices (Select & adjust payment amount)
               </Label>
               <div className="rounded-lg border border-border bg-muted/20 overflow-hidden">
@@ -409,12 +436,7 @@ export default function PaymentClient({
                           <td className="px-3 py-2 text-right text-muted-foreground">{bill.rateOfInterest}%</td>
                           <td className="px-3 py-2 text-right text-foreground">₹{adj.interest.toFixed(2)}</td>
                           <td className="px-3 py-2">
-                            <Input
-                              type="number"
-                              className="h-8 py-1 text-xs"
-                              placeholder="0.00"
-                              value={adj.amount}
-                              onChange={(e) => handleAdjustmentChange(bill.voucherId, e.target.value)}
+                            <Input type="number" className="h-8" placeholder="0.00" value={adj.amount} onChange={(e) => handleAdjustmentChange(bill.voucherId, e.target.value)}
                             />
                           </td>
                         </tr>

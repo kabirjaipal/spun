@@ -102,38 +102,30 @@ export default function ProfileClient({ user }: { user: UserProfileDetails }) {
 
         {/* Email - Read-only */}
         <div className="space-y-2">
-          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Email Address</Label>
+          <Label>Email Address</Label>
           <div className="relative">
             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
               <Mail className="h-4 w-4 text-muted-foreground" />
             </div>
-            <Input
-              value={user.email}
-              disabled
-              className="pl-10 bg-muted/40 cursor-not-allowed border-muted"
-            />
+            <Input value={user.email} disabled />
           </div>
           <p className="text-xs text-muted-foreground">Contact email cannot be changed.</p>
         </div>
 
         {/* Role - Read-only */}
         <div className="space-y-2">
-          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">System Role</Label>
+          <Label>System Role</Label>
           <div className="relative">
             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
               <ShieldAlert className="h-4 w-4 text-muted-foreground" />
             </div>
-            <Input
-              value={user.role.toUpperCase()}
-              disabled
-              className="pl-10 bg-muted/40 cursor-not-allowed border-muted font-mono tracking-wider"
-            />
+            <Input value={user.role.toUpperCase()} disabled />
           </div>
         </div>
 
         {/* Name - Editable */}
         <div className="space-y-2">
-          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Display Name</Label>
+          <Label>Display Name</Label>
           <div className="relative">
             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
               <User className="h-4 w-4 text-muted-foreground" />
@@ -154,7 +146,7 @@ export default function ProfileClient({ user }: { user: UserProfileDetails }) {
 
           {/* New Password */}
           <div className="space-y-2">
-            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">New Password</Label>
+            <Label>New Password</Label>
             <div className="relative">
               <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                 <Key className="h-4 w-4 text-muted-foreground" />
@@ -171,7 +163,7 @@ export default function ProfileClient({ user }: { user: UserProfileDetails }) {
 
           {/* Confirm Password */}
           <div className="space-y-2">
-            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Confirm New Password</Label>
+            <Label>Confirm New Password</Label>
             <div className="relative">
               <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                 <Key className="h-4 w-4 text-muted-foreground" />

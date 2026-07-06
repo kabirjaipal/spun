@@ -9,6 +9,7 @@ import { UserPermission } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { APP_NAME } from "@/lib/constants";
+import { Button } from "@/components/ui/button";
 
 // 1. Sidebar Context and Provider for global responsive & collapse state
 interface SidebarContextType {
@@ -79,6 +80,14 @@ export default function DashboardSidebar({
 }: DashboardSidebarProps) {
   const pathname = usePathname();
   const { isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen } = useSidebar();
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+
+  const toggleGroup = (groupName: string) => {
+    setCollapsedGroups((prev) => ({
+      ...prev,
+      [groupName]: !prev[groupName],
+    }));
+  };
 
   // Helper for rendering icons dynamically
   const renderIcon = (iconName: string) => {
@@ -88,10 +97,10 @@ export default function DashboardSidebar({
 
   // Group permissions by pageGroup
   const groups = permissions
-    .filter((p) => 
-      p.accessItem !== "ledger_groups" && 
-      p.accessItem !== "ledgers" && 
-      p.accessItem !== "jobs" && 
+    .filter((p) =>
+      p.accessItem !== "ledger_groups" &&
+      p.accessItem !== "ledgers" &&
+      p.accessItem !== "jobs" &&
       p.accessItem !== "mills" &&
       p.accessItem !== "inventory_categories" &&
       p.accessItem !== "inventory_groups" &&
@@ -131,13 +140,14 @@ export default function DashboardSidebar({
           collapsed && "px-0 justify-center"
         )}>
           {collapsed ? (
-            <button
+            <Button
+              variant="outline"
+              size="icon-sm"
               onClick={() => setIsCollapsed(false)}
-              className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer transition-all"
               title="Expand Sidebar"
             >
               <Icons.ChevronRight className="h-4 w-4" />
-            </button>
+            </Button>
           ) : (
             <>
               <div className="flex items-center gap-2">
@@ -149,21 +159,23 @@ export default function DashboardSidebar({
                 </span>
               </div>
               {isMobile ? (
-                <button
+                <Button
+                  variant="outline"
+                  size="icon-sm"
                   onClick={() => setIsMobileOpen(false)}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer transition-all"
                   title="Close Sidebar"
                 >
                   <Icons.X className="h-4 w-4" />
-                </button>
+                </Button>
               ) : (
-                <button
+                <Button
+                  variant="outline"
+                  size="icon-sm"
                   onClick={() => setIsCollapsed(true)}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer transition-all"
                   title="Collapse Sidebar"
                 >
                   <Icons.ChevronLeft className="h-4 w-4" />
-                </button>
+                </Button>
               )}
             </>
           )}
@@ -179,7 +191,7 @@ export default function DashboardSidebar({
             <Link
               href={dashboardHref}
               onClick={clickHandler}
-              title={collapsed ? "Dashboard Overview" : undefined}
+              title={collapsed ? "Dashboard" : undefined}
               className={cn(
                 "flex items-center gap-2.5 rounded-md py-1.5 font-medium transition-all duration-150",
                 collapsed ? "justify-center px-0" : "px-3",
@@ -189,47 +201,62 @@ export default function DashboardSidebar({
               )}
             >
               <Icons.LayoutDashboard className="h-4 w-4 shrink-0" />
-              {!collapsed && <span>Dashboard Overview</span>}
+              {!collapsed && <span>Dashboard</span>}
             </Link>
           </div>
 
           {/* Gateway Menu Panels */}
-          {sortedGroupNames.map((groupName) => (
-            <div key={groupName} className="space-y-1">
-              {!collapsed ? (
-                <span className="block px-3 py-0.5 text-xs font-bold uppercase tracking-wider text-muted-foreground/60">
-                  {groupName}
-                </span>
-              ) : (
-                <div className="h-px bg-border my-2 mx-1" />
-              )}
-              <div className="space-y-0.5">
-                {groups[groupName].map((item) => {
-                  const isActive = item.pageUrl
-                    ? pathname === item.pageUrl || pathname.startsWith(item.pageUrl + "/")
-                    : false;
-                  return (
-                    <Link
-                      key={item.accessItem}
-                      href={item.pageUrl || "/dashboard"}
-                      onClick={clickHandler}
-                      title={collapsed ? item.pageTitle : undefined}
-                      className={cn(
-                        "flex items-center gap-2.5 rounded-md py-1.5 font-medium transition-all duration-150",
-                        collapsed ? "justify-center px-0" : "px-3",
-                        isActive
-                          ? "bg-primary text-primary-foreground shadow-sm font-semibold"
-                          : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
-                      )}
-                    >
-                      {renderIcon(item.pageIcon || "File")}
-                      {!collapsed && <span>{item.pageTitle}</span>}
-                    </Link>
-                  );
-                })}
+          {sortedGroupNames.map((groupName) => {
+            const isGroupCollapsed = !!collapsedGroups[groupName];
+            return (
+              <div key={groupName} className="space-y-1">
+                {!collapsed ? (
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    onClick={() => toggleGroup(groupName)}
+                    className="w-full !justify-between !px-3 font-bold uppercase tracking-wider text-[10px] text-muted-foreground/60 hover:text-foreground"
+                  >
+                    <span>{groupName}</span>
+                    {isGroupCollapsed ? (
+                      <Icons.ChevronRight className="h-3 w-3" />
+                    ) : (
+                      <Icons.ChevronDown className="h-3 w-3" />
+                    )}
+                  </Button>
+                ) : (
+                  <div className="h-px bg-border my-2 mx-1" />
+                )}
+                {!isGroupCollapsed && (
+                  <div className="space-y-0.5">
+                    {groups[groupName].map((item) => {
+                      const isActive = item.pageUrl
+                        ? pathname === item.pageUrl || pathname.startsWith(item.pageUrl + "/")
+                        : false;
+                      return (
+                        <Link
+                          key={item.accessItem}
+                          href={item.pageUrl || "/dashboard"}
+                          onClick={clickHandler}
+                          title={collapsed ? item.pageTitle : undefined}
+                          className={cn(
+                            "flex items-center gap-2.5 rounded-md py-1.5 font-medium transition-all duration-150",
+                            collapsed ? "justify-center px-0" : "px-3",
+                            isActive
+                              ? "bg-primary text-primary-foreground shadow-sm font-semibold"
+                              : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
+                          )}
+                        >
+                          {renderIcon(item.pageIcon || "File")}
+                          {!collapsed && <span>{item.pageTitle}</span>}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Sidebar Footer / User Profile & SignOut */}
@@ -247,13 +274,15 @@ export default function DashboardSidebar({
               >
                 {userName ? userName[0] : "U"}
               </Link>
-              <button
+              <Button
+                variant="outline"
+                size="icon-xs"
                 onClick={() => signOut({ callbackUrl: "/login" })}
                 title="Sign Out"
-                className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:border-destructive/20 active:scale-[0.95] transition-all duration-150 cursor-pointer shrink-0"
+                className="!h-7 !w-7 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/20"
               >
                 <Icons.LogOut className="h-3.5 w-3.5" />
-              </button>
+              </Button>
             </>
           ) : (
             <>
@@ -267,13 +296,15 @@ export default function DashboardSidebar({
                   {role}
                 </span>
               </Link>
-              <button
+              <Button
+                variant="outline"
+                size="icon-xs"
                 onClick={() => signOut({ callbackUrl: "/login" })}
                 title="Sign Out"
-                className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:border-destructive/20 active:scale-[0.95] transition-all duration-150 cursor-pointer shrink-0"
+                className="!h-7 !w-7 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/20"
               >
                 <Icons.LogOut className="h-3.5 w-3.5" />
-              </button>
+              </Button>
             </>
           )}
         </div>

@@ -595,17 +595,17 @@ export default function JobInwardClient({
             {/* Job Party */}
             <div className="space-y-1.5 md:col-span-2">
               <div className="flex items-center justify-between">
-                <Label className="text-xs font-semibold uppercase text-foreground">
+                <Label >
                   Job Party
                 </Label>
                 {canCreate && (
-                  <button
+                  <Button
                     type="button"
                     onClick={() => setShowJobModal(true)}
-                    className="text-[10px] font-bold text-primary hover:underline uppercase"
+                    variant="link" size="sm" className="p-0 h-auto"
                   >
                     + New Job Party
-                  </button>
+                  </Button>
                 )}
               </div>
               <Select
@@ -615,7 +615,7 @@ export default function JobInwardClient({
                   setSelectedVoucherId("");
                 }}
               >
-                <SelectTrigger className="h-10">
+                <SelectTrigger>
                   <SelectValue placeholder="Choose Job worker" />
                 </SelectTrigger>
                 <SelectContent>
@@ -630,7 +630,7 @@ export default function JobInwardClient({
 
             {/* Outward Lot No / Challan */}
             <div className="space-y-1.5 md:col-span-2">
-              <Label className="text-xs font-semibold uppercase text-foreground">
+              <Label >
                 Outward Lot No / Challan
               </Label>
               <Select
@@ -638,7 +638,7 @@ export default function JobInwardClient({
                 onValueChange={setSelectedVoucherId}
                 disabled={!selectedJob}
               >
-                <SelectTrigger className="h-10">
+                <SelectTrigger>
                   <SelectValue
                     placeholder={
                       selectedJob
@@ -657,22 +657,17 @@ export default function JobInwardClient({
               </Select>
             </div>
 
-            {/* Inward Challan / Sr No. */}
+            {/* Voucher No. */}
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">
-                Inward Challan / Sr No.
+              <Label >
+                Voucher No.
               </Label>
-              <Input
-                value={voucherNo}
-                onChange={(e) => setVoucherNo(e.target.value)}
-                placeholder="e.g. JI-1020"
-                className="h-10"
-              />
+              <Input value={voucherNo} readOnly disabled placeholder="Fetching..." className="h-10" />
             </div>
 
             {/* Inward Date */}
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">
+              <Label >
                 Inward Date
               </Label>
               <Input
@@ -685,7 +680,7 @@ export default function JobInwardClient({
 
             {/* Remarks */}
             <div className="space-y-1.5 md:col-span-2">
-              <Label className="text-xs font-semibold uppercase text-foreground">
+              <Label >
                 Remarks
               </Label>
               <Input
@@ -697,7 +692,7 @@ export default function JobInwardClient({
             </div>
 
             <div className="space-y-1.5 md:col-span-2">
-              <Label className="text-xs font-semibold uppercase text-foreground">
+              <Label >
                 JOB CONDITION
               </Label>
               <RadioGroup
@@ -710,10 +705,7 @@ export default function JobInwardClient({
                 {(["finished", "refinished"] as const).map((value) => (
                   <div key={value} className="flex items-center space-x-2">
                     <RadioGroupItem value={value} id={`job-inward-${value}`} />
-                    <Label
-                      htmlFor={`job-inward-${value}`}
-                      className="text-sm font-medium text-foreground capitalize"
-                    >
+                    <Label htmlFor={`job-inward-${value}`} >
                       {value}
                     </Label>
                   </div>
@@ -732,19 +724,19 @@ export default function JobInwardClient({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label className="text-xs font-semibold uppercase text-foreground">
+                <Label >
                   Broker
                 </Label>
-                <button
+                <Button
                   type="button"
                   onClick={() => setShowBrokerDialog(true)}
-                  className="text-[10px] font-bold text-primary hover:underline uppercase"
+                  variant="link" size="sm" className="p-0 h-auto"
                 >
                   + New Broker
-                </button>
+                </Button>
               </div>
               <Select value={broker} onValueChange={setBroker}>
-                <SelectTrigger className="h-10 w-full">
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Choose Broker" />
                 </SelectTrigger>
                 <SelectContent>
@@ -758,19 +750,19 @@ export default function JobInwardClient({
             </div>
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label className="text-xs font-semibold uppercase text-foreground">
+                <Label >
                   Haste (Delivery Agent)
                 </Label>
-                <button
+                <Button
                   type="button"
                   onClick={() => setShowHasteDialog(true)}
-                  className="text-[10px] font-bold text-primary hover:underline uppercase"
+                  variant="link" size="sm" className="p-0 h-auto"
                 >
                   + New Haste
-                </button>
+                </Button>
               </div>
               <Select value={haste} onValueChange={setHaste}>
-                <SelectTrigger className="h-10 w-full">
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Choose Haste" />
                 </SelectTrigger>
                 <SelectContent>
@@ -786,7 +778,7 @@ export default function JobInwardClient({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">
+              <Label >
                 Vehicle No.
               </Label>
               <Input
@@ -797,7 +789,7 @@ export default function JobInwardClient({
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">
+              <Label >
                 Person Name
               </Label>
               <Input
@@ -887,7 +879,7 @@ export default function JobInwardClient({
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
                         <div className="space-y-1.5">
-                          <Label className="text-xs font-semibold uppercase text-foreground">
+                          <Label >
                             HSN Code
                           </Label>
                           <Input
@@ -903,7 +895,7 @@ export default function JobInwardClient({
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <Label className="text-xs font-semibold uppercase text-foreground">
+                          <Label >
                             Fold %
                           </Label>
                           <Input
@@ -919,7 +911,7 @@ export default function JobInwardClient({
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <Label className="text-xs font-semibold uppercase text-foreground">
+                          <Label >
                             Inward PCS
                           </Label>
                           <Input
@@ -935,7 +927,7 @@ export default function JobInwardClient({
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <Label className="text-xs font-semibold uppercase text-foreground">
+                          <Label >
                             Inward Qty
                           </Label>
                           <Input
@@ -952,7 +944,7 @@ export default function JobInwardClient({
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <Label className="text-xs font-semibold uppercase text-foreground">
+                          <Label >
                             Rate (₹)
                           </Label>
                           <Input
@@ -984,7 +976,7 @@ export default function JobInwardClient({
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                     {/* Select Item */}
                     <div className="md:col-span-4 space-y-1.5">
-                      <Label className="text-xs font-semibold uppercase text-foreground">
+                      <Label >
                         Select Item
                       </Label>
                       <Select
@@ -993,7 +985,7 @@ export default function JobInwardClient({
                           updateLine(line.id, "inventoryId", v)
                         }
                       >
-                        <SelectTrigger className="h-10 w-full">
+                        <SelectTrigger className="w-full">
                           <SelectValue placeholder="Select item" />
                         </SelectTrigger>
                         <SelectContent>
@@ -1011,7 +1003,7 @@ export default function JobInwardClient({
 
                     {/* HSN Code */}
                     <div className="md:col-span-2 space-y-1.5">
-                      <Label className="text-xs font-semibold uppercase text-foreground">
+                      <Label >
                         HSN Code
                       </Label>
                       <Input
@@ -1021,13 +1013,13 @@ export default function JobInwardClient({
                         }
                         placeholder="HSN Code"
                         readOnly
-                        className="h-10 border-border/60 bg-muted/30 text-muted-foreground shadow-none cursor-not-allowed focus-visible:ring-0 focus-visible:ring-offset-0"
+                        className="h-10"
                       />
                     </div>
 
                     {/* Fold */}
                     <div className="md:col-span-2 space-y-1.5">
-                      <Label className="text-xs font-semibold uppercase text-foreground">
+                      <Label >
                         Fold %
                       </Label>
                       <Input
@@ -1037,13 +1029,13 @@ export default function JobInwardClient({
                           updateLine(line.id, "fold", e.target.value)
                         }
                         readOnly
-                        className="h-10 text-right border-border/60 bg-muted/30 text-muted-foreground shadow-none cursor-not-allowed focus-visible:ring-0 focus-visible:ring-offset-0"
+                        className="h-10 text-right"
                       />
                     </div>
 
                     {/* Inward PCS */}
                     <div className="md:col-span-2 space-y-1.5">
-                      <Label className="text-xs font-semibold uppercase text-foreground">
+                      <Label >
                         Inward PCS
                       </Label>
                       <div className="flex items-center gap-1.5">
@@ -1054,7 +1046,7 @@ export default function JobInwardClient({
                             updateLine(line.id, "pcs", e.target.value)
                           }
                           readOnly
-                          className="h-10 text-right w-full border-border/60 bg-muted/30 text-muted-foreground shadow-none cursor-not-allowed focus-visible:ring-0 focus-visible:ring-offset-0"
+                          className="h-10 text-right w-full"
                         />
                         <Button
                           type="button"
@@ -1070,7 +1062,7 @@ export default function JobInwardClient({
 
                     {/* Inward Qty */}
                     <div className="md:col-span-2 space-y-1.5">
-                      <Label className="text-xs font-semibold uppercase text-foreground">
+                      <Label >
                         Inward Qty
                       </Label>
                       <Input
@@ -1080,13 +1072,13 @@ export default function JobInwardClient({
                           updateLine(line.id, "quantity", e.target.value)
                         }
                         readOnly
-                        className="h-10 text-right border-border/60 bg-muted/30 text-muted-foreground shadow-none cursor-not-allowed focus-visible:ring-0 focus-visible:ring-offset-0"
+                        className="h-10 text-right"
                       />
                     </div>
 
                     {/* Outward Stats */}
                     <div className="md:col-span-4 space-y-1.5">
-                      <Label className="text-xs font-semibold uppercase text-muted-foreground">
+                      <Label >
                         Outward (PCS/Mtr)
                       </Label>
                       <div className="h-10 flex items-center bg-muted/40 px-3 rounded-lg border border-border/50 text-xs font-medium text-muted-foreground">
@@ -1096,7 +1088,7 @@ export default function JobInwardClient({
 
                     {/* Shortage */}
                     <div className="md:col-span-3 space-y-1.5">
-                      <Label className="text-xs font-semibold uppercase text-muted-foreground">
+                      <Label >
                         Shortage %
                       </Label>
                       <div className="h-10 flex items-center bg-muted/40 px-3 rounded-lg border border-border/50 text-xs font-bold text-destructive">
@@ -1110,7 +1102,7 @@ export default function JobInwardClient({
 
                     {/* Rate */}
                     <div className="md:col-span-5 space-y-1.5">
-                      <Label className="text-xs font-semibold uppercase text-foreground">
+                      <Label >
                         Rate (₹)
                       </Label>
                       <Input
@@ -1120,7 +1112,7 @@ export default function JobInwardClient({
                           updateLine(line.id, "rate", e.target.value)
                         }
                         readOnly
-                        className="h-10 text-right border-border/60 bg-muted/30 text-muted-foreground shadow-none cursor-not-allowed focus-visible:ring-0 focus-visible:ring-offset-0"
+                        className="h-10 text-right"
                       />
                     </div>
                   </div>
@@ -1183,7 +1175,7 @@ export default function JobInwardClient({
           {/* Print Controls */}
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-2">
-              <Label className="text-xs uppercase font-semibold text-muted-foreground">
+              <Label >
                 Print Challan:
               </Label>
               <select
@@ -1209,7 +1201,7 @@ export default function JobInwardClient({
 
           <div className="flex-1 space-y-2">
             <div className="flex items-center justify-between">
-              <Label className="text-xs font-semibold uppercase text-foreground">
+              <Label >
                 Extra Charges
               </Label>
               <Button
@@ -1261,7 +1253,7 @@ export default function JobInwardClient({
                     updateExtraCharge(charge.id, "type", val)
                   }
                 >
-                  <SelectTrigger className="h-9">
+                  <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

@@ -273,17 +273,17 @@ export default function LedgersClient({
           <SheetBody className="space-y-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="col-span-1 sm:col-span-2 space-y-2">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Ledger Name *</Label>
+                <Label>Ledger Name *</Label>
                 <Input id="ledgerName" placeholder="e.g. HDFC Bank Current A/c" value={form.ledgerName} onChange={(e) => setForm((f) => ({ ...f, ledgerName: e.target.value }))} />
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Short Name</Label>
+                <Label>Short Name</Label>
                 <Input id="shortName" placeholder="e.g. HDFC" value={form.shortName} onChange={(e) => setForm((f) => ({ ...f, shortName: e.target.value }))} />
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Ledger Type *</Label>
+                <Label>Ledger Type *</Label>
                 <Select value={form.ledgerType} onValueChange={(v) => setForm((f) => ({ ...f, ledgerType: v }))}>
                   <SelectTrigger id="ledgerType"><SelectValue placeholder="Select type" /></SelectTrigger>
                   <SelectContent>
@@ -293,7 +293,7 @@ export default function LedgersClient({
               </div>
 
               <div className="col-span-1 sm:col-span-2 space-y-2">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Group</Label>
+                <Label>Group</Label>
                 {showNewGroupInput ? (
                   <div className="flex gap-2">
                     <Input placeholder="Enter new group name" value={form.newGroupName} onChange={(e) => setForm((f) => ({ ...f, newGroupName: e.target.value }))} />
@@ -313,22 +313,22 @@ export default function LedgersClient({
               </div>
 
               <div className="col-span-1 sm:col-span-2 space-y-2">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Address</Label>
+                <Label>Address</Label>
                 <Input id="address" placeholder="e.g. Ring Road, Surat" value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} />
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">GST No.</Label>
+                <Label>GST No.</Label>
                 <Input id="gstNo" placeholder="24AAAAB1234C1Z1" value={form.gstNo} onChange={(e) => setForm((f) => ({ ...f, gstNo: e.target.value.toUpperCase() }))} />
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">PAN No.</Label>
+                <Label>PAN No.</Label>
                 <Input id="panNo" placeholder="ABCDE1234F" value={form.panNo} onChange={(e) => setForm((f) => ({ ...f, panNo: e.target.value.toUpperCase() }))} />
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">MSME Registration Type</Label>
+                <Label>MSME Registration Type</Label>
                 <Select value={form.msmeType} onValueChange={(v) => setForm((f) => ({ ...f, msmeType: v }))}>
                   <SelectTrigger id="msmeType"><SelectValue placeholder="Select MSME status" /></SelectTrigger>
                   <SelectContent>
@@ -338,17 +338,17 @@ export default function LedgersClient({
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Credit Days</Label>
+                <Label>Credit Days</Label>
                 <Input type="number" id="creditDays" value={form.creditDays} onChange={(e) => setForm((f) => ({ ...f, creditDays: Number(e.target.value) }))} />
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Rate of Interest (%)</Label>
+                <Label>Rate of Interest (%)</Label>
                 <Input type="text" id="rateOfInterest" value={form.rateOfInterest} onChange={(e) => setForm((f) => ({ ...f, rateOfInterest: e.target.value }))} />
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">TDS Details</Label>
+                <Label>TDS Details</Label>
                 <div className="flex items-center gap-4 mt-2">
                   <label className="flex items-center gap-2 cursor-pointer text-sm font-normal text-muted-foreground select-none">
                     <input
@@ -360,7 +360,7 @@ export default function LedgersClient({
                     TDS Applicable
                   </label>
                   {form.isTdsApplicable && (
-                    <Input type="text" placeholder="TDS Rate %" className="w-24 h-9 text-sm" value={form.tdsRate} onChange={(e) => setForm((f) => ({ ...f, tdsRate: e.target.value }))} />
+                    <Input type="text" placeholder="TDS Rate %" className="w-24 h-9" value={form.tdsRate} onChange={(e) => setForm((f) => ({ ...f, tdsRate: e.target.value }))} />
                   )}
                 </div>
               </div>

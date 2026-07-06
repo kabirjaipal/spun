@@ -449,21 +449,21 @@ export default function JobOutwardClient({
             {/* Job Party */}
             <div className="space-y-1.5 md:col-span-2">
               <div className="flex items-center justify-between">
-                <Label className="text-xs font-semibold uppercase text-foreground">
+                <Label >
                   Job Party
                 </Label>
                 {canCreate && (
-                  <button
+                  <Button
                     type="button"
                     onClick={() => setShowJobModal(true)}
-                    className="text-[10px] font-bold text-primary hover:underline uppercase"
+                    variant="link" size="sm" className="p-0 h-auto"
                   >
                     + New Job Party
-                  </button>
+                  </Button>
                 )}
               </div>
               <Select value={selectedJob} onValueChange={setSelectedJob}>
-                <SelectTrigger className="h-10">
+                <SelectTrigger>
                   <SelectValue placeholder="Choose Job worker" />
                 </SelectTrigger>
                 <SelectContent>
@@ -479,19 +479,19 @@ export default function JobOutwardClient({
             {/* Broker */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label className="text-xs font-semibold uppercase text-foreground">
+                <Label >
                   Broker
                 </Label>
-                <button
+                <Button
                   type="button"
                   onClick={() => setShowBrokerDialog(true)}
-                  className="text-[10px] font-bold text-primary hover:underline uppercase"
+                  variant="link" size="sm" className="p-0 h-auto"
                 >
                   + New Broker
-                </button>
+                </Button>
               </div>
               <Select value={broker} onValueChange={setBroker}>
-                <SelectTrigger className="h-10 w-full">
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Choose Broker" />
                 </SelectTrigger>
                 <SelectContent>
@@ -507,19 +507,19 @@ export default function JobOutwardClient({
             {/* Haste */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label className="text-xs font-semibold uppercase text-foreground">
+                <Label >
                   Haste (Delivery Agent)
                 </Label>
-                <button
+                <Button
                   type="button"
                   onClick={() => setShowHasteDialog(true)}
-                  className="text-[10px] font-bold text-primary hover:underline uppercase"
+                  variant="link" size="sm" className="p-0 h-auto"
                 >
                   + New Haste
-                </button>
+                </Button>
               </div>
               <Select value={haste} onValueChange={setHaste}>
-                <SelectTrigger className="h-10 w-full">
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Choose Haste" />
                 </SelectTrigger>
                 <SelectContent>
@@ -532,22 +532,17 @@ export default function JobOutwardClient({
               </Select>
             </div>
 
-            {/* Challan / Sr No. */}
+            {/* Voucher No. */}
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">
-                Challan / Sr No.
+              <Label >
+                Voucher No.
               </Label>
-              <Input
-                value={voucherNo}
-                readOnly
-                placeholder="Fetching..."
-                className="h-10 border-border/60 bg-muted/30 text-muted-foreground shadow-none cursor-not-allowed focus-visible:ring-0 focus-visible:ring-offset-0"
-              />
+              <Input value={voucherNo} readOnly disabled placeholder="Fetching..." className="h-10" />
             </div>
 
             {/* Lot No. */}
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">
+              <Label >
                 Lot No.
               </Label>
               <Input
@@ -560,7 +555,7 @@ export default function JobOutwardClient({
 
             {/* Challan Date */}
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">
+              <Label >
                 Challan Date
               </Label>
               <Input
@@ -573,7 +568,7 @@ export default function JobOutwardClient({
 
             {/* Remarks */}
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">
+              <Label >
                 Remarks
               </Label>
               <Input
@@ -585,7 +580,7 @@ export default function JobOutwardClient({
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">
+              <Label >
                 JOB CONDITION
               </Label>
               <RadioGroup
@@ -598,10 +593,7 @@ export default function JobOutwardClient({
                 {(["finished", "refinished"] as const).map((value) => (
                   <div key={value} className="flex items-center space-x-2">
                     <RadioGroupItem value={value} id={`job-outward-${value}`} />
-                    <Label
-                      htmlFor={`job-outward-${value}`}
-                      className="text-sm font-medium text-foreground capitalize"
-                    >
+                    <Label htmlFor={`job-outward-${value}`} >
                       {value}
                     </Label>
                   </div>
@@ -618,7 +610,7 @@ export default function JobOutwardClient({
           </h2>
 
           <div className="space-y-1.5">
-            <Label className="text-xs font-semibold uppercase text-foreground">
+            <Label >
               Vehicle No.
             </Label>
             <Input
@@ -631,7 +623,7 @@ export default function JobOutwardClient({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">
+              <Label >
                 Driver Name
               </Label>
               <Input
@@ -642,7 +634,7 @@ export default function JobOutwardClient({
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">
+              <Label >
                 Transport
               </Label>
               <Input
@@ -656,7 +648,7 @@ export default function JobOutwardClient({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">
+              <Label >
                 LR No.
               </Label>
               <Input
@@ -667,7 +659,7 @@ export default function JobOutwardClient({
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">
+              <Label >
                 LR Date
               </Label>
               <Input
@@ -730,7 +722,7 @@ export default function JobOutwardClient({
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                   {/* Select Item */}
                   <div className="md:col-span-4 space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase text-foreground">
+                    <Label >
                       Select Item
                     </Label>
                     <Select
@@ -739,7 +731,7 @@ export default function JobOutwardClient({
                         updateLine(line.id, "inventoryId", v)
                       }
                     >
-                      <SelectTrigger className="h-10 w-full">
+                      <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select item" />
                       </SelectTrigger>
                       <SelectContent>
@@ -757,7 +749,7 @@ export default function JobOutwardClient({
 
                   {/* HSN Code */}
                   <div className="md:col-span-2 space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase text-foreground">
+                    <Label >
                       HSN Code
                     </Label>
                     <Input
@@ -772,7 +764,7 @@ export default function JobOutwardClient({
 
                   {/* Fold */}
                   <div className="md:col-span-2 space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase text-foreground">
+                    <Label >
                       Fold %
                     </Label>
                     <Input
@@ -787,7 +779,7 @@ export default function JobOutwardClient({
 
                   {/* PCS */}
                   <div className="md:col-span-2 space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase text-foreground">
+                    <Label >
                       PCS
                     </Label>
                     <div className="flex items-center gap-1.5">
@@ -816,7 +808,7 @@ export default function JobOutwardClient({
 
                   {/* Quantity (Meters) */}
                   <div className="md:col-span-2 space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase text-foreground">
+                    <Label >
                       Quantity (Mtrs)
                     </Label>
                     <Input
@@ -834,14 +826,14 @@ export default function JobOutwardClient({
 
                   {/* Job Type */}
                   <div className="md:col-span-3 space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase text-foreground">
+                    <Label >
                       Job Type
                     </Label>
                     <Select
                       value={line.jobType}
                       onValueChange={(v) => updateLine(line.id, "jobType", v)}
                     >
-                      <SelectTrigger className="h-10 w-full">
+                      <SelectTrigger className="w-full">
                         <SelectValue placeholder="Job type" />
                       </SelectTrigger>
                       <SelectContent>
@@ -856,7 +848,7 @@ export default function JobOutwardClient({
 
                   {/* Unit */}
                   <div className="md:col-span-3 space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase text-foreground">
+                    <Label >
                       Unit
                     </Label>
                     <Select
@@ -865,7 +857,7 @@ export default function JobOutwardClient({
                         updateLine(line.id, "jobRateType", v as any)
                       }
                     >
-                      <SelectTrigger className="h-10 w-full">
+                      <SelectTrigger className="w-full">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -877,7 +869,7 @@ export default function JobOutwardClient({
 
                   {/* Rate */}
                   <div className="md:col-span-3 space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase text-foreground">
+                    <Label >
                       Rate (₹)
                     </Label>
                     <Input
@@ -892,14 +884,14 @@ export default function JobOutwardClient({
 
                   {/* GST Rate */}
                   <div className="md:col-span-3 space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase text-foreground">
+                    <Label >
                       GST Rate
                     </Label>
                     <Select
                       value={line.gstRateId}
                       onValueChange={(v) => updateLine(line.id, "gstRateId", v)}
                     >
-                      <SelectTrigger className="h-10 w-full">
+                      <SelectTrigger className="w-full">
                         <SelectValue placeholder="Tax %" />
                       </SelectTrigger>
                       <SelectContent>
@@ -973,7 +965,7 @@ export default function JobOutwardClient({
           {/* Print Controls */}
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-2">
-              <Label className="text-xs uppercase font-semibold text-muted-foreground">
+              <Label >
                 Print Challan:
               </Label>
               <select
@@ -999,7 +991,7 @@ export default function JobOutwardClient({
 
           <div className="flex-1 space-y-2">
             <div className="flex items-center justify-between">
-              <Label className="text-xs font-semibold uppercase text-foreground">
+              <Label >
                 Extra Charges
               </Label>
               <Button
@@ -1051,7 +1043,7 @@ export default function JobOutwardClient({
                     updateExtraCharge(charge.id, "type", val)
                   }
                 >
-                  <SelectTrigger className="h-9">
+                  <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

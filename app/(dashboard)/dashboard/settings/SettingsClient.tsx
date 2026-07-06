@@ -165,12 +165,12 @@ export default function SettingsClient({
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Company Name</Label>
+              <Label>Company Name</Label>
               <Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} required />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Company Module / Type</Label>
+              <Label>Company Module / Type</Label>
               <select
                 value={companyType}
                 onChange={(e) => {
@@ -187,7 +187,7 @@ export default function SettingsClient({
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Market Category / Sub-Type</Label>
+              <Label>Market Category / Sub-Type</Label>
               <select
                 value={marketCategory}
                 onChange={(e) => setMarketCategory(e.target.value)}
@@ -202,22 +202,22 @@ export default function SettingsClient({
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Financial Year Start</Label>
+              <Label>Financial Year Start</Label>
               <Input type="date" value={financialYearStart} onChange={(e) => setFinancialYearStart(e.target.value)} required />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Phone Number</Label>
+              <Label>Phone Number</Label>
               <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91 99999 99999" />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Email Address</Label>
+              <Label>Email Address</Label>
               <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="contact@company.com" />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Nation Name</Label>
+              <Label>Nation Name</Label>
               <select
                 value={nationName}
                 onChange={(e) => {
@@ -239,7 +239,7 @@ export default function SettingsClient({
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Currency Symbol</Label>
+              <Label>Currency Symbol</Label>
               <select
                 value={currencySymbol}
                 onChange={(e) => setCurrencySymbol(e.target.value)}
@@ -258,27 +258,27 @@ export default function SettingsClient({
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2 space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Address</Label>
+              <Label>Address</Label>
               <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Company Head Office address" />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">City</Label>
+              <Label>City</Label>
               <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Surat" />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Pincode</Label>
+              <Label>Pincode</Label>
               <Input value={pincode} onChange={(e) => setPincode(e.target.value)} placeholder="395003" />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">State</Label>
+              <Label>State</Label>
               <Input value={state} onChange={(e) => setState(e.target.value)} placeholder="Gujarat" />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">State Code</Label>
+              <Label>State Code</Label>
               <Input value={stateCode} onChange={(e) => setStateCode(e.target.value)} placeholder="24" />
             </div>
           </div>
@@ -299,7 +299,7 @@ export default function SettingsClient({
             {gstApplicable && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">GST Registration Type</Label>
+                  <Label>GST Registration Type</Label>
                   <select
                     value={gstType}
                     onChange={(e) => setGstType(e.target.value)}
@@ -312,14 +312,14 @@ export default function SettingsClient({
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">GSTIN</Label>
+                  <Label>GSTIN</Label>
                   <Input value={gstNo} onChange={(e) => setGstNo(e.target.value.toUpperCase())} placeholder="24AAAAA0000A1Z5" />
                 </div>
               </div>
             )}
 
             <div className="space-y-2 max-w-sm">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">PAN</Label>
+              <Label>PAN</Label>
               <Input value={panNo} onChange={(e) => setPanNo(e.target.value.toUpperCase())} placeholder="ABCDE1234F" />
             </div>
           </div>
@@ -340,7 +340,7 @@ export default function SettingsClient({
             {msmeRegistered && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">MSME Category</Label>
+                  <Label>MSME Category</Label>
                   <select
                     value={msmeType}
                     onChange={(e) => setMsmeType(e.target.value)}
@@ -352,7 +352,7 @@ export default function SettingsClient({
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Udyam Registration No.</Label>
+                  <Label>Udyam Registration No.</Label>
                   <Input
                     value={msmeNo}
                     onChange={(e) => setMsmeNo(e.target.value.toUpperCase())}
@@ -367,7 +367,7 @@ export default function SettingsClient({
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Select Bank</Label>
+              <Label>Select Bank</Label>
               <select
                 value={customBankActive ? "custom" : selectedBankIndex ?? ""}
                 onChange={(e) => {
@@ -409,12 +409,12 @@ export default function SettingsClient({
 
             {customBankActive ? (
               <div className="space-y-2">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Bank Name</Label>
+                <Label>Bank Name</Label>
                 <Input value={bankName} onChange={(e) => setBankName(e.target.value)} placeholder="e.g. State Bank of India" />
               </div>
             ) : (
               <div className="space-y-2">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Bank Name</Label>
+                <Label>Bank Name</Label>
                 <span className="text-sm font-semibold text-foreground px-3 h-10 flex items-center bg-muted/20 border rounded-md">
                   {bankName}
                 </span>
@@ -422,17 +422,17 @@ export default function SettingsClient({
             )}
 
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Account Name</Label>
+              <Label>Account Name</Label>
               <Input value={bankAccountName} onChange={(e) => setBankAccountName(e.target.value)} placeholder="e.g. Acme Fabrics Pvt Ltd" />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Account Number</Label>
+              <Label>Account Number</Label>
               <Input value={accountNo} onChange={(e) => setAccountNo(e.target.value)} placeholder="e.g. 123456789012" />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Select Branch / IFSC</Label>
+              <Label>Select Branch / IFSC</Label>
               {customBankActive ? (
                 <span className="text-sm text-muted-foreground px-3 h-10 flex items-center bg-muted/10 border rounded-md select-none">
                   Type custom details below
@@ -467,17 +467,17 @@ export default function SettingsClient({
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">IFSC Code</Label>
+              <Label>IFSC Code</Label>
               <Input disabled={!customIfscActive} value={ifscCode} onChange={(e) => setIfscCode(e.target.value.toUpperCase())} placeholder="e.g. SBIN0001234" />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Branch Name</Label>
+              <Label>Branch Name</Label>
               <Input disabled={!customIfscActive} value={branchName} onChange={(e) => setBranchName(e.target.value)} placeholder="e.g. Ring Road Branch" />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Account Type</Label>
+              <Label>Account Type</Label>
               <select
                 value={accountType}
                 onChange={(e) => setAccountType(e.target.value)}

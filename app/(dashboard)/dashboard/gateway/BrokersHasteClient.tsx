@@ -135,24 +135,24 @@ export default function BrokersHasteClient({ initialData, canCreate, canUpdate, 
 
       {/* Type Tabs */}
       <div className="flex gap-1 mb-4 bg-muted/40 rounded-lg p-1 w-fit">
-        <button
+        <Button
           onClick={() => setActiveType("broker")}
-          className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer ${
-            activeType === "broker" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-          }`}
+          variant={activeType === "broker" ? "secondary" : "ghost"}
+          size="sm"
+          className="uppercase tracking-wider"
         >
           <User className="h-3.5 w-3.5" />
           Brokers
-        </button>
-        <button
+        </Button>
+        <Button
           onClick={() => setActiveType("haste")}
-          className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer ${
-            activeType === "haste" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-          }`}
+          variant={activeType === "haste" ? "secondary" : "ghost"}
+          size="sm"
+          className="uppercase tracking-wider"
         >
           <Truck className="h-3.5 w-3.5" />
           Haste (Delivery)
-        </button>
+        </Button>
       </div>
 
       <div className="rounded-lg border border-border bg-card overflow-hidden">
@@ -220,11 +220,11 @@ export default function BrokersHasteClient({ initialData, canCreate, canUpdate, 
 
           <SheetBody className="space-y-4">
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Name</Label>
+              <Label>Name</Label>
               <Input placeholder="Enter name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
             </div>
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Type</Label>
+              <Label>Type</Label>
               <Select value={form.type} onValueChange={(v) => setForm((f) => ({ ...f, type: v as "broker" | "haste" }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -236,19 +236,19 @@ export default function BrokersHasteClient({ initialData, canCreate, canUpdate, 
             {form.type === "broker" && (
               <>
                 <div className="space-y-2">
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">PAN Card</Label>
+                  <Label>PAN Card</Label>
                   <Input placeholder="Enter PAN Card" value={form.panCard} onChange={(e) => setForm((f) => ({ ...f, panCard: e.target.value }))} />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">GST</Label>
+                  <Label>GST</Label>
                   <Input placeholder="Enter GST" value={form.gst} onChange={(e) => setForm((f) => ({ ...f, gst: e.target.value }))} />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Phone Number</Label>
+                  <Label>Phone Number</Label>
                   <Input placeholder="Enter Phone Number" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Address</Label>
+                  <Label>Address</Label>
                   <Input placeholder="Enter Address" value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} />
                 </div>
               </>

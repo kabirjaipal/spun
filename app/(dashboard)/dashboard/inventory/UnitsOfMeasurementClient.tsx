@@ -160,11 +160,11 @@ export default function UnitsOfMeasurementClient({ data, setData, canCreate, can
           <SheetBody className="space-y-5">
             {errorMsg && <p className="text-sm font-semibold text-danger">{errorMsg}</p>}
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Unit Code</Label>
+              <Label>Unit Code</Label>
               <Input id="unitCode" placeholder="e.g. PCS, MTR, KGS" value={form.unitCode} onChange={(e) => setForm((f) => ({ ...f, unitCode: e.target.value }))} disabled={editing?.isFixed} />
             </div>
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Unit Name</Label>
+              <Label>Unit Name</Label>
               <Input id="unitName" placeholder="e.g. Pieces, Meters, Kilograms" value={form.unitName} onChange={(e) => setForm((f) => ({ ...f, unitName: e.target.value }))} />
             </div>
           </SheetBody>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -98,6 +98,22 @@ export default function DirectBillClient({
   const [lineItems, setLineItems] = useState<LineItem[]>([EMPTY_LINE()]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+
+  const fetchNextVoucherNo = async () => {
+    try {
+      const res = await fetch("/api/vouchers/next-number?type=purchase");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.nextVoucherNo) setVoucherNo(data.nextVoucherNo);
+      }
+    } catch (err) {
+      console.error("Error fetching next direct bill voucher number:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchNextVoucherNo();
+  }, []);
 
   // Filter ledgers suitable for purchase/expense debit (e.g. indirect expenses, direct expenses, purchase accounts)
   const expenseLedgers = useMemo(() => {
@@ -247,6 +263,7 @@ export default function DirectBillClient({
       setSelectedCompany("");
       setRemarks("");
       setLineItems([EMPTY_LINE()]);
+      fetchNextVoucherNo();
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "Error saving direct bill.");
     } finally {
@@ -273,9 +290,9 @@ export default function DirectBillClient({
         <div className="rounded-lg border border-border bg-card p-5 shadow-sm space-y-4">
           <div className="grid gap-4 lg:grid-cols-4">
             <div className="space-y-1.5 col-span-1 md:col-span-2">
-              <Label className="text-xs font-semibold uppercase text-foreground">Company (Party)</Label>
+              <Label >Company (Party)</Label>
               <Select value={selectedCompany} onValueChange={setSelectedCompany}>
-                <SelectTrigger className="h-9">
+                <SelectTrigger>
                   <SelectValue placeholder="Choose company" />
                 </SelectTrigger>
                 <SelectContent>
@@ -289,12 +306,17 @@ export default function DirectBillClient({
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Voucher / Invoice No</Label>
-              <Input value={voucherNo} onChange={(e) => setVoucherNo(e.target.value)} placeholder="INV-001" />
+              <Label>Voucher No.</Label>
+              <Input
+                value={voucherNo}
+                readOnly
+                disabled
+                placeholder="Fetching..."
+              />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Date</Label>
+              <Label>Date</Label>
               <Input type="date" value={voucherDate} onChange={(e) => setVoucherDate(e.target.value)} />
             </div>
           </div>
@@ -313,7 +335,7 @@ export default function DirectBillClient({
                 return (
                   <div key={line.id} className="grid gap-3 grid-cols-1 md:grid-cols-[1.2fr_1.2fr_0.6fr_0.6fr_0.6fr_0.6fr_0.8fr_0.8fr_0.8fr_0.8fr_auto] items-end border-b border-border/20 pb-3">
                     <div className="space-y-2">
-                      <Label className="text-[10px] font-semibold uppercase text-muted-foreground">Item / Service</Label>
+                      <Label >Item / Service</Label>
                       <Select value={line.inventoryId} onValueChange={(val) => updateLine(line.id, "inventoryId", val)}>
                         <SelectTrigger><SelectValue placeholder="Item" /></SelectTrigger>
                         <SelectContent>
@@ -325,7 +347,7 @@ export default function DirectBillClient({
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-[10px] font-semibold uppercase text-muted-foreground">Expense Account</Label>
+                      <Label >Expense Account</Label>
                       <Select value={line.ledgerId} onValueChange={(val) => updateLine(line.id, "ledgerId", val)}>
                         <SelectTrigger><SelectValue placeholder="Expense Ledger" /></SelectTrigger>
                         <SelectContent>
@@ -337,27 +359,27 @@ export default function DirectBillClient({
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-[10px] font-semibold uppercase text-muted-foreground">Fold %</Label>
+                      <Label >Fold %</Label>
                       <Input type="number" value={line.fold} onChange={(e) => updateLine(line.id, "fold", e.target.value)} placeholder="100" />
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-[10px] font-semibold uppercase text-muted-foreground">PCS</Label>
+                      <Label >PCS</Label>
                       <Input type="number" value={line.pcs} onChange={(e) => updateLine(line.id, "pcs", e.target.value)} />
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-[10px] font-semibold uppercase text-muted-foreground">Qty / Mtr</Label>
+                      <Label >Qty / Mtr</Label>
                       <Input type="number" value={line.quantity} onChange={(e) => updateLine(line.id, "quantity", e.target.value)} />
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-[10px] font-semibold uppercase text-muted-foreground">Rate</Label>
+                      <Label >Rate</Label>
                       <Input type="number" value={line.rate} onChange={(e) => updateLine(line.id, "rate", e.target.value)} />
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-[10px] font-semibold uppercase text-muted-foreground">Tax Rate</Label>
+                      <Label >Tax Rate</Label>
                       <Select value={line.gstRateId} onValueChange={(val) => updateLine(line.id, "gstRateId", val)}>
                         <SelectTrigger><SelectValue placeholder="Tax %" /></SelectTrigger>
                         <SelectContent>
@@ -369,21 +391,21 @@ export default function DirectBillClient({
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-[10px] font-semibold uppercase text-muted-foreground">Amount</Label>
+                      <Label >Amount</Label>
                       <div className="h-9 flex items-center justify-end px-2 font-mono text-xs border border-border bg-muted/20 rounded">
                         ₹{total.amount.toFixed(2)}
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-[10px] font-semibold uppercase text-muted-foreground">Net Amount</Label>
+                      <Label >Net Amount</Label>
                       <div className="h-9 flex items-center justify-end px-2 font-mono text-xs border border-border bg-muted/20 rounded">
                         ₹{total.taxable.toFixed(2)}
                       </div>
                     </div>
 
                     <div className="space-y-2 text-right px-2 pb-2">
-                      <Label className="text-[10px] font-semibold uppercase text-muted-foreground">Total</Label>
+                      <Label >Total</Label>
                       <div className="h-9 flex items-center justify-end font-mono text-xs font-bold text-foreground">
                         ₹{total.net.toFixed(2)}
                       </div>
@@ -407,7 +429,7 @@ export default function DirectBillClient({
           </div>
 
           <div className="space-y-2">
-            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Remarks</Label>
+            <Label>Remarks</Label>
             <Input value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Service description/maintenance notes" />
           </div>
         </div>

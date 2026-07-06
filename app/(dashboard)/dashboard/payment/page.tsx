@@ -1,8 +1,8 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { mCompanies, mLedgers, tVouchers } from "@/lib/db/schema";
-import { and, eq, isNull, or, desc } from "drizzle-orm";
+import { mLedgers, tVouchers } from "@/lib/db/schema";
+import { and, eq, isNull, or, desc, ne } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
 import PaymentClient from "./PaymentClient";
 
@@ -22,24 +22,31 @@ export default async function PaymentPage() {
         partyId: tVouchers.partyId,
         totalAmount: tVouchers.totalAmount,
         remarks: tVouchers.remarks,
-        partyName: mCompanies.companyName,
+        partyName: mLedgers.ledgerName,
         lrNo: tVouchers.lrNo,
         bankName: tVouchers.bankName,
         paymentMethod: tVouchers.paymentMethod,
       })
       .from(tVouchers)
-      .leftJoin(mCompanies, eq(tVouchers.partyId, mCompanies.companyId))
+      .leftJoin(mLedgers, eq(tVouchers.partyId, mLedgers.ledgerId))
       .where(and(eq(tVouchers.companyId, companyId), eq(tVouchers.voucherType, "payment"), isNull(tVouchers.deletedOn)))
       .orderBy(desc(tVouchers.voucherDate))
       .limit(100),
     db
       .select({
-        companyId: mCompanies.companyId,
-        companyName: mCompanies.companyName,
+        companyId: mLedgers.ledgerId,
+        companyName: mLedgers.ledgerName,
       })
-      .from(mCompanies)
-      .where(and(eq(mCompanies.parentCompanyId, companyId), isNull(mCompanies.deletedOn)))
-      .orderBy(mCompanies.companyName),
+      .from(mLedgers)
+      .where(
+        and(
+          eq(mLedgers.companyId, companyId),
+          isNull(mLedgers.deletedOn),
+          ne(mLedgers.ledgerType, "cash"),
+          ne(mLedgers.ledgerType, "bank")
+        )
+      )
+      .orderBy(mLedgers.ledgerName),
     db
       .select({
         ledgerId: mLedgers.ledgerId,

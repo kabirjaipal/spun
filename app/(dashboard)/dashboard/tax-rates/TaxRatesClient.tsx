@@ -132,11 +132,11 @@ export default function TaxRatesClient({ initialData, canCreate, canUpdate, canD
 
           <SheetBody className="space-y-5">
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tax Name</Label>
+              <Label>Tax Name</Label>
               <Input id="taxName" placeholder="e.g. GST 18%" value={form.taxName} onChange={(e) => setForm((f) => ({ ...f, taxName: e.target.value }))} />
             </div>
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Rate (%)</Label>
+              <Label>Rate (%)</Label>
               <Input id="taxPercent" type="number" min={0} max={100} step={0.01} placeholder="e.g. 18" value={form.taxPercent} onChange={(e) => setForm((f) => ({ ...f, taxPercent: e.target.value }))} />
             </div>
           </SheetBody>

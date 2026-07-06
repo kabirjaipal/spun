@@ -284,22 +284,22 @@ export default function InventoryItemsClient({
           <SheetBody className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Item Code</Label>
+                <Label>Item Code</Label>
                 <Input id="inventoryCode" placeholder="FAB-001" value={form.inventoryCode} onChange={(e) => setForm((f) => ({ ...f, inventoryCode: e.target.value }))} />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Item Name</Label>
+                <Label>Item Name</Label>
                 <Input id="inventoryName" placeholder="Cotton Fabric 40s" value={form.inventoryName} onChange={(e) => setForm((f) => ({ ...f, inventoryName: e.target.value }))} />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">HSN Code</Label>
+                <Label>HSN Code</Label>
                 <Input id="hsnCode" placeholder="e.g. 5208" value={form.hsnCode} onChange={(e) => setForm((f) => ({ ...f, hsnCode: e.target.value }))} />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Unit</Label>
+                <Label>Unit</Label>
                 <Select value={form.unit} onValueChange={(v) => setForm((f) => ({ ...f, unit: v }))}>
                   <SelectTrigger id="unit"><SelectValue placeholder="Select unit" /></SelectTrigger>
                   <SelectContent>{unitsList.map((u) => <SelectItem key={u.unitCode} value={u.unitCode}>{u.unitCode} - {u.unitName}</SelectItem>)}</SelectContent>
@@ -309,7 +309,7 @@ export default function InventoryItemsClient({
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Inventory Group</Label>
+                <Label>Inventory Group</Label>
                 <Select value={form.inventoryGroupId} onValueChange={(v) => setForm((f) => ({ ...f, inventoryGroupId: v }))}>
                   <SelectTrigger id="inventoryGroupId"><SelectValue placeholder="Select Group" /></SelectTrigger>
                   <SelectContent>
@@ -319,7 +319,7 @@ export default function InventoryItemsClient({
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Inventory Category</Label>
+                <Label>Inventory Category</Label>
                 <Select value={form.inventoryCategoryId} onValueChange={(v) => setForm((f) => ({ ...f, inventoryCategoryId: v }))}>
                   <SelectTrigger id="inventoryCategoryId"><SelectValue placeholder="Select Category" /></SelectTrigger>
                   <SelectContent>
@@ -331,10 +331,10 @@ export default function InventoryItemsClient({
             </div>
 
             <div className="border-t border-border pt-4 space-y-4">
-              <Label className="text-xs font-bold uppercase tracking-wider text-foreground">GST & Tax Settings</Label>
+              <Label >GST & Tax Settings</Label>
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-2">
-                  <Label className="text-xs font-semibold uppercase text-muted-foreground">GST Type</Label>
+                  <Label >GST Type</Label>
                   <Select value={form.gstType} onValueChange={(v) => setForm((f) => ({ ...f, gstType: v }))}>
                     <SelectTrigger id="gstType"><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -344,11 +344,11 @@ export default function InventoryItemsClient({
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-xs font-semibold uppercase text-muted-foreground">GST %</Label>
+                  <Label >GST %</Label>
                   <Input id="gstPercent" type="number" step={0.01} value={form.gstPercent} onChange={(e) => setForm((f) => ({ ...f, gstPercent: e.target.value }))} />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-xs font-semibold uppercase text-muted-foreground">Tally Tax Rate</Label>
+                  <Label >Tally Tax Rate</Label>
                   <Select value={form.gstRateId} onValueChange={(v) => setForm((f) => ({ ...f, gstRateId: v }))}>
                     <SelectTrigger id="gstRateId"><SelectValue placeholder="Select rate" /></SelectTrigger>
                     <SelectContent>
@@ -361,7 +361,7 @@ export default function InventoryItemsClient({
             </div>
 
             <div className="border-t border-border pt-4 space-y-4">
-              <Label className="text-xs font-bold uppercase tracking-wider text-foreground">Stock Type & Consumption</Label>
+              <Label >Stock Type & Consumption</Label>
               <div className="flex items-center gap-6 py-2">
                 <label className="flex items-center gap-2 text-sm font-medium text-foreground cursor-pointer">
                   <input type="radio" name="isConsumable" checked={!form.isConsumable} onChange={() => setForm((f) => ({ ...f, isConsumable: false }))} className="w-4 h-4 accent-primary" />
@@ -376,7 +376,7 @@ export default function InventoryItemsClient({
               {form.isConsumable && (
                 <div className="p-3 bg-muted/40 rounded-lg space-y-3">
                   <div className="space-y-2">
-                    <Label className="text-xs font-semibold uppercase text-muted-foreground">Consume With (Associated Item)</Label>
+                    <Label >Consume With (Associated Item)</Label>
                     <Select value={form.consumeWithInventoryId} onValueChange={(v) => setForm((f) => ({ ...f, consumeWithInventoryId: v }))}>
                       <SelectTrigger id="consumeWithInventoryId"><SelectValue placeholder="Select Item" /></SelectTrigger>
                       <SelectContent>
@@ -389,11 +389,11 @@ export default function InventoryItemsClient({
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label className="text-xs font-semibold uppercase text-muted-foreground">Consumption Ratio</Label>
+                      <Label >Consumption Ratio</Label>
                       <Input id="consumptionRatio" type="number" step={0.0001} placeholder="e.g. 3.0" value={form.consumptionRatio} onChange={(e) => setForm((f) => ({ ...f, consumptionRatio: e.target.value }))} />
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-xs font-semibold uppercase text-muted-foreground">Shortage Percentage (%)</Label>
+                      <Label >Shortage Percentage (%)</Label>
                       <Input id="shortagePercent" type="number" step={0.01} placeholder="e.g. 5" value={form.shortagePercent} onChange={(e) => setForm((f) => ({ ...f, shortagePercent: e.target.value }))} />
                     </div>
                   </div>
@@ -403,11 +403,11 @@ export default function InventoryItemsClient({
 
             <div className="grid grid-cols-2 gap-4 border-t border-border pt-4">
               <div className="space-y-2">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Opening Qty</Label>
+                <Label>Opening Qty</Label>
                 <Input id="openingStockQty" type="number" step={0.01} value={form.openingStockQty} onChange={(e) => setForm((f) => ({ ...f, openingStockQty: e.target.value }))} />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Rate (₹)</Label>
+                <Label>Rate (₹)</Label>
                 <Input id="openingStockRate" type="number" step={0.01} value={form.openingStockRate} onChange={(e) => setForm((f) => ({ ...f, openingStockRate: e.target.value }))} />
               </div>
             </div>
@@ -430,7 +430,7 @@ export default function InventoryItemsClient({
 
           <SheetBody className="space-y-4">
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Item</Label>
+              <Label>Item</Label>
               <Select value={formulaTarget ? String(formulaTarget.inventoryId) : ""} onValueChange={(v) => {
                 const item = data.find((d) => d.inventoryId === Number(v));
                 setFormulaTarget(item || null);
@@ -445,15 +445,15 @@ export default function InventoryItemsClient({
             </div>
 
             <div className="border-t border-border pt-4">
-              <Label className="text-xs font-bold uppercase tracking-wider text-foreground mb-3 block">Formula</Label>
+              <Label className="mb-3 block">Formula</Label>
               <div className="flex items-end gap-2">
                 <div className="flex-1 space-y-1">
-                  <Label className="text-[10px] font-semibold uppercase text-muted-foreground">Input</Label>
+                  <Label >Input</Label>
                   <Input placeholder="e.g. 1 meter cloth" value={formulaLeft} onChange={(e) => setFormulaLeft(e.target.value)} />
                 </div>
                 <span className="text-lg font-bold text-muted-foreground pb-2">=</span>
                 <div className="flex-1 space-y-1">
-                  <Label className="text-[10px] font-semibold uppercase text-muted-foreground">Output</Label>
+                  <Label >Output</Label>
                   <Input placeholder="e.g. 3 liter color" value={formulaRight} onChange={(e) => setFormulaRight(e.target.value)} />
                 </div>
               </div>

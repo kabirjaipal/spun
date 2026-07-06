@@ -441,21 +441,21 @@ export default function MillOutwardClient({
 
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <Label className="text-xs font-semibold uppercase text-foreground">
+              <Label >
                 Mill Party
               </Label>
               {canCreate && (
-                <button
+                <Button
                   type="button"
                   onClick={() => setShowMillModal(true)}
-                  className="text-[10px] font-bold text-primary hover:underline uppercase"
+                  variant="link" size="sm" className="p-0 h-auto"
                 >
                   + New Mill Party
-                </button>
+                </Button>
               )}
             </div>
             <Select value={selectedMill} onValueChange={setSelectedMill}>
-              <SelectTrigger className="h-9">
+              <SelectTrigger>
                 <SelectValue placeholder="Choose Mill party" />
               </SelectTrigger>
               <SelectContent>
@@ -470,19 +470,19 @@ export default function MillOutwardClient({
 
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <Label className="text-xs font-semibold uppercase text-foreground">
+              <Label >
                 Broker
               </Label>
-              <button
+              <Button
                 type="button"
                 onClick={() => setShowBrokerDialog(true)}
-                className="text-[10px] font-bold text-primary hover:underline uppercase"
+                variant="link" size="sm" className="p-0 h-auto"
               >
                 + New Broker
-              </button>
+              </Button>
             </div>
             <Select value={broker} onValueChange={setBroker}>
-              <SelectTrigger className="h-9 w-full">
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Choose Broker" />
               </SelectTrigger>
               <SelectContent>
@@ -497,19 +497,19 @@ export default function MillOutwardClient({
 
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <Label className="text-xs font-semibold uppercase text-foreground">
+              <Label >
                 Haste (Delivery Agent)
               </Label>
-              <button
+              <Button
                 type="button"
                 onClick={() => setShowHasteDialog(true)}
-                className="text-[10px] font-bold text-primary hover:underline uppercase"
+                variant="link" size="sm" className="p-0 h-auto"
               >
                 + New Haste
-              </button>
+              </Button>
             </div>
             <Select value={haste} onValueChange={setHaste}>
-              <SelectTrigger className="h-9 w-full">
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Choose Haste" />
               </SelectTrigger>
               <SelectContent>
@@ -530,19 +530,14 @@ export default function MillOutwardClient({
           </h2>
 
           <div className="space-y-1.5">
-            <Label className="text-xs font-semibold uppercase text-foreground">
-              Challan No.
+            <Label >
+              Voucher No.
             </Label>
-            <Input
-              value={voucherNo}
-              readOnly
-              placeholder="Fetching..."
-              className="h-9 border-border/60 bg-muted/30 text-muted-foreground shadow-none cursor-not-allowed focus-visible:ring-0 focus-visible:ring-offset-0"
-            />
+            <Input value={voucherNo} readOnly disabled placeholder="Fetching..." className="h-9" />
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-xs font-semibold uppercase text-foreground">
+            <Label >
               Lot No.
             </Label>
             <Input
@@ -555,7 +550,7 @@ export default function MillOutwardClient({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">
+              <Label >
                 Challan Date
               </Label>
               <Input
@@ -566,7 +561,7 @@ export default function MillOutwardClient({
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">
+              <Label >
                 Remarks
               </Label>
               <Input
@@ -586,7 +581,7 @@ export default function MillOutwardClient({
           </h2>
 
           <div className="space-y-1.5">
-            <Label className="text-xs font-semibold uppercase text-foreground">
+            <Label >
               Vehicle No.
             </Label>
             <Input
@@ -599,7 +594,7 @@ export default function MillOutwardClient({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">
+              <Label >
                 Driver/Person Name
               </Label>
               <Input
@@ -610,7 +605,7 @@ export default function MillOutwardClient({
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">
+              <Label >
                 Transport
               </Label>
               <Input
@@ -624,7 +619,7 @@ export default function MillOutwardClient({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">
+              <Label >
                 LR No.
               </Label>
               <Input
@@ -635,7 +630,7 @@ export default function MillOutwardClient({
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-foreground">
+              <Label >
                 LR Date
               </Label>
               <Input
@@ -699,7 +694,7 @@ export default function MillOutwardClient({
                           updateLine(line.id, "inventoryId", v)
                         }
                       >
-                        <SelectTrigger className="h-9">
+                        <SelectTrigger>
                           <SelectValue placeholder="Select item" />
                         </SelectTrigger>
                         <SelectContent>
@@ -779,7 +774,7 @@ export default function MillOutwardClient({
                         value={line.jobType}
                         onValueChange={(v) => updateLine(line.id, "jobType", v)}
                       >
-                        <SelectTrigger className="h-9">
+                        <SelectTrigger>
                           <SelectValue placeholder="Process type" />
                         </SelectTrigger>
                         <SelectContent>
@@ -799,7 +794,7 @@ export default function MillOutwardClient({
                           updateLine(line.id, "jobRateType", v as any)
                         }
                       >
-                        <SelectTrigger className="h-9">
+                        <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -834,14 +829,14 @@ export default function MillOutwardClient({
                     </td>
 
                     <td className="py-3 pl-2 text-center">
-                      <button
+                      <Button
                         type="button"
                         onClick={() => removeLine(line.id)}
                         disabled={lineItems.length === 1}
-                        className="text-muted-foreground hover:text-destructive disabled:opacity-50 transition-colors cursor-pointer"
+                        variant="ghost" size="icon"
                       >
                         <Trash2 className="h-4 w-4" />
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                 );
@@ -855,7 +850,7 @@ export default function MillOutwardClient({
           {/* Print Controls */}
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-2">
-              <Label className="text-xs uppercase font-semibold text-muted-foreground">
+              <Label >
                 Print Challan:
               </Label>
               <select
@@ -881,7 +876,7 @@ export default function MillOutwardClient({
 
           <div className="flex-1 space-y-2">
             <div className="flex items-center justify-between">
-              <Label className="text-xs font-semibold uppercase text-foreground">
+              <Label >
                 Extra Charges
               </Label>
               <Button
@@ -933,7 +928,7 @@ export default function MillOutwardClient({
                     updateExtraCharge(charge.id, "type", val)
                   }
                 >
-                  <SelectTrigger className="h-9">
+                  <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

@@ -1,4 +1,7 @@
 "use client";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 
 import React, { useState } from "react";
 import { signIn } from "next-auth/react";
@@ -127,13 +130,10 @@ export default function LoginForm() {
           <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
             <div className="space-y-4">
               <div>
-                <label
-                  htmlFor="email"
-                  className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1"
-                >
+                <Label htmlFor="email" className="block mb-1" >
                   EMAIL ADDRESS
-                </label>
-                <input
+                </Label>
+                <Input
                   id="email"
                   name="email"
                   type="email"
@@ -141,19 +141,16 @@ export default function LoginForm() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="w-full"
                   placeholder="you@example.com"
                 />
               </div>
 
               <div>
-                <label
-                  htmlFor="password"
-                  className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1"
-                >
+                <Label htmlFor="password" className="block mb-1" >
                   PASSWORD
-                </label>
-                <input
+                </Label>
+                <Input
                   id="password"
                   name="password"
                   type="password"
@@ -161,20 +158,20 @@ export default function LoginForm() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="w-full"
                   placeholder="••••••••"
                 />
               </div>
             </div>
 
             <div>
-              <button
+              <Button
                 type="submit"
                 disabled={loading}
-                className="flex w-full justify-center items-center h-10 rounded-md bg-primary px-3 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                className="w-full"
               >
                 {loading ? "Signing in..." : "SIGN IN"}
-              </button>
+              </Button>
             </div>
 
             <div className="relative flex py-2 items-center">
@@ -184,7 +181,7 @@ export default function LoginForm() {
             </div>
 
             <div>
-              <button
+              <Button
                 type="button"
                 disabled={loading}
                 onClick={async () => {
@@ -197,7 +194,7 @@ export default function LoginForm() {
                     setLoading(false);
                   }
                 }}
-                className="flex w-full justify-center items-center h-10 gap-2 rounded-md border border-border bg-secondary px-3 py-2.5 text-sm font-semibold text-secondary-foreground shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                variant="secondary" className="w-full"
               >
                 <svg className="h-4 w-4" viewBox="0 0 24 24" width="24" height="24" xmlns="http://www.w3.org/2000/svg">
                   <g transform="matrix(1, 0, 0, 1, 0, 0)">
@@ -208,7 +205,7 @@ export default function LoginForm() {
                   </g>
                 </svg>
                 <span>SIGN IN WITH GOOGLE</span>
-              </button>
+              </Button>
             </div>
           </form>
         </div>

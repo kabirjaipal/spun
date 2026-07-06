@@ -19,14 +19,14 @@ import { writeAuditLog } from "@/lib/audit";
 import { calculatePreTaxDiscount } from "@/lib/utils";
 
 const DEFAULT_PREFIXES: Record<string, string> = {
-  sale: "INV-",
-  purchase: "PUR-",
+  sale: "S-",
+  purchase: "P-",
   purchase_return: "PR-",
   credit_note: "CN-",
   debit_note: "DN-",
-  receipt: "REC-",
-  payment: "PAY-",
-  journal: "JR-",
+  receipt: "R-",
+  payment: "PM-",
+  journal: "J-",
   job_outward: "JO-",
   job_inward: "JI-",
   mill_outward: "MO-",
@@ -710,8 +710,7 @@ export async function POST(request: Request) {
           );
         const partyLedger = await tx.query.mLedgers.findFirst({
           where: and(
-            eq(mLedgers.referenceId, Number(partyId)),
-            eq(mLedgers.ledgerType, "company"),
+            eq(mLedgers.ledgerId, Number(partyId)),
             eq(mLedgers.companyId, companyId),
             isNull(mLedgers.deletedOn),
           ),
@@ -747,8 +746,7 @@ export async function POST(request: Request) {
           );
         const partyLedger = await tx.query.mLedgers.findFirst({
           where: and(
-            eq(mLedgers.referenceId, Number(partyId)),
-            eq(mLedgers.ledgerType, "company"),
+            eq(mLedgers.ledgerId, Number(partyId)),
             eq(mLedgers.companyId, companyId),
             isNull(mLedgers.deletedOn),
           ),
@@ -833,20 +831,38 @@ export async function GET(request: Request) {
       );
     const pId = Number(partyId);
 
+    const ledger = await db.query.mLedgers.findFirst({
+      where: and(
+        eq(mLedgers.ledgerId, pId),
+        eq(mLedgers.companyId, companyId),
+        isNull(mLedgers.deletedOn),
+      ),
+    });
+
+    if (!ledger) {
+      return NextResponse.json([]);
+    }
+
+    const resolvedPartyId = (ledger.ledgerType === "company" || ledger.ledgerType === "customer") ? ledger.referenceId : null;
+
     let invoiceType = searchParams.get("invoiceType");
 
     if (!invoiceType) {
-      const subCompany = await db.query.mCompanies.findFirst({
-        where: and(
-          eq(mCompanies.companyId, pId),
-          eq(mCompanies.parentCompanyId, companyId),
-        ),
-      });
+      if (resolvedPartyId) {
+        const subCompany = await db.query.mCompanies.findFirst({
+          where: and(
+            eq(mCompanies.companyId, resolvedPartyId),
+            eq(mCompanies.parentCompanyId, companyId),
+          ),
+        });
 
-      if (!subCompany) {
+        if (!subCompany) {
+          return NextResponse.json([]);
+        }
+        invoiceType = "purchase";
+      } else {
         return NextResponse.json([]);
       }
-      invoiceType = "purchase";
     }
 
     const paymentType = invoiceType === "sale" ? "receipt" : "payment";
@@ -864,7 +880,7 @@ export async function GET(request: Request) {
         and(
           eq(tVouchers.companyId, companyId),
           eq(tVouchers.voucherType, invoiceType),
-          eq(tVouchers.partyId, pId),
+          resolvedPartyId ? eq(tVouchers.partyId, resolvedPartyId) : eq(tVouchers.partyId, 0),
           isNull(tVouchers.deletedOn),
         ),
       )
@@ -885,7 +901,9 @@ export async function GET(request: Request) {
             noteType,
             "purchase_return",
           ]),
-          eq(tVouchers.partyId, pId),
+          resolvedPartyId
+            ? or(eq(tVouchers.partyId, pId), eq(tVouchers.partyId, resolvedPartyId))
+            : eq(tVouchers.partyId, pId),
           isNull(tVouchers.deletedOn),
         ),
       );
@@ -902,18 +920,6 @@ export async function GET(request: Request) {
         }
       }
     }
-
-    const ledger = await db.query.mLedgers.findFirst({
-      where: and(
-        eq(mLedgers.referenceId, pId),
-        or(
-          eq(mLedgers.ledgerType, "company"),
-          eq(mLedgers.ledgerType, "customer"),
-        ),
-        eq(mLedgers.companyId, companyId),
-        isNull(mLedgers.deletedOn),
-      ),
-    });
 
     const outstandingInvoices = invoices
       .map((inv) => {
