@@ -714,6 +714,26 @@ export async function seedRealData() {
       return Number(v.voucherId);
     }
 
+    // 15.0. Opening Balance Journal Voucher
+    // Cash: Dr 50,000
+    // SBI Bank: Dr 500,000
+    // Owner Capital: Cr 1,012,500 (SBI 500,000 + Cash 50,000 + Opening Inventory Stock 462,500)
+    const vOpeningId = await createVoucher({
+      voucherType: "journal",
+      voucherNo: "OP-2026-0001",
+      voucherDate: "2026-04-01",
+      remarks: "Opening balances of capital, cash, bank, and stock",
+      totalAmount: "1012500.00",
+      taxAmount: "0.00",
+      netAmount: "1012500.00",
+    });
+
+    await tx.insert(tVoucherEntries).values([
+      { voucherId: vOpeningId, ledgerId: Number(ledgerSBI.ledgerId), entryType: "debit", amount: "500000.00", createdBy: userId, updatedBy: userId },
+      { voucherId: vOpeningId, ledgerId: Number(ledgerCash.ledgerId), entryType: "debit", amount: "50000.00", createdBy: userId, updatedBy: userId },
+      { voucherId: vOpeningId, ledgerId: Number(ledgerCapital.ledgerId), entryType: "credit", amount: "1012500.00", createdBy: userId, updatedBy: userId },
+    ]);
+
     // 15.1. Purchase from Apex Weaving Factory (Cotton Grey 40/40, 1000 MTR @ 42.00, 5% GST)
     // Taxable: 42,000.00, GST: 2,100.00 (CGST 1,050.00, SGST 1,050.00), Net: 44,100.00
     const vPurch1Id = await createVoucher({
@@ -1101,7 +1121,7 @@ export async function seedRealData() {
       inventoryId: Number(invPolySatin.inventoryId),
       voucherId: vCreditNoteId,
       movementType: "adjustment",
-      quantity: "-20.0000",
+      quantity: "20.0000",
       rate: "120.00",
       amount: "2400.00",
       createdBy: userId,
@@ -1155,7 +1175,7 @@ export async function seedRealData() {
       inventoryId: Number(invCottonGrey.inventoryId),
       voucherId: vDebitNoteId,
       movementType: "adjustment",
-      quantity: "-100.0000",
+      quantity: "0.0000",
       rate: "2.00",
       amount: "200.00",
       createdBy: userId,
