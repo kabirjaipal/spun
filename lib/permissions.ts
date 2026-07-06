@@ -54,6 +54,7 @@ export const ALL_PAGES: PageConfig[] = [
   { accessItem: "profit_loss", pageUrl: "/dashboard/profit-loss", pageTitle: "Profit & Loss", pageIcon: "TrendingUp", pageGroup: "Reports", accessGroup: "company" },
   { accessItem: "balance_sheet", pageUrl: "/dashboard/balance-sheet", pageTitle: "Balance Sheet", pageIcon: "Calculator", pageGroup: "Reports", accessGroup: "company" },
   { accessItem: "gst_reports", pageUrl: "/dashboard/gst", pageTitle: "GST Reports", pageIcon: "DollarSign", pageGroup: "Reports", accessGroup: "company" },
+  { accessItem: "day_book", pageUrl: "/dashboard/day-book", pageTitle: "Day Book", pageIcon: "BookOpen", pageGroup: "Reports", accessGroup: "company" },
   
   // Administration
   { accessItem: "users", pageUrl: "/dashboard/users", pageTitle: "Users List", pageIcon: "UserCheck", pageGroup: "Administration", accessGroup: "owner" },

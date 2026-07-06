@@ -1,4 +1,5 @@
 "use client";
+import { getLocalTodayString } from "@/lib/utils";
 
 import React, { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -91,7 +92,7 @@ export default function DirectBillClient({
   const [vouchers, setVouchers] = useState<DirectBillItem[]>(initialVouchers);
   const [isCreating, setIsCreating] = useState(false);
   const [voucherNo, setVoucherNo] = useState("");
-  const [voucherDate, setVoucherDate] = useState(new Date().toISOString().slice(0, 10));
+  const [voucherDate, setVoucherDate] = useState(getLocalTodayString());
   const [selectedCompany, setSelectedCompany] = useState("");
   const [purchaseType, setPurchaseType] = useState<"goods" | "service" | "other">("service");
   const [remarks, setRemarks] = useState("");

@@ -1,4 +1,5 @@
 "use client";
+import { getLocalTodayString } from "@/lib/utils";
 
 import React, { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
@@ -101,7 +102,7 @@ export default function DebitNoteClient({
   const [notes, setNotes] = useState<DebitNoteItem[]>(initialNotes);
   const [isCreating, setIsCreating] = useState(false);
   const [voucherNo, setVoucherNo] = useState("");
-  const [voucherDate, setVoucherDate] = useState(new Date().toISOString().slice(0, 10));
+  const [voucherDate, setVoucherDate] = useState(getLocalTodayString());
   const [selectedCompany, setSelectedCompany] = useState("");
   const [selectedInvoice, setSelectedInvoice] = useState("");
   const [remarks, setRemarks] = useState("");

@@ -17,7 +17,7 @@ import PrintInvoiceModal from "@/components/PrintInvoiceModal";
 import BrokerHasteDialog from "@/components/BrokerHasteDialog";
 import PieceMetersDialog from "@/components/PieceMetersDialog";
 import PartyFormDrawer from "@/components/PartyFormDrawer";
-import { calculatePreTaxDiscount } from "@/lib/utils";
+import { calculatePreTaxDiscount, getLocalTodayString } from "@/lib/utils";
 
 interface CompanyOption {
   companyId: number;
@@ -132,11 +132,11 @@ export default function PurchaseClient({
   const [selectedCompany, setSelectedCompany] = useState("");
   const [voucherNo, setVoucherNo] = useState("");
   const [voucherDate, setVoucherDate] = useState(
-    new Date().toISOString().slice(0, 10),
+    getLocalTodayString(),
   );
   const [invoiceNo, setInvoiceNo] = useState("");
   const [invoiceDate, setInvoiceDate] = useState(
-    new Date().toISOString().slice(0, 10),
+    getLocalTodayString(),
   );
   const [goodsName, setGoodsName] = useState("");
 
@@ -144,7 +144,7 @@ export default function PurchaseClient({
   const [broker, setBroker] = useState("");
   const [haste, setHaste] = useState("");
   const [lrNo, setLrNo] = useState("");
-  const [lrDate, setLrDate] = useState(new Date().toISOString().slice(0, 10));
+  const [lrDate, setLrDate] = useState(getLocalTodayString());
   const [transport, setTransport] = useState("");
   const [remarks, setRemarks] = useState("");
   const [vehicleNo, setVehicleNo] = useState("");

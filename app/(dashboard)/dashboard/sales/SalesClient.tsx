@@ -16,7 +16,7 @@ import { Plus, Trash2, Eye, FileText } from "lucide-react";
 import PrintInvoiceModal from "@/components/PrintInvoiceModal";
 import BrokerHasteDialog from "@/components/BrokerHasteDialog";
 import PartyFormDrawer from "@/components/PartyFormDrawer";
-import { calculatePreTaxDiscount } from "@/lib/utils";
+import { calculatePreTaxDiscount, getLocalTodayString } from "@/lib/utils";
 import PieceMetersDialog from "@/components/PieceMetersDialog";
 
 interface PartyOption {
@@ -135,7 +135,7 @@ export default function SalesClient({
   const [selectedParty, setSelectedParty] = useState("");
   const [invoiceNo, setInvoiceNo] = useState("");
   const [voucherDate, setVoucherDate] = useState(
-    new Date().toISOString().slice(0, 10),
+    getLocalTodayString(),
   );
 
   // Textile-specific logistics fields
@@ -144,7 +144,7 @@ export default function SalesClient({
   const [showBrokerDialog, setShowBrokerDialog] = useState(false);
   const [showHasteDialog, setShowHasteDialog] = useState(false);
   const [lrNo, setLrNo] = useState("");
-  const [lrDate, setLrDate] = useState(new Date().toISOString().slice(0, 10));
+  const [lrDate, setLrDate] = useState(getLocalTodayString());
   const [transport, setTransport] = useState("");
   const [remarks, setRemarks] = useState("");
   const [vehicleNo, setVehicleNo] = useState("");

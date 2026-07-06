@@ -1,4 +1,5 @@
 "use client";
+import { getLocalTodayString } from "@/lib/utils";
 
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -37,7 +38,7 @@ export default function LotTransferClient({
   const [transfers, setTransfers] = useState<TransferItem[]>(initialTransfers);
   const [isCreating, setIsCreating] = useState(false);
   const [voucherNo, setVoucherNo] = useState("");
-  const [voucherDate, setVoucherDate] = useState(new Date().toISOString().slice(0, 10));
+  const [voucherDate, setVoucherDate] = useState(getLocalTodayString());
   const [selectedLot, setSelectedLot] = useState("");
   const [customLot, setCustomLot] = useState("");
   const [selectedParty, setSelectedParty] = useState("");

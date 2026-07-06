@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Trash2, Loader2, Edit } from "lucide-react";
-import { formatDate } from "@/lib/utils";
+import { formatDate, getLocalTodayString } from "@/lib/utils";
 import PieceMetersDialog from "@/components/PieceMetersDialog";
 
 interface CompanyOption {
@@ -104,7 +104,7 @@ export default function SalesReturnClient({
   const [selectedCompany, setSelectedCompany] = useState("");
   const [voucherNo, setVoucherNo] = useState(""); // Credit Note / Sales Return No
   const [voucherDate, setVoucherDate] = useState(
-    new Date().toISOString().slice(0, 10),
+    getLocalTodayString(),
   );
 
   const fetchNextVoucherNo = async () => {
@@ -134,7 +134,7 @@ export default function SalesReturnClient({
 
   // Logistics
   const [lrNo, setLrNo] = useState("");
-  const [lrDate, setLrDate] = useState(new Date().toISOString().slice(0, 10));
+  const [lrDate, setLrDate] = useState(getLocalTodayString());
   const [transport, setTransport] = useState("");
   const [remarks, setRemarks] = useState("");
 

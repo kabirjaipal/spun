@@ -1,4 +1,5 @@
 "use client";
+import { getLocalTodayString } from "@/lib/utils";
 
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -113,7 +114,7 @@ export default function MillOutwardClient({
   const [selectedMill, setSelectedMill] = useState("");
   const [voucherNo, setVoucherNo] = useState("");
   const [voucherDate, setVoucherDate] = useState(
-    new Date().toISOString().slice(0, 10),
+    getLocalTodayString(),
   );
 
   const [broker, setBroker] = useState("");
@@ -121,7 +122,7 @@ export default function MillOutwardClient({
   const [showBrokerDialog, setShowBrokerDialog] = useState(false);
   const [showHasteDialog, setShowHasteDialog] = useState(false);
   const [lrNo, setLrNo] = useState("");
-  const [lrDate, setLrDate] = useState(new Date().toISOString().slice(0, 10));
+  const [lrDate, setLrDate] = useState(getLocalTodayString());
   const [transport, setTransport] = useState("");
   const [remarks, setRemarks] = useState("");
   const [vehicleNo, setVehicleNo] = useState("");
