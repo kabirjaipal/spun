@@ -1,10 +1,5 @@
-1.  wherever we are creating broker rn we are taking just name but we have to take broker name and pan card number and gst and address and phone no
-2.  on /purchase in items section we have pcs input and near setting icon keep settings icon alwyas viisble and add in ohter all places where pcs and qualitty we are showing and also in pop ui keep like this  1. pcs input + meters input = total  so 2 input and 1 input for total readonly 
-and then when he save then put in pcs and qulity input inside table totlal and user can manually enter pcs and quality direct in table but once user fill it using popup menu then he can't direct he have to use popup menu
-3. in transpategs pages like slaes and purhcasea nd return slaes and purchase and job outward/inward and mill inward/outward add a extra charges field like discount so user can add extra charges and then show in total
-4. changes return qtr kgs  to return qty mtr on purchase return and other pages 
-5. on sales/purchase return and job/mill inward page in item table we have when user click on edit icon in table we have to show that item below ( hsn code , fold , return pcs , return qty meter , rate ) they will be empty and user can fill vlaue then calcuatle things and we have to save this serpate to show timestap things so user can see all purchase return and and also we print chana 2 select inputs on job outward we have to add this on other pages like sales return purchsae return and mill/job inward
-6. we have added return no on purchase return add this same in sales purchase sales return pruchsae rturn mill/job outward and inward pages 
-7.  on job outward/inward below remarks input add a radio group to select this job is finished or refinished and save in db
-8. on recepit/payements page near echeque/ referno add bank name input too and when user select bank we have to show a payment methos select so user can select ( checque , neft , rtgs , imps , google pay , upi )  so when user select we have update placeholder and label of echeque/ referno input based on paymet method dynamic
-9.  on credit/debit notes page rename item to account head and show gateway/ master ledger here not the items and after pcs and qtr add a unit select to seelct pcs or mtr and after unit show taxable ammunt like purchase page and then after tax rate show all gst like purhcase page and after all gst then show net amount
+1. in recpets/payments page we have to show account header which  we have on gateway / account ( ledger ) master not parties  and also if cash/bank account select have seelcted cash then don't show bank name and payment method and checque no / refer id
+2.  remove ledger automaitc selection from backend
+3. in each voucher no on transtion page keep correct field name to voucher no not sr no or etc nad each name should be like if S-001 not INV -001
+4. change general entry page to journal entry page
+5. make sidebar groups collapsible
