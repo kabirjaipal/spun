@@ -113,8 +113,8 @@ export default function DashboardSidebar({
       return acc;
     }, {} as Record<string, UserPermission[]>);
 
-  // Group order: Masters, Transactions, Inventory, Reports, Administration
-  const groupOrder = ["Masters", "Transactions", "Inventory", "Reports", "Administration"];
+  // Group order: Masters, Transactions, Reports, Administration
+  const groupOrder = ["Masters", "Transactions", "Reports", "Administration"];
   const sortedGroupNames = Object.keys(groups).sort((a, b) => {
     const indexA = groupOrder.indexOf(a);
     const indexB = groupOrder.indexOf(b);

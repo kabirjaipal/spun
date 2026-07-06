@@ -17,6 +17,7 @@ const DEFAULT_PREFIXES: Record<string, string> = {
   job_inward: "JI-",
   mill_outward: "MO-",
   mill_inward: "MI-",
+  lot_transfer: "LT-",
 };
 
 export async function GET(request: Request) {

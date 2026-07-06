@@ -1,13 +1,12 @@
 "use client";
 import { getLocalTodayString } from "@/lib/utils";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Plus, ArrowLeft } from "lucide-react";
+import { ArrowLeftRight } from "lucide-react";
 
 interface TransferItem {
   voucherId: number;
@@ -36,7 +35,6 @@ export default function LotTransferClient({
   canCreate: boolean;
 }) {
   const [transfers, setTransfers] = useState<TransferItem[]>(initialTransfers);
-  const [isCreating, setIsCreating] = useState(false);
   const [voucherNo, setVoucherNo] = useState("");
   const [voucherDate, setVoucherDate] = useState(getLocalTodayString());
   const [selectedLot, setSelectedLot] = useState("");
@@ -45,6 +43,24 @@ export default function LotTransferClient({
   const [remarks, setRemarks] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+
+  const fetchNextVoucherNo = async () => {
+    try {
+      const res = await fetch("/api/vouchers/next-number?type=lot_transfer");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.nextVoucherNo) setVoucherNo(data.nextVoucherNo);
+      }
+    } catch (err) {
+      console.error("Error fetching next lot transfer voucher number:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (canCreate) {
+      fetchNextVoucherNo();
+    }
+  }, [canCreate]);
 
   async function handleSubmit() {
     if (!canCreate) return;
@@ -83,7 +99,7 @@ export default function LotTransferClient({
       const added: TransferItem = {
         voucherId: newVoucher.voucherId,
         voucherNo: newVoucher.voucherNo,
-        voucherDate: new Date(newVoucher.voucherDate),
+        voucherDate: newVoucher.voucherDate ? new Date(newVoucher.voucherDate) : null,
         lotNo: newVoucher.lotNo,
         partyId: newVoucher.partyId,
         remarks: newVoucher.remarks,
@@ -91,7 +107,6 @@ export default function LotTransferClient({
 
       setTransfers([added, ...transfers]);
       setMessage("Lot transfer recorded successfully.");
-      setIsCreating(false);
 
       // Reset
       setVoucherNo("");
@@ -99,6 +114,7 @@ export default function LotTransferClient({
       setCustomLot("");
       setSelectedParty("");
       setRemarks("");
+      fetchNextVoucherNo();
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "Error saving lot transfer.");
     } finally {
@@ -106,40 +122,50 @@ export default function LotTransferClient({
     }
   }
 
-  if (isCreating) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => setIsCreating(false)}>
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <div>
-              <h1 className="text-lg font-bold text-foreground uppercase tracking-wide">Record Lot Transfer</h1>
-              <p className="text-xs text-muted-foreground mt-0.5">Transfer inventory lot to a different job worker, mill, or company.</p>
-            </div>
-          </div>
-          <Badge variant="secondary">Lot Transfer</Badge>
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Lot Transfers</h1>
+          <p className="text-sm text-muted-foreground">
+            Record and track lot transfers between job workers, mills, and companies.
+          </p>
         </div>
+      </div>
 
+      {canCreate && (
         <div className="rounded-lg border border-border bg-card p-5 shadow-sm space-y-4">
+          <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">
+            Record New Transfer
+          </h2>
           <div className="grid gap-4 lg:grid-cols-2">
             <div className="space-y-2">
-              <Label>Transfer / Ref No</Label>
-              <Input value={voucherNo} onChange={(e) => setVoucherNo(e.target.value)} placeholder="TR-001" />
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Transfer / Ref No</Label>
+              <Input 
+                value={voucherNo} 
+                readOnly
+                disabled
+                placeholder="Fetching..." 
+                className="h-10 text-sm"
+              />
             </div>
 
             <div className="space-y-2">
-              <Label>Date</Label>
-              <Input type="date" value={voucherDate} onChange={(e) => setVoucherDate(e.target.value)} />
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Date</Label>
+              <Input 
+                type="date" 
+                value={voucherDate} 
+                onChange={(e) => setVoucherDate(e.target.value)} 
+                className="h-10 text-sm"
+              />
             </div>
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
             <div className="space-y-2">
-              <Label>Lot Number</Label>
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Lot Number</Label>
               <Select value={selectedLot} onValueChange={setSelectedLot}>
-                <SelectTrigger><SelectValue placeholder="Select Lot Number" /></SelectTrigger>
+                <SelectTrigger className="h-10 text-sm"><SelectValue placeholder="Select Lot Number" /></SelectTrigger>
                 <SelectContent>
                   {lotNumbers.map((l) => (
                     <SelectItem key={l} value={l}>{l}</SelectItem>
@@ -148,16 +174,19 @@ export default function LotTransferClient({
                 </SelectContent>
               </Select>
               {selectedLot === "custom" && (
-                <Input value={customLot} onChange={(e) => setCustomLot(e.target.value)}
+                <Input 
+                  value={customLot} 
+                  onChange={(e) => setCustomLot(e.target.value)}
                   placeholder="Enter custom lot number"
+                  className="h-10 text-sm mt-2"
                 />
               )}
             </div>
 
             <div className="space-y-2">
-              <Label>Transfer To Party</Label>
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Transfer To Party</Label>
               <Select value={selectedParty} onValueChange={setSelectedParty}>
-                <SelectTrigger><SelectValue placeholder="Choose Target Party" /></SelectTrigger>
+                <SelectTrigger className="h-10 text-sm"><SelectValue placeholder="Choose Target Party" /></SelectTrigger>
                 <SelectContent>
                   {targetParties.map((p) => (
                     <SelectItem key={`${p.type}-${p.id}`} value={String(p.id)}>
@@ -170,42 +199,40 @@ export default function LotTransferClient({
           </div>
 
           <div className="space-y-2">
-            <Label>Remarks</Label>
-            <Input value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Lot transfer for folding / processing" />
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Remarks</Label>
+            <Input 
+              value={remarks} 
+              onChange={(e) => setRemarks(e.target.value)} 
+              placeholder="Lot transfer for folding / processing" 
+              className="h-10 text-sm"
+            />
+          </div>
+
+          {message && <div className="rounded-lg border border-border bg-muted/50 p-4 text-sm text-muted-foreground">{message}</div>}
+
+          <div className="flex justify-end pt-2">
+            <Button onClick={handleSubmit} disabled={saving} className="h-10 px-8 font-bold uppercase">
+              {saving ? "Saving..." : "Record Transfer"}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <div className="rounded-lg border border-border bg-card overflow-hidden shadow-sm">
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-border">
+          <ArrowLeftRight className="h-4 w-4 text-muted-foreground" />
+          <div>
+            <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">
+              Transfer History
+            </h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Recent recorded lot transfers
+            </p>
           </div>
         </div>
 
-        {message && <div className="rounded-lg border border-border bg-muted/50 p-4 text-sm text-muted-foreground">{message}</div>}
-
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={() => setIsCreating(false)}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={saving || !canCreate}>
-            {saving ? "Saving..." : "Record Transfer"}
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Lot Transfers</h1>
-          <p className="text-sm text-muted-foreground">
-            Track lot transfers between job workers, mills, and companies.
-          </p>
-        </div>
-        {canCreate && (
-          <Button onClick={() => setIsCreating(true)} className="flex items-center gap-2">
-            <Plus className="h-4 w-4" /> Record Lot Transfer
-          </Button>
-        )}
-      </div>
-
-      <div className="rounded-lg border border-border bg-card overflow-hidden shadow-sm">
         <table className="w-full text-sm">
-          <thead className="bg-muted/40 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">
+          <thead className="bg-muted/40 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border">
             <tr>
               <th className="px-4 py-3">Transfer No</th>
               <th className="px-4 py-3">Date</th>
