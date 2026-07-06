@@ -8,17 +8,23 @@ import {
   tVoucherEntries,
   mInventory,
   tStockMovements,
+  tVouchers,
 } from "@/lib/db/schema";
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, isNull, sql, gte, lte, or } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
 import BalanceSheetClient from "./BalanceSheetClient";
 
-export default async function BalanceSheetPage() {
+export default async function BalanceSheetPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ from?: string; to?: string }>;
+}) {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
   if (!session.user.companyId) redirect("/setup-company");
 
   const companyId = Number(session.user.companyId);
+  const params = await searchParams;
 
   // 1. Fetch Company Info
   const company = await db
@@ -32,6 +38,9 @@ export default async function BalanceSheetPage() {
     redirect("/setup-company");
   }
 
+  const fromDate = params.from || "2025-04-01";
+  const toDate = params.to || "2026-03-31";
+
   // 2. Fetch Ledger Groups
   const groups = await db
     .select({
@@ -42,7 +51,7 @@ export default async function BalanceSheetPage() {
     .from(mLedgerGroups)
     .where(and(eq(mLedgerGroups.companyId, companyId), isNull(mLedgerGroups.deletedOn)));
 
-  // 3. Fetch Ledgers with balances
+  // 3. Fetch Ledgers with balances matching the selected date range
   const ledgers = await db
     .select({
       ledgerId: mLedgers.ledgerId,
@@ -54,11 +63,20 @@ export default async function BalanceSheetPage() {
     })
     .from(mLedgers)
     .leftJoin(tVoucherEntries, eq(mLedgers.ledgerId, tVoucherEntries.ledgerId))
+    .leftJoin(
+      tVouchers,
+      and(
+        eq(tVoucherEntries.voucherId, tVouchers.voucherId),
+        isNull(tVouchers.deletedOn),
+        gte(tVouchers.voucherDate, fromDate),
+        lte(tVouchers.voucherDate, toDate)
+      )
+    )
     .where(and(eq(mLedgers.companyId, companyId), isNull(mLedgers.deletedOn)))
     .groupBy(mLedgers.ledgerId, mLedgers.ledgerName, mLedgers.ledgerType, mLedgers.groupId)
     .orderBy(mLedgers.ledgerName);
 
-  // 4. Calculate Closing Stock dynamically from inventory + movements
+  // 4. Calculate Closing Stock dynamically from inventory + movements up to selected toDate
   const stockData = await db
     .select({
       inventoryId: mInventory.inventoryId,
@@ -69,8 +87,30 @@ export default async function BalanceSheetPage() {
       avgRateIn: sql<number>`coalesce(avg(case when ${tStockMovements.movementType} in ('purchase','opening') then ${tStockMovements.rate} else null end), 0)`,
     })
     .from(mInventory)
-    .leftJoin(tStockMovements, eq(mInventory.inventoryId, tStockMovements.inventoryId))
-    .where(and(eq(mInventory.companyId, companyId), isNull(mInventory.deletedOn)))
+    .leftJoin(
+      tStockMovements,
+      and(
+        eq(mInventory.inventoryId, tStockMovements.inventoryId),
+        isNull(tStockMovements.deletedOn)
+      )
+    )
+    .leftJoin(
+      tVouchers,
+      eq(tStockMovements.voucherId, tVouchers.voucherId)
+    )
+    .where(
+      and(
+        eq(mInventory.companyId, companyId),
+        isNull(mInventory.deletedOn),
+        or(
+          isNull(tStockMovements.voucherId),
+          and(
+            isNull(tVouchers.deletedOn),
+            lte(tVouchers.voucherDate, toDate)
+          )
+        )
+      )
+    )
     .groupBy(mInventory.inventoryId, mInventory.openingStockQty, mInventory.openingStockRate);
 
   let calculatedClosingStock = 0;
@@ -108,3 +148,4 @@ export default async function BalanceSheetPage() {
     />
   );
 }
+

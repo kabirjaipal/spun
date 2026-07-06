@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, Suspense } from "react";
 import { Download, Calendar, RefreshCw, Eye, EyeOff, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useRouter, useSearchParams } from "next/navigation";
 
 interface Company {
   companyId: number;
@@ -39,18 +40,29 @@ interface BalanceSheetClientProps {
 
 // Demo data removed
 
-export default function BalanceSheetClient({
+function BalanceSheetContent({
   company,
   groups,
   ledgers,
   calculatedClosingStock,
   canExport,
 }: BalanceSheetClientProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Period state from URL or defaults
+  const fromParam = searchParams.get("from") || "2025-04-01";
+  const toParam = searchParams.get("to") || "2026-03-31";
 
   const [isDetailed, setIsDetailed] = useState(true);
   const [showPeriodModal, setShowPeriodModal] = useState(false);
-  const [startDate, setStartDate] = useState("2025-04-01");
-  const [endDate, setEndDate] = useState("2026-03-31");
+  const [startDate, setStartDate] = useState(fromParam);
+  const [endDate, setEndDate] = useState(toParam);
+
+  const handleApplyPeriod = () => {
+    setShowPeriodModal(false);
+    router.push(`?from=${startDate}&to=${endDate}`);
+  };
 
   // Omission lists
   const [removedLines, setRemovedLines] = useState<string[]>([]);
@@ -555,9 +567,7 @@ export default function BalanceSheetClient({
           </div>
           <DialogFooter>
             <Button
-              onClick={() => {
-                setShowPeriodModal(false);
-              }}
+              onClick={handleApplyPeriod}
             >
               Apply Period
             </Button>
@@ -592,5 +602,13 @@ export default function BalanceSheetClient({
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+export default function BalanceSheetClient(props: BalanceSheetClientProps) {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-sm text-muted-foreground">Loading Balance Sheet...</div>}>
+      <BalanceSheetContent {...props} />
+    </Suspense>
   );
 }
