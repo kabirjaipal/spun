@@ -1,19 +1,28 @@
 import React from "react";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { mInventory, mCompanies, mLedgers, tVouchers } from "@/lib/db/schema";
-import { eq, sql, isNull, and, desc } from "drizzle-orm";
+import {
+  mInventory,
+  mCompanies,
+  mLedgers,
+  mLedgerGroups,
+  tVouchers,
+  tVoucherEntries,
+  tStockMovements,
+} from "@/lib/db/schema";
+import { eq, sql, isNull, and, gte, lte, or, inArray } from "drizzle-orm";
 import { redirect } from "next/navigation";
-import * as Icons from "lucide-react";
-import Link from "next/link";
-import DashboardCharts from "@/components/DashboardCharts";
+import DashboardClient from "./DashboardClient";
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ from?: string; to?: string }>;
+}) {
   const session = await auth();
 
   if (!session?.user?.id) redirect("/login");
 
-  // Owners without a company go to the admin dashboard
   if (session.user.role === "owner" && !session.user.companyId) {
     redirect("/dashboard/owner");
   }
@@ -21,6 +30,7 @@ export default async function DashboardPage() {
   if (!session.user.companyId) redirect("/setup-company");
 
   const companyIdVal = Number(session.user.companyId);
+  const params = await searchParams;
 
   // Fetch Company Info
   const company = await db.query.mCompanies.findFirst({
@@ -31,314 +41,233 @@ export default async function DashboardPage() {
     redirect("/setup-company");
   }
 
-  // Consolidated Database Queries in Parallel
-  const [
-    companiesCountRaw,
-    inventoryCountRaw,
-    ledgersCountRaw,
-    monthlyStats,
-    financialSummary,
-    recentVouchers,
-  ] = await Promise.all([
-    db
-      .select({ count: sql<number>`count(*)` })
-      .from(mCompanies)
-      .where(and(eq(mCompanies.parentCompanyId, companyIdVal), isNull(mCompanies.deletedOn))),
-    db
-      .select({ count: sql<number>`count(*)` })
-      .from(mInventory)
-      .where(and(eq(mInventory.companyId, companyIdVal), isNull(mInventory.deletedOn))),
-    db
-      .select({ count: sql<number>`count(*)` })
-      .from(mLedgers)
-      .where(and(eq(mLedgers.companyId, companyIdVal), isNull(mLedgers.deletedOn))),
-    db
-      .select({
-        month: sql<string>`to_char(${tVouchers.voucherDate}, 'Mon YYYY')`,
-        sortKey: sql<string>`to_char(${tVouchers.voucherDate}, 'YYYY-MM')`,
-        sales: sql<number>`coalesce(sum(case when ${tVouchers.voucherType} = 'sale' then ${tVouchers.netAmount} else 0 end), 0)`,
-        purchases: sql<number>`coalesce(sum(case when ${tVouchers.voucherType} = 'purchase' then ${tVouchers.netAmount} else 0 end), 0)`,
-      })
-      .from(tVouchers)
-      .where(and(eq(tVouchers.companyId, companyIdVal), isNull(tVouchers.deletedOn)))
-      .groupBy(sql`to_char(${tVouchers.voucherDate}, 'Mon YYYY')`, sql`to_char(${tVouchers.voucherDate}, 'YYYY-MM')`)
-      .orderBy(sql`to_char(${tVouchers.voucherDate}, 'YYYY-MM')`)
-      .limit(6),
-    db
-      .select({
-        totalSales: sql<number>`coalesce(sum(case when ${tVouchers.voucherType} = 'sale' then ${tVouchers.netAmount} else 0 end), 0)`,
-        totalPurchases: sql<number>`coalesce(sum(case when ${tVouchers.voucherType} = 'purchase' then ${tVouchers.netAmount} else 0 end), 0)`,
-        totalReceipts: sql<number>`coalesce(sum(case when ${tVouchers.voucherType} = 'receipt' then ${tVouchers.netAmount} else 0 end), 0)`,
-        totalPayments: sql<number>`coalesce(sum(case when ${tVouchers.voucherType} = 'payment' then ${tVouchers.netAmount} else 0 end), 0)`,
-      })
-      .from(tVouchers)
-      .where(and(eq(tVouchers.companyId, companyIdVal), isNull(tVouchers.deletedOn))),
-    db
-      .select({
-        voucherId: tVouchers.voucherId,
-        voucherNo: tVouchers.voucherNo,
-        voucherDate: tVouchers.voucherDate,
-        voucherType: tVouchers.voucherType,
-        netAmount: tVouchers.netAmount,
-      })
-      .from(tVouchers)
-      .where(and(eq(tVouchers.companyId, companyIdVal), isNull(tVouchers.deletedOn)))
-      .orderBy(desc(tVouchers.voucherDate), desc(tVouchers.voucherId))
-      .limit(5),
-  ]);
+  // Dynamic current FY (April start)
+  const today = new Date();
+  const fyStartYear = today.getMonth() >= 3 ? today.getFullYear() : today.getFullYear() - 1;
+  const fromDate = params.from || `${fyStartYear}-04-01`;
+  const toDate = params.to || `${fyStartYear + 1}-03-31`;
 
-  const summary = financialSummary[0] || {
-    totalSales: 0,
-    totalPurchases: 0,
-    totalReceipts: 0,
-    totalPayments: 0,
-  };
+  // 1. Fetch ledgers data (Cumulative balances up to toDate and Period balances)
+  const ledgersData = await db
+    .select({
+      ledgerId: mLedgers.ledgerId,
+      ledgerName: mLedgers.ledgerName,
+      ledgerType: mLedgers.ledgerType,
+      groupId: mLedgers.groupId,
+      groupName: mLedgerGroups.groupName,
+      creditDays: mLedgers.creditDays,
+      debitCumulative: sql<number>`coalesce(sum(case when ${tVouchers.voucherDate} <= ${toDate} and ${tVoucherEntries.entryType} = 'debit' then ${tVoucherEntries.amount} else 0 end), 0)`,
+      creditCumulative: sql<number>`coalesce(sum(case when ${tVouchers.voucherDate} <= ${toDate} and ${tVoucherEntries.entryType} = 'credit' then ${tVoucherEntries.amount} else 0 end), 0)`,
+      debitPeriod: sql<number>`coalesce(sum(case when ${tVouchers.voucherDate} >= ${fromDate} and ${tVouchers.voucherDate} <= ${toDate} and ${tVoucherEntries.entryType} = 'debit' then ${tVoucherEntries.amount} else 0 end), 0)`,
+      creditPeriod: sql<number>`coalesce(sum(case when ${tVouchers.voucherDate} >= ${fromDate} and ${tVouchers.voucherDate} <= ${toDate} and ${tVoucherEntries.entryType} = 'credit' then ${tVoucherEntries.amount} else 0 end), 0)`,
+    })
+    .from(mLedgers)
+    .leftJoin(mLedgerGroups, eq(mLedgers.groupId, mLedgerGroups.groupId))
+    .leftJoin(tVoucherEntries, eq(mLedgers.ledgerId, tVoucherEntries.ledgerId))
+    .leftJoin(
+      tVouchers,
+      and(
+        eq(tVoucherEntries.voucherId, tVouchers.voucherId),
+        isNull(tVouchers.deletedOn)
+      )
+    )
+    .where(and(eq(mLedgers.companyId, companyIdVal), isNull(mLedgers.deletedOn)))
+    .groupBy(
+      mLedgers.ledgerId,
+      mLedgers.ledgerName,
+      mLedgers.ledgerType,
+      mLedgers.groupId,
+      mLedgerGroups.groupName,
+      mLedgers.creditDays
+    );
 
-  const chartData = monthlyStats.map((s) => ({
-    month: s.month || "Unknown",
-    sales: Number(s.sales || 0),
-    purchases: Number(s.purchases || 0),
+  // 2. Fetch monthly sales and purchases stats for line charts
+  const monthlyStats = await db
+    .select({
+      month: sql<string>`to_char(${tVouchers.voucherDate}, 'Mon-YY')`,
+      sortKey: sql<string>`to_char(${tVouchers.voucherDate}, 'YYYY-MM')`,
+      sales: sql<number>`coalesce(sum(case when ${tVouchers.voucherType} = 'sale' then ${tVouchers.netAmount} else 0 end), 0)`,
+      purchases: sql<number>`coalesce(sum(case when ${tVouchers.voucherType} = 'purchase' then ${tVouchers.netAmount} else 0 end), 0)`,
+    })
+    .from(tVouchers)
+    .where(
+      and(
+        eq(tVouchers.companyId, companyIdVal),
+        isNull(tVouchers.deletedOn),
+        gte(tVouchers.voucherDate, fromDate),
+        lte(tVouchers.voucherDate, toDate)
+      )
+    )
+    .groupBy(sql`to_char(${tVouchers.voucherDate}, 'Mon-YY')`, sql`to_char(${tVouchers.voucherDate}, 'YYYY-MM')`)
+    .orderBy(sql`to_char(${tVouchers.voucherDate}, 'YYYY-MM')`);
+
+  // 3. Fetch vouchers and adjustments up to toDate for outstanding calculating
+  const allVouchers = await db
+    .select({
+      voucherId: tVouchers.voucherId,
+      voucherNo: tVouchers.voucherNo,
+      voucherType: tVouchers.voucherType,
+      voucherDate: tVouchers.voucherDate,
+      netAmount: tVouchers.netAmount,
+      partyId: tVouchers.partyId,
+      billDetails: tVouchers.billDetails,
+    })
+    .from(tVouchers)
+    .where(
+      and(
+        eq(tVouchers.companyId, companyIdVal),
+        isNull(tVouchers.deletedOn),
+        lte(tVouchers.voucherDate, toDate)
+      )
+    );
+
+  // 4. Fetch Inventory Opening Stock (before fromDate) and Closing Stock (up to toDate)
+  const openingStockData = await db
+    .select({
+      inventoryId: mInventory.inventoryId,
+      openingQty: mInventory.openingStockQty,
+      openingRate: mInventory.openingStockRate,
+      qtyIn: sql<number>`coalesce(sum(case when ${tStockMovements.movementType} in ('purchase','opening') and ${tVouchers.voucherDate} < ${fromDate} then ${tStockMovements.quantity} else 0 end), 0)`,
+      qtyOut: sql<number>`coalesce(sum(case when ${tStockMovements.movementType} = 'sale' and ${tVouchers.voucherDate} < ${fromDate} then ${tStockMovements.quantity} else 0 end), 0)`,
+      avgRateIn: sql<number>`coalesce(avg(case when ${tStockMovements.movementType} in ('purchase','opening') then ${tStockMovements.rate} else null end), 0)`,
+    })
+    .from(mInventory)
+    .leftJoin(
+      tStockMovements,
+      and(eq(mInventory.inventoryId, tStockMovements.inventoryId), isNull(tStockMovements.deletedOn))
+    )
+    .leftJoin(tVouchers, and(eq(tStockMovements.voucherId, tVouchers.voucherId), isNull(tVouchers.deletedOn)))
+    .where(and(eq(mInventory.companyId, companyIdVal), isNull(mInventory.deletedOn)))
+    .groupBy(mInventory.inventoryId, mInventory.openingStockQty, mInventory.openingStockRate);
+
+  let openingStock = 0;
+  for (const item of openingStockData) {
+    const qty = Number(item.openingQty) + Number(item.qtyIn) - Number(item.qtyOut);
+    const rate = Number(item.avgRateIn) > 0 ? Number(item.avgRateIn) : Number(item.openingRate);
+    openingStock += Math.max(0, qty) * rate;
+  }
+
+  const closingStockData = await db
+    .select({
+      inventoryId: mInventory.inventoryId,
+      openingQty: mInventory.openingStockQty,
+      openingRate: mInventory.openingStockRate,
+      qtyIn: sql<number>`coalesce(sum(case when ${tStockMovements.movementType} in ('purchase','opening') then ${tStockMovements.quantity} else 0 end), 0)`,
+      qtyOut: sql<number>`coalesce(sum(case when ${tStockMovements.movementType} = 'sale' then ${tStockMovements.quantity} else 0 end), 0)`,
+      avgRateIn: sql<number>`coalesce(avg(case when ${tStockMovements.movementType} in ('purchase','opening') then ${tStockMovements.rate} else null end), 0)`,
+    })
+    .from(mInventory)
+    .leftJoin(
+      tStockMovements,
+      and(eq(mInventory.inventoryId, tStockMovements.inventoryId), isNull(tStockMovements.deletedOn))
+    )
+    .leftJoin(tVouchers, and(eq(tStockMovements.voucherId, tVouchers.voucherId), isNull(tVouchers.deletedOn)))
+    .where(
+      and(
+        eq(mInventory.companyId, companyIdVal),
+        isNull(mInventory.deletedOn),
+        or(
+          isNull(tStockMovements.voucherId),
+          and(isNull(tVouchers.deletedOn), lte(tVouchers.voucherDate, toDate))
+        )
+      )
+    )
+    .groupBy(mInventory.inventoryId, mInventory.openingStockQty, mInventory.openingStockRate);
+
+  let closingStock = 0;
+  let closingStockQty = 0;
+  for (const item of closingStockData) {
+    const qty = Number(item.openingQty) + Number(item.qtyIn) - Number(item.qtyOut);
+    const rate = Number(item.avgRateIn) > 0 ? Number(item.avgRateIn) : Number(item.openingRate);
+    closingStock += Math.max(0, qty) * rate;
+    closingStockQty += Math.max(0, qty);
+  }
+
+  // 5. Fetch Inventory Outwards during the period
+  const inventoryOutwards = await db
+    .select({
+      quantity: sql<number>`coalesce(sum(${tStockMovements.quantity}), 0)`,
+      value: sql<number>`coalesce(sum(${tStockMovements.amount}), 0)`,
+    })
+    .from(tStockMovements)
+    .innerJoin(tVouchers, eq(tStockMovements.voucherId, tVouchers.voucherId))
+    .where(
+      and(
+        eq(tStockMovements.companyId, companyIdVal),
+        eq(tStockMovements.movementType, "sale"),
+        isNull(tStockMovements.deletedOn),
+        isNull(tVouchers.deletedOn),
+        gte(tVouchers.voucherDate, fromDate),
+        lte(tVouchers.voucherDate, toDate)
+      )
+    );
+  const outwardsQty = Number(inventoryOutwards[0]?.quantity || 0);
+  const outwardsValue = Number(inventoryOutwards[0]?.value || 0);
+
+  // 6. Fetch sub-companies / parties
+  const parties = await db
+    .select({
+      companyId: mCompanies.companyId,
+      dueDay: mCompanies.dueDay,
+    })
+    .from(mCompanies)
+    .where(and(eq(mCompanies.parentCompanyId, companyIdVal), isNull(mCompanies.deletedOn)));
+
+  const mappedParties = parties.map((p) => ({
+    companyId: p.companyId,
+    dueDay: p.dueDay,
   }));
 
-  const partiesCount = companiesCountRaw[0]?.count ?? 0;
-  const inventoryCount = inventoryCountRaw[0]?.count ?? 0;
-  const ledgersCount = ledgersCountRaw[0]?.count ?? 0;
+  const serializedLedgers = ledgersData.map((l) => ({
+    ledgerId: l.ledgerId,
+    ledgerName: l.ledgerName,
+    ledgerType: l.ledgerType,
+    groupId: l.groupId,
+    groupName: l.groupName || "",
+    creditDays: l.creditDays,
+    debitCumulative: Number(l.debitCumulative),
+    creditCumulative: Number(l.creditCumulative),
+    debitPeriod: Number(l.debitPeriod),
+    creditPeriod: Number(l.creditPeriod),
+  }));
 
-  const stats = [
-    {
-      name: "PARTIES",
-      value: partiesCount,
-      icon: "Building",
-      color: "text-primary bg-primary/10",
-      description: "Active business parties",
-    },
-    {
-      name: "INVENTORY",
-      value: inventoryCount,
-      icon: "Package",
-      color: "text-warning bg-warning/10",
-      description: "Inventory stock items",
-    },
-    {
-      name: "LEDGERS",
-      value: ledgersCount,
-      icon: "BookOpen",
-      color: "text-info bg-info/10",
-      description: "Chart of Accounts ledgers",
-    },
-  ];
+  const serializedVouchers = allVouchers.map((v) => ({
+    voucherId: v.voucherId,
+    voucherNo: v.voucherNo,
+    voucherType: v.voucherType,
+    voucherDate: v.voucherDate,
+    netAmount: Number(v.netAmount),
+    partyId: v.partyId ? Number(v.partyId) : null,
+    billDetails: v.billDetails,
+  }));
 
-  // Helper for rendering icons dynamically
-  const renderIcon = (iconName: string, className: string) => {
-    const IconComponent = (Icons as any)[iconName] || Icons.HelpCircle;
-    return <IconComponent className={className} size={22} />;
-  };
+  const serializedMonthly = monthlyStats.map((s) => ({
+    month: s.month || "",
+    sortKey: s.sortKey || "",
+    sales: Number(s.sales),
+    purchases: Number(s.purchases),
+  }));
 
   return (
-    <div className="space-y-6">
-      {/* Welcome banner */}
-      <div className="rounded-lg border border-border bg-card p-6 shadow-sm">
-        <h2 className="text-xl font-bold text-foreground">
-          WELCOME BACK, {session.user.name?.toUpperCase()}
-        </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Managing bookkeeping and inventory for{" "}
-          <span className="font-semibold text-foreground">
-            {company.companyName}
-          </span>
-        </p>
-
-        <div className="mt-4 grid grid-cols-1 gap-4 border-t border-border/50 pt-4 sm:grid-cols-3 text-xs text-muted-foreground">
-          <div>
-            <span className="font-semibold text-muted-foreground/80 block uppercase">GSTIN</span>
-            <span className="text-foreground font-medium text-sm mt-0.5 block">
-              {company.gstNo || "Not Configured"}
-            </span>
-          </div>
-          <div>
-            <span className="font-semibold text-muted-foreground/80 block uppercase">PAN</span>
-            <span className="text-foreground font-medium text-sm mt-0.5 block">
-              {company.panNo || "Not Configured"}
-            </span>
-          </div>
-          <div>
-            <span className="font-semibold text-muted-foreground/80 block uppercase">ADDRESS</span>
-            <span className="text-foreground font-medium text-sm mt-0.5 block truncate">
-              {company.address || "Not Configured"}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {stats.map((stat) => (
-          <div
-            key={stat.name}
-            className="overflow-hidden rounded-lg border border-border bg-card p-5 shadow-sm"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground/75">
-                  {stat.name}
-                </span>
-                <span className="mt-1 block text-2xl font-bold text-foreground font-mono">
-                  {stat.value}
-                </span>
-              </div>
-              <div className={`rounded-lg p-2.5 ${stat.color}`}>
-                {renderIcon(stat.icon, "h-5 w-5")}
-              </div>
-            </div>
-            <p className="mt-2 text-xs text-muted-foreground truncate">{stat.description}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Main Grid: Charts */}
-      <DashboardCharts data={chartData} />
-
-      {/* Main Grid: Recent Activity & Financial Summary */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Recent Activity Table */}
-        <div className="lg:col-span-2 rounded-lg border border-border bg-card p-6 shadow-sm space-y-4">
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground/75">
-            RECENT TRANSACTIONS
-          </h3>
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-left text-xs">
-              <thead>
-                <tr className="border-b border-border/80 text-muted-foreground font-semibold uppercase tracking-wider">
-                  <th className="py-2.5">Date</th>
-                  <th className="py-2.5">Voucher No</th>
-                  <th className="py-2.5">Type</th>
-                  <th className="py-2.5 text-right">Amount</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/40 font-medium">
-                {recentVouchers.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="py-8 text-center text-muted-foreground">
-                      No recent transactions found.
-                    </td>
-                  </tr>
-                ) : (
-                  recentVouchers.map((v) => {
-                    let badgeClass = "bg-primary/10 text-primary";
-                    if (v.voucherType === "sale") badgeClass = "bg-success/15 text-success font-semibold";
-                    else if (v.voucherType === "purchase") badgeClass = "bg-info/15 text-info font-semibold";
-                    else if (v.voucherType === "receipt") badgeClass = "bg-warning/15 text-warning font-semibold";
-                    else if (v.voucherType === "payment") badgeClass = "bg-danger/15 text-danger font-semibold";
-
-                    return (
-                      <tr key={v.voucherId} className="hover:bg-muted/5 transition-colors">
-                        <td className="py-2.5 text-muted-foreground font-mono">
-                          {v.voucherDate
-                            ? new Date(v.voucherDate).toLocaleDateString("en-IN", {
-                                month: "short",
-                                day: "numeric",
-                                year: "numeric",
-                              })
-                            : "-"}
-                        </td>
-                        <td className="py-2.5 text-foreground font-mono">{v.voucherNo}</td>
-                        <td className="py-2.5">
-                          <span className={`inline-flex rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wider ${badgeClass}`}>
-                            {v.voucherType}
-                          </span>
-                        </td>
-                        <td className="py-2.5 text-right font-mono tabular-nums text-foreground">
-                          ₹ {Number(v.netAmount).toLocaleString("en-IN", {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                          })}
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Financial Performance Summary */}
-        <div className="rounded-lg border border-border bg-card p-6 shadow-sm space-y-5">
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground/75">
-            FINANCIAL PERFORMANCE
-          </h3>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between border-b border-border/30 pb-2">
-              <div className="space-y-0.5">
-                <p className="text-xs text-muted-foreground uppercase">Total Sales</p>
-                <p className="text-base font-bold text-foreground font-mono tabular-nums">
-                  ₹ {Number(summary.totalSales || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                </p>
-              </div>
-              <div className="rounded-lg bg-success/10 p-2 text-success">
-                <Icons.ArrowUpRight className="h-4 w-4" />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between border-b border-border/30 pb-2">
-              <div className="space-y-0.5">
-                <p className="text-xs text-muted-foreground uppercase">Total Purchases</p>
-                <p className="text-base font-bold text-foreground font-mono tabular-nums">
-                  ₹ {Number(summary.totalPurchases || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                </p>
-              </div>
-              <div className="rounded-lg bg-info/10 p-2 text-info">
-                <Icons.ArrowDownLeft className="h-4 w-4" />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between border-b border-border/30 pb-2">
-              <div className="space-y-0.5">
-                <p className="text-xs text-muted-foreground uppercase">Total Receipts</p>
-                <p className="text-base font-bold text-foreground font-mono tabular-nums">
-                  ₹ {Number(summary.totalReceipts || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                </p>
-              </div>
-              <div className="rounded-lg bg-warning/10 p-2 text-warning">
-                <Icons.Plus className="h-4 w-4" />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between border-b border-border/30 pb-2">
-              <div className="space-y-0.5">
-                <p className="text-xs text-muted-foreground uppercase">Total Payments</p>
-                <p className="text-base font-bold text-foreground font-mono tabular-nums">
-                  ₹ {Number(summary.totalPayments || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                </p>
-              </div>
-              <div className="rounded-lg bg-danger/10 p-2 text-danger">
-                <Icons.Minus className="h-4 w-4" />
-              </div>
-            </div>
-
-            {/* Net Book Position */}
-            <div className="rounded-lg border border-border/50 bg-muted/15 p-3 flex justify-between items-center mt-2">
-              <div>
-                <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wide">Net Book Position</p>
-                <p className="text-sm font-extrabold text-foreground font-mono tabular-nums mt-0.5">
-                  ₹ {Number((summary.totalSales || 0) - (summary.totalPurchases || 0)).toLocaleString("en-IN", {
-                    minimumFractionDigits: 2,
-                  })}
-                </p>
-              </div>
-              <span
-                className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${
-                  (summary.totalSales || 0) - (summary.totalPurchases || 0) >= 0
-                    ? "bg-success/15 text-success"
-                    : "bg-danger/15 text-danger"
-                }`}
-              >
-                {(summary.totalSales || 0) - (summary.totalPurchases || 0) >= 0 ? "Surplus" : "Deficit"}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <DashboardClient
+      company={{
+        companyId: company.companyId,
+        companyName: company.companyName,
+        gstNo: company.gstNo || "",
+        address: company.address || "",
+      }}
+      fromDate={fromDate}
+      toDate={toDate}
+      ledgers={serializedLedgers}
+      monthlyStats={serializedMonthly}
+      vouchers={serializedVouchers}
+      parties={mappedParties}
+      openingStock={openingStock}
+      closingStock={closingStock}
+      closingStockQty={closingStockQty}
+      outwardsQty={outwardsQty}
+      outwardsValue={outwardsValue}
+    />
   );
 }
+
