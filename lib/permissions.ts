@@ -50,6 +50,7 @@ export const ALL_PAGES: PageConfig[] = [
   { accessItem: "cash_flow_summary", pageUrl: "/dashboard/cash-flow-summary", pageTitle: "Cash Flow Summary", pageIcon: "TrendingUp", pageGroup: "Reports", accessGroup: "company" },
   { accessItem: "debit_note_register", pageUrl: "/dashboard/debit-note-register", pageTitle: "Debit Note Register", pageIcon: "BookOpen", pageGroup: "Reports", accessGroup: "company" },
   { accessItem: "funds_flow_summary", pageUrl: "/dashboard/funds-flow", pageTitle: "Funds Flow", pageIcon: "TrendingUp", pageGroup: "Reports", accessGroup: "company" },
+  { accessItem: "group_summary", pageUrl: "/dashboard/group-summary", pageTitle: "Group Summary", pageIcon: "FolderTree", pageGroup: "Reports", accessGroup: "company" },
   { accessItem: "trial_balance", pageUrl: "/dashboard/trial-balance", pageTitle: "Trial Balance", pageIcon: "Scale", pageGroup: "Reports", accessGroup: "company" },
   { accessItem: "profit_loss", pageUrl: "/dashboard/profit-loss", pageTitle: "Profit & Loss", pageIcon: "TrendingUp", pageGroup: "Reports", accessGroup: "company" },
   { accessItem: "balance_sheet", pageUrl: "/dashboard/balance-sheet", pageTitle: "Balance Sheet", pageIcon: "Calculator", pageGroup: "Reports", accessGroup: "company" },
