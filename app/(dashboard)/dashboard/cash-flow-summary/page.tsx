@@ -190,7 +190,7 @@ export default async function CashFlowSummaryPage({
     if (!currentGroup) return null;
 
     let depth = 0;
-    while (currentGroup.parentGroupId && depth < 10) {
+    while (currentGroup && currentGroup.parentGroupId && depth < 10) {
       const parent = groups.find((g) => g.groupId === currentGroup.parentGroupId);
       if (!parent) break;
       currentGroup = parent;
