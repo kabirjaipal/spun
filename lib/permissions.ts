@@ -53,6 +53,7 @@ export const ALL_PAGES: PageConfig[] = [
   { accessItem: "group_outstandings", pageUrl: "/dashboard/group-outstandings", pageTitle: "Group Outstandings", pageIcon: "BookOpen", pageGroup: "Reports", accessGroup: "company" },
   { accessItem: "bills_payable", pageUrl: "/dashboard/bills-payable", pageTitle: "Bills Payable", pageIcon: "BookOpen", pageGroup: "Reports", accessGroup: "company" },
   { accessItem: "bills_receivable", pageUrl: "/dashboard/bills-receivable", pageTitle: "Bills Receivable", pageIcon: "BookOpen", pageGroup: "Reports", accessGroup: "company" },
+  { accessItem: "payment_register", pageUrl: "/dashboard/payment-register", pageTitle: "Payment Register", pageIcon: "BookOpen", pageGroup: "Reports", accessGroup: "company" },
   { accessItem: "funds_flow_summary", pageUrl: "/dashboard/funds-flow", pageTitle: "Funds Flow", pageIcon: "TrendingUp", pageGroup: "Reports", accessGroup: "company" },
   { accessItem: "group_summary", pageUrl: "/dashboard/group-summary", pageTitle: "Group Summary", pageIcon: "FolderTree", pageGroup: "Reports", accessGroup: "company" },
   { accessItem: "group_vouchers", pageUrl: "/dashboard/group-vouchers", pageTitle: "Group Vouchers", pageIcon: "BookOpen", pageGroup: "Reports", accessGroup: "company" },
