@@ -191,7 +191,7 @@ export default async function CashFlowSummaryPage({
 
     let depth = 0;
     while (currentGroup && currentGroup.parentGroupId && depth < 10) {
-      const parent = groups.find((g) => g.groupId === currentGroup.parentGroupId);
+      const parent = groups.find((g) => g.groupId === currentGroup?.parentGroupId);
       if (!parent) break;
       currentGroup = parent;
       depth++;

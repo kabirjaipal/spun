@@ -49,6 +49,7 @@ export const ALL_PAGES: PageConfig[] = [
   { accessItem: "cash_bank_summary", pageUrl: "/dashboard/cash-bank-summary", pageTitle: "Cash/Bank Summary", pageIcon: "BookOpen", pageGroup: "Reports", accessGroup: "company" },
   { accessItem: "cash_flow_summary", pageUrl: "/dashboard/cash-flow-summary", pageTitle: "Cash Flow Summary", pageIcon: "TrendingUp", pageGroup: "Reports", accessGroup: "company" },
   { accessItem: "debit_note_register", pageUrl: "/dashboard/debit-note-register", pageTitle: "Debit Note Register", pageIcon: "BookOpen", pageGroup: "Reports", accessGroup: "company" },
+  { accessItem: "journal_register", pageUrl: "/dashboard/journal-register", pageTitle: "Journal Register", pageIcon: "BookOpen", pageGroup: "Reports", accessGroup: "company" },
   { accessItem: "funds_flow_summary", pageUrl: "/dashboard/funds-flow", pageTitle: "Funds Flow", pageIcon: "TrendingUp", pageGroup: "Reports", accessGroup: "company" },
   { accessItem: "group_summary", pageUrl: "/dashboard/group-summary", pageTitle: "Group Summary", pageIcon: "FolderTree", pageGroup: "Reports", accessGroup: "company" },
   { accessItem: "group_vouchers", pageUrl: "/dashboard/group-vouchers", pageTitle: "Group Vouchers", pageIcon: "BookOpen", pageGroup: "Reports", accessGroup: "company" },
