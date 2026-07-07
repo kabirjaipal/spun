@@ -46,6 +46,7 @@ export const ALL_PAGES: PageConfig[] = [
   
   // Reports
   { accessItem: "ledger_report", pageUrl: "/dashboard/ledger-report", pageTitle: "Ledger Report", pageIcon: "FileText", pageGroup: "Reports", accessGroup: "company" },
+  { accessItem: "cash_bank_summary", pageUrl: "/dashboard/cash-bank-summary", pageTitle: "Cash/Bank Summary", pageIcon: "BookOpen", pageGroup: "Reports", accessGroup: "company" },
   { accessItem: "trial_balance", pageUrl: "/dashboard/trial-balance", pageTitle: "Trial Balance", pageIcon: "Scale", pageGroup: "Reports", accessGroup: "company" },
   { accessItem: "profit_loss", pageUrl: "/dashboard/profit-loss", pageTitle: "Profit & Loss", pageIcon: "TrendingUp", pageGroup: "Reports", accessGroup: "company" },
   { accessItem: "balance_sheet", pageUrl: "/dashboard/balance-sheet", pageTitle: "Balance Sheet", pageIcon: "Calculator", pageGroup: "Reports", accessGroup: "company" },
