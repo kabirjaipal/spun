@@ -136,7 +136,7 @@ export default function DashboardSidebar({
       <div className="flex h-full w-full flex-col">
         {/* Brand Header */}
         <div className={cn(
-          "flex h-12 items-center border-b border-border px-4 justify-between shrink-0",
+          "flex h-14 items-center border-b border-border px-4 justify-between shrink-0",
           collapsed && "px-0 justify-center"
         )}>
           {collapsed ? (
