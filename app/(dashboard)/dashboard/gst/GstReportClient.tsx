@@ -393,7 +393,6 @@ function GstReportContent({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 no-print">
         <div>
           <h1 className="text-xl font-bold text-foreground">GST Triangulation Reports</h1>
-          <p className="text-sm text-muted-foreground">Verify returns, resolve errors, and view statutory GSTR layouts.</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">

@@ -563,10 +563,7 @@ export default function CreditNoteClient({
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Credit Notes</h1>
-          <p className="text-sm text-muted-foreground">
-            Manage party sales returns and accounts adjustments.
-          </p>
+          <h1 className="text-xl font-bold tracking-tight text-foreground uppercase">Credit Notes</h1>
         </div>
         {canCreate && (
           <Button onClick={() => setIsCreating(true)} className="flex items-center gap-2">

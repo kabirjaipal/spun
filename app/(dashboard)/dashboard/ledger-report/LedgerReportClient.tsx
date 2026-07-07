@@ -280,7 +280,7 @@ function LedgerReportContent({
             </Button>
           )}
           <div>
-            <h1 className="text-xl font-bold text-foreground">Ledger Report</h1>
+            <h1 className="text-xl font-bold tracking-tight text-foreground uppercase">Ledger Report</h1>
             <p className="text-xs text-muted-foreground mt-0.5">
               {selectedLedger
                 ? `Account statement for ${selectedLedger.ledgerName}`

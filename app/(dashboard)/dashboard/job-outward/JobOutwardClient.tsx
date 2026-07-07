@@ -195,7 +195,7 @@ export default function JobOutwardClient({
         Number(
           line.gstRateId
             ? taxRates.find((t) => String(t.taxRateId) === line.gstRateId)
-                ?.taxPercent
+              ?.taxPercent
             : 0,
         ) || 0;
       const totalTax =
@@ -425,16 +425,13 @@ export default function JobOutwardClient({
   }
 
   return (
-    <div className="space-y-6 container mx-auto p-2">
+    <div className="space-y-6 p-2">
       {/* Top Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-foreground uppercase">
             Job Outward Entry
           </h1>
-          <p className="text-sm text-muted-foreground">
-            Send grey fabric/yarn to job workers with job rates and specs.
-          </p>
         </div>
       </div>
 

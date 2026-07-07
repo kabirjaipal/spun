@@ -263,7 +263,7 @@ export default function MillInwardClient({
         Number(
           line.gstRateId
             ? taxRates.find((t) => String(t.taxRateId) === line.gstRateId)
-                ?.taxPercent
+              ?.taxPercent
             : 0,
         ) || 0;
       const totalTax =
@@ -564,16 +564,13 @@ export default function MillInwardClient({
   }
 
   return (
-    <div className="space-y-6 container mx-auto p-2">
+    <div className="space-y-6 p-2">
       {/* Top Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-foreground uppercase">
             Mill Inward Entry
           </h1>
-          <p className="text-sm text-muted-foreground">
-            Receive processed fabric/yarn from mills and track lot shortage.
-          </p>
         </div>
       </div>
 

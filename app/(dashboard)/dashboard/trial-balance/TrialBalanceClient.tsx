@@ -358,10 +358,7 @@ function TrialBalanceContent({
       {/* Top Header Controls (Omitted during print) */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 no-print">
         <div>
-          <h1 className="text-xl font-bold text-foreground">Trial Balance</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Hierarchical Trial Balance report showing current debit and credit balances.
-          </p>
+          <h1 className="text-xl font-bold tracking-tight text-foreground uppercase">Trial Balance</h1>
         </div>
 
         {/* Buttons / Search panel */}

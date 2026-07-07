@@ -146,10 +146,7 @@ export default function SettingsClient({
   return (
     <div className="space-y-6">
       <div className="rounded-lg border border-border bg-card p-6 shadow-sm">
-        <h1 className="text-2xl font-bold text-foreground">Company Settings</h1>
-        <p className="text-sm text-muted-foreground">
-          View and manage your company profile, GST, MSME, and bank settings.
-        </p>
+        <h1 className="text-xl font-bold tracking-tight text-foreground uppercase">Company Settings</h1>
       </div>
 
       {message && (

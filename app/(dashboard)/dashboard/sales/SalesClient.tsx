@@ -588,16 +588,13 @@ export default function SalesClient({
   }
 
   return (
-    <div className="space-y-6 container mx-auto p-2">
+    <div className="space-y-6 p-2">
       {/* Top Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-foreground uppercase">
             Sales Invoice Entry
           </h1>
-          <p className="text-sm text-muted-foreground">
-            Record textile sales, fold calculations, and dispatch logistics.
-          </p>
         </div>
         <div className="flex items-center gap-2">
           {(["grey", "finished", "other"] as const).map((type) => (

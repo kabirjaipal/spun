@@ -24,9 +24,6 @@ export default function RolesClient({
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Roles & Access Control</h1>
-          <p className="text-sm text-muted-foreground mt-0.5 font-sans">
-            Static permission matrix indicating feature-level authorizations for platform roles.
-          </p>
         </div>
       </div>
 

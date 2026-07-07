@@ -451,10 +451,7 @@ export default function DirectBillClient({
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Direct Bills</h1>
-          <p className="text-sm text-muted-foreground">
-            Manage non-trading purchases, services, and overhead expenses.
-          </p>
+          <h1 className="text-xl font-bold tracking-tight text-foreground uppercase">Direct Bills</h1>
         </div>
         {canCreate && (
           <Button onClick={() => setIsCreating(true)} className="flex items-center gap-2">

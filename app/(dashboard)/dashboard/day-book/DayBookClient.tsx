@@ -209,7 +209,7 @@ function DayBookContent({
       {/* Screen Controls Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 no-print mb-4">
         <div>
-          <h1 className="text-xl font-bold text-foreground">Day Book</h1>
+          <h1 className="text-xl font-bold tracking-tight text-foreground uppercase">Day Book</h1>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">

@@ -126,10 +126,7 @@ export default function LotTransferClient({
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Lot Transfers</h1>
-          <p className="text-sm text-muted-foreground">
-            Record and track lot transfers between job workers, mills, and companies.
-          </p>
+          <h1 className="text-xl font-bold tracking-tight text-foreground uppercase">Lot Transfers</h1>
         </div>
       </div>
 

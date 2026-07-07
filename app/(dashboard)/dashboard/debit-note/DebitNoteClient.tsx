@@ -564,10 +564,7 @@ export default function DebitNoteClient({
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Debit Notes</h1>
-          <p className="text-sm text-muted-foreground">
-            Manage company purchase returns and account adjustments.
-          </p>
+          <h1 className="text-xl font-bold tracking-tight text-foreground uppercase">Debit Notes</h1>
         </div>
         {canCreate && (
           <Button onClick={() => setIsCreating(true)} className="flex items-center gap-2">

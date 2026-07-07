@@ -296,7 +296,7 @@ function ProfitLossContent({
       {/* Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 no-print">
         <div>
-          <h1 className="text-xl font-bold text-foreground">Profit &amp; Loss A/c</h1>
+          <h1 className="text-xl font-bold tracking-tight text-foreground uppercase">Profit &amp; Loss A/c</h1>
           <p className="text-xs text-muted-foreground mt-0.5">
             {fmtDate(fromParam)} to {fmtDate(toParam)}
           </p>

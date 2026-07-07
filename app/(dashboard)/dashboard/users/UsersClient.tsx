@@ -111,8 +111,7 @@ export default function UsersClient({
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Users List</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Manage platform administrative accounts and system roles.</p>
+          <h1 className="text-xl font-bold tracking-tight text-foreground uppercase">Users List</h1>
         </div>
         <Button onClick={() => setIsCreating(true)} className="flex items-center gap-2">
           <Plus className="h-4 w-4" /> Add New User

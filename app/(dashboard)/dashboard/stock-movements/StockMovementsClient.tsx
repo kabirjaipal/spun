@@ -191,10 +191,7 @@ function StockMovementsContent({
       {/* Action panel & Title block */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 no-print">
         <div>
-          <h1 className="text-xl font-bold text-foreground">Stock Movements</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Audit history of item inwards and outwards.
-          </p>
+          <h1 className="text-xl font-bold tracking-tight text-foreground uppercase">Stock Movements</h1>
         </div>
 
         {/* Filters and buttons */}

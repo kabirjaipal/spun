@@ -480,7 +480,7 @@ function StockSummaryContent({
       {/* Main Title bar and action controls */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 no-print">
         <div>
-          <h1 className="text-xl font-bold text-foreground">
+          <h1 className="text-xl font-bold tracking-tight text-foreground uppercase">
             {currentScreen === "summary" && "Stock Summary"}
             {currentScreen === "groupSummary" && `Stock Group Summary: ${selectedGroup}`}
             {currentScreen === "monthly" && `Stock Item Monthly Summary`}

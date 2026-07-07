@@ -329,10 +329,7 @@ export default function JournalEntryClient({
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Journal Entries</h1>
-          <p className="text-sm text-muted-foreground">
-            Track adjustment and accrual entries with general ledger postings.
-          </p>
+          <h1 className="text-xl font-bold tracking-tight text-foreground uppercase">Journal Entries</h1>
         </div>
         {canCreate && (
           <Button onClick={startCreation} className="h-10 font-semibold uppercase">

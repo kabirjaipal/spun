@@ -79,10 +79,7 @@ export default function ProfileClient({ user }: { user: UserProfileDetails }) {
   return (
     <div className="space-y-6">
       <div className="rounded-lg border border-border bg-card p-6 shadow-sm">
-        <h1 className="text-2xl font-bold text-foreground">My Profile</h1>
-        <p className="text-sm text-muted-foreground">
-          Update your account display name and password credentials.
-        </p>
+        <h1 className="text-xl font-bold tracking-tight text-foreground uppercase">My Profile</h1>
       </div>
 
       {message && (
