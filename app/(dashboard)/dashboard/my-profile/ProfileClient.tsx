@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { User, Mail, ShieldAlert, Key } from "lucide-react";
@@ -179,7 +180,14 @@ export default function ProfileClient({ user }: { user: UserProfileDetails }) {
         {/* Action Button */}
         <div className="flex justify-end pt-4">
           <Button type="submit" disabled={saving} className="min-w-[120px]">
-            {saving ? "Saving..." : "Save Changes"}
+            {saving ? (
+              <>
+                <Spinner className="mr-2" />
+                Saving
+              </>
+            ) : (
+              "Save Changes"
+            )}
           </Button>
         </div>
       </form>

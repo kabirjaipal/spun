@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -318,7 +319,14 @@ export default function JournalEntryClient({
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={saving || !canCreate} className="h-10 font-bold uppercase px-6">
-            {saving ? "Saving..." : "Record Entry"}
+            {saving ? (
+              <>
+                <Spinner className="mr-2" />
+                Saving
+              </>
+            ) : (
+              "Record Entry"
+            )}
           </Button>
         </div>
       </div>

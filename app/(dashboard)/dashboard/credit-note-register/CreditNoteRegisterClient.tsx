@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, Suspense } from "react";
+import { Spinner } from "@/components/ui/spinner";
 import { Download, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -176,7 +177,7 @@ function CreditNoteRegisterContent({ company, monthlySummary, canExport }: Props
 
 export default function CreditNoteRegisterClient(props: Props) {
   return (
-    <Suspense fallback={<div className="p-8 text-center text-sm text-muted-foreground">Loading Credit Note Register...</div>}>
+    <Suspense fallback={<div className="p-8 flex items-center justify-center gap-2 text-sm text-muted-foreground"><Spinner /><span>Loading Credit Note Register</span></div>}>
       <CreditNoteRegisterContent {...props} />
     </Suspense>
   );

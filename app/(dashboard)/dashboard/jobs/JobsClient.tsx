@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetBody, SheetFooter } from "@/components/ui/sheet";
@@ -248,7 +249,16 @@ export default function JobsClient({ initialData, canCreate, canUpdate, canDelet
           <SheetFooter>
             <Button variant="outline" size="lg" className="px-4" onClick={() => setSheetOpen(false)}>Cancel</Button>
             <Button size="lg" className="px-4" onClick={handleSave} disabled={saving || !form.jobName.trim()}>
-              {saving ? "Saving..." : editing ? "Update" : "Create"}
+              {saving ? (
+                <>
+                  <Spinner className="mr-2" />
+                  Saving
+                </>
+              ) : editing ? (
+                "Update"
+              ) : (
+                "Create"
+              )}
             </Button>
           </SheetFooter>
         </SheetContent>

@@ -1,6 +1,7 @@
 "use client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { Label } from "@/components/ui/label";
 
 import React, { useState } from "react";
@@ -197,7 +198,14 @@ export default function RegisterForm() {
                 disabled={loading}
                 className="w-full"
               >
-                {loading ? "Registering..." : "CONTINUE TO SETUP COMPANY"}
+                {loading ? (
+                  <>
+                    <Spinner className="mr-2" />
+                    Registering
+                  </>
+                ) : (
+                  "CONTINUE TO SETUP COMPANY"
+                )}
               </Button>
             </div>
 

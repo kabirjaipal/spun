@@ -2,6 +2,7 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -963,8 +964,17 @@ export default function SetupCompanyPage() {
                 disabled={loading}
                 className="flex-1 gap-2"
               >
-                <span>{loading ? "Registering..." : "COMPLETE SETUP"}</span>
-                <ArrowRight className="h-4 w-4" />
+                {loading ? (
+                  <>
+                    <Spinner />
+                    <span>Registering</span>
+                  </>
+                ) : (
+                  <>
+                    <span>COMPLETE SETUP</span>
+                    <ArrowRight className="h-4 w-4" />
+                  </>
+                )}
               </Button>
             </div>
           </form>

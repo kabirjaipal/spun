@@ -3,6 +3,7 @@ import { getLocalTodayString } from "@/lib/utils";
 
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -1099,7 +1100,14 @@ export default function JobOutwardClient({
           disabled={saving}
           className="h-10 text-xs font-bold uppercase tracking-wider px-8 ml-auto"
         >
-          {saving ? "Saving challan..." : "Save Job Outward"}
+          {saving ? (
+            <>
+              <Spinner className="mr-2" />
+              Saving challan
+            </>
+          ) : (
+            "Save Job Outward"
+          )}
         </Button>
       </div>
 

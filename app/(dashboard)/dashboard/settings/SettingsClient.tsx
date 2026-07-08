@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { BANK_LIST } from "@/lib/banks";
@@ -491,7 +492,14 @@ export default function SettingsClient({
 
           <div className="flex justify-end pt-4 border-t border-border">
             <Button type="submit" disabled={saving}>
-              {saving ? "Saving Profile..." : "Save Profile Details"}
+              {saving ? (
+                <>
+                  <Spinner className="mr-2" />
+                  Saving Profile
+                </>
+              ) : (
+                "Save Profile Details"
+              )}
             </Button>
           </div>
         </form>

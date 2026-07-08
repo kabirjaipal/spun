@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -613,8 +614,8 @@ export default function SalesReturnClient({
                 </Label>
                 {loadingInvoices ? (
                   <div className="flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                    <span>Loading invoices...</span>
+                    <Spinner className="text-muted-foreground" />
+                    <span>Loading invoices</span>
                   </div>
                 ) : invoices.length === 0 ? (
                   <p className="text-xs text-muted-foreground italic">
@@ -1249,7 +1250,14 @@ export default function SalesReturnClient({
           disabled={saving || !canCreate}
           className="h-10 px-8 font-bold uppercase"
         >
-          {saving ? "Saving Return..." : "Save Sales Return"}
+          {saving ? (
+            <>
+              <Spinner className="mr-2" />
+              Saving Return
+            </>
+          ) : (
+            "Save Sales Return"
+          )}
         </Button>
       </div>
 

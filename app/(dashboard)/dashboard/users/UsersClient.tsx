@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -156,7 +157,16 @@ export default function UsersClient({
 
           <div className="flex gap-2 justify-end">
             <Button type="button" variant="outline" onClick={() => setIsCreating(false)}>Cancel</Button>
-            <Button type="submit" disabled={saving}>{saving ? "Creating..." : "Save User"}</Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? (
+                <>
+                  <Spinner className="mr-2" />
+                  Creating
+                </>
+              ) : (
+                "Save User"
+              )}
+            </Button>
           </div>
         </form>
       )}

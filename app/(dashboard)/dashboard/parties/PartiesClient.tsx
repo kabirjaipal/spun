@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -864,7 +865,16 @@ export default function PartiesClient({
             <div className="flex gap-4 pt-6 border-t justify-end">
               <Button variant="outline" onClick={() => setIsFormOpen(false)}>Cancel</Button>
               <Button onClick={handleSave} disabled={saving || !form.companyName || (form.gstApplicable && (!form.gstNo || !form.stateCode || !form.city))}>
-                {saving ? "Saving..." : editing ? "Update Party" : "Create Party"}
+                {saving ? (
+                  <>
+                    <Spinner className="mr-2" />
+                    Saving
+                  </>
+                ) : editing ? (
+                  "Update Party"
+                ) : (
+                  "Create Party"
+                )}
               </Button>
             </div>
           </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, Suspense } from "react";
+import { Spinner } from "@/components/ui/spinner";
 import { Download, Calendar, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -240,7 +241,7 @@ function SalesOrderSummaryContent({ company, orders, canExport }: Props) {
 
 export default function SalesOrderSummaryClient(props: Props) {
   return (
-    <Suspense fallback={<div className="p-8 text-center text-sm text-muted-foreground">Loading Sales Order Summary...</div>}>
+    <Suspense fallback={<div className="p-8 flex items-center justify-center gap-2 text-sm text-muted-foreground"><Spinner /><span>Loading Sales Order Summary</span></div>}>
       <SalesOrderSummaryContent {...props} />
     </Suspense>
   );

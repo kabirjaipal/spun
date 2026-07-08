@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, Suspense } from "react";
+import { Spinner } from "@/components/ui/spinner";
 import { Download, Calendar, Eye, EyeOff, RefreshCw, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -592,7 +593,7 @@ function CashBankSummaryContent({
 
 export default function CashBankSummaryClient(props: CashBankSummaryClientProps) {
   return (
-    <Suspense fallback={<div className="p-8 text-center text-sm text-muted-foreground">Loading Cash/Bank Summary...</div>}>
+    <Suspense fallback={<div className="p-8 flex items-center justify-center gap-2 text-sm text-muted-foreground"><Spinner /><span>Loading Cash/Bank Summary</span></div>}>
       <CashBankSummaryContent {...props} />
     </Suspense>
   );

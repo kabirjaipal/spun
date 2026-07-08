@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, Suspense } from "react";
+import { Spinner } from "@/components/ui/spinner";
 import { Download, Calendar, ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -522,9 +523,7 @@ export default function ProfitLossClient(props: ProfitLossClientProps) {
   return (
     <Suspense
       fallback={
-        <div className="p-8 text-center text-sm text-muted-foreground">
-          Loading Profit &amp; Loss...
-        </div>
+        <div className="p-8 flex items-center justify-center gap-2 text-sm text-muted-foreground"><Spinner /><span>Loading Profit &amp; Loss</span></div>
       }
     >
       <ProfitLossContent {...props} />

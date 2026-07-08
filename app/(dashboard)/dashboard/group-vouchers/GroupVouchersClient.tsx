@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, Suspense } from "react";
+import { Spinner } from "@/components/ui/spinner";
 import { Download, Calendar, Search, Folder, BookOpen, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -378,7 +379,7 @@ function GroupVouchersContent({
 
 export default function GroupVouchersClient(props: GroupVouchersClientProps) {
   return (
-    <Suspense fallback={<div className="p-8 text-center text-sm text-muted-foreground">Loading Group Vouchers...</div>}>
+    <Suspense fallback={<div className="p-8 flex items-center justify-center gap-2 text-sm text-muted-foreground"><Spinner /><span>Loading Group Vouchers</span></div>}>
       <GroupVouchersContent {...props} />
     </Suspense>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, Suspense } from "react";
+import { Spinner } from "@/components/ui/spinner";
 import { Download, Calendar, Eye, EyeOff, AlertTriangle, CheckCircle, Ban, ArrowRight, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -864,7 +865,7 @@ function GstReportContent({
 
 export default function GstReportClient(props: GstReportClientProps) {
   return (
-    <Suspense fallback={<div className="p-8 text-center text-sm text-muted-foreground">Loading GST Reports...</div>}>
+    <Suspense fallback={<div className="p-8 flex items-center justify-center gap-2 text-sm text-muted-foreground"><Spinner /><span>Loading GST Reports</span></div>}>
       <GstReportContent {...props} />
     </Suspense>
   );

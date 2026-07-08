@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, Suspense } from "react";
+import { Spinner } from "@/components/ui/spinner";
 import { Download, Calendar, Eye, EyeOff, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -374,7 +375,7 @@ function DayBookContent({
 
 export default function DayBookClient(props: DayBookClientProps) {
   return (
-    <Suspense fallback={<div className="p-8 text-center text-sm text-muted-foreground">Loading Day Book...</div>}>
+    <Suspense fallback={<div className="p-8 flex items-center justify-center gap-2 text-sm text-muted-foreground"><Spinner /><span>Loading Day Book</span></div>}>
       <DayBookContent {...props} />
     </Suspense>
   );

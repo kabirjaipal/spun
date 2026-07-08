@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -139,7 +140,14 @@ export default function BrokerHasteDialog({ type, open, onOpenChange, onCreated 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={handleCreate} disabled={saving || !name.trim()}>
-            {saving ? "Saving..." : "Create"}
+            {saving ? (
+              <>
+                <Spinner className="mr-2" />
+                Saving
+              </>
+            ) : (
+              "Create"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

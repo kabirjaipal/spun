@@ -3,6 +3,7 @@ import { getLocalTodayString } from "@/lib/utils";
 
 import React, { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -540,7 +541,14 @@ export default function DebitNoteClient({
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => setIsCreating(false)}>Cancel</Button>
           <Button onClick={handleSubmit} disabled={saving || !canCreate}>
-            {saving ? "Saving..." : "Record Debit Note"}
+            {saving ? (
+              <>
+                <Spinner className="mr-2" />
+                Saving
+              </>
+            ) : (
+              "Record Debit Note"
+            )}
           </Button>
         </div>
         {activePieceLineId && (() => {

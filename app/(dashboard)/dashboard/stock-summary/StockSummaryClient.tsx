@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, Suspense } from "react";
+import { Spinner } from "@/components/ui/spinner";
 import { ChevronDown, ChevronRight, ArrowLeft, Calendar, Download, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -988,7 +989,7 @@ function StockSummaryContent({
 
 export default function StockSummaryClient(props: StockSummaryClientProps) {
   return (
-    <Suspense fallback={<div className="p-8 text-center text-sm text-muted-foreground">Loading Stock Summary...</div>}>
+    <Suspense fallback={<div className="p-8 flex items-center justify-center gap-2 text-sm text-muted-foreground"><Spinner /><span>Loading Stock Summary</span></div>}>
       <StockSummaryContent {...props} />
     </Suspense>
   );

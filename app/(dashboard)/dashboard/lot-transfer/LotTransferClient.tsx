@@ -3,6 +3,7 @@ import { getLocalTodayString } from "@/lib/utils";
 
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -209,7 +210,14 @@ export default function LotTransferClient({
 
           <div className="flex justify-end pt-2">
             <Button onClick={handleSubmit} disabled={saving} className="h-10 px-8 font-bold uppercase">
-              {saving ? "Saving..." : "Record Transfer"}
+              {saving ? (
+                <>
+                  <Spinner className="mr-2" />
+                  Saving
+                </>
+              ) : (
+                "Record Transfer"
+              )}
             </Button>
           </div>
         </div>

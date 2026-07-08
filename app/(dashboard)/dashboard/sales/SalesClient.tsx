@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -1301,7 +1302,14 @@ export default function SalesClient({
           disabled={saving || !canCreate}
           className="h-10 font-bold uppercase px-8"
         >
-          {saving ? "Saving Voucher..." : "Save Sales Invoice"}
+          {saving ? (
+            <>
+              <Spinner className="mr-2" />
+              Saving Voucher
+            </>
+          ) : (
+            "Save Sales Invoice"
+          )}
         </Button>
       </div>
 

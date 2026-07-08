@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, Suspense } from "react";
+import { Spinner } from "@/components/ui/spinner";
 import { Download, Calendar, Eye, EyeOff, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -184,7 +185,7 @@ function ReceiptRegisterContent({ company, vouchers, canExport }: ReceiptRegiste
 
 export default function ReceiptRegisterClient(props: ReceiptRegisterClientProps) {
   return (
-    <Suspense fallback={<div className="p-8 text-center text-sm text-muted-foreground">Loading Receipt Register...</div>}>
+    <Suspense fallback={<div className="p-8 flex items-center justify-center gap-2 text-sm text-muted-foreground"><Spinner /><span>Loading Receipt Register</span></div>}>
       <ReceiptRegisterContent {...props} />
     </Suspense>
   );

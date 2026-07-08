@@ -1,6 +1,7 @@
 "use client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { Label } from "@/components/ui/label";
 
 import React, { useState } from "react";
@@ -170,7 +171,14 @@ export default function LoginForm() {
                 disabled={loading}
                 className="w-full"
               >
-                {loading ? "Signing in..." : "SIGN IN"}
+                {loading ? (
+                  <>
+                    <Spinner className="mr-2" />
+                    Signing in
+                  </>
+                ) : (
+                  "SIGN IN"
+                )}
               </Button>
             </div>
 

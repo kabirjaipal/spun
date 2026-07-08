@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetBody, SheetFooter } from "@/components/ui/sheet";
@@ -750,7 +751,14 @@ export default function PartyFormDrawer({ isOpen, onClose, onCreated }: PartyFor
         <SheetFooter>
           <Button variant="outline" size="lg" className="px-4" onClick={onClose}>Cancel</Button>
           <Button onClick={handleSave} disabled={saving || !form.companyName || (form.gstApplicable && (!form.gstNo || !form.stateCode || !form.city))} size="lg" className="px-4">
-            {saving ? "Saving..." : "Create Party"}
+            {saving ? (
+              <>
+                <Spinner className="mr-2" />
+                Saving
+              </>
+            ) : (
+              "Create Party"
+            )}
           </Button>
         </SheetFooter>
       </SheetContent>

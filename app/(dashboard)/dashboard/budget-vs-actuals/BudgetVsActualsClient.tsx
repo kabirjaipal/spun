@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, Suspense } from "react";
+import { Spinner } from "@/components/ui/spinner";
 import { Download, Calendar, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -307,7 +308,7 @@ function BudgetVsActualsContent({ company, ledgers, groups, canExport }: Props) 
 
 export default function BudgetVsActualsClient(props: Props) {
   return (
-    <Suspense fallback={<div className="p-8 text-center text-sm text-muted-foreground">Loading Budget vs Actuals...</div>}>
+    <Suspense fallback={<div className="p-8 flex items-center justify-center gap-2 text-sm text-muted-foreground"><Spinner /><span>Loading Budget vs Actuals</span></div>}>
       <BudgetVsActualsContent {...props} />
     </Suspense>
   );

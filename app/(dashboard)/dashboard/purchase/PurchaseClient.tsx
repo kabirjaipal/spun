@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -1447,7 +1448,14 @@ export default function PurchaseClient({
           disabled={saving || !canCreate}
           className="h-10 px-8 font-bold uppercase"
         >
-          {saving ? "Saving Voucher..." : "Save Invoice"}
+          {saving ? (
+            <>
+              <Spinner className="mr-2" />
+              Saving Voucher
+            </>
+          ) : (
+            "Save Invoice"
+          )}
         </Button>
       </div>
 
