@@ -15,8 +15,23 @@ interface LedgerItem {
   ledgerName: string;
   ledgerType: string;
   groupId: number | null;
+  referenceId: number | null;
+  creditDays: number;
   debit: number;
   credit: number;
+}
+
+interface Voucher {
+  voucherId: number;
+  voucherNo: string;
+  voucherType: string;
+  voucherDate: string;
+  partyId: number | null;
+  netAmount: string;
+  billDetails?: any;
+  parentVoucherId?: number | null;
+  createdBy?: string | null;
+  createdByName?: string | null;
 }
 
 interface GroupInfo {
@@ -37,6 +52,7 @@ interface GroupOutstandingsClientProps {
   groups: GroupInfo[];
   selectedGroup: GroupInfo | null;
   ledgers: LedgerItem[];
+  vouchers: Voucher[];
   canExport: boolean;
 }
 
@@ -45,6 +61,7 @@ function GroupOutstandingsContent({
   groups,
   selectedGroup,
   ledgers,
+  vouchers,
   canExport,
 }: GroupOutstandingsClientProps) {
   const router = useRouter();
@@ -63,10 +80,124 @@ function GroupOutstandingsContent({
   const [startDate, setStartDate] = useState(fromParam);
   const [endDate, setEndDate] = useState(toParam);
   const [searchQuery, setSearchQuery] = useState("");
-
-  // Omission lists
+  const [overdueFilter, setOverdueFilter] = useState<number>(0);
+  const [expandedLedgers, setExpandedLedgers] = useState<Record<number, boolean>>({});
   const [removedLines, setRemovedLines] = useState<string[]>([]);
   const [lastRemovedLine, setLastRemovedLine] = useState<string | null>(null);
+
+  // Resolve pending bills for a specific ledger
+  const getLedgerPendingBills = (l: LedgerItem) => {
+    const isCustomer = l.ledgerType === "customer";
+    const defaultType: "Dr" | "Cr" = isCustomer ? "Dr" : "Cr";
+    const targetType = isCustomer ? "sale" : "purchase";
+
+    const selectedVouchers = vouchers.filter((v) => 
+      Number(v.partyId) === l.ledgerId || 
+      (l.referenceId && Number(v.partyId) === Number(l.referenceId))
+    );
+
+    const invoices = selectedVouchers.filter((v) => v.voucherType === targetType);
+    const adjustments = selectedVouchers.filter((v) => v.voucherType !== targetType);
+
+    const linkedAdjustmentAmounts: Record<number, number> = {};
+    const pendingBills: any[] = [];
+
+    invoices.forEach((inv) => {
+      const billing = Number(inv.netAmount) || 0;
+      let paymentsSum = 0;
+      let debitNotesSum = 0;
+      let creditNotesSum = 0;
+
+      adjustments.forEach((adj) => {
+        // 1. billDetails link
+        if (adj.billDetails && Array.isArray(adj.billDetails)) {
+          adj.billDetails.forEach((item: any) => {
+            if (item && typeof item === "object" && Number(item.voucherId) === inv.voucherId) {
+              const amt = Number(item.amount) || 0;
+              linkedAdjustmentAmounts[adj.voucherId] = (linkedAdjustmentAmounts[adj.voucherId] || 0) + amt;
+              if (adj.voucherType === "payment" || adj.voucherType === "receipt") {
+                paymentsSum += amt;
+              } else if (adj.voucherType === "debit_note") {
+                debitNotesSum += amt;
+              } else if (adj.voucherType === "credit_note") {
+                creditNotesSum += amt;
+              } else {
+                paymentsSum += amt;
+              }
+            }
+          });
+        }
+
+        // 2. parentVoucherId link
+        if (adj.parentVoucherId && Number(adj.parentVoucherId) === inv.voucherId) {
+          const amt = Number(adj.netAmount) || 0;
+          linkedAdjustmentAmounts[adj.voucherId] = (linkedAdjustmentAmounts[adj.voucherId] || 0) + amt;
+          if (adj.voucherType === "debit_note") {
+            debitNotesSum += amt;
+          } else if (adj.voucherType === "credit_note") {
+            creditNotesSum += amt;
+          } else if (adj.voucherType === "payment" || adj.voucherType === "receipt") {
+            paymentsSum += amt;
+          } else {
+            paymentsSum += amt;
+          }
+        }
+      });
+
+      let paid = 0;
+      if (!isCustomer) {
+        paid = paymentsSum - debitNotesSum;
+      } else {
+        paid = paymentsSum + creditNotesSum;
+      }
+
+      const pending = billing - paid;
+      if (Math.abs(pending) > 0.01) {
+        const creditDays = l.creditDays || 10;
+        const invDate = new Date(inv.voucherDate);
+        const dueDate = new Date(invDate);
+        dueDate.setDate(dueDate.getDate() + creditDays);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const overdueDays = Math.max(0, Math.floor((today.getTime() - dueDate.getTime()) / 86400000));
+
+        pendingBills.push({
+          voucherId: inv.voucherId,
+          date: inv.voucherDate,
+          refNo: inv.voucherNo,
+          billingAmount: billing,
+          paidAmount: paid,
+          pendingAmount: pending,
+          dueDate: dueDate.toISOString().split("T")[0],
+          overdueDays,
+          createdBy: inv.createdByName || inv.createdBy || "System",
+          type: defaultType,
+        });
+      }
+    });
+
+    adjustments.forEach((adj) => {
+      const adjAmt = Number(adj.netAmount) || 0;
+      const linked = linkedAdjustmentAmounts[adj.voucherId] || 0;
+      const unlinked = adjAmt - linked;
+      if (unlinked > 0.01) {
+        pendingBills.push({
+          voucherId: adj.voucherId,
+          date: adj.voucherDate,
+          refNo: `${adj.voucherType.replace(/_/g, " ").toUpperCase()} (On Account)`,
+          billingAmount: unlinked,
+          paidAmount: 0,
+          pendingAmount: unlinked,
+          dueDate: "—",
+          overdueDays: 0,
+          createdBy: adj.createdByName || adj.createdBy || "System",
+          type: defaultType === "Dr" ? "Cr" : "Dr",
+        });
+      }
+    });
+
+    return pendingBills;
+  };
 
   const handleApplyPeriod = () => {
     setShowPeriodModal(false);
@@ -131,16 +262,36 @@ function GroupOutstandingsContent({
     (l) => !removedLines.includes(String(l.ledgerId))
   );
 
-  // Calculate totals of visible rows
-  const totalDebit = visibleLedgers.reduce((sum, l) => {
-    const net = l.debit - l.credit;
-    return sum + (net > 0 ? net : 0);
-  }, 0);
+  // Process ledgers: calculate pending bills and filter by overdue days
+  const ledgersWithDetails = visibleLedgers.map((l) => {
+    const allBills = getLedgerPendingBills(l);
+    // Filter bills by overdue filter
+    const filteredBills = allBills.filter((b) => overdueFilter === 0 || b.overdueDays >= overdueFilter);
+    
+    // Recalculate debit/credit sums based on filtered pending bills
+    let debit = 0;
+    let credit = 0;
+    filteredBills.forEach((b) => {
+      if (b.type === "Dr") debit += b.pendingAmount;
+      else credit += b.pendingAmount;
+    });
 
-  const totalCredit = visibleLedgers.reduce((sum, l) => {
-    const net = l.debit - l.credit;
-    return sum + (net < 0 ? Math.abs(net) : 0);
-  }, 0);
+    return {
+      ...l,
+      debit,
+      credit,
+      bills: filteredBills,
+    };
+  });
+
+  // Filter out ledgers that have no net balance after overdue filtering
+  const ledgersToDisplay = ledgersWithDetails.filter(
+    (l) => l.debit > 0 || l.credit > 0
+  );
+
+  // Calculate totals of visible rows
+  const totalDebit = ledgersToDisplay.reduce((sum, l) => sum + l.debit, 0);
+  const totalCredit = ledgersToDisplay.reduce((sum, l) => sum + l.credit, 0);
 
   const triggerPrint = () => {
     window.print();
@@ -215,6 +366,24 @@ function GroupOutstandingsContent({
             </SelectContent>
           </Select>
 
+          {/* Overdue Days Filter */}
+          <Select
+            value={String(overdueFilter)}
+            onValueChange={(val) => setOverdueFilter(Number(val))}
+          >
+            <SelectTrigger className="w-[180px] h-10 text-sm bg-background text-foreground">
+              <SelectValue placeholder="Filter Overdue" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="0">All Bills</SelectItem>
+              <SelectItem value="10">&gt; 10 Days Overdue</SelectItem>
+              <SelectItem value="30">&gt; 30 Days Overdue</SelectItem>
+              <SelectItem value="45">&gt; 45 Days Overdue</SelectItem>
+              <SelectItem value="60">&gt; 60 Days Overdue</SelectItem>
+              <SelectItem value="90">&gt; 90 Days Overdue</SelectItem>
+            </SelectContent>
+          </Select>
+
           {/* Search Input Bar */}
           <div className="relative w-64">
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -283,46 +452,121 @@ function GroupOutstandingsContent({
 
             {/* Table Rows */}
             <tbody className="divide-y divide-border/40 text-foreground">
-              {visibleLedgers.length === 0 ? (
+              {ledgersToDisplay.length === 0 ? (
                 <tr>
                   <td colSpan={3} className="p-8 text-center text-xs text-muted-foreground italic">
                     No outstanding ledger balances found for this group/period
                   </td>
                 </tr>
               ) : (
-                visibleLedgers.map((l) => {
-                  const net = l.debit - l.credit;
-                  const debitVal = net > 0 ? net : 0;
-                  const creditVal = net < 0 ? Math.abs(net) : 0;
+                ledgersToDisplay.map((l) => {
+                  const isExpanded = !!expandedLedgers[l.ledgerId];
+                  const debitVal = l.debit;
+                  const creditVal = l.credit;
 
                   return (
-                    <tr
-                      key={l.ledgerId}
-                      className="group/row hover:bg-muted/10 transition-colors font-medium"
-                    >
-                      {/* Particulars (Ledger Name) */}
-                      <td className="p-3 pl-6 font-semibold">
-                        <div className="flex items-center justify-between">
-                          <span>{l.ledgerName}</span>
-                          <button
-                            onClick={() => handleRemoveLine(String(l.ledgerId))}
-                            className="opacity-0 group-hover/row:opacity-100 text-xs text-destructive hover:underline p-1 ml-2 no-print font-normal"
-                          >
-                            Omit
-                          </button>
-                        </div>
-                      </td>
+                    <React.Fragment key={l.ledgerId}>
+                      {/* Main Ledger Row */}
+                      <tr
+                        className="group/row hover:bg-muted/10 transition-colors font-medium cursor-pointer"
+                        onClick={() => {
+                          setExpandedLedgers((prev) => ({
+                            ...prev,
+                            [l.ledgerId]: !prev[l.ledgerId],
+                          }));
+                        }}
+                      >
+                        {/* Particulars (Ledger Name) */}
+                        <td className="p-3 pl-6 font-semibold">
+                          <div className="flex items-center justify-between w-full">
+                            <div className="flex items-center gap-2">
+                              <ChevronRight
+                                className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${
+                                  isExpanded ? "rotate-90" : ""
+                                }`}
+                              />
+                              <span>{l.ledgerName}</span>
+                            </div>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRemoveLine(String(l.ledgerId));
+                              }}
+                              className="opacity-0 group-hover/row:opacity-100 text-xs text-destructive hover:underline p-1 ml-2 no-print font-normal"
+                            >
+                              Omit
+                            </button>
+                          </div>
+                        </td>
 
-                      {/* Debit */}
-                      <td className="p-3 text-right border-l border-border font-mono">
-                        {formatAmount(debitVal)}
-                      </td>
+                        {/* Debit */}
+                        <td className="p-3 text-right border-l border-border font-mono">
+                          {formatAmount(debitVal)}
+                        </td>
 
-                      {/* Credit */}
-                      <td className="p-3 text-right border-l border-border font-mono font-bold text-foreground">
-                        {formatAmount(creditVal)}
-                      </td>
-                    </tr>
+                        {/* Credit */}
+                        <td className="p-3 text-right border-l border-border font-mono font-bold text-foreground">
+                          {formatAmount(creditVal)}
+                        </td>
+                      </tr>
+
+                      {/* Detailed Outstanding Vouchers Drill-down */}
+                      {isExpanded && (
+                        <tr className="bg-muted/5">
+                          <td colSpan={3} className="p-0 border-b border-border">
+                            <div className="p-4 pl-12 pr-6 space-y-2">
+                              <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground">
+                                Pending Bills Breakdown
+                              </h4>
+                              <table className="w-full text-xs border border-border/60 rounded overflow-hidden">
+                                <thead>
+                                  <tr className="bg-muted/30 border-b border-border/60 text-muted-foreground text-[10px] font-bold uppercase tracking-wider">
+                                    <th className="p-2 text-left">Date</th>
+                                    <th className="p-2 text-left">Month</th>
+                                    <th className="p-2 text-left">Ref No</th>
+                                    <th className="p-2 text-right">Billing Amt</th>
+                                    <th className="p-2 text-right">Paid Amt</th>
+                                    <th className="p-2 text-right">Pending Amt</th>
+                                    <th className="p-2 text-left">Due Date</th>
+                                    <th className="p-2 text-right">Overdue</th>
+                                    <th className="p-2 text-left">Who Did</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {l.bills.length === 0 ? (
+                                    <tr>
+                                      <td colSpan={9} className="p-4 text-center text-muted-foreground italic">
+                                        No pending bills matching active overdue filters.
+                                      </td>
+                                    </tr>
+                                  ) : (
+                                    l.bills.map((bill: any, idx: number) => {
+                                      const billDate = new Date(bill.date);
+                                      const monthName = billDate.toLocaleDateString("en-IN", { month: "long" });
+                                      return (
+                                        <tr key={idx} className="border-b border-border/40 hover:bg-muted/10">
+                                          <td className="p-2 font-mono">{formatDateToTally(bill.date)}</td>
+                                          <td className="p-2 font-sans">{monthName}</td>
+                                          <td className="p-2 font-semibold">{bill.refNo}</td>
+                                          <td className="p-2 text-right font-mono">{formatAmount(bill.billingAmount)}</td>
+                                          <td className="p-2 text-right font-mono">{formatAmount(bill.paidAmount)}</td>
+                                          <td className="p-2 text-right font-mono font-bold">{formatAmount(bill.pendingAmount)} {bill.type}</td>
+                                          <td className="p-2 font-mono">{bill.dueDate}</td>
+                                          <td className="p-2 text-right font-sans font-semibold text-destructive">
+                                            {bill.overdueDays > 0 ? `${bill.overdueDays} days` : "—"}
+                                          </td>
+                                          <td className="p-2 text-muted-foreground">{bill.createdBy}</td>
+                                        </tr>
+                                      );
+                                    })
+                                  )}
+                                </tbody>
+                              </table>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
                   );
                 })
               )}

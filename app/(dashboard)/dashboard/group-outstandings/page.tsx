@@ -7,8 +7,9 @@ import {
   mLedgerGroups,
   tVoucherEntries,
   tVouchers,
+  mUsers,
 } from "@/lib/db/schema";
-import { and, eq, isNull, sql, gte, lte, inArray } from "drizzle-orm";
+import { and, eq, isNull, sql, gte, lte, inArray, or } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
 import GroupOutstandingsClient from "./GroupOutstandingsClient";
 
@@ -91,6 +92,7 @@ export default async function GroupOutstandingsPage({
   };
 
   let ledgersWithBalances: any[] = [];
+  let groupVouchers: any[] = [];
   if (selectedGroup) {
     const descendantGroupIds = getDescendantGroupIds(selectedGroup.groupId);
 
@@ -102,6 +104,8 @@ export default async function GroupOutstandingsPage({
           ledgerName: mLedgers.ledgerName,
           ledgerType: mLedgers.ledgerType,
           groupId: mLedgers.groupId,
+          referenceId: mLedgers.referenceId,
+          creditDays: mLedgers.creditDays,
           debit: sql<number>`coalesce(sum(case when ${tVoucherEntries.entryType} = 'debit' then ${tVoucherEntries.amount} else 0 end), 0)`,
           credit: sql<number>`coalesce(sum(case when ${tVoucherEntries.entryType} = 'credit' then ${tVoucherEntries.amount} else 0 end), 0)`,
         })
@@ -126,8 +130,43 @@ export default async function GroupOutstandingsPage({
             inArray(mLedgers.groupId, descendantGroupIds)
           )
         )
-        .groupBy(mLedgers.ledgerId, mLedgers.ledgerName, mLedgers.ledgerType, mLedgers.groupId)
+        .groupBy(mLedgers.ledgerId, mLedgers.ledgerName, mLedgers.ledgerType, mLedgers.groupId, mLedgers.referenceId, mLedgers.creditDays)
         .orderBy(mLedgers.ledgerName);
+
+      const groupLedgerIds = ledgersWithBalances.map((l) => l.ledgerId);
+      const groupRefIds = ledgersWithBalances
+        .map((l) => l.referenceId ? Number(l.referenceId) : null)
+        .filter((id): id is number => id !== null);
+
+      const partyIdsToFetch = [...groupLedgerIds, ...groupRefIds];
+
+      if (partyIdsToFetch.length > 0) {
+        groupVouchers = await db
+          .select({
+            voucherId: tVouchers.voucherId,
+            voucherNo: tVouchers.voucherNo,
+            voucherType: tVouchers.voucherType,
+            voucherDate: tVouchers.voucherDate,
+            partyId: tVouchers.partyId,
+            netAmount: tVouchers.netAmount,
+            billDetails: tVouchers.billDetails,
+            parentVoucherId: tVouchers.parentVoucherId,
+            createdBy: tVouchers.createdBy,
+            createdByName: mUsers.name,
+          })
+          .from(tVouchers)
+          .leftJoin(mUsers, eq(tVouchers.createdBy, mUsers.id))
+          .where(
+            and(
+              eq(tVouchers.companyId, companyId),
+              inArray(tVouchers.partyId, partyIdsToFetch),
+              isNull(tVouchers.deletedOn),
+              gte(tVouchers.voucherDate, fromDate),
+              lte(tVouchers.voucherDate, toDate)
+            )
+          )
+          .orderBy(tVouchers.voucherDate, tVouchers.voucherId);
+      }
     }
   }
 
@@ -151,9 +190,12 @@ export default async function GroupOutstandingsPage({
         ledgerName: l.ledgerName,
         ledgerType: l.ledgerType,
         groupId: l.groupId,
+        referenceId: l.referenceId ? Number(l.referenceId) : null,
+        creditDays: l.creditDays,
         debit: Number(l.debit),
         credit: Number(l.credit),
       }))}
+      vouchers={groupVouchers}
       canExport={canExport}
     />
   );
