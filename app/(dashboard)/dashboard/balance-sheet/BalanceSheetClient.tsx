@@ -74,7 +74,7 @@ function BalanceSheetContent({
   // Drill-down details modal
   const [drillDownData, setDrillDownData] = useState<{
     title: string;
-    items: { name: string; amount: number }[];
+    items: { name: string; amount: number; ledgerId?: number }[];
   } | null>(null);
 
   // Helper: Format to Indian Currency (en-IN)
@@ -158,8 +158,8 @@ function BalanceSheetContent({
       );
     };
 
-    const liabilitiesGroups: Record<string, { name: string; amount: number }[]> = {};
-    const assetsGroups: Record<string, { name: string; amount: number }[]> = {};
+    const liabilitiesGroups: Record<string, { name: string; amount: number; ledgerId?: number }[]> = {};
+    const assetsGroups: Record<string, { name: string; amount: number; ledgerId?: number }[]> = {};
 
     let salesTotal = 0;
     let purchaseTotal = 0;
@@ -194,10 +194,10 @@ function BalanceSheetContent({
 
       if (isLiabilityGroup(sub)) {
         if (!liabilitiesGroups[sub]) liabilitiesGroups[sub] = [];
-        liabilitiesGroups[sub].push({ name, amount: -bal });
+        liabilitiesGroups[sub].push({ name, amount: -bal, ledgerId: l.ledgerId });
       } else {
         if (!assetsGroups[sub]) assetsGroups[sub] = [];
-        assetsGroups[sub].push({ name, amount: bal });
+        assetsGroups[sub].push({ name, amount: bal, ledgerId: l.ledgerId });
       }
     });
 
@@ -406,7 +406,16 @@ function BalanceSheetContent({
                           key={l.name}
                           className="flex justify-between items-center py-1.5 px-3 text-xs text-foreground/90 group/ledg"
                         >
-                          <span className="italic">{l.name}</span>
+                          {l.ledgerId ? (
+                            <a
+                              href={`/dashboard/ledger-report?ledgerId=${l.ledgerId}`}
+                              className="italic text-primary hover:underline font-semibold cursor-pointer"
+                            >
+                              {l.name}
+                            </a>
+                          ) : (
+                            <span className="italic">{l.name}</span>
+                          )}
                           <div className="flex items-center gap-2">
                             <span className="font-mono">{formatAmount(l.amount)}</span>
                             <button
@@ -460,7 +469,16 @@ function BalanceSheetContent({
                           key={l.name}
                           className="flex justify-between items-center py-1.5 px-3 text-xs text-foreground/90 group/ledg"
                         >
-                          <span className="italic">{l.name}</span>
+                          {l.ledgerId ? (
+                            <a
+                              href={`/dashboard/ledger-report?ledgerId=${l.ledgerId}`}
+                              className="italic text-primary hover:underline font-semibold cursor-pointer"
+                            >
+                              {l.name}
+                            </a>
+                          ) : (
+                            <span className="italic">{l.name}</span>
+                          )}
                           <div className="flex items-center gap-2">
                             <span className="font-mono">{formatAmount(l.amount)}</span>
                             <button
@@ -577,7 +595,18 @@ function BalanceSheetContent({
               <tbody>
                 {drillDownData?.items.map((it) => (
                   <tr key={it.name} className="border-b border-border/50 hover:bg-muted/10">
-                    <td className="py-2.5 font-medium">{it.name}</td>
+                    <td className="py-2.5 font-medium">
+                      {it.ledgerId ? (
+                        <a
+                          href={`/dashboard/ledger-report?ledgerId=${it.ledgerId}`}
+                          className="text-primary hover:underline font-semibold cursor-pointer"
+                        >
+                          {it.name}
+                        </a>
+                      ) : (
+                        it.name
+                      )}
+                    </td>
                     <td className="py-2.5 text-right font-mono font-semibold">{formatAmount(it.amount)}</td>
                   </tr>
                 ))}

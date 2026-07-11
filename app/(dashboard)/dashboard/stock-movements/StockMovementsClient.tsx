@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useMemo, Suspense } from "react";
+import React, { useState, useEffect, useMemo, Suspense } from "react";
 import { Spinner } from "@/components/ui/spinner";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Download, Calendar, ArrowLeft, RefreshCw, X, ChevronDown, Check } from "lucide-react";
+import { Download, Calendar, ArrowLeft, RefreshCw, X, ChevronDown, Check, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -68,6 +68,95 @@ function StockMovementsContent({
   const [endDate, setEndDate] = useState(toParam);
   const [selectedItemId, setSelectedItemId] = useState<string>(itemParam);
   const [showPeriodModal, setShowPeriodModal] = useState(false);
+
+  const [monthlyView, setMonthlyView] = useState(!!itemParam);
+  const [selectedMonth, setSelectedMonth] = useState<any | null>(null);
+
+  useEffect(() => {
+    setMonthlyView(!!selectedItemId);
+  }, [selectedItemId]);
+
+  const monthlySummary = useMemo(() => {
+    if (!selectedItemId) return [];
+
+    const start = new Date(startDate + "T00:00:00");
+    const end = new Date(endDate + "T00:00:00");
+
+    const monthsList: { key: string; monthName: string; year: number }[] = [];
+    let curr = new Date(start.getFullYear(), start.getMonth(), 1);
+    const endLimit = new Date(end.getFullYear(), end.getMonth(), 1);
+
+    while (curr <= endLimit) {
+      const monthName = curr.toLocaleDateString("en-IN", { month: "long" });
+      const key = `${curr.getFullYear()}-${String(curr.getMonth() + 1).padStart(2, "0")}`;
+      monthsList.push({ key, monthName, year: curr.getFullYear() });
+      curr.setMonth(curr.getMonth() + 1);
+    }
+
+    let runningQty = 0;
+    let runningVal = 0;
+
+    return monthsList.map((month) => {
+      const monthMovements = movements.filter(
+        (m) => String(m.voucherDate).slice(0, 7) === month.key
+      );
+
+      let inwardQty = 0;
+      let inwardValue = 0;
+      let outwardQty = 0;
+      let outwardValue = 0;
+
+      monthMovements.forEach((m) => {
+        const isInward =
+          m.movementType === "purchase" ||
+          m.movementType === "opening" ||
+          (m.movementType === "adjustment" && m.quantity >= 0);
+
+        if (isInward) {
+          inwardQty += m.quantity;
+          inwardValue += m.amount;
+        } else {
+          outwardQty += Math.abs(m.quantity);
+          outwardValue += m.amount;
+        }
+      });
+
+      runningQty += (inwardQty - outwardQty);
+      runningVal += (inwardValue - outwardValue);
+
+      return {
+        monthKey: month.key,
+        monthName: month.monthName,
+        year: month.year,
+        inwardQty,
+        inwardValue,
+        outwardQty,
+        outwardValue,
+        closingQty: runningQty,
+        closingValue: runningVal,
+        movements: monthMovements,
+      };
+    });
+  }, [startDate, endDate, movements, selectedItemId]);
+
+  const selectedMonthTotals = useMemo(() => {
+    if (!selectedMonth) return { inwardQtySum: 0, outwardQtySum: 0, valueSum: 0 };
+    let inwardQtySum = 0;
+    let outwardQtySum = 0;
+    let valueSum = 0;
+
+    selectedMonth.movements.forEach((m: any) => {
+      const isInward = m.movementType === "purchase" || m.movementType === "opening" || (m.movementType === "adjustment" && m.quantity >= 0);
+      if (isInward) {
+        inwardQtySum += m.quantity;
+      } else {
+        outwardQtySum += Math.abs(m.quantity);
+      }
+      valueSum += m.amount;
+    });
+
+    return { inwardQtySum, outwardQtySum, valueSum };
+  }, [selectedMonth]);
 
   // Search input inside item dropdown
   const [itemSearch, setItemSearch] = useState("");
@@ -253,6 +342,17 @@ function StockMovementsContent({
             )}
           </div>
 
+          {selectedItemId && (
+            <Button
+              variant="outline"
+              onClick={() => setMonthlyView(!monthlyView)}
+              className="flex items-center gap-2"
+            >
+              <FileText className="h-4 w-4" />
+              {monthlyView ? "Detailed View" : "Monthly Summary"}
+            </Button>
+          )}
+
           {/* Date range button */}
           <Button variant="outline" onClick={() => setShowPeriodModal(true)} className="flex items-center gap-2">
             <Calendar className="h-4 w-4" />
@@ -297,8 +397,85 @@ function StockMovementsContent({
           </p>
         </div>
 
-        {/* Data Table */}
-        <div className="overflow-x-auto">
+        {monthlyView ? (
+          /* MONTHLY SUMMARY TABLE */
+          <table className="w-full text-sm border-collapse border border-border">
+            <thead>
+              <tr className="bg-muted/40 border-b border-border text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                <th className="p-3 text-left border-r border-border font-bold text-foreground" rowSpan={2}>Particulars (Month)</th>
+                <th className="p-2 text-center border-r border-border font-bold text-foreground" colSpan={2}>Inwards</th>
+                <th className="p-2 text-center border-r border-border font-bold text-foreground" colSpan={2}>Outwards</th>
+                <th className="p-2 text-center font-bold text-foreground" colSpan={2}>Closing Balance</th>
+              </tr>
+              <tr className="bg-muted/20 border-b border-border text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                <th className="p-2 text-right border-r border-border font-semibold text-foreground">Quantity</th>
+                <th className="p-2 text-right border-r border-border font-semibold text-foreground">Value</th>
+                <th className="p-2 text-right border-r border-border font-semibold text-foreground">Quantity</th>
+                <th className="p-2 text-right border-r border-border font-semibold text-foreground">Value</th>
+                <th className="p-2 text-right border-r border-border font-semibold text-foreground">Quantity</th>
+                <th className="p-2 text-right font-semibold text-foreground">Value</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/60">
+              {monthlySummary.map((item) => {
+                const unit = movements[0]?.unit || "pcs";
+                return (
+                  <tr
+                    key={item.monthKey}
+                    onClick={() => setSelectedMonth(item)}
+                    className="hover:bg-muted/10 text-xs transition-colors cursor-pointer"
+                  >
+                    <td className="p-2.5 border-r border-border text-foreground font-semibold">
+                      {item.monthName} {item.year}
+                    </td>
+                    <td className="p-2.5 text-right border-r border-border font-mono font-medium">
+                      {item.inwardQty > 0 ? formatQty(item.inwardQty, unit) : "—"}
+                    </td>
+                    <td className="p-2.5 text-right border-r border-border font-mono text-emerald-600 font-medium">
+                      {item.inwardValue > 0 ? `₹${formatAmount(item.inwardValue)}` : "—"}
+                    </td>
+                    <td className="p-2.5 text-right border-r border-border font-mono font-medium">
+                      {item.outwardQty > 0 ? formatQty(item.outwardQty, unit) : "—"}
+                    </td>
+                    <td className="p-2.5 text-right border-r border-border font-mono text-amber-600 font-medium">
+                      {item.outwardValue > 0 ? `₹${formatAmount(item.outwardValue)}` : "—"}
+                    </td>
+                    <td className="p-2.5 text-right border-r border-border font-mono font-bold">
+                      {formatQty(item.closingQty, unit)}
+                    </td>
+                    <td className="p-2.5 text-right font-mono font-bold">
+                      ₹{formatAmount(item.closingValue)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <tr className="border-t-2 border-b-2 border-border font-bold bg-muted/20 text-xs">
+                <td className="p-3 text-left font-bold border-r border-border text-foreground">
+                  Grand Total
+                </td>
+                <td className="p-2 text-right border-r border-border font-mono text-foreground font-bold">
+                  {totals.inwardQtySum > 0 ? totals.inwardQtySum.toFixed(2) : "—"}
+                </td>
+                <td className="p-2 text-right border-r border-border font-mono text-emerald-600 font-bold">
+                  ₹{formatAmount(monthlySummary.reduce((sum, item) => sum + item.inwardValue, 0))}
+                </td>
+                <td className="p-2 text-right border-r border-border font-mono text-foreground font-bold">
+                  {totals.outwardQtySum > 0 ? totals.outwardQtySum.toFixed(2) : "—"}
+                </td>
+                <td className="p-2 text-right border-r border-border font-mono text-amber-600 font-bold">
+                  ₹{formatAmount(monthlySummary.reduce((sum, item) => sum + item.outwardValue, 0))}
+                </td>
+                <td className="p-2 border-r border-border"></td>
+                <td className="p-3 text-right font-mono font-bold text-foreground text-sm">
+                  ₹{formatAmount(totals.valueSum)}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        ) : (
+          /* DETAILED VIEW TABLE */
           <table className="w-full text-sm border-collapse border border-border">
             <thead>
               <tr className="bg-muted/40 border-b border-border text-xs font-bold uppercase tracking-wider text-muted-foreground">
@@ -383,7 +560,7 @@ function StockMovementsContent({
               </tr>
             </tfoot>
           </table>
-        </div>
+        )}
       </div>
 
       {/* Date Period selector Dialog */}
@@ -423,6 +600,105 @@ function StockMovementsContent({
               Apply Period
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Monthly movements drill-down dialog */}
+      <Dialog open={selectedMonth !== null} onOpenChange={(open) => !open && setSelectedMonth(null)}>
+        <DialogContent className="sm:max-w-5xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">
+              Stock Movements — {selectedMonth?.monthName} {selectedMonth?.year} ({selectedItemName})
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-2">
+            <div className="rounded-lg border border-border bg-card overflow-hidden shadow-sm">
+              <table className="w-full text-sm border-collapse border border-border">
+                <thead>
+                  <tr className="bg-muted/40 border-b border-border text-xs font-bold uppercase tracking-wider text-muted-foreground font-semibold">
+                    <th className="p-3 text-left border-r border-border w-[12%] font-bold text-foreground">Date</th>
+                    <th className="p-3 text-left border-r border-border w-[15%] font-bold text-foreground">Voucher No</th>
+                    <th className="p-3 text-left border-r border-border w-[15%] font-bold text-foreground">Voucher Type</th>
+                    <th className="p-3 text-left border-r border-border font-bold text-foreground">Item Name</th>
+                    <th className="p-3 text-left border-r border-border w-[10%] font-bold text-foreground">Type</th>
+                    <th className="p-3 text-right border-r border-border w-[12%] font-bold text-foreground">Inward Qty</th>
+                    <th className="p-3 text-right border-r border-border w-[12%] font-bold text-foreground">Outward Qty</th>
+                    <th className="p-3 text-right border-r border-border w-[10%] font-bold text-foreground">Rate</th>
+                    <th className="p-3 text-right w-[12%] font-bold text-foreground">Value</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/60">
+                  {selectedMonth?.movements.length === 0 ? (
+                    <tr>
+                      <td colSpan={9} className="p-8 text-center text-sm text-muted-foreground">
+                        No movements recorded in this month.
+                      </td>
+                    </tr>
+                  ) : (
+                    selectedMonth?.movements.map((m: any) => {
+                      const isInward =
+                        m.movementType === "purchase" ||
+                        m.movementType === "opening" ||
+                        (m.movementType === "adjustment" && m.quantity >= 0);
+
+                      return (
+                        <tr key={m.stockMovementId} className="hover:bg-muted/10 text-xs transition-colors">
+                          <td className="p-2.5 border-r border-border text-foreground">
+                            {new Date(m.voucherDate).toLocaleDateString("en-IN", {
+                              day: "2-digit",
+                              month: "short",
+                              year: "numeric",
+                            })}
+                          </td>
+                          <td className="p-2.5 border-r border-border font-medium text-foreground">
+                            {m.voucherNo || "—"}
+                          </td>
+                          <td className="p-2.5 border-r border-border uppercase tracking-wide text-muted-foreground">
+                            {m.voucherType || "—"}
+                          </td>
+                          <td className="p-2.5 border-r border-border font-semibold text-foreground truncate max-w-xs">
+                            {m.inventoryName}
+                          </td>
+                          <td className="p-2.5 border-r border-border uppercase tracking-widest text-[10px] font-bold text-muted-foreground">
+                            {m.movementType}
+                          </td>
+                          <td className="p-2.5 text-right border-r border-border font-mono text-emerald-600 dark:text-emerald-500 font-semibold">
+                            {isInward ? formatQty(m.quantity, m.unit) : "—"}
+                          </td>
+                          <td className="p-2.5 text-right border-r border-border font-mono text-amber-600 dark:text-amber-500 font-semibold">
+                            {!isInward ? formatQty(Math.abs(m.quantity), m.unit) : "—"}
+                          </td>
+                          <td className="p-2.5 text-right border-r border-border font-mono text-muted-foreground">
+                            {m.rate > 0 ? `₹${formatAmount(m.rate)}` : "—"}
+                          </td>
+                          <td className="p-2.5 text-right font-mono text-foreground font-bold">
+                            ₹{formatAmount(m.amount)}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-b-2 border-border font-bold bg-muted/20 text-xs">
+                    <td colSpan={5} className="p-3 text-left font-bold border-r border-border text-foreground">
+                      Monthly Total
+                    </td>
+                    <td className="p-2 text-right border-r border-border font-mono text-emerald-600 dark:text-emerald-500 font-bold">
+                      {selectedMonthTotals.inwardQtySum > 0 ? selectedMonthTotals.inwardQtySum.toFixed(2) : "—"}
+                    </td>
+                    <td className="p-2 text-right border-r border-border font-mono text-amber-600 dark:text-amber-500 font-bold">
+                      {selectedMonthTotals.outwardQtySum > 0 ? selectedMonthTotals.outwardQtySum.toFixed(2) : "—"}
+                    </td>
+                    <td className="p-2 border-r border-border"></td>
+                    <td className="p-3 text-right font-mono font-bold text-foreground text-sm">
+                      ₹{formatAmount(selectedMonthTotals.valueSum)}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

@@ -465,9 +465,19 @@ function TrialBalanceContent({
                         </span>
                       )}
                       {!isGrp && <span className="w-3 mr-1.5" />}
-                      <span className={`${isGrp ? "font-bold text-foreground" : "italic text-foreground/90"}`}>
-                        {row.name}
-                      </span>
+                      {!isGrp ? (
+                        <a
+                          href={`/dashboard/ledger-report?ledgerId=${row.ledgerId}`}
+                          className="italic text-primary hover:underline font-semibold cursor-pointer"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {row.name}
+                        </a>
+                      ) : (
+                        <span className="font-bold text-foreground">
+                          {row.name}
+                        </span>
+                      )}
                     </div>
 
                     {/* Omit hover control */}

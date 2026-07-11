@@ -4,8 +4,9 @@ import { db } from "@/lib/db";
 import {
   mCompanies,
   tVouchers,
+  mLedgers,
 } from "@/lib/db/schema";
-import { and, eq, isNull, gte, lte } from "drizzle-orm";
+import { and, eq, isNull, gte, lte, inArray } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
 import DebitNoteRegisterClient from "./DebitNoteRegisterClient";
 
@@ -39,7 +40,7 @@ export default async function DebitNoteRegisterPage({
   const fromDate = params.from || `${fyStartYear}-04-01`;
   const toDate = params.to || `${fyStartYear + 1}-03-31`;
 
-  // 2. Fetch Debit Notes Vouchers with Party names
+  // 2. Fetch Debit Notes Vouchers with Party names & Ledger IDs
   const rawVouchers = await db
     .select({
       voucherId: tVouchers.voucherId,
@@ -48,9 +49,18 @@ export default async function DebitNoteRegisterPage({
       netAmount: tVouchers.netAmount,
       status: tVouchers.status,
       partyName: mCompanies.companyName,
+      partyLedgerId: mLedgers.ledgerId,
     })
     .from(tVouchers)
     .leftJoin(mCompanies, eq(tVouchers.partyId, mCompanies.companyId))
+    .leftJoin(
+      mLedgers,
+      and(
+        eq(tVouchers.partyId, mLedgers.referenceId),
+        inArray(mLedgers.ledgerType, ["customer", "company"]),
+        isNull(mLedgers.deletedOn)
+      )
+    )
     .where(
       and(
         eq(tVouchers.companyId, companyId),
@@ -108,6 +118,7 @@ export default async function DebitNoteRegisterPage({
         netAmount: Number(v.netAmount),
         status: v.status,
         partyName: v.partyName || "Cash/General Party",
+        partyLedgerId: v.partyLedgerId ? Number(v.partyLedgerId) : null,
       })),
     };
   });

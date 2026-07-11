@@ -65,7 +65,7 @@ function GroupSection({
   indented = false,
 }: {
   title: string;
-  items: { name: string; amount: number }[];
+  items: { name: string; amount: number; ledgerId?: number }[];
   total: number;
   detailed: boolean;
   indented?: boolean;
@@ -100,7 +100,18 @@ function GroupSection({
                 key={it.name}
                 className="flex justify-between items-center py-1.5 pl-12 pr-4 text-xs text-foreground/80 font-sans"
               >
-                <span>{it.name}</span>
+                <span>
+                  {it.ledgerId ? (
+                    <a
+                      href={`/dashboard/ledger-report?ledgerId=${it.ledgerId}`}
+                      className="text-primary hover:underline font-semibold cursor-pointer"
+                    >
+                      {it.name}
+                    </a>
+                  ) : (
+                    it.name
+                  )}
+                </span>
                 <span className="font-mono tabular-nums">{fmt(it.amount)}</span>
               </div>
             ) : null
@@ -162,39 +173,39 @@ function ProfitLossContent({
   };
 
   // ── classify ledgers ────────────────────────────────────────────────────────
-  const salesItems: { name: string; amount: number }[] = [];
-  const purchaseItems: { name: string; amount: number }[] = [];
-  const directExpItems: { name: string; amount: number }[] = [];
-  const directIncItems: { name: string; amount: number }[] = [];
-  const indirectExpItems: { name: string; amount: number }[] = [];
-  const indirectIncItems: { name: string; amount: number }[] = [];
+  const salesItems: { name: string; amount: number; ledgerId?: number }[] = [];
+  const purchaseItems: { name: string; amount: number; ledgerId?: number }[] = [];
+  const directExpItems: { name: string; amount: number; ledgerId?: number }[] = [];
+  const directIncItems: { name: string; amount: number; ledgerId?: number }[] = [];
+  const indirectExpItems: { name: string; amount: number; ledgerId?: number }[] = [];
+  const indirectIncItems: { name: string; amount: number; ledgerId?: number }[] = [];
 
   for (const l of ledgers) {
     const net = l.debit - l.credit;
     const grp = topGroup(l.groupId);
 
     if (l.ledgerType === "sales") {
-      salesItems.push({ name: l.ledgerName, amount: l.credit - l.debit });
+      salesItems.push({ name: l.ledgerName, amount: l.credit - l.debit, ledgerId: l.ledgerId });
     } else if (l.ledgerType === "income") {
       const isDirect =
         grp.includes("direct") ||
         grp.includes("trading") ||
         grp.includes("revenue");
-      if (isDirect) directIncItems.push({ name: l.ledgerName, amount: l.credit - l.debit });
-      else indirectIncItems.push({ name: l.ledgerName, amount: l.credit - l.debit });
+      if (isDirect) directIncItems.push({ name: l.ledgerName, amount: l.credit - l.debit, ledgerId: l.ledgerId });
+      else indirectIncItems.push({ name: l.ledgerName, amount: l.credit - l.debit, ledgerId: l.ledgerId });
     } else if (l.ledgerType === "purchase") {
-      purchaseItems.push({ name: l.ledgerName, amount: net });
+      purchaseItems.push({ name: l.ledgerName, amount: net, ledgerId: l.ledgerId });
     } else if (l.ledgerType === "expense") {
       const isDirect =
         grp.includes("direct") ||
         grp.includes("trading") ||
         grp.includes("manufacturing");
-      if (isDirect) directExpItems.push({ name: l.ledgerName, amount: net });
-      else indirectExpItems.push({ name: l.ledgerName, amount: net });
+      if (isDirect) directExpItems.push({ name: l.ledgerName, amount: net, ledgerId: l.ledgerId });
+      else indirectExpItems.push({ name: l.ledgerName, amount: net, ledgerId: l.ledgerId });
     }
   }
 
-  const sort = (arr: { name: string; amount: number }[]) =>
+  const sort = (arr: { name: string; amount: number; ledgerId?: number }[]) =>
     arr.sort((a, b) => a.name.localeCompare(b.name));
   [salesItems, purchaseItems, directExpItems, directIncItems, indirectExpItems, indirectIncItems].forEach(sort);
 

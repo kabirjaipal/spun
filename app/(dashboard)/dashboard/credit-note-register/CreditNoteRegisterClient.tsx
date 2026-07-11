@@ -5,11 +5,13 @@ import { Spinner } from "@/components/ui/spinner";
 import { Download, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useRouter, useSearchParams } from "next/navigation";
+import { formatAmount } from "@/lib/utils";
+import { useOmittedLines } from "@/lib/hooks";
+import { ReportPeriodDialog } from "@/components/ReportPeriodDialog";
+import { ReportOmittedBanner } from "@/components/ReportOmittedBanner";
 
-interface VoucherDetail { voucherId: number; voucherNo: string; voucherDate: string; netAmount: number; status: string; partyName: string; }
+interface VoucherDetail { voucherId: number; voucherNo: string; voucherDate: string; netAmount: number; status: string; partyName: string; partyLedgerId?: number | null; }
 interface MonthlySummaryItem { monthKey: string; monthName: string; year: number; totalVouchers: number; cancelledVouchers: number; netAmount: number; vouchers: VoucherDetail[]; }
 interface Company { companyId: number; companyName: string; gstNo?: string | null; address?: string | null; }
 interface Props { company: Company; monthlySummary: MonthlySummaryItem[]; canExport: boolean; }
@@ -26,17 +28,17 @@ function CreditNoteRegisterContent({ company, monthlySummary, canExport }: Props
   const [startDate, setStartDate] = useState(fromParam);
   const [endDate, setEndDate] = useState(toParam);
   const [selectedMonth, setSelectedMonth] = useState<MonthlySummaryItem | null>(null);
-  const [removedLines, setRemovedLines] = useState<string[]>([]);
-  const [lastRemovedLine, setLastRemovedLine] = useState<string | null>(null);
 
-  const formatAmount = (val: number) => {
-    if (val === 0) return "—";
-    return new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.abs(val));
-  };
+  const {
+    removedLines,
+    handleRemoveLine,
+    handleRestoreLine,
+    handleRestoreAll,
+  } = useOmittedLines();
 
-  const handleRestoreLine = () => {
-    if (lastRemovedLine) { setRemovedLines(p => p.filter(n => n !== lastRemovedLine)); setLastRemovedLine(null); }
-    else if (removedLines.length > 0) { const c = [...removedLines]; const p = c.pop(); setRemovedLines(c); setLastRemovedLine(p || null); }
+  const handleApplyPeriod = () => {
+    setShowPeriodModal(false);
+    router.push(`?from=${startDate}&to=${endDate}`);
   };
 
   const activeSummary = monthlySummary.filter(item => !removedLines.includes(`${item.monthName} ${item.year}`));
@@ -85,11 +87,11 @@ function CreditNoteRegisterContent({ company, monthlySummary, canExport }: Props
                 const label = `${item.monthName} ${item.year}`;
                 const hasVouchers = item.totalVouchers > 0;
                 return (
-                  <tr key={item.monthKey} onClick={() => hasVouchers && setSelectedMonth(item)} className={`group/row hover:bg-muted/10 transition-colors ${hasVouchers ? "cursor-pointer" : ""}`}>
+                  <tr key={item.monthKey} onClick={() => setSelectedMonth(item)} className="group/row hover:bg-muted/10 transition-colors cursor-pointer">
                     <td className="p-3 pl-6 font-medium">
                       <div className="flex items-center justify-between">
                         <span>{item.monthName}</span>
-                        <button onClick={e => { e.stopPropagation(); setRemovedLines(p => [...p, label]); setLastRemovedLine(label); }} className="opacity-0 group-hover/row:opacity-100 text-xs text-destructive hover:underline p-1 ml-2 no-print font-normal">Omit</button>
+                        <button onClick={e => { e.stopPropagation(); handleRemoveLine(label); }} className="opacity-0 group-hover/row:opacity-100 text-xs text-destructive hover:underline p-1 ml-2 no-print font-normal">Omit</button>
                       </div>
                     </td>
                     <td className="p-2 text-right border-l border-border font-mono text-muted-foreground">{item.totalVouchers > 0 ? item.totalVouchers : "—"}</td>
@@ -111,34 +113,22 @@ function CreditNoteRegisterContent({ company, monthlySummary, canExport }: Props
         </div>
       </div>
 
-      {removedLines.length > 0 && (
-        <div className="mt-4 p-3 bg-secondary border border-border rounded-md text-xs text-muted-foreground flex justify-between items-center no-print">
-          <span>You have hidden <strong>{removedLines.length}</strong> months from the register.</span>
-          <div className="flex gap-2">
-            <Button variant="outline" className="h-9 px-3" onClick={handleRestoreLine}>Restore Last</Button>
-            <Button variant="outline" className="h-9 px-3 text-destructive border-destructive/25 hover:bg-destructive/10" onClick={() => { setRemovedLines([]); setLastRemovedLine(null); }}>Restore All</Button>
-          </div>
-        </div>
-      )}
+      <ReportOmittedBanner
+        count={removedLines.length}
+        itemName="months"
+        onRestoreLast={handleRestoreLine}
+        onRestoreAll={handleRestoreAll}
+      />
 
-      <Dialog open={showPeriodModal} onOpenChange={setShowPeriodModal}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader><DialogTitle>Change Report Period</DialogTitle></DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="from" className="text-right">From</Label>
-              <Input id="from" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="col-span-3 h-10 text-sm" />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="to" className="text-right">To</Label>
-              <Input id="to" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="col-span-3 h-10 text-sm" />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button onClick={() => { setShowPeriodModal(false); router.push(`?from=${startDate}&to=${endDate}`); }} className="h-10">Apply Period</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ReportPeriodDialog
+        open={showPeriodModal}
+        onOpenChange={setShowPeriodModal}
+        startDate={startDate}
+        endDate={endDate}
+        onStartDateChange={setStartDate}
+        onEndDateChange={setEndDate}
+        onApply={handleApplyPeriod}
+      />
 
       <Dialog open={selectedMonth !== null} onOpenChange={open => !open && setSelectedMonth(null)}>
         <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto">
@@ -155,17 +145,35 @@ function CreditNoteRegisterContent({ company, monthlySummary, canExport }: Props
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/40">
-                {selectedMonth?.vouchers.map(v => (
+                {!selectedMonth?.vouchers || selectedMonth.vouchers.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="p-8 text-center text-xs text-muted-foreground italic">
+                      No credit note vouchers found for this month
+                    </td>
+                  </tr>
+                ) : (
+                  selectedMonth.vouchers.map(v => (
                   <tr key={v.voucherId} className={`hover:bg-muted/10 transition-colors ${v.status === "cancelled" ? "bg-destructive/5 text-muted-foreground" : ""}`}>
                     <td className="py-3 px-3">{new Date(v.voucherDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</td>
                     <td className="py-3 px-3 font-mono font-medium">{v.voucherNo}</td>
-                    <td className="py-3 px-3">{v.partyName}</td>
+                    <td className="py-3 px-3">
+                      {v.partyLedgerId ? (
+                        <a
+                          href={`/dashboard/ledger-report?ledgerId=${v.partyLedgerId}`}
+                          className="text-primary hover:underline font-semibold"
+                        >
+                          {v.partyName}
+                        </a>
+                      ) : (
+                        v.partyName
+                      )}
+                    </td>
                     <td className="py-3 px-3 text-center">
                       <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold uppercase tracking-wider ${v.status === "cancelled" ? "bg-destructive/10 text-destructive border border-destructive/20" : v.status === "draft" ? "bg-yellow-500/10 text-yellow-600 border border-yellow-500/20" : "bg-primary/10 text-primary border border-primary/20"}`}>{v.status}</span>
                     </td>
                     <td className={`py-3 px-3 text-right font-mono font-semibold ${v.status === "cancelled" ? "line-through text-muted-foreground/60" : ""}`}>{formatAmount(v.netAmount)}</td>
                   </tr>
-                ))}
+                )))}
               </tbody>
             </table>
           </div>

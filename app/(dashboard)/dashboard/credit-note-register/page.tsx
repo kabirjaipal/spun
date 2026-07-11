@@ -1,8 +1,8 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { mCompanies, tVouchers } from "@/lib/db/schema";
-import { and, eq, isNull, gte, lte } from "drizzle-orm";
+import { mCompanies, tVouchers, mLedgers } from "@/lib/db/schema";
+import { and, eq, isNull, gte, lte, inArray } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
 import CreditNoteRegisterClient from "./CreditNoteRegisterClient";
 
@@ -27,9 +27,25 @@ export default async function CreditNoteRegisterPage({
   const toDate = params.to || `${fyStartYear + 1}-03-31`;
 
   const rawVouchers = await db
-    .select({ voucherId: tVouchers.voucherId, voucherNo: tVouchers.voucherNo, voucherDate: tVouchers.voucherDate, netAmount: tVouchers.netAmount, status: tVouchers.status, partyName: mCompanies.companyName })
+    .select({
+      voucherId: tVouchers.voucherId,
+      voucherNo: tVouchers.voucherNo,
+      voucherDate: tVouchers.voucherDate,
+      netAmount: tVouchers.netAmount,
+      status: tVouchers.status,
+      partyName: mCompanies.companyName,
+      partyLedgerId: mLedgers.ledgerId,
+    })
     .from(tVouchers)
     .leftJoin(mCompanies, eq(tVouchers.partyId, mCompanies.companyId))
+    .leftJoin(
+      mLedgers,
+      and(
+        eq(tVouchers.partyId, mLedgers.referenceId),
+        inArray(mLedgers.ledgerType, ["customer", "company"]),
+        isNull(mLedgers.deletedOn)
+      )
+    )
     .where(and(eq(tVouchers.companyId, companyId), eq(tVouchers.voucherType, "credit_note"), isNull(tVouchers.deletedOn), gte(tVouchers.voucherDate, fromDate), lte(tVouchers.voucherDate, toDate)))
     .orderBy(tVouchers.voucherDate);
 
@@ -51,7 +67,15 @@ export default async function CreditNoteRegisterPage({
       totalVouchers: monthVouchers.length,
       cancelledVouchers: monthVouchers.filter(v => v.status === "cancelled").length,
       netAmount,
-      vouchers: monthVouchers.map(v => ({ voucherId: v.voucherId, voucherNo: v.voucherNo, voucherDate: v.voucherDate, netAmount: Number(v.netAmount), status: v.status, partyName: v.partyName || "Cash/General Party" })),
+      vouchers: monthVouchers.map(v => ({
+        voucherId: v.voucherId,
+        voucherNo: v.voucherNo,
+        voucherDate: v.voucherDate,
+        netAmount: Number(v.netAmount),
+        status: v.status,
+        partyName: v.partyName || "Cash/General Party",
+        partyLedgerId: v.partyLedgerId ? Number(v.partyLedgerId) : null,
+      })),
     };
   });
 

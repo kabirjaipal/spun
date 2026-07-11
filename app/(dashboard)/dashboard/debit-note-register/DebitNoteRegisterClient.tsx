@@ -8,6 +8,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useRouter, useSearchParams } from "next/navigation";
+import { formatAmount } from "@/lib/utils";
+import { useOmittedLines } from "@/lib/hooks";
+import { ReportPeriodDialog } from "@/components/ReportPeriodDialog";
+import { ReportOmittedBanner } from "@/components/ReportOmittedBanner";
 
 interface VoucherDetail {
   voucherId: number;
@@ -16,6 +20,7 @@ interface VoucherDetail {
   netAmount: number;
   status: string;
   partyName: string;
+  partyLedgerId?: number | null;
 }
 
 interface MonthlySummaryItem {
@@ -65,39 +70,17 @@ function DebitNoteRegisterContent({
   // Drill-down dialog state
   const [selectedMonth, setSelectedMonth] = useState<MonthlySummaryItem | null>(null);
 
-  // Omission lists
-  const [removedLines, setRemovedLines] = useState<string[]>([]);
-  const [lastRemovedLine, setLastRemovedLine] = useState<string | null>(null);
+  // Omission lists via reusable hook
+  const {
+    removedLines,
+    handleRemoveLine,
+    handleRestoreLine,
+    handleRestoreAll,
+  } = useOmittedLines();
 
   const handleApplyPeriod = () => {
     setShowPeriodModal(false);
     router.push(`?from=${startDate}&to=${endDate}`);
-  };
-
-  // Helper: Format to Indian Currency (en-IN)
-  const formatAmount = (val: number) => {
-    if (val === 0) return "—";
-    return new Intl.NumberFormat("en-IN", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(Math.abs(val));
-  };
-
-  const handleRemoveLine = (name: string) => {
-    setRemovedLines((prev) => [...prev, name]);
-    setLastRemovedLine(name);
-  };
-
-  const handleRestoreLine = () => {
-    if (lastRemovedLine) {
-      setRemovedLines((prev) => prev.filter((n) => n !== lastRemovedLine));
-      setLastRemovedLine(null);
-    } else if (removedLines.length > 0) {
-      const copy = [...removedLines];
-      const popped = copy.pop();
-      setRemovedLines(copy);
-      setLastRemovedLine(popped || null);
-    }
   };
 
   // Filter out omitted months
@@ -222,10 +205,8 @@ function DebitNoteRegisterContent({
                   return (
                     <tr
                       key={item.monthKey}
-                      onClick={() => hasVouchers && setSelectedMonth(item)}
-                      className={`group/row hover:bg-muted/10 transition-colors ${
-                        hasVouchers ? "cursor-pointer" : ""
-                      }`}
+                      onClick={() => setSelectedMonth(item)}
+                      className="group/row hover:bg-muted/10 transition-colors cursor-pointer"
                     >
                       <td className="p-3 pl-6 font-medium">
                         <div className="flex items-center justify-between">
@@ -275,69 +256,22 @@ function DebitNoteRegisterContent({
         </div>
       </div>
 
-      {/* Omitted Warning Banner */}
-      {removedLines.length > 0 && (
-        <div className="mt-4 p-3 bg-secondary border border-border rounded-md text-xs text-muted-foreground flex justify-between items-center no-print">
-          <span>
-            You have hidden <strong>{removedLines.length}</strong> months from the register.
-          </span>
-          <div className="flex gap-2">
-            <Button variant="outline" className="h-9 px-3" onClick={handleRestoreLine}>
-              Restore Last
-            </Button>
-            <Button
-              variant="outline"
-              className="h-9 px-3 text-destructive border-destructive/25 hover:bg-destructive/10"
-              onClick={() => {
-                setRemovedLines([]);
-                setLastRemovedLine(null);
-              }}
-            >
-              Restore All
-            </Button>
-          </div>
-        </div>
-      )}
+      <ReportOmittedBanner
+        count={removedLines.length}
+        itemName="months"
+        onRestoreLast={handleRestoreLine}
+        onRestoreAll={handleRestoreAll}
+      />
 
-      {/* Period Selector Dialog */}
-      <Dialog open={showPeriodModal} onOpenChange={setShowPeriodModal}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Change Report Period</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="from" className="text-right">
-                From
-              </Label>
-              <Input
-                id="from"
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="col-span-3 h-10 text-sm"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="to" className="text-right">
-                To
-              </Label>
-              <Input
-                id="to"
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="col-span-3 h-10 text-sm"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button onClick={handleApplyPeriod} className="h-10">
-              Apply Period
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ReportPeriodDialog
+        open={showPeriodModal}
+        onOpenChange={setShowPeriodModal}
+        startDate={startDate}
+        endDate={endDate}
+        onStartDateChange={setStartDate}
+        onEndDateChange={setEndDate}
+        onApply={handleApplyPeriod}
+      />
 
       {/* Monthly Voucher Drill-down Listing Dialog */}
       <Dialog open={selectedMonth !== null} onOpenChange={(open) => !open && setSelectedMonth(null)}>
@@ -359,7 +293,14 @@ function DebitNoteRegisterContent({
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/40">
-                {selectedMonth?.vouchers.map((v) => (
+                {!selectedMonth?.vouchers || selectedMonth.vouchers.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="p-8 text-center text-xs text-muted-foreground italic">
+                      No debit note vouchers found for this month
+                    </td>
+                  </tr>
+                ) : (
+                  selectedMonth.vouchers.map((v) => (
                   <tr
                     key={v.voucherId}
                     className={`hover:bg-muted/10 transition-colors ${
@@ -374,7 +315,18 @@ function DebitNoteRegisterContent({
                       })}
                     </td>
                     <td className="py-3 px-3 font-mono font-medium">{v.voucherNo}</td>
-                    <td className="py-3 px-3">{v.partyName}</td>
+                    <td className="py-3 px-3">
+                      {v.partyLedgerId ? (
+                        <a
+                          href={`/dashboard/ledger-report?ledgerId=${v.partyLedgerId}`}
+                          className="text-primary hover:underline font-semibold"
+                        >
+                          {v.partyName}
+                        </a>
+                      ) : (
+                        v.partyName
+                      )}
+                    </td>
                     <td className="py-3 px-3 text-center">
                       <span
                         className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold uppercase tracking-wider ${
@@ -394,7 +346,7 @@ function DebitNoteRegisterContent({
                       {formatAmount(v.netAmount)}
                     </td>
                   </tr>
-                ))}
+                )))}
               </tbody>
             </table>
           </div>

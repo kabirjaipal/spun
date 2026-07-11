@@ -113,7 +113,47 @@ export default async function JournalRegisterPage({
 
   const vouchersList = Array.from(vouchersMap.values());
 
-  // 5. Check permissions
+  // 5. Generate list of months chronologically in the date range
+  const start = new Date(fromDate + "T00:00:00");
+  const end = new Date(toDate + "T00:00:00");
+
+  const monthsList: { key: string; label: string; year: number }[] = [];
+  let curr = new Date(start.getFullYear(), start.getMonth(), 1);
+  const endLimit = new Date(end.getFullYear(), end.getMonth(), 1);
+
+  while (curr <= endLimit) {
+    monthsList.push({
+      key: `${curr.getFullYear()}-${String(curr.getMonth() + 1).padStart(2, "0")}`,
+      label: curr.toLocaleDateString("en-US", { month: "long" }),
+      year: curr.getFullYear(),
+    });
+    curr.setMonth(curr.getMonth() + 1);
+  }
+
+  // 6. Map vouchers into months
+  const monthlySummary = monthsList.map((month) => {
+    const monthVouchers = vouchersList.filter(
+      (v) => v.voucherDate.slice(0, 7) === month.key
+    );
+
+    const totalVouchers = monthVouchers.length;
+    const cancelledVouchers = monthVouchers.filter((v) => v.status === "cancelled").length;
+    const netAmount = monthVouchers
+      .filter((v) => v.status !== "cancelled")
+      .reduce((sum, v) => sum + v.netAmount, 0);
+
+    return {
+      monthKey: month.key,
+      monthName: month.label,
+      year: month.year,
+      totalVouchers,
+      cancelledVouchers,
+      netAmount,
+      vouchers: monthVouchers,
+    };
+  });
+
+  // 7. Check permissions
   const perms = getStaticPermissionsForRole(session.user.role as Role);
   const p = perms.find((x) => x.accessItem === "journal_register");
   const canExport = p?.e ?? false;
@@ -126,7 +166,7 @@ export default async function JournalRegisterPage({
         gstNo: company.gstNo,
         address: company.address,
       }}
-      vouchers={vouchersList}
+      monthlySummary={monthlySummary}
       canExport={canExport}
     />
   );

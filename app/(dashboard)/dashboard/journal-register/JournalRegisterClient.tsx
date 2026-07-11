@@ -8,6 +8,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useRouter, useSearchParams } from "next/navigation";
+import { formatAmount, formatDateToTally } from "@/lib/utils";
+import { useOmittedLines } from "@/lib/hooks";
+import { ReportPeriodDialog } from "@/components/ReportPeriodDialog";
+import { ReportOmittedBanner } from "@/components/ReportOmittedBanner";
 
 interface VoucherEntry {
   entryId: number;
@@ -28,6 +32,16 @@ interface Voucher {
   entries: VoucherEntry[];
 }
 
+interface MonthlySummaryItem {
+  monthKey: string;
+  monthName: string;
+  year: number;
+  totalVouchers: number;
+  cancelledVouchers: number;
+  netAmount: number;
+  vouchers: Voucher[];
+}
+
 interface Company {
   companyId: number;
   companyName: string;
@@ -37,13 +51,13 @@ interface Company {
 
 interface JournalRegisterClientProps {
   company: Company;
-  vouchers: Voucher[];
+  monthlySummary: MonthlySummaryItem[];
   canExport: boolean;
 }
 
 function JournalRegisterContent({
   company,
-  vouchers,
+  monthlySummary,
   canExport,
 }: JournalRegisterClientProps) {
   const router = useRouter();
@@ -64,52 +78,22 @@ function JournalRegisterContent({
   const [startDate, setStartDate] = useState(fromParam);
   const [endDate, setEndDate] = useState(toParam);
   const [searchQuery, setSearchQuery] = useState("");
+  const [dialogSearchQuery, setDialogSearchQuery] = useState("");
 
-  // Omission list
-  const [removedLines, setRemovedLines] = useState<string[]>([]);
-  const [lastRemovedLine, setLastRemovedLine] = useState<string | null>(null);
+  // Drill-down dialog state
+  const [selectedMonth, setSelectedMonth] = useState<MonthlySummaryItem | null>(null);
+
+  // Omission list via custom hook
+  const {
+    removedLines,
+    handleRemoveLine,
+    handleRestoreLine,
+    handleRestoreAll,
+  } = useOmittedLines();
 
   const handleApplyPeriod = () => {
     setShowPeriodModal(false);
     router.push(`?from=${startDate}&to=${endDate}`);
-  };
-
-  // Helper: Format to Indian Currency (en-IN)
-  const formatAmount = (val: number) => {
-    if (Math.abs(val) < 0.01) return "—";
-    const abs = Math.abs(val);
-    return new Intl.NumberFormat("en-IN", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(abs);
-  };
-
-  // Helper: Format date to d-MMM-yy (Tally style, e.g. 1-Apr-25)
-  const formatDateToTally = (dateStr: string) => {
-    const d = new Date(dateStr + "T00:00:00");
-    if (isNaN(d.getTime())) return dateStr;
-    const day = d.getDate();
-    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    const month = months[d.getMonth()];
-    const year = String(d.getFullYear()).slice(-2);
-    return `${day}-${month}-${year}`;
-  };
-
-  const handleRemoveLine = (id: string) => {
-    setRemovedLines((prev) => [...prev, id]);
-    setLastRemovedLine(id);
-  };
-
-  const handleRestoreLine = () => {
-    if (lastRemovedLine) {
-      setRemovedLines((prev) => prev.filter((n) => n !== lastRemovedLine));
-      setLastRemovedLine(null);
-    } else if (removedLines.length > 0) {
-      const copy = [...removedLines];
-      const popped = copy.pop();
-      setRemovedLines(copy);
-      setLastRemovedLine(popped || null);
-    }
   };
 
   // Get primary debited ledger name for the summary line particulars
@@ -118,30 +102,42 @@ function JournalRegisterContent({
     return debitEntry ? debitEntry.ledgerName : "No Debit Posting";
   };
 
-  // Filter out omitted items
-  const activeVouchers = vouchers.filter((v) => !removedLines.includes(String(v.voucherId)));
+  // Filter out omitted months
+  const activeSummary = monthlySummary.filter(
+    (item) => !removedLines.includes(`${item.monthName} ${item.year}`)
+  );
 
-  // Filter based on search query
-  const filteredVouchers = activeVouchers.filter((v) => {
-    const term = searchQuery.toLowerCase();
-    const particulars = getParticularsText(v).toLowerCase();
-    const vchNo = v.voucherNo.toLowerCase();
-    const remarks = (v.remarks || "").toLowerCase();
-    const allLedgers = v.entries.map((e) => e.ledgerName.toLowerCase()).join(" ");
+  // Search filtering by month name
+  const searchedSummary = activeSummary.filter((item) =>
+    item.monthName.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
-    return (
-      particulars.includes(term) ||
-      vchNo.includes(term) ||
-      remarks.includes(term) ||
-      allLedgers.includes(term)
-    );
-  });
-
-  // Calculate Grand Totals of visible journal vouchers
-  const totalDebitSum = filteredVouchers.reduce((sum, v) => sum + v.netAmount, 0);
+  // Calculate Grand Totals of visible months
+  const totalVouchersSum = searchedSummary.reduce((sum, item) => sum + item.totalVouchers, 0);
+  const cancelledVouchersSum = searchedSummary.reduce((sum, item) => sum + item.cancelledVouchers, 0);
+  const netAmountSum = searchedSummary.reduce((sum, item) => sum + item.netAmount, 0);
 
   const triggerPrint = () => {
     window.print();
+  };
+
+  // Filter vouchers inside the drill-down dialog
+  const getFilteredDialogVouchers = (vouchers: Voucher[]) => {
+    if (!dialogSearchQuery) return vouchers;
+    const term = dialogSearchQuery.toLowerCase();
+    return vouchers.filter((v) => {
+      const particulars = getParticularsText(v).toLowerCase();
+      const vchNo = v.voucherNo.toLowerCase();
+      const remarks = (v.remarks || "").toLowerCase();
+      const allLedgers = v.entries.map((e) => e.ledgerName.toLowerCase()).join(" ");
+
+      return (
+        particulars.includes(term) ||
+        vchNo.includes(term) ||
+        remarks.includes(term) ||
+        allLedgers.includes(term)
+      );
+    });
   };
 
   return (
@@ -170,7 +166,7 @@ function JournalRegisterContent({
         }
       `}} />
 
-      {/* Page Title & Navigation Controls (Hidden on print) */}
+      {/* Screen Controls Header (Hidden on print) */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 no-print">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-foreground">Journal Register</h1>
@@ -182,34 +178,14 @@ function JournalRegisterContent({
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               type="text"
-              placeholder="Search journals..."
+              placeholder="Search month..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9 bg-background border-border h-10 text-sm"
             />
           </div>
 
-          {/* Detailed/Condensed toggle */}
-          <Button
-            variant="outline"
-            onClick={() => setIsDetailed(!isDetailed)}
-            className="flex items-center gap-2"
-          >
-            {isDetailed ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            {isDetailed ? "Condensed View" : "Detailed View"}
-          </Button>
-
-          {/* Show/Hide Narration toggle */}
-          <Button
-            variant="outline"
-            onClick={() => setShowNarration(!showNarration)}
-            className="flex items-center gap-2"
-          >
-            {showNarration ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            {showNarration ? "Hide Narration" : "Show Narration"}
-          </Button>
-
-          {/* Period Date Dialog Button */}
+          {/* Period Button */}
           <Button
             variant="outline"
             onClick={() => setShowPeriodModal(true)}
@@ -237,7 +213,7 @@ function JournalRegisterContent({
             {company.companyName}
           </h1>
           <p className="text-sm font-semibold text-muted-foreground uppercase tracking-widest mt-1">
-            Voucher Register (Journal)
+            Journal Register
           </p>
           <p className="text-xs text-muted-foreground font-mono mt-1">
             {formatDateToTally(fromParam)} to {formatDateToTally(toParam)}
@@ -250,107 +226,75 @@ function JournalRegisterContent({
             {/* Table Headers */}
             <thead>
               <tr className="border-b border-border bg-muted/40 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                <th className="p-3 text-left pl-6 w-[120px]">Date</th>
-                <th className="p-3 text-left min-w-[220px]">Particulars</th>
-                <th className="p-3 text-left w-[130px]">Vch Type</th>
-                <th className="p-3 text-left w-[110px]">Vch No.</th>
-                <th className="p-3 text-right border-l border-border w-[140px]">Debit Amount</th>
-                <th className="p-3 text-right border-l border-border w-[140px]">Credit Amount</th>
+                <th className="p-3 text-left pl-6 min-w-[200px]" rowSpan={2}>
+                  Particulars
+                </th>
+                <th className="p-2 text-center border-l border-border" colSpan={2}>
+                  Transactions
+                </th>
+                <th className="p-3 text-right border-l border-border w-[200px]" rowSpan={2}>
+                  Closing Balance
+                </th>
+              </tr>
+              <tr className="border-b border-border bg-muted/20 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                <th className="p-3 text-right border-l border-border w-[160px]">Total Vouchers</th>
+                <th className="p-3 text-right border-l border-border w-[160px] text-destructive">(cancelled)</th>
               </tr>
             </thead>
 
             {/* Table Rows */}
             <tbody className="divide-y divide-border/40 text-foreground">
-              {filteredVouchers.length === 0 ? (
+              {searchedSummary.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-xs text-muted-foreground italic">
-                    No journal vouchers found for the selected period
+                  <td colSpan={4} className="p-8 text-center text-xs text-muted-foreground italic">
+                    No journal data found for the selected period
                   </td>
                 </tr>
               ) : (
-                filteredVouchers.map((v) => {
-                  const particulars = getParticularsText(v);
+                searchedSummary.map((item) => {
+                  const label = `${item.monthName} ${item.year}`;
+                  const hasVouchers = item.totalVouchers > 0;
+
                   return (
-                    <React.Fragment key={v.voucherId}>
-                      {/* Main Voucher Row */}
-                      <tr className="group/row hover:bg-muted/10 transition-colors font-medium">
-                        {/* Date */}
-                        <td className="p-3 pl-6 font-mono text-xs whitespace-nowrap">
-                          {formatDateToTally(v.voucherDate)}
-                        </td>
+                    <tr
+                      key={item.monthKey}
+                      className="group/row hover:bg-muted/10 transition-colors font-medium cursor-pointer"
+                      onClick={() => {
+                        setDialogSearchQuery("");
+                        setSelectedMonth(item);
+                      }}
+                    >
+                      {/* Particulars (Month Name) */}
+                      <td className="p-3 pl-6 font-semibold text-foreground">
+                        <div className="flex items-center justify-between w-full">
+                          <span>{item.monthName}</span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemoveLine(label);
+                            }}
+                            className="opacity-0 group-hover/row:opacity-100 text-xs text-destructive hover:underline p-1 ml-2 no-print font-normal"
+                          >
+                            Omit
+                          </button>
+                        </div>
+                      </td>
 
-                        {/* Particulars */}
-                        <td className="p-3 font-semibold text-foreground">
-                          <div className="flex items-center justify-between">
-                            <span>{particulars}</span>
-                            <button
-                              onClick={() => handleRemoveLine(String(v.voucherId))}
-                              className="opacity-0 group-hover/row:opacity-100 text-xs text-destructive hover:underline p-1 ml-2 no-print font-normal"
-                            >
-                              Omit
-                            </button>
-                          </div>
-                        </td>
+                      {/* Total Vouchers */}
+                      <td className="p-3 text-right border-l border-border font-mono text-muted-foreground">
+                        {item.totalVouchers > 0 ? item.totalVouchers : "—"}
+                      </td>
 
-                        {/* Voucher Type */}
-                        <td className="p-3 text-muted-foreground">Journal</td>
+                      {/* Cancelled Vouchers */}
+                      <td className="p-3 text-right border-l border-border font-mono text-destructive">
+                        {item.cancelledVouchers > 0 ? item.cancelledVouchers : "—"}
+                      </td>
 
-                        {/* Voucher No */}
-                        <td className="p-3 font-mono text-xs">{v.voucherNo}</td>
-
-                        {/* Debit */}
-                        <td className="p-3 text-right border-l border-border font-mono font-bold">
-                          {formatAmount(v.netAmount)}
-                        </td>
-
-                        {/* Credit (Blank for summary row) */}
-                        <td className="p-3 text-right border-l border-border font-mono text-muted-foreground">
-                          —
-                        </td>
-                      </tr>
-
-                      {/* Detailed Postings Sub-Rows (Rendered if isDetailed is active) */}
-                      {isDetailed && (
-                        <>
-                          {/* List entries */}
-                          {v.entries.map((entry) => (
-                            <tr
-                              key={entry.entryId}
-                              className="bg-muted/5 hover:bg-muted/15 transition-colors border-t border-border/20"
-                            >
-                              <td className="p-2 pl-6"></td>
-                              <td className="p-2 text-xs italic pl-8 text-foreground/80">
-                                {entry.entryType === "credit" ? (
-                                  <span className="pl-4">To {entry.ledgerName}</span>
-                                ) : (
-                                  <span>{entry.ledgerName}</span>
-                                )}
-                              </td>
-                              <td className="p-2"></td>
-                              <td className="p-2"></td>
-                              {/* Debit sub-amount */}
-                              <td className="p-2 text-right border-l border-border text-xs font-mono text-foreground/80">
-                                {entry.entryType === "debit" ? formatAmount(entry.amount) : "—"}
-                              </td>
-                              {/* Credit sub-amount */}
-                              <td className="p-2 text-right border-l border-border text-xs font-mono text-foreground/80">
-                                {entry.entryType === "credit" ? formatAmount(entry.amount) : "—"}
-                              </td>
-                            </tr>
-                          ))}
-                        </>
-                      )}
-                      
-                      {/* Remarks / Narration Row if present and showNarration is active */}
-                      {showNarration && v.remarks && (
-                        <tr className="bg-muted/5 border-t border-border/20">
-                          <td className="p-1 pl-6"></td>
-                          <td colSpan={5} className="p-2 pl-12 text-xs text-muted-foreground italic">
-                            Narration: {v.remarks}
-                          </td>
-                        </tr>
-                      )}
-                    </React.Fragment>
+                      {/* Closing Balance / Net Amount for the month */}
+                      <td className="p-3 text-right border-l border-border font-mono font-bold text-foreground">
+                        {formatAmount(item.netAmount)} Debit
+                      </td>
+                    </tr>
                   );
                 })
               )}
@@ -359,14 +303,15 @@ function JournalRegisterContent({
             {/* Table Footer - Grand Totals */}
             <tfoot>
               <tr className="border-t-2 border-double border-border bg-muted/20 text-sm font-bold">
-                <td className="p-3 pl-6" colSpan={4}>
-                  Total
+                <td className="p-3 pl-6">Grand Total</td>
+                <td className="p-3 text-right border-l border-border font-mono text-foreground">
+                  {totalVouchersSum > 0 ? totalVouchersSum : "—"}
+                </td>
+                <td className="p-3 text-right border-l border-border font-mono text-destructive">
+                  {cancelledVouchersSum > 0 ? cancelledVouchersSum : "—"}
                 </td>
                 <td className="p-3 text-right border-l border-border font-mono text-base text-foreground">
-                  {formatAmount(totalDebitSum)}
-                </td>
-                <td className="p-3 text-right border-l border-border font-mono text-muted-foreground">
-                  —
+                  {formatAmount(netAmountSum)} Debit
                 </td>
               </tr>
             </tfoot>
@@ -374,67 +319,159 @@ function JournalRegisterContent({
         </div>
       </div>
 
-      {/* Omitted Rows Warning Alert (Hidden on print) */}
-      {removedLines.length > 0 && (
-        <div className="mt-4 p-3 bg-secondary border border-border rounded-md text-xs text-muted-foreground flex justify-between items-center no-print">
-          <span>
-            You have hidden <strong>{removedLines.length}</strong> journal vouchers from the register display.
-          </span>
-          <div className="flex gap-2">
-            <Button variant="outline" className="h-9 px-3" onClick={handleRestoreLine}>
-              Restore Last
-            </Button>
-            <Button
-              variant="outline"
-              className="h-9 px-3 text-destructive border-destructive/25 hover:bg-destructive/10"
-              onClick={() => {
-                setRemovedLines([]);
-                setLastRemovedLine(null);
-              }}
-            >
-              Restore All
-            </Button>
-          </div>
-        </div>
-      )}
+      <ReportOmittedBanner
+        count={removedLines.length}
+        itemName="months"
+        onRestoreLast={handleRestoreLine}
+        onRestoreAll={handleRestoreAll}
+      />
 
-      {/* Change Period Dialog Modal (Hidden on print) */}
-      <Dialog open={showPeriodModal} onOpenChange={setShowPeriodModal}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Change Report Period</DialogTitle>
+      <ReportPeriodDialog
+        open={showPeriodModal}
+        onOpenChange={setShowPeriodModal}
+        startDate={startDate}
+        endDate={endDate}
+        onStartDateChange={setStartDate}
+        onEndDateChange={setEndDate}
+        onApply={handleApplyPeriod}
+      />
+
+      {/* Monthly Voucher Drill-down Listing Dialog */}
+      <Dialog open={selectedMonth !== null} onOpenChange={(open) => !open && setSelectedMonth(null)}>
+        <DialogContent className="sm:max-w-4xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <DialogTitle className="text-lg font-bold">
+              Journals — {selectedMonth?.monthName} {selectedMonth?.year}
+            </DialogTitle>
+            <div className="flex items-center gap-3 pr-6 no-print">
+              <div className="relative w-52">
+                <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Search inside month..."
+                  value={dialogSearchQuery}
+                  onChange={(e) => setDialogSearchQuery(e.target.value)}
+                  className="pl-8 h-8 text-xs bg-background border-border"
+                />
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsDetailed(!isDetailed)}
+                className="h-8 text-xs flex items-center gap-1 animate-none"
+              >
+                {isDetailed ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                {isDetailed ? "Condensed" : "Detailed"}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowNarration(!showNarration)}
+                className="h-8 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+              >
+                {showNarration ? "Hide Narration" : "Show Narration"}
+              </Button>
+            </div>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="from" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                From Date
-              </Label>
-              <Input
-                id="from"
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="col-span-3 h-10 text-sm bg-background border-border"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="to" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                To Date
-              </Label>
-              <Input
-                id="to"
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="col-span-3 h-10 text-sm bg-background border-border"
-              />
-            </div>
+
+          <div className="py-2">
+            <table className="w-full text-sm border-collapse">
+              <thead>
+                <tr className="border-b border-border bg-muted/40 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  <th className="p-3 text-left w-[120px]">Date</th>
+                  <th className="p-3 text-left min-w-[220px]">Particulars</th>
+                  <th className="p-3 text-left w-[130px]">Vch Type</th>
+                  <th className="p-3 text-left w-[110px]">Vch No.</th>
+                  <th className="p-3 text-right border-l border-border w-[140px]">Debit Amount</th>
+                  <th className="p-3 text-right border-l border-border w-[140px]">Credit Amount</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/40 text-foreground">
+                {selectedMonth && getFilteredDialogVouchers(selectedMonth.vouchers).length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="p-8 text-center text-xs text-muted-foreground italic">
+                      No journal vouchers matched search criteria
+                    </td>
+                  </tr>
+                ) : (
+                  selectedMonth && getFilteredDialogVouchers(selectedMonth.vouchers).map((v) => {
+                    const particulars = getParticularsText(v);
+                    const isVchCancelled = v.status === "cancelled";
+                    return (
+                      <React.Fragment key={v.voucherId}>
+                        <tr className={`group/row hover:bg-muted/10 transition-colors font-medium ${isVchCancelled ? "bg-destructive/5 text-muted-foreground" : ""}`}>
+                          <td className="p-3 font-mono text-xs whitespace-nowrap">
+                            {formatDateToTally(v.voucherDate)}
+                          </td>
+                          <td className="p-3 font-semibold text-foreground">
+                            {particulars}
+                          </td>
+                          <td className="p-3 text-muted-foreground">Journal</td>
+                          <td className="p-3 font-mono text-xs">{v.voucherNo}</td>
+                          <td className={`p-3 text-right border-l border-border font-mono font-bold ${isVchCancelled ? "line-through text-muted-foreground/60" : ""}`}>
+                            {formatAmount(v.netAmount)}
+                          </td>
+                          <td className="p-3 text-right border-l border-border font-mono text-muted-foreground">—</td>
+                        </tr>
+
+                        {isDetailed && (
+                          <>
+                            {v.entries.map((entry) => (
+                              <tr
+                                key={entry.entryId}
+                                className="bg-muted/5 hover:bg-muted/15 transition-colors border-t border-border/20"
+                              >
+                                <td className="p-2"></td>
+                                <td className="p-2 text-xs italic pl-8 text-foreground/80">
+                                  {entry.entryType === "credit" ? (
+                                    <span className="pl-4">
+                                      To{" "}
+                                      <a
+                                        href={`/dashboard/ledger-report?ledgerId=${entry.ledgerId}`}
+                                        className="text-primary hover:underline font-semibold"
+                                      >
+                                        {entry.ledgerName}
+                                      </a>
+                                    </span>
+                                  ) : (
+                                    <span>
+                                      <a
+                                        href={`/dashboard/ledger-report?ledgerId=${entry.ledgerId}`}
+                                        className="text-primary hover:underline font-semibold"
+                                      >
+                                        {entry.ledgerName}
+                                      </a>
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="p-2"></td>
+                                <td className="p-2"></td>
+                                <td className="p-2 text-right border-l border-border text-xs font-mono text-foreground/80">
+                                  {entry.entryType === "debit" ? formatAmount(entry.amount) : "—"}
+                                </td>
+                                <td className="p-2 text-right border-l border-border text-xs font-mono text-foreground/80">
+                                  {entry.entryType === "credit" ? formatAmount(entry.amount) : "—"}
+                                </td>
+                              </tr>
+                            ))}
+
+                            {showNarration && v.remarks && (
+                              <tr className="bg-muted/5 border-t border-border/20">
+                                <td className="p-1"></td>
+                                <td colSpan={5} className="p-2 pl-12 text-xs text-muted-foreground italic">
+                                  Narration: {v.remarks}
+                                </td>
+                              </tr>
+                            )}
+                          </>
+                        )}
+                      </React.Fragment>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
           </div>
-          <DialogFooter>
-            <Button onClick={handleApplyPeriod} className="h-10 text-sm">
-              Apply Period
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

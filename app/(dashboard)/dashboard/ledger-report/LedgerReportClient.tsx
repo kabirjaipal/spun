@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, Suspense, useRef } from "react";
+import React, { useState, useEffect, useMemo, Suspense, useRef } from "react";
 import { Spinner } from "@/components/ui/spinner";
 import { Download, Calendar, ArrowLeft, Search, BookOpen, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -91,9 +91,107 @@ function LedgerReportContent({
   const [endDate, setEndDate] = useState(toParam);
   const [showPeriodModal, setShowPeriodModal] = useState(false);
 
+  const [monthlyView, setMonthlyView] = useState(true);
+  const [selectedMonth, setSelectedMonth] = useState<any | null>(null);
+
   const isPartyLedger = selectedLedger &&
     (selectedLedger.ledgerType === "customer" || selectedLedger.ledgerType === "company");
   const [viewMode, setViewMode] = useState<"vouchers" | "outstandings">("vouchers");
+
+  const monthlySummary = useMemo(() => {
+    if (!selectedLedger) return [];
+
+    const start = new Date(startDate + "T00:00:00");
+    const end = new Date(endDate + "T00:00:00");
+
+    const monthsList: { key: string; monthName: string; year: number }[] = [];
+    let curr = new Date(start.getFullYear(), start.getMonth(), 1);
+    const endLimit = new Date(end.getFullYear(), end.getMonth(), 1);
+
+    while (curr <= endLimit) {
+      const monthName = curr.toLocaleDateString("en-IN", { month: "long" });
+      const key = `${curr.getFullYear()}-${String(curr.getMonth() + 1).padStart(2, "0")}`;
+      monthsList.push({ key, monthName, year: curr.getFullYear() });
+      curr.setMonth(curr.getMonth() + 1);
+    }
+
+    let runningBalance = openingBalance;
+    return monthsList.map((month) => {
+      const monthEntries = ledgerEntries.filter(
+        (e) => e.voucherDate.slice(0, 7) === month.key
+      );
+
+      const debit = monthEntries
+        .filter((e) => e.entryType === "debit")
+        .reduce((sum, e) => sum + e.amount, 0);
+
+      const credit = monthEntries
+        .filter((e) => e.entryType === "credit")
+        .reduce((sum, e) => sum + e.amount, 0);
+
+      runningBalance += (debit - credit);
+
+      return {
+        monthKey: month.key,
+        monthName: month.monthName,
+        year: month.year,
+        debit,
+        credit,
+        closingBalance: runningBalance,
+        entries: monthEntries,
+      };
+    });
+  }, [startDate, endDate, ledgerEntries, openingBalance, selectedLedger]);
+
+  const selectedMonthOpeningBalance = useMemo(() => {
+    if (!selectedMonth) return 0;
+    return selectedMonth.closingBalance - (selectedMonth.debit - selectedMonth.credit);
+  }, [selectedMonth]);
+
+  const selectedMonthVoucherRows = useMemo(() => {
+    if (!selectedMonth) return [];
+    let runningSum = selectedMonthOpeningBalance;
+    return selectedMonth.entries.map((e: any) => {
+      runningSum += e.entryType === "debit" ? e.amount : -e.amount;
+      return { ...e, balance: runningSum };
+    });
+  }, [selectedMonth, selectedMonthOpeningBalance]);
+
+  const findLedgerByName = (name: string) => {
+    return ledgers.find((l) => l.ledgerName === name);
+  };
+
+  const renderParticulars = (name: string) => {
+    const ledger = findLedgerByName(name);
+    if (ledger) {
+      return (
+        <a
+          href={`/dashboard/ledger-report?ledgerId=${ledger.ledgerId}`}
+          className="text-primary hover:underline font-semibold"
+        >
+          {name}
+        </a>
+      );
+    }
+    if (name.endsWith(" & others")) {
+      const baseName = name.replace(" & others", "");
+      const baseLedger = findLedgerByName(baseName);
+      if (baseLedger) {
+        return (
+          <span>
+            <a
+              href={`/dashboard/ledger-report?ledgerId=${baseLedger.ledgerId}`}
+              className="text-primary hover:underline font-semibold"
+            >
+              {baseName}
+            </a>
+            <span className="text-muted-foreground font-normal"> & others</span>
+          </span>
+        );
+      }
+    }
+    return <span>{name}</span>;
+  };
 
   const [ledgerSearch, setLedgerSearch] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
@@ -368,6 +466,17 @@ function LedgerReportContent({
             )}
           </div>
 
+          {selectedLedger && viewMode === "vouchers" && (
+            <Button
+              variant="outline"
+              onClick={() => setMonthlyView(!monthlyView)}
+              className="flex items-center gap-2"
+            >
+              <FileText className="h-4 w-4" />
+              {monthlyView ? "Detailed View" : "Monthly Summary"}
+            </Button>
+          )}
+
           <Button variant="outline" onClick={() => setShowPeriodModal(true)} className="flex items-center gap-2">
             <Calendar className="h-4 w-4" />
             Period
@@ -502,14 +611,16 @@ function LedgerReportContent({
           <div className="rounded-lg border border-border bg-card overflow-hidden print-area shadow-sm">
             {/* Print-only header */}
             <PrintHeader
-              reportTitle="Ledger Vouchers"
+              reportTitle={monthlyView ? "Ledger Monthly Summary" : "Ledger Vouchers"}
               subTitle={`${selectedLedger.ledgerName} | ${fmtDate(startDate)} to ${fmtDate(endDate)}`}
             />
 
             {/* Screen header */}
             <div className="border-b border-border bg-muted/20 px-6 py-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 no-print">
               <div>
-                <p className="text-[10px] uppercase font-extrabold tracking-wider text-muted-foreground">Ledger Vouchers</p>
+                <p className="text-[10px] uppercase font-extrabold tracking-wider text-muted-foreground">
+                  {monthlyView ? "Ledger Monthly Summary" : "Ledger Vouchers"}
+                </p>
                 <h2 className="text-lg font-black text-foreground mt-0.5 flex items-center gap-2">
                   <FileText className="h-4 w-4 text-primary shrink-0" />
                   {selectedLedger.ledgerName}
@@ -525,88 +636,148 @@ function LedgerReportContent({
               </div>
             </div>
 
-            {/* Column headers — 12 valid tailwind columns: 2+4+2+2+1+1=12 for date, particulars, vchtype, vchno, debit, credit, balance */}
-            <div className="grid grid-cols-12 border-b border-border bg-muted/40 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-              <div className="col-span-2 p-3.5 pl-4 border-r border-border">Date</div>
-              <div className="col-span-4 p-3.5 pl-4 border-r border-border">Particulars</div>
-              <div className="col-span-2 p-3.5 pl-4 border-r border-border">Vch Type</div>
-              <div className="col-span-1 p-3.5 pl-4 border-r border-border">Vch No.</div>
-              <div className="col-span-1 p-3.5 text-right border-r border-border pr-3">Debit</div>
-              <div className="col-span-1 p-3.5 text-right border-r border-border pr-3">Credit</div>
-              <div className="col-span-1 p-3.5 text-right pr-3">Balance</div>
-            </div>
-
-            {/* Opening Balance row */}
-            <div className="grid grid-cols-12 bg-muted/10 text-foreground border-b border-border/30">
-              <div className="col-span-2 p-3 pl-4 border-r border-border/50 text-muted-foreground flex items-center text-xs">—</div>
-              <div className="col-span-4 p-3 pl-4 border-r border-border/50 font-sans text-xs uppercase font-extrabold text-muted-foreground flex items-center">
-                Opening Balance
-              </div>
-              <div className="col-span-2 p-3 border-r border-border/50 text-muted-foreground flex items-center text-xs">—</div>
-              <div className="col-span-1 p-3 border-r border-border/50 text-muted-foreground flex items-center text-xs">—</div>
-              <div className="col-span-1 p-3 border-r border-border/50 text-muted-foreground text-right flex items-center justify-end pr-3 text-xs">—</div>
-              <div className="col-span-1 p-3 border-r border-border/50 text-muted-foreground text-right flex items-center justify-end pr-3 text-xs">—</div>
-              <div className="col-span-1 p-3 text-right pr-3 flex items-center justify-end font-mono font-bold text-sm">
-                {formatAmount(openingBalance, openingBalance >= 0 ? "Dr" : "Cr")}
-              </div>
-            </div>
-
-            {/* Transaction rows */}
-            <div className="divide-y divide-border/40">
-              {ledgerVoucherRows.length === 0 ? (
-                <div className="text-center py-16 text-muted-foreground text-sm font-sans col-span-12">
-                  No transactions recorded for the selected period.
+            {monthlyView ? (
+              /* MONTHLY SUMMARY TABLE */
+              <div>
+                {/* Column headers */}
+                <div className="grid grid-cols-12 border-b border-border bg-muted/40 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                  <div className="col-span-4 p-3.5 pl-6 border-r border-border">Particulars (Month)</div>
+                  <div className="col-span-3 p-3.5 text-right border-r border-border pr-6">Debit</div>
+                  <div className="col-span-3 p-3.5 text-right border-r border-border pr-6">Credit</div>
+                  <div className="col-span-2 p-3.5 text-right pr-6">Closing Balance</div>
                 </div>
-              ) : (
-                ledgerVoucherRows.map((e) => (
-                  <div key={e.entryId} className="grid grid-cols-12 hover:bg-muted/30 transition-colors font-mono text-sm text-foreground">
-                    <div className="col-span-2 p-3 pl-4 border-r border-border/50 text-foreground/70 flex items-center text-xs font-sans">
-                      {fmtDate(e.voucherDate, true)}
-                    </div>
-                    <div className="col-span-4 p-3 pl-4 border-r border-border/50 font-sans font-semibold text-foreground flex items-center truncate text-xs">
-                      {e.particulars}
-                    </div>
-                    <div className="col-span-2 p-3 border-r border-border/50 font-sans text-xs uppercase font-bold text-muted-foreground flex items-center">
-                      {e.voucherType.replace(/_/g, " ")}
-                    </div>
-                    <div className="col-span-1 p-3 border-r border-border/50 font-sans font-medium text-foreground flex items-center text-xs">
-                      {e.voucherNo}
-                    </div>
-                    <div className="col-span-1 p-3 text-right border-r border-border/50 pr-3 flex items-center justify-end text-xs">
-                      {e.entryType === "debit" ? formatAmount(e.amount) : "—"}
-                    </div>
-                    <div className="col-span-1 p-3 text-right border-r border-border/50 pr-3 flex items-center justify-end text-xs">
-                      {e.entryType === "credit" ? formatAmount(e.amount) : "—"}
-                    </div>
-                    <div className="col-span-1 p-3 text-right pr-3 flex items-center justify-end font-semibold text-xs">
-                      {formatAmount(e.balance, e.balance >= 0 ? "Dr" : "Cr")}
-                    </div>
+
+                {/* Opening Balance row */}
+                <div className="grid grid-cols-12 bg-muted/10 text-foreground border-b border-border/30">
+                  <div className="col-span-4 p-3 pl-6 border-r border-border/50 font-sans text-xs uppercase font-extrabold text-muted-foreground flex items-center">
+                    Opening Balance
                   </div>
-                ))
-              )}
-            </div>
+                  <div className="col-span-3 p-3 border-r border-border/50 text-muted-foreground text-right flex items-center justify-end pr-6 text-xs">—</div>
+                  <div className="col-span-3 p-3 border-r border-border/50 text-muted-foreground text-right flex items-center justify-end pr-6 text-xs">—</div>
+                  <div className="col-span-2 p-3 text-right pr-6 flex items-center justify-end font-mono font-bold text-sm">
+                    {formatAmount(openingBalance, openingBalance >= 0 ? "Dr" : "Cr")}
+                  </div>
+                </div>
 
-            {/* Current totals row */}
-            <div className="grid grid-cols-12 border-t border-border bg-muted/10 font-mono text-sm font-bold text-foreground">
-              <div className="col-span-8 p-3.5 pl-4 uppercase font-sans font-black text-xs">Current Total</div>
-              <div className="col-span-1 p-3.5 text-right border-r border-border/50 pr-3 font-black text-xs">
-                {formatAmount(totalDebits)}
-              </div>
-              <div className="col-span-1 p-3.5 text-right border-r border-border/50 pr-3 font-black text-xs">
-                {formatAmount(totalCredits)}
-              </div>
-              <div className="col-span-2" />
-            </div>
+                {/* Month rows */}
+                <div className="divide-y divide-border/40 text-foreground">
+                  {monthlySummary.map((item) => (
+                    <div
+                      key={item.monthKey}
+                      onClick={() => setSelectedMonth(item)}
+                      className="grid grid-cols-12 hover:bg-muted/30 transition-colors font-mono text-sm cursor-pointer"
+                    >
+                      <td className="col-span-4 p-3 pl-6 border-r border-border/50 font-sans font-medium">
+                        {item.monthName} {item.year}
+                      </td>
+                      <td className="col-span-3 p-3 text-right border-l border-r border-border/50 pr-6 font-mono text-foreground">{item.debit > 0 ? formatAmount(item.debit) : "—"}</td>
+                      <td className="col-span-3 p-3 text-right border-r border-border/50 pr-6 font-mono text-foreground">{item.credit > 0 ? formatAmount(item.credit) : "—"}</td>
+                      <td className="col-span-2 p-3 text-right pr-6 font-mono font-semibold">{formatAmount(Math.abs(item.closingBalance), item.closingBalance >= 0 ? "Dr" : "Cr")}</td>
+                    </div>
+                  ))}
+                </div>
 
-            {/* Closing balance row */}
-            <div className="grid grid-cols-12 border-t-2 border-b-2 border-double border-border bg-muted/20 font-mono text-sm font-bold text-foreground">
-              <div className="col-span-8 p-3.5 pl-4 uppercase font-sans font-black text-xs">Closing Balance</div>
-              <div className="col-span-1 p-3.5 border-r border-border/50" />
-              <div className="col-span-1 p-3.5 border-r border-border/50" />
-              <div className="col-span-2 p-3.5 text-right pr-3 font-black text-base">
-                {formatAmount(runningSum, runningSum >= 0 ? "Dr" : "Cr")}
+                {/* Grand Totals */}
+                <div className="grid grid-cols-12 border-t-2 border-b-2 border-double border-border bg-muted/20 font-mono text-sm font-bold text-foreground">
+                  <div className="col-span-4 p-3.5 pl-6 font-sans font-black">Grand Total</div>
+                  <div className="col-span-3 p-3.5 text-right border-r border-border/50 pr-6 font-black text-xs">
+                    {formatAmount(totalDebits)}
+                  </div>
+                  <div className="col-span-3 p-3.5 text-right border-r border-border/50 pr-6 font-black text-xs">
+                    {formatAmount(totalCredits)}
+                  </div>
+                  <div className="col-span-2 p-3.5 text-right pr-6 font-black text-base">
+                    {formatAmount(Math.abs(runningSum), runningSum >= 0 ? "Dr" : "Cr")}
+                  </div>
+                </div>
               </div>
-            </div>
+            ) : (
+              /* DETAILED VIEW TABLE */
+              <div>
+                {/* Column headers — 12 valid tailwind columns: 2+4+2+2+1+1=12 for date, particulars, vchtype, vchno, debit, credit, balance */}
+                <div className="grid grid-cols-12 border-b border-border bg-muted/40 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                  <div className="col-span-2 p-3.5 pl-4 border-r border-border">Date</div>
+                  <div className="col-span-4 p-3.5 pl-4 border-r border-border">Particulars</div>
+                  <div className="col-span-2 p-3.5 pl-4 border-r border-border">Vch Type</div>
+                  <div className="col-span-1 p-3.5 pl-4 border-r border-border">Vch No.</div>
+                  <div className="col-span-1 p-3.5 text-right border-r border-border pr-3">Debit</div>
+                  <div className="col-span-1 p-3.5 text-right border-r border-border pr-3">Credit</div>
+                  <div className="col-span-1 p-3.5 text-right pr-3">Balance</div>
+                </div>
+
+                {/* Opening Balance row */}
+                <div className="grid grid-cols-12 bg-muted/10 text-foreground border-b border-border/30">
+                  <div className="col-span-2 p-3 pl-4 border-r border-border/50 text-muted-foreground flex items-center text-xs">—</div>
+                  <div className="col-span-4 p-3 pl-4 border-r border-border/50 font-sans text-xs uppercase font-extrabold text-muted-foreground flex items-center">
+                    Opening Balance
+                  </div>
+                  <div className="col-span-2 p-3 border-r border-border/50 text-muted-foreground flex items-center text-xs">—</div>
+                  <div className="col-span-1 p-3 border-r border-border/50 text-muted-foreground flex items-center text-xs">—</div>
+                  <div className="col-span-1 p-3 border-r border-border/50 text-muted-foreground text-right flex items-center justify-end pr-3 text-xs">—</div>
+                  <div className="col-span-1 p-3 border-r border-border/50 text-muted-foreground text-right flex items-center justify-end pr-3 text-xs">—</div>
+                  <div className="col-span-1 p-3 text-right pr-3 flex items-center justify-end font-mono font-bold text-sm">
+                    {formatAmount(openingBalance, openingBalance >= 0 ? "Dr" : "Cr")}
+                  </div>
+                </div>
+
+                {/* Transaction rows */}
+                <div className="divide-y divide-border/40">
+                  {ledgerVoucherRows.length === 0 ? (
+                    <div className="text-center py-16 text-muted-foreground text-sm font-sans col-span-12">
+                      No transactions recorded for the selected period.
+                    </div>
+                  ) : (
+                    ledgerVoucherRows.map((e) => (
+                      <div key={e.entryId} className="grid grid-cols-12 hover:bg-muted/30 transition-colors font-mono text-sm text-foreground">
+                        <div className="col-span-2 p-3 pl-4 border-r border-border/50 text-foreground/70 flex items-center text-xs font-sans">
+                          {fmtDate(e.voucherDate, true)}
+                        </div>
+                        <div className="col-span-4 p-3 pl-4 border-r border-border/50 font-sans font-semibold text-foreground flex items-center truncate text-xs">
+                          {renderParticulars(e.particulars)}
+                        </div>
+                        <div className="col-span-2 p-3 border-r border-border/50 font-sans text-xs uppercase font-bold text-muted-foreground flex items-center">
+                          {e.voucherType.replace(/_/g, " ")}
+                        </div>
+                        <div className="col-span-1 p-3 border-r border-border/50 font-sans font-medium text-foreground flex items-center text-xs">
+                          {e.voucherNo}
+                        </div>
+                        <div className="col-span-1 p-3 text-right border-r border-border/50 pr-3 flex items-center justify-end text-xs">
+                          {e.entryType === "debit" ? formatAmount(e.amount) : "—"}
+                        </div>
+                        <div className="col-span-1 p-3 text-right border-r border-border/50 pr-3 flex items-center justify-end text-xs">
+                          {e.entryType === "credit" ? formatAmount(e.amount) : "—"}
+                        </div>
+                        <div className="col-span-1 p-3 text-right pr-3 flex items-center justify-end font-semibold text-xs">
+                          {formatAmount(e.balance, e.balance >= 0 ? "Dr" : "Cr")}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Current totals row */}
+                <div className="grid grid-cols-12 border-t border-border bg-muted/10 font-mono text-sm font-bold text-foreground">
+                  <div className="col-span-8 p-3.5 pl-4 uppercase font-sans font-black text-xs">Current Total</div>
+                  <div className="col-span-1 p-3.5 text-right border-r border-border/50 pr-3 font-black text-xs">
+                    {formatAmount(totalDebits)}
+                  </div>
+                  <div className="col-span-1 p-3.5 text-right border-r border-border/50 pr-3 font-black text-xs">
+                    {formatAmount(totalCredits)}
+                  </div>
+                  <div className="col-span-2" />
+                </div>
+
+                {/* Closing balance row */}
+                <div className="grid grid-cols-12 border-t-2 border-b-2 border-double border-border bg-muted/20 font-mono text-sm font-bold text-foreground">
+                  <div className="col-span-8 p-3.5 pl-4 uppercase font-sans font-black text-xs">Closing Balance</div>
+                  <div className="col-span-1 p-3.5 border-r border-border/50" />
+                  <div className="col-span-1 p-3.5 border-r border-border/50" />
+                  <div className="col-span-2 p-3.5 text-right pr-3 font-black text-base">
+                    {formatAmount(runningSum, runningSum >= 0 ? "Dr" : "Cr")}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )
       ) : (
@@ -682,6 +853,102 @@ function LedgerReportContent({
             <Button variant="outline" onClick={() => setShowPeriodModal(false)}>Cancel</Button>
             <Button onClick={handleApplyPeriod}>Apply Period</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Monthly Voucher Drill-down Listing Dialog */}
+      <Dialog open={selectedMonth !== null} onOpenChange={(open) => !open && setSelectedMonth(null)}>
+        <DialogContent className="sm:max-w-5xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">
+              Ledger Vouchers — {selectedMonth?.monthName} {selectedMonth?.year} ({selectedLedger?.ledgerName})
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-2">
+            <div className="rounded-lg border border-border bg-card overflow-hidden shadow-sm">
+              {/* Table headers */}
+              <div className="grid grid-cols-12 border-b border-border bg-muted/40 text-[11px] font-bold uppercase tracking-wider text-muted-foreground font-semibold">
+                <div className="col-span-2 p-3.5 pl-4 border-r border-border">Date</div>
+                <div className="col-span-4 p-3.5 pl-4 border-r border-border">Particulars</div>
+                <div className="col-span-2 p-3.5 pl-4 border-r border-border">Vch Type</div>
+                <div className="col-span-1 p-3.5 pl-4 border-r border-border">Vch No.</div>
+                <div className="col-span-1 p-3.5 text-right border-r border-border pr-3">Debit</div>
+                <div className="col-span-1 p-3.5 text-right border-r border-border pr-3">Credit</div>
+                <div className="col-span-1 p-3.5 text-right pr-3">Balance</div>
+              </div>
+
+              {/* Opening Balance of selected month */}
+              <div className="grid grid-cols-12 bg-muted/10 text-foreground border-b border-border/30">
+                <div className="col-span-2 p-3 pl-4 border-r border-border/50 text-muted-foreground flex items-center text-xs">—</div>
+                <div className="col-span-4 p-3 pl-4 border-r border-border/50 font-sans text-xs uppercase font-extrabold text-muted-foreground flex items-center">
+                  Opening Balance
+                </div>
+                <div className="col-span-2 p-3 border-r border-border/50 text-muted-foreground flex items-center text-xs">—</div>
+                <div className="col-span-1 p-3 border-r border-border/50 text-muted-foreground flex items-center text-xs">—</div>
+                <div className="col-span-1 p-3 border-r border-border/50 text-muted-foreground text-right flex items-center justify-end pr-3 text-xs">—</div>
+                <div className="col-span-1 p-3 border-r border-border/50 text-muted-foreground text-right flex items-center justify-end pr-3 text-xs">—</div>
+                <div className="col-span-1 p-3 text-right pr-3 flex items-center justify-end font-mono font-bold text-sm">
+                  {formatAmount(selectedMonthOpeningBalance, selectedMonthOpeningBalance >= 0 ? "Dr" : "Cr")}
+                </div>
+              </div>
+
+              {/* Transaction rows of selected month */}
+              <div className="divide-y divide-border/40">
+                {selectedMonthVoucherRows.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground text-sm font-sans col-span-12">
+                    No transactions recorded for this month.
+                  </div>
+                ) : (
+                  selectedMonthVoucherRows.map((e: any) => (
+                    <div key={e.entryId} className="grid grid-cols-12 hover:bg-muted/30 transition-colors font-mono text-sm text-foreground">
+                      <div className="col-span-2 p-3 pl-4 border-r border-border/50 text-foreground/70 flex items-center text-xs font-sans">
+                        {fmtDate(e.voucherDate, true)}
+                      </div>
+                      <div className="col-span-4 p-3 pl-4 border-r border-border/50 font-sans font-semibold text-foreground flex items-center truncate text-xs">
+                        {renderParticulars(e.particulars)}
+                      </div>
+                      <div className="col-span-2 p-3 border-r border-border/50 font-sans text-xs uppercase font-bold text-muted-foreground flex items-center">
+                        {e.voucherType.replace(/_/g, " ")}
+                      </div>
+                      <div className="col-span-1 p-3 border-r border-border/50 font-sans font-medium text-foreground flex items-center text-xs">
+                        {e.voucherNo}
+                      </div>
+                      <div className="col-span-1 p-3 text-right border-r border-border/50 pr-3 flex items-center justify-end text-xs">
+                        {e.entryType === "debit" ? formatAmount(e.amount) : "—"}
+                      </div>
+                      <div className="col-span-1 p-3 text-right border-r border-border/50 pr-3 flex items-center justify-end text-xs">
+                        {e.entryType === "credit" ? formatAmount(e.amount) : "—"}
+                      </div>
+                      <div className="col-span-1 p-3 text-right pr-3 flex items-center justify-end font-semibold text-xs">
+                        {formatAmount(e.balance, e.balance >= 0 ? "Dr" : "Cr")}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Month Total and Closing */}
+              <div className="grid grid-cols-12 border-t border-border bg-muted/10 font-mono text-sm font-bold text-foreground">
+                <div className="col-span-8 p-3.5 pl-4 uppercase font-sans font-black text-xs">Monthly Total</div>
+                <div className="col-span-1 p-3.5 text-right border-r border-border/50 pr-3 font-black text-xs">
+                  {formatAmount(selectedMonth?.debit || 0)}
+                </div>
+                <div className="col-span-1 p-3.5 text-right border-r border-border/50 pr-3 font-black text-xs">
+                  {formatAmount(selectedMonth?.credit || 0)}
+                </div>
+                <div className="col-span-2" />
+              </div>
+
+              <div className="grid grid-cols-12 border-t-2 border-b-2 border-double border-border bg-muted/20 font-mono text-sm font-bold text-foreground">
+                <div className="col-span-8 p-3.5 pl-4 uppercase font-sans font-black text-xs">Closing Balance</div>
+                <div className="col-span-1 border-r border-border/50" />
+                <div className="col-span-1 border-r border-border/50" />
+                <div className="col-span-2 p-3.5 text-right pr-3 font-black text-base">
+                  {formatAmount(Math.abs(selectedMonth?.closingBalance || 0), (selectedMonth?.closingBalance || 0) >= 0 ? "Dr" : "Cr")}
+                </div>
+              </div>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
