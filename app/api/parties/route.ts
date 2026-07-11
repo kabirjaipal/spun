@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { mCompanies, mLedgers, mLedgerGroups, mInventoryGroups, mUnitsOfMeasurement, tVouchers } from "@/lib/db/schema";
-import { and, isNull, eq } from "drizzle-orm";
+import { and, isNull, eq, desc } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { DEFAULT_UNITS, DEFAULT_LEDGER_GROUPS, DEFAULT_INVENTORY_GROUPS } from "@/lib/constants";
 import { auth } from "@/auth";
@@ -14,10 +14,50 @@ export async function GET() {
   const companyId = Number(session.user.companyId);
 
   const rows = await db
-    .select()
+    .select({
+      companyId: mCompanies.companyId,
+      parentCompanyId: mCompanies.parentCompanyId,
+      companyName: mCompanies.companyName,
+      gstNo: mCompanies.gstNo,
+      panNo: mCompanies.panNo,
+      address: mCompanies.address,
+      pincode: mCompanies.pincode,
+      state: mCompanies.state,
+      phone: mCompanies.phone,
+      email: mCompanies.email,
+      currencySymbol: mCompanies.currencySymbol,
+      nationName: mCompanies.nationName,
+      bankName: mCompanies.bankName,
+      bankAccountName: mCompanies.bankAccountName,
+      accountNo: mCompanies.accountNo,
+      ifscCode: mCompanies.ifscCode,
+      branchName: mCompanies.branchName,
+      accountType: mCompanies.accountType,
+      gstApplicable: mCompanies.gstApplicable,
+      gstType: mCompanies.gstType,
+      stateCode: mCompanies.stateCode,
+      city: mCompanies.city,
+      financialYearStart: mCompanies.financialYearStart,
+      companyType: mCompanies.companyType,
+      marketCategory: mCompanies.marketCategory,
+      msmeRegistered: mCompanies.msmeRegistered,
+      msmeType: mCompanies.msmeType,
+      msmeNo: mCompanies.msmeNo,
+      dueDay: mCompanies.dueDay,
+      groupId: mLedgers.groupId,
+      ledgerId: mLedgers.ledgerId,
+    })
     .from(mCompanies)
+    .leftJoin(
+      mLedgers,
+      and(
+        eq(mLedgers.referenceId, mCompanies.companyId),
+        eq(mLedgers.ledgerType, "company"),
+        isNull(mLedgers.deletedOn)
+      )
+    )
     .where(and(eq(mCompanies.parentCompanyId, companyId), isNull(mCompanies.deletedOn)))
-    .orderBy(mCompanies.companyName);
+    .orderBy(desc(mCompanies.createdOn));
 
   if (rows.length === 0) {
     return NextResponse.json([]);
@@ -125,6 +165,7 @@ export async function POST(request: Request) {
     msmeType,
     msmeNo,
     dueDay,
+    groupId,
   } = body;
 
   if (!companyName) {
@@ -222,14 +263,15 @@ export async function POST(request: Request) {
       );
 
       // 6. Create ledger entry in parent company pointing to this sub-company/party
-      await tx.insert(mLedgers).values({
+      const [newL] = await tx.insert(mLedgers).values({
         companyId: parentCompanyId,
         ledgerName: companyName,
         ledgerType: "company",
         referenceId: newCompanyId,
+        groupId: groupId ? Number(groupId) : null,
         createdBy: userId,
         updatedBy: userId,
-      });
+      }).returning();
 
       // 7. Write audit log
       await writeAuditLog(tx, {
@@ -240,7 +282,7 @@ export async function POST(request: Request) {
         createdBy: userId,
       });
 
-      return newCompany;
+      return { ...newCompany, ledgerId: newL.ledgerId, groupId: newL.groupId };
     });
 
     return NextResponse.json(result, { status: 201 });

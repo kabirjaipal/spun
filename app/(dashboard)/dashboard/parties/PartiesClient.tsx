@@ -6,9 +6,11 @@ import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Pencil, Trash2, Building2, Landmark, MapPin, Calendar, FileText, Phone, Mail, DollarSign, Globe, ArrowLeft } from "lucide-react";
 import ExportButton from "@/components/ExportButton";
+import Link from "next/link";
 import { BANK_LIST, type BankData } from "@/lib/banks";
 import { CURRENCIES, MARKET_CATEGORIES, STORAGE_BANKS_KEY } from "@/lib/constants";
 
@@ -42,6 +44,8 @@ interface Party {
   financialYearStart: string | null;
   dueDay: number;
   pendingDueDay?: number;
+  groupId: number | null;
+  ledgerId: number | null;
 }
 
 const currentYear = new Date().getFullYear();
@@ -75,6 +79,8 @@ const EMPTY = {
   msmeType: "micro",
   msmeNo: "",
   dueDay: 10,
+  groupId: "",
+  newGroupName: "",
 };
 
 function mergeBanks(base: BankData[], custom: BankData[]): BankData[] {
@@ -98,15 +104,18 @@ function mergeBanks(base: BankData[], custom: BankData[]): BankData[] {
 }
 
 export default function PartiesClient({
-  initialData, canCreate, canUpdate, canDelete, canExport,
+  initialData, groups, canCreate, canUpdate, canDelete, canExport,
 }: {
   initialData: Party[];
+  groups: { groupId: number; groupName: string }[];
   canCreate: boolean;
   canUpdate: boolean;
   canDelete: boolean;
   canExport: boolean;
 }) {
   const [data, setData] = useState(initialData);
+  const [groupList, setGroupList] = useState(groups);
+  const [showNewGroupInput, setShowNewGroupInput] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editing, setEditing] = useState<Party | null>(null);
   const [form, setForm] = useState(EMPTY);
@@ -240,6 +249,8 @@ export default function PartiesClient({
       msmeType: row.msmeType ?? "micro",
       msmeNo: row.msmeNo ?? "",
       dueDay: row.dueDay !== undefined ? row.dueDay : 10,
+      groupId: row.groupId ? String(row.groupId) : "",
+      newGroupName: "",
     });
 
     setSelectedBankIndex(isPreseededBank ? bankIndex : null);
@@ -253,13 +264,30 @@ export default function PartiesClient({
     if (!form.companyName) return;
     setSaving(true);
     setError(null);
-    const url = editing ? `/api/parties/${editing.companyId}` : "/api/parties";
     try {
+      let selectedGroupId = form.groupId;
+
+      // Handle new group creation inline
+      if (showNewGroupInput && form.newGroupName) {
+        const groupRes = await fetch("/api/ledger-groups", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ groupName: form.newGroupName }),
+        });
+        if (groupRes.ok) {
+          const newGroup = await groupRes.json();
+          setGroupList((prev) => [...prev, newGroup].sort((a, b) => a.groupName.localeCompare(b.groupName)));
+          selectedGroupId = String(newGroup.groupId);
+        }
+      }
+
+      const url = editing ? `/api/parties/${editing.companyId}` : "/api/parties";
       const res = await fetch(url, {
         method: editing ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
+          groupId: selectedGroupId ? Number(selectedGroupId) : null,
           gstNo: form.gstApplicable ? form.gstNo : null,
           stateCode: form.gstApplicable ? form.stateCode : null,
           city: form.gstApplicable ? form.city : null,
@@ -272,8 +300,8 @@ export default function PartiesClient({
       if (!res.ok) {
         throw new Error(row.error || "Failed to save party");
       }
-      if (editing) setData((d) => d.map((r) => (r.companyId === editing.companyId ? { ...r, ...row } : r)));
-      else setData((d) => [...d, { ...row, pendingDueDay: 0 }]);
+      if (editing) setData((d) => d.map((r) => (r.companyId === editing.companyId ? { ...r, ...row, groupId: selectedGroupId ? Number(selectedGroupId) : null } : r)));
+      else setData((d) => [{ ...row, groupId: selectedGroupId ? Number(selectedGroupId) : null, pendingDueDay: 0 }, ...d]);
 
       const updatedBanks = captureCustomBank(form, localBanks);
       if (updatedBanks) {
@@ -336,6 +364,26 @@ export default function PartiesClient({
                       className="mt-1"
                       placeholder="e.g. Acme Fabrics Pvt Ltd"
                     />
+                  </div>
+
+                  <div className="col-span-1 sm:col-span-2 space-y-1">
+                    <Label>Group</Label>
+                    {showNewGroupInput ? (
+                      <div className="flex gap-2 mt-1">
+                        <Input placeholder="Enter new group name" value={form.newGroupName} onChange={(e) => setForm((f) => ({ ...f, newGroupName: e.target.value }))} />
+                        <Button type="button" variant="outline" onClick={() => setShowNewGroupInput(false)}>Select Group</Button>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2 mt-1">
+                        <Select value={form.groupId} onValueChange={(v) => setForm((f) => ({ ...f, groupId: v }))}>
+                          <SelectTrigger id="partyGroup"><SelectValue placeholder="Select group" /></SelectTrigger>
+                          <SelectContent>
+                            {groupList.map((g) => <SelectItem key={g.groupId} value={String(g.groupId)}>{g.groupName}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                        <Button type="button" variant="outline" onClick={() => setShowNewGroupInput(true)}>+ New Group</Button>
+                      </div>
+                    )}
                   </div>
 
                   <div className="col-span-1 sm:col-span-2">
@@ -909,6 +957,7 @@ export default function PartiesClient({
             <tr className="border-b border-border bg-muted/40">
               <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">#</th>
               <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Name</th>
+              <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Group</th>
               <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">GSTIN</th>
               <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Phone</th>
               <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Type</th>
@@ -919,14 +968,26 @@ export default function PartiesClient({
           </thead>
           <tbody>
             {filtered.length === 0 && (
-              <tr><td colSpan={8} className="px-4 py-8 text-center text-sm text-muted-foreground">
+              <tr><td colSpan={9} className="px-4 py-8 text-center text-sm text-muted-foreground">
                 {search ? "No parties match your search." : "No parties yet. Add your first one."}
               </td></tr>
             )}
             {filtered.map((row, i) => (
               <tr key={row.companyId} className="border-b border-border/50 hover:bg-muted/20 transition-colors">
                 <td className="px-4 py-3 text-xs text-muted-foreground">{i + 1}</td>
-                <td className="px-4 py-3 font-medium text-foreground">{row.companyName}</td>
+                <td className="px-4 py-3 font-medium text-foreground">
+                  <div>{row.companyName}</div>
+                  {row.ledgerId && (
+                    <div className="text-[10px] text-muted-foreground mt-0.5 font-normal">
+                      <Link href={`/dashboard/ledger-report?ledgerId=${row.ledgerId}`} className="text-primary hover:underline">
+                        Ledger #{row.ledgerId}
+                      </Link>
+                    </div>
+                  )}
+                </td>
+                <td className="px-4 py-3 text-xs text-muted-foreground">
+                  {row.groupId ? (groupList.find(g => g.groupId === row.groupId)?.groupName || "—") : "—"}
+                </td>
                 <td className="px-4 py-3 text-xs text-muted-foreground font-mono">{row.gstNo || "—"}</td>
                 <td className="px-4 py-3 text-xs text-muted-foreground">{row.phone || "—"}</td>
                 <td className="px-4 py-3 text-xs text-muted-foreground capitalize">{row.companyType || "general"}</td>

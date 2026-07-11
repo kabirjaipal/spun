@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetBody, SheetFooter } from "@/components/ui/sheet";
 import { Landmark, MapPin, Calendar, FileText, Globe } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BANK_LIST, type BankData } from "@/lib/banks";
 import { CURRENCIES, MARKET_CATEGORIES, STORAGE_BANKS_KEY } from "@/lib/constants";
 
@@ -47,6 +48,8 @@ const EMPTY = {
   msmeType: "micro",
   msmeNo: "",
   dueDay: 10,
+  groupId: "",
+  newGroupName: "",
 };
 
 function mergeBanks(base: BankData[], custom: BankData[]): BankData[] {
@@ -71,6 +74,8 @@ function mergeBanks(base: BankData[], custom: BankData[]): BankData[] {
 
 export default function PartyFormDrawer({ isOpen, onClose, onCreated }: PartyFormDrawerProps) {
   const [form, setForm] = useState(EMPTY);
+  const [groupList, setGroupList] = useState<{ groupId: number; groupName: string }[]>([]);
+  const [showNewGroupInput, setShowNewGroupInput] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showAllDetails, setShowAllDetails] = useState(false);
@@ -145,6 +150,17 @@ export default function PartyFormDrawer({ isOpen, onClose, onCreated }: PartyFor
       setCustomBankActive(true);
       setCustomIfscActive(true);
       setShowAllDetails(false);
+      setShowNewGroupInput(false);
+
+      // Fetch ledger groups
+      fetch("/api/ledger-groups")
+        .then((res) => res.json())
+        .then((data) => {
+          if (Array.isArray(data)) {
+            setGroupList(data);
+          }
+        })
+        .catch((err) => console.error("Failed to load ledger groups", err));
     }
   }, [isOpen]);
 
@@ -164,11 +180,28 @@ export default function PartyFormDrawer({ isOpen, onClose, onCreated }: PartyFor
     setSaving(true);
     setError(null);
     try {
+      let selectedGroupId = form.groupId;
+
+      // Handle new group creation inline
+      if (showNewGroupInput && form.newGroupName) {
+        const groupRes = await fetch("/api/ledger-groups", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ groupName: form.newGroupName }),
+        });
+        if (groupRes.ok) {
+          const newGroup = await groupRes.json();
+          setGroupList((prev) => [...prev, newGroup].sort((a, b) => a.groupName.localeCompare(b.groupName)));
+          selectedGroupId = String(newGroup.groupId);
+        }
+      }
+
       const res = await fetch("/api/parties", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
+          groupId: selectedGroupId ? Number(selectedGroupId) : null,
           gstNo: form.gstApplicable ? form.gstNo : null,
           stateCode: form.gstApplicable ? form.stateCode : null,
           city: form.gstApplicable ? form.city : null,
@@ -223,6 +256,26 @@ export default function PartyFormDrawer({ isOpen, onClose, onCreated }: PartyFor
                 className="h-9 mt-1"
                 placeholder="e.g. Acme Fabrics Pvt Ltd"
               />
+            </div>
+
+            <div>
+              <Label className="text-[10px] font-bold uppercase text-muted-foreground">Group</Label>
+              {showNewGroupInput ? (
+                <div className="flex gap-2 mt-1">
+                  <Input placeholder="Enter new group name" value={form.newGroupName} onChange={(e) => setForm((f) => ({ ...f, newGroupName: e.target.value }))} className="h-9" />
+                  <Button type="button" variant="outline" size="sm" onClick={() => setShowNewGroupInput(false)} className="h-9">Select Group</Button>
+                </div>
+              ) : (
+                <div className="flex gap-2 mt-1">
+                  <Select value={form.groupId} onValueChange={(v) => setForm((f) => ({ ...f, groupId: v }))}>
+                    <SelectTrigger id="partyGroup" className="h-9"><SelectValue placeholder="Select group" /></SelectTrigger>
+                    <SelectContent>
+                      {groupList.map((g) => <SelectItem key={g.groupId} value={String(g.groupId)}>{g.groupName}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setShowNewGroupInput(true)} className="h-9">+ New Group</Button>
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-3">

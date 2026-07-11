@@ -20,7 +20,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     bankName, bankAccountName, accountNo, ifscCode, branchName, accountType,
     gstApplicable, gstType, stateCode, city, companyType, marketCategory,
     financialYearStart,
-    msmeRegistered, msmeType, msmeNo, dueDay
+    msmeRegistered, msmeType, msmeNo, dueDay,
+    groupId
   } = await request.json();
 
   try {
@@ -69,18 +70,23 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         .where(and(eq(mCompanies.companyId, Number(id)), eq(mCompanies.parentCompanyId, parentCompanyId)))
         .returning();
 
+      const ledgerUpdate: any = { updatedBy: userId, updatedOn: new Date() };
       if (companyName) {
-        await tx
-          .update(mLedgers)
-          .set({ ledgerName: companyName, updatedBy: userId, updatedOn: new Date() })
-          .where(
-            and(
-              eq(mLedgers.referenceId, Number(id)),
-              eq(mLedgers.ledgerType, "company"),
-              eq(mLedgers.companyId, parentCompanyId)
-            )
-          );
+        ledgerUpdate.ledgerName = companyName;
       }
+      if (groupId !== undefined) {
+        ledgerUpdate.groupId = groupId ? Number(groupId) : null;
+      }
+      await tx
+        .update(mLedgers)
+        .set(ledgerUpdate)
+        .where(
+          and(
+            eq(mLedgers.referenceId, Number(id)),
+            eq(mLedgers.ledgerType, "company"),
+            eq(mLedgers.companyId, parentCompanyId)
+          )
+        );
 
       if (c) {
         await writeAuditLog(tx, {
