@@ -59,6 +59,7 @@ function JournalRegisterContent({
   const toParam = searchParams.get("to") || `${fyStartYear + 1}-03-31`;
 
   const [isDetailed, setIsDetailed] = useState(false);
+  const [showNarration, setShowNarration] = useState(true);
   const [showPeriodModal, setShowPeriodModal] = useState(false);
   const [startDate, setStartDate] = useState(fromParam);
   const [endDate, setEndDate] = useState(toParam);
@@ -198,6 +199,16 @@ function JournalRegisterContent({
             {isDetailed ? "Condensed View" : "Detailed View"}
           </Button>
 
+          {/* Show/Hide Narration toggle */}
+          <Button
+            variant="outline"
+            onClick={() => setShowNarration(!showNarration)}
+            className="flex items-center gap-2"
+          >
+            {showNarration ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            {showNarration ? "Hide Narration" : "Show Narration"}
+          </Button>
+
           {/* Period Date Dialog Button */}
           <Button
             variant="outline"
@@ -327,17 +338,17 @@ function JournalRegisterContent({
                               </td>
                             </tr>
                           ))}
-                          
-                          {/* Remarks / Narration Row if present */}
-                          {v.remarks && (
-                            <tr className="bg-muted/5 border-t border-border/20">
-                              <td className="p-1 pl-6"></td>
-                              <td colSpan={5} className="p-2 pl-12 text-xs text-muted-foreground italic">
-                                Narration: {v.remarks}
-                              </td>
-                            </tr>
-                          )}
                         </>
+                      )}
+                      
+                      {/* Remarks / Narration Row if present and showNarration is active */}
+                      {showNarration && v.remarks && (
+                        <tr className="bg-muted/5 border-t border-border/20">
+                          <td className="p-1 pl-6"></td>
+                          <td colSpan={5} className="p-2 pl-12 text-xs text-muted-foreground italic">
+                            Narration: {v.remarks}
+                          </td>
+                        </tr>
                       )}
                     </React.Fragment>
                   );
