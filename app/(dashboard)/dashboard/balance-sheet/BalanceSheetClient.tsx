@@ -112,49 +112,54 @@ function BalanceSheetContent({
   // LIVE DATA ROLLUP CALCULATION
   // -------------------------------------------------------------
   const getLiveReportData = () => {
-    const getTopCategory = (groupId: number | null, ledgerType: string): string => {
+    const getSubGroup = (groupId: number | null, ledgerType: string): string => {
       if (ledgerType === "capital") return "Capital Account";
       if (ledgerType === "loan") return "Loans (Liability)";
-      if (ledgerType === "tax") return "Current Liabilities";
-      if (ledgerType === "cash" || ledgerType === "bank") return "Current Assets";
+      if (ledgerType === "tax") return "Duties & Taxes";
+      if (ledgerType === "cash") return "Cash-in-hand";
+      if (ledgerType === "bank") return "Bank Accounts";
+      if (ledgerType === "customer") return "Sundry Debtors";
+      if (ledgerType === "company") return "Sundry Creditors";
 
-      let currentGroupId = groupId;
-      let depth = 0;
-      while (currentGroupId && depth < 5) {
-        const gp = groups.find((g) => g.groupId === currentGroupId);
-        if (!gp) break;
-        const name = gp.groupName.toLowerCase();
-        if (name.includes("capital")) return "Capital Account";
-        if (name.includes("loan") && (name.includes("secured") || name.includes("unsecured") || name.includes("liability"))) {
-          return "Loans (Liability)";
+      if (groupId) {
+        const gp = groups.find((g) => g.groupId === groupId);
+        if (gp) {
+          const name = gp.groupName.toLowerCase();
+          if (name.includes("bank")) return "Bank Accounts";
+          if (name.includes("cash")) return "Cash-in-hand";
+          if (name.includes("debtor")) return "Sundry Debtors";
+          if (name.includes("creditor")) return "Sundry Creditors";
+          if (name.includes("secured") || name.includes("unsecured") || name.includes("loan")) {
+            if (name.includes("secured") && !name.includes("unsecured")) return "Secured Loans";
+            if (name.includes("unsecured")) return "Unsecured Loans";
+            return "Loans (Liability)";
+          }
+          if (name.includes("tax") || name.includes("duties")) return "Duties & Taxes";
+          if (name.includes("provision")) return "Provisions";
+          if (name.includes("fixed asset")) return "Fixed Assets";
+          if (name.includes("investment")) return "Investments";
+          if (name.includes("capital")) return "Capital Account";
+          return gp.groupName;
         }
-        if (name.includes("loan") && name.includes("asset")) {
-          return "Current Assets";
-        }
-        if (name.includes("creditor") || name.includes("tax") || name.includes("provision") || name.includes("liability")) {
-          return "Current Liabilities";
-        }
-        if (name.includes("debtor") || name.includes("cash") || name.includes("bank") || name.includes("stock") || name.includes("asset")) {
-          return "Current Assets";
-        }
-        if (name.includes("fixed asset")) return "Fixed Assets";
-        if (name.includes("investment")) return "Investments";
-
-        currentGroupId = gp.parentGroupId ?? null;
-        depth++;
       }
-
-      if (ledgerType === "company") return "Current Liabilities";
-      if (ledgerType === "customer") return "Current Assets";
       return "Current Assets";
     };
 
-    const capitalItems: { name: string; amount: number }[] = [];
-    const loanItems: { name: string; amount: number }[] = [];
-    const currentLiabItems: { name: string; amount: number }[] = [];
-    const fixedAssetItems: { name: string; amount: number }[] = [];
-    const currentAssetItems: { name: string; amount: number }[] = [];
-    const investmentItems: { name: string; amount: number }[] = [];
+    const isLiabilityGroup = (sub: string): boolean => {
+      const lower = sub.toLowerCase();
+      return (
+        lower.includes("capital") ||
+        lower.includes("loan") ||
+        lower.includes("creditor") ||
+        lower.includes("tax") ||
+        lower.includes("duties") ||
+        lower.includes("provision") ||
+        lower.includes("liability")
+      );
+    };
+
+    const liabilitiesGroups: Record<string, { name: string; amount: number }[]> = {};
+    const assetsGroups: Record<string, { name: string; amount: number }[]> = {};
 
     let salesTotal = 0;
     let purchaseTotal = 0;
@@ -184,58 +189,35 @@ function BalanceSheetContent({
         return;
       }
 
-      const cat = getTopCategory(l.groupId || null, l.ledgerType);
+      const sub = getSubGroup(l.groupId || null, l.ledgerType);
       const name = l.ledgerName;
 
-      switch (cat) {
-        case "Capital Account":
-          capitalItems.push({ name, amount: -bal });
-          break;
-        case "Loans (Liability)":
-          loanItems.push({ name, amount: -bal });
-          break;
-        case "Current Liabilities":
-          currentLiabItems.push({ name, amount: -bal });
-          break;
-        case "Fixed Assets":
-          fixedAssetItems.push({ name, amount: bal });
-          break;
-        case "Current Assets":
-          currentAssetItems.push({ name, amount: bal });
-          break;
-        case "Investments":
-          investmentItems.push({ name, amount: bal });
-          break;
-        default:
-          currentAssetItems.push({ name, amount: bal });
+      if (isLiabilityGroup(sub)) {
+        if (!liabilitiesGroups[sub]) liabilitiesGroups[sub] = [];
+        liabilitiesGroups[sub].push({ name, amount: -bal });
+      } else {
+        if (!assetsGroups[sub]) assetsGroups[sub] = [];
+        assetsGroups[sub].push({ name, amount: bal });
       }
     });
 
     if (calculatedClosingStock > 0) {
-      currentAssetItems.push({ name: "Closing Stock", amount: calculatedClosingStock });
+      assetsGroups["Stock-in-hand"] = [{ name: "Closing Stock", amount: calculatedClosingStock }];
     }
 
     const netProfitVal = salesTotal + calculatedClosingStock - purchaseTotal - expensesTotal + incomeTotal;
 
-    const capSum = capitalItems.reduce((s, i) => s + i.amount, 0);
-    const loanSum = loanItems.reduce((s, i) => s + i.amount, 0);
-    const liabSum = currentLiabItems.reduce((s, i) => s + i.amount, 0);
+    const liabilitiesList = Object.entries(liabilitiesGroups).map(([name, items]) => ({
+      name,
+      amount: items.reduce((s, i) => s + i.amount, 0),
+      ledgers: items,
+    }));
 
-    const fixedSum = fixedAssetItems.reduce((s, i) => s + i.amount, 0);
-    const currAssetSum = currentAssetItems.reduce((s, i) => s + i.amount, 0);
-    const invSum = investmentItems.reduce((s, i) => s + i.amount, 0);
-
-    const liabilitiesList = [
-      { name: "Capital Account", amount: capSum, ledgers: capitalItems },
-      { name: "Loans (Liability)", amount: loanSum, ledgers: loanItems },
-      { name: "Current Liabilities", amount: liabSum, ledgers: currentLiabItems },
-    ];
-
-    const assetsList = [
-      { name: "Fixed Assets", amount: fixedSum, ledgers: fixedAssetItems },
-      { name: "Investments", amount: invSum, ledgers: investmentItems },
-      { name: "Current Assets", amount: currAssetSum, ledgers: currentAssetItems },
-    ];
+    const assetsList = Object.entries(assetsGroups).map(([name, items]) => ({
+      name,
+      amount: items.reduce((s, i) => s + i.amount, 0),
+      ledgers: items,
+    }));
 
     if (netProfitVal >= 0) {
       liabilitiesList.push({
