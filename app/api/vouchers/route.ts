@@ -203,7 +203,9 @@ export async function POST(request: Request) {
         voucherType === "job_inward" ||
         voucherType === "mill_outward" ||
         voucherType === "mill_inward" ||
-        voucherType === "direct_bill"
+        voucherType === "direct_bill" ||
+        voucherType === "purchase_order" ||
+        voucherType === "sales_order"
       ) {
         if (!Array.isArray(lineItems) || lineItems.length === 0) {
           throw new Error("Line items are required for this voucher type");
@@ -636,6 +638,36 @@ export async function POST(request: Request) {
             ledgerId: Number(extraLedger.ledgerId),
             entryType: extraEntryType,
             amount: String(extraChargesNum),
+            createdBy: userId,
+            updatedBy: userId,
+          });
+        }
+      } else if (
+        voucherType === "purchase_order" ||
+        voucherType === "sales_order"
+      ) {
+        // Orders do not affect ledgers or stock movements. We just save the line items.
+        for (const line of processedLines) {
+          await tx.insert(tVoucherItems).values({
+            voucherId: voucherIdNum,
+            inventoryId: (line.inventoryId && !isNaN(Number(line.inventoryId))) ? Number(line.inventoryId) : null,
+            ledgerId: (line.ledgerId && !isNaN(Number(line.ledgerId))) ? Number(line.ledgerId) : null,
+            hsnCode: line.hsnCode || null,
+            pcs: Number(line.pcs || 0),
+            quantity: String(line.qty),
+            fold: String(line.fold),
+            rate: String(line.rate),
+            gstRateId: line.gstRateId ? Number(line.gstRateId) : null,
+            taxableAmount: String(line.taxableAmount),
+            cgst: String(line.cgst),
+            sgst: String(line.sgst),
+            igst: String(line.igst),
+            netAmount: String(line.lineNet),
+            jobType: line.jobType || null,
+            jobRateType: line.jobRateType || null,
+            pieceMeters: line.pieceMeters
+              ? JSON.stringify(line.pieceMeters)
+              : null,
             createdBy: userId,
             updatedBy: userId,
           });
