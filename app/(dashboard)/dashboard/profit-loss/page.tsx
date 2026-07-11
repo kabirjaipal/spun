@@ -58,8 +58,8 @@ export default async function ProfitLossPage({
       ledgerName: mLedgers.ledgerName,
       ledgerType: mLedgers.ledgerType,
       groupId: mLedgers.groupId,
-      debit: sql<number>`coalesce(sum(case when ${tVoucherEntries.entryType} = 'debit' then ${tVoucherEntries.amount} else 0 end), 0)`,
-      credit: sql<number>`coalesce(sum(case when ${tVoucherEntries.entryType} = 'credit' then ${tVoucherEntries.amount} else 0 end), 0)`,
+      debit: sql<number>`coalesce(sum(case when ${tVoucherEntries.entryType} = 'debit' and ${tVouchers.voucherId} is not null then ${tVoucherEntries.amount} else 0 end), 0)`,
+      credit: sql<number>`coalesce(sum(case when ${tVoucherEntries.entryType} = 'credit' and ${tVouchers.voucherId} is not null then ${tVoucherEntries.amount} else 0 end), 0)`,
     })
     .from(mLedgers)
     .leftJoin(tVoucherEntries, eq(mLedgers.ledgerId, tVoucherEntries.ledgerId))

@@ -586,6 +586,23 @@ export async function POST(request: Request) {
             updatedBy: userId,
           });
 
+          // Debit / Credit Expense/Asset Account — only if ledgerId explicitly provided
+          const lineLedgerId = Number(line.ledgerId) || 0;
+          if (lineLedgerId) {
+            const lineEntryType =
+              voucherType === "purchase" || voucherType === "direct_bill"
+                ? "debit"
+                : "credit";
+            await tx.insert(tVoucherEntries).values({
+              voucherId: voucherIdNum,
+              ledgerId: lineLedgerId,
+              entryType: lineEntryType,
+              amount: String(line.taxableAmount),
+              createdBy: userId,
+              updatedBy: userId,
+            });
+          }
+
           // Tax Ledger Entries
           const taxLedger = await getOrCreateTaxLedger();
           const totalLineTax = line.cgst + line.sgst + line.igst;

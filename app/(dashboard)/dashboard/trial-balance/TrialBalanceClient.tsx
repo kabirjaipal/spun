@@ -157,6 +157,13 @@ function TrialBalanceContent({
       }
     });
 
+    // Net each group node
+    groupNodes.forEach((node) => {
+      const net = node.debit - node.credit;
+      node.debit = net > 0 ? net : 0;
+      node.credit = net < 0 ? Math.abs(net) : 0;
+    });
+
     const rootNodes: TreeNode[] = [];
 
     // Parent-child relationships for groups
@@ -308,9 +315,15 @@ function TrialBalanceContent({
     setLastRemovedLine(null);
   };
 
-  // Grand totals computation
-  const totalDebit = activeLedgers.reduce((sum, l) => sum + l.debit, 0);
-  const totalCredit = activeLedgers.reduce((sum, l) => sum + l.credit, 0);
+  // Grand totals computation using netted balances
+  const totalDebit = activeLedgers.reduce((sum, l) => {
+    const net = l.debit - l.credit;
+    return sum + (net > 0 ? net : 0);
+  }, 0);
+  const totalCredit = activeLedgers.reduce((sum, l) => {
+    const net = l.debit - l.credit;
+    return sum + (net < 0 ? Math.abs(net) : 0);
+  }, 0);
   const balanceDiff = Math.abs(totalDebit - totalCredit);
   const hasDiff = balanceDiff > 0.01;
 

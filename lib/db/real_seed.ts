@@ -566,6 +566,15 @@ export async function seedRealData() {
       updatedBy: userId,
     }).returning();
 
+    const [ledgerStock] = await tx.insert(mLedgers).values({
+      companyId,
+      ledgerName: "Stock A/c",
+      groupId: groupMap.get("Stock in Hand"),
+      ledgerType: "general",
+      createdBy: userId,
+      updatedBy: userId,
+    }).returning();
+
     const [ledgerSales] = await tx.insert(mLedgers).values({
       companyId,
       ledgerName: "Sales A/c",
@@ -731,6 +740,7 @@ export async function seedRealData() {
     await tx.insert(tVoucherEntries).values([
       { voucherId: vOpeningId, ledgerId: Number(ledgerSBI.ledgerId), entryType: "debit", amount: "500000.00", createdBy: userId, updatedBy: userId },
       { voucherId: vOpeningId, ledgerId: Number(ledgerCash.ledgerId), entryType: "debit", amount: "50000.00", createdBy: userId, updatedBy: userId },
+      { voucherId: vOpeningId, ledgerId: Number(ledgerStock.ledgerId), entryType: "debit", amount: "462500.00", createdBy: userId, updatedBy: userId },
       { voucherId: vOpeningId, ledgerId: Number(ledgerCapital.ledgerId), entryType: "credit", amount: "1012500.00", createdBy: userId, updatedBy: userId },
     ]);
 
