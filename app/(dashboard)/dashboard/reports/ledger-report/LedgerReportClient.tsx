@@ -166,7 +166,7 @@ function LedgerReportContent({
     if (ledger) {
       return (
         <a
-          href={`/dashboard/ledger-report?ledgerId=${ledger.ledgerId}`}
+          href={`/dashboard/reports/ledger-report?ledgerId=${ledger.ledgerId}`}
           className="text-primary hover:underline font-semibold"
         >
           {name}
@@ -180,7 +180,7 @@ function LedgerReportContent({
         return (
           <span>
             <a
-              href={`/dashboard/ledger-report?ledgerId=${baseLedger.ledgerId}`}
+              href={`/dashboard/reports/ledger-report?ledgerId=${baseLedger.ledgerId}`}
               className="text-primary hover:underline font-semibold"
             >
               {baseName}

@@ -340,7 +340,7 @@ function GroupSummaryContent({
                               </Link>
                             ) : (
                               <Link
-                                href={`/dashboard/ledger-report?ledgerId=${item.ledgerId}&from=${fromParam}&to=${toParam}`}
+                                href={`/dashboard/reports/ledger-report?ledgerId=${item.ledgerId}&from=${fromParam}&to=${toParam}`}
                                 className="italic text-foreground/90 hover:underline truncate"
                               >
                                 {item.name}

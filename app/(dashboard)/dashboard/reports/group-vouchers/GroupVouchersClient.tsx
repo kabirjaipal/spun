@@ -264,7 +264,7 @@ function GroupVouchersContent({
                     <td className="p-3">
                       <div className="flex items-center justify-between">
                         <Link
-                          href={`/dashboard/ledger-report?ledgerId=${item.ledgerId}&from=${fromParam}&to=${toParam}`}
+                          href={`/dashboard/reports/ledger-report?ledgerId=${item.ledgerId}&from=${fromParam}&to=${toParam}`}
                           className="font-medium text-foreground hover:underline hover:text-primary truncate"
                         >
                           {item.ledgerName}

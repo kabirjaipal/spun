@@ -467,7 +467,7 @@ function TrialBalanceContent({
                       {!isGrp && <span className="w-3 mr-1.5" />}
                       {!isGrp ? (
                         <a
-                          href={`/dashboard/ledger-report?ledgerId=${row.ledgerId}`}
+                          href={`/dashboard/reports/ledger-report?ledgerId=${row.ledgerId}`}
                           className="italic text-primary hover:underline font-semibold cursor-pointer"
                           onClick={(e) => e.stopPropagation()}
                         >

@@ -408,7 +408,7 @@ function BalanceSheetContent({
                         >
                           {l.ledgerId ? (
                             <a
-                              href={`/dashboard/ledger-report?ledgerId=${l.ledgerId}`}
+                              href={`/dashboard/reports/ledger-report?ledgerId=${l.ledgerId}`}
                               className="italic text-primary hover:underline font-semibold cursor-pointer"
                             >
                               {l.name}
@@ -471,7 +471,7 @@ function BalanceSheetContent({
                         >
                           {l.ledgerId ? (
                             <a
-                              href={`/dashboard/ledger-report?ledgerId=${l.ledgerId}`}
+                              href={`/dashboard/reports/ledger-report?ledgerId=${l.ledgerId}`}
                               className="italic text-primary hover:underline font-semibold cursor-pointer"
                             >
                               {l.name}
@@ -598,7 +598,7 @@ function BalanceSheetContent({
                     <td className="py-2.5 font-medium">
                       {it.ledgerId ? (
                         <a
-                          href={`/dashboard/ledger-report?ledgerId=${it.ledgerId}`}
+                          href={`/dashboard/reports/ledger-report?ledgerId=${it.ledgerId}`}
                           className="text-primary hover:underline font-semibold cursor-pointer"
                         >
                           {it.name}

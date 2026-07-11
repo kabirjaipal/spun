@@ -427,7 +427,7 @@ function JournalRegisterContent({
                                     <span className="pl-4">
                                       To{" "}
                                       <a
-                                        href={`/dashboard/ledger-report?ledgerId=${entry.ledgerId}`}
+                                        href={`/dashboard/reports/ledger-report?ledgerId=${entry.ledgerId}`}
                                         className="text-primary hover:underline font-semibold"
                                       >
                                         {entry.ledgerName}
@@ -436,7 +436,7 @@ function JournalRegisterContent({
                                   ) : (
                                     <span>
                                       <a
-                                        href={`/dashboard/ledger-report?ledgerId=${entry.ledgerId}`}
+                                        href={`/dashboard/reports/ledger-report?ledgerId=${entry.ledgerId}`}
                                         className="text-primary hover:underline font-semibold"
                                       >
                                         {entry.ledgerName}

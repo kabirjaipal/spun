@@ -318,7 +318,7 @@ function DebitNoteRegisterContent({
                     <td className="py-3 px-3">
                       {v.partyLedgerId ? (
                         <a
-                          href={`/dashboard/ledger-report?ledgerId=${v.partyLedgerId}`}
+                          href={`/dashboard/reports/ledger-report?ledgerId=${v.partyLedgerId}`}
                           className="text-primary hover:underline font-semibold"
                         >
                           {v.partyName}

@@ -103,7 +103,7 @@ function GroupSection({
                 <span>
                   {it.ledgerId ? (
                     <a
-                      href={`/dashboard/ledger-report?ledgerId=${it.ledgerId}`}
+                      href={`/dashboard/reports/ledger-report?ledgerId=${it.ledgerId}`}
                       className="text-primary hover:underline font-semibold cursor-pointer"
                     >
                       {it.name}

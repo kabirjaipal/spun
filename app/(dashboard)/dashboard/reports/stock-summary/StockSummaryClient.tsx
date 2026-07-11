@@ -827,7 +827,7 @@ function StockSummaryContent({
                           const fromStr = `${m.year}-${pad(m.monthIndex + 1)}-01`;
                           const lastDay = new Date(m.year, m.monthIndex + 1, 0);
                           const toStr = `${lastDay.getFullYear()}-${pad(lastDay.getMonth() + 1)}-${pad(lastDay.getDate())}`;
-                          router.push(`/dashboard/stock-movements?inventoryId=${selectedItemId}&from=${fromStr}&to=${toStr}`);
+                          router.push(`/dashboard/reports/stock-movements?inventoryId=${selectedItemId}&from=${fromStr}&to=${toStr}`);
                         }
                       }}
                       className="hover:bg-muted/15 text-xs border-b border-border/40 transition-colors cursor-pointer"

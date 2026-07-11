@@ -981,7 +981,7 @@ export default function PartiesClient({
                   <div>{row.companyName}</div>
                   {row.ledgerId && (
                     <div className="text-[10px] text-muted-foreground mt-0.5 font-normal">
-                      <Link href={`/dashboard/ledger-report?ledgerId=${row.ledgerId}`} className="text-primary hover:underline">
+                      <Link href={`/dashboard/reports/ledger-report?ledgerId=${row.ledgerId}`} className="text-primary hover:underline">
                         Ledger #{row.ledgerId}
                       </Link>
                     </div>
