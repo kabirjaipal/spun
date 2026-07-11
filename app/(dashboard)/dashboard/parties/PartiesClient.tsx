@@ -6,6 +6,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetBody, SheetFooter } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Pencil, Trash2, Building2, Landmark, MapPin, Calendar, FileText, Phone, Mail, DollarSign, Globe, ArrowLeft } from "lucide-react";
@@ -323,24 +324,23 @@ export default function PartiesClient({
     setDeleteTarget(null);
   }
 
-  if (isFormOpen) {
+  const renderFormSheet = () => {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" onClick={() => setIsFormOpen(false)} className="flex items-center gap-2">
-            <ArrowLeft className="h-4 w-4" />
-            <span>Back to list</span>
-          </Button>
-          <h1 className="text-xl font-bold text-foreground">
-            {editing ? `Edit Party: ${editing.companyName}` : "Create New Party"}
-          </h1>
-        </div>
+      <Sheet open={isFormOpen} onOpenChange={(o) => !o && setIsFormOpen(false)}>
+        <SheetContent className="sm:data-[side=right]:w-[75%] sm:data-[side=right]:max-w-none w-full">
+          <SheetHeader>
+            <SheetTitle className="text-lg font-bold text-foreground">
+              {editing ? `Edit Party: ${editing.companyName}` : "Create New Party"}
+            </SheetTitle>
+          </SheetHeader>
 
-        {error && (
-          <div className="rounded-lg border border-danger bg-danger/10 p-4 text-sm text-danger font-medium">
-            {error}
-          </div>
-        )}
+          {error && (
+            <div className="mx-6 mt-4 rounded-lg border border-danger bg-danger/10 p-3 text-xs text-danger font-medium">
+              {error}
+            </div>
+          )}
+
+          <SheetBody className="space-y-5 pt-4">
 
         <div className="grid gap-6 lg:grid-cols-2">
           {/* General Details & Taxation */}
@@ -909,27 +909,29 @@ export default function PartiesClient({
                 </div>
               </div>
             </div>
-
-            <div className="flex gap-4 pt-6 border-t justify-end">
-              <Button variant="outline" onClick={() => setIsFormOpen(false)}>Cancel</Button>
-              <Button onClick={handleSave} disabled={saving || !form.companyName || (form.gstApplicable && (!form.gstNo || !form.stateCode || !form.city))}>
-                {saving ? (
-                  <>
-                    <Spinner className="mr-2" />
-                    Saving
-                  </>
-                ) : editing ? (
-                  "Update Party"
-                ) : (
-                  "Create Party"
-                )}
-              </Button>
-            </div>
           </div>
         </div>
-      </div>
+      </SheetBody>
+
+      <SheetFooter>
+        <Button variant="outline" onClick={() => setIsFormOpen(false)}>Cancel</Button>
+        <Button onClick={handleSave} disabled={saving || !form.companyName || (form.gstApplicable && (!form.gstNo || !form.stateCode || !form.city))}>
+          {saving ? (
+            <>
+              <Spinner className="mr-2" />
+              Saving
+            </>
+          ) : editing ? (
+            "Update Party"
+          ) : (
+            "Create Party"
+          )}
+        </Button>
+      </SheetFooter>
+      </SheetContent>
+      </Sheet>
     );
-  }
+  };
 
   return (
     <>
@@ -1023,6 +1025,8 @@ export default function PartiesClient({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {renderFormSheet()}
     </>
   );
 }

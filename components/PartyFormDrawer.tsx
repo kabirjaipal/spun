@@ -231,7 +231,7 @@ export default function PartyFormDrawer({ isOpen, onClose, onCreated }: PartyFor
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent className="sm:max-w-[500px] w-full">
+      <SheetContent className="sm:data-[side=right]:w-[600px] sm:data-[side=right]:max-w-none w-full">
         <SheetHeader>
           <SheetTitle>Create New Party</SheetTitle>
         </SheetHeader>
