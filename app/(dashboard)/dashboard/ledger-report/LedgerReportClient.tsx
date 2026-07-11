@@ -35,6 +35,7 @@ interface Voucher {
   partyId: number | null;
   netAmount: string;
   billDetails?: any;
+  parentVoucherId?: number | null;
 }
 
 interface LedgerEntry {
@@ -62,6 +63,7 @@ interface PendingBill {
   date: string;
   refNo: string;
   openingAmount: number;
+  paidAmount: number;
   pendingAmount: number;
   dueOn: string;
   overdueDays: number;
@@ -134,9 +136,7 @@ function LedgerReportContent({
     setShowDropdown(false);
     setLedgerSearch("");
     router.push(`?ledgerId=${ledgerId}&from=${fromParam}&to=${toParam}`);
-  };
-
-  // ─── Outstandings Calculation ────────────────────────────────────────────────
+  };  // ─── Outstandings Calculation ────────────────────────────────────────────────
   const calculateOutstandings = (): PendingBill[] => {
     if (!selectedLedger || !isPartyLedger) return [];
 
@@ -147,35 +147,65 @@ function LedgerReportContent({
     const invoices = vouchers.filter((v) => v.voucherType === targetType);
     const adjustments = vouchers.filter((v) => v.voucherType !== targetType);
 
-    const paidAmounts: Record<number, number> = {};
-    const unlinkedAdjustments: { date: string; amount: number; voucherNo: string }[] = [];
-
-    adjustments.forEach((adj) => {
-      let linkedSum = 0;
-      if (adj.billDetails && Array.isArray(adj.billDetails)) {
-        adj.billDetails.forEach((item: any) => {
-          if (item && typeof item === "object" && "voucherId" in item) {
-            const vId = Number(item.voucherId);
-            const amt = Number(item.amount) || 0;
-            paidAmounts[vId] = (paidAmounts[vId] || 0) + amt;
-            linkedSum += amt;
-          }
-        });
-      }
-      const adjAmt = Number(adj.netAmount) || 0;
-      const unlinked = adjAmt - linkedSum;
-      if (unlinked > 0.01) {
-        unlinkedAdjustments.push({ date: adj.voucherDate, amount: unlinked, voucherNo: adj.voucherNo });
-      }
-    });
+    const linkedAdjustmentAmounts: Record<number, number> = {};
 
     const pendingBills: PendingBill[] = [];
 
     invoices.forEach((inv) => {
-      const opening = Number(inv.netAmount) || 0;
-      const paid = paidAmounts[inv.voucherId] || 0;
-      const pending = opening - paid;
-      if (pending > 0.01) {
+      const billing = Number(inv.netAmount) || 0;
+      let paymentsSum = 0;
+      let debitNotesSum = 0;
+      let creditNotesSum = 0;
+
+      adjustments.forEach((adj) => {
+        // 1. Check billDetails (payment/receipt links)
+        if (adj.billDetails && Array.isArray(adj.billDetails)) {
+          adj.billDetails.forEach((item: any) => {
+            if (item && typeof item === "object" && Number(item.voucherId) === inv.voucherId) {
+              const amt = Number(item.amount) || 0;
+              linkedAdjustmentAmounts[adj.voucherId] = (linkedAdjustmentAmounts[adj.voucherId] || 0) + amt;
+              if (adj.voucherType === "payment" || adj.voucherType === "receipt") {
+                paymentsSum += amt;
+              } else if (adj.voucherType === "debit_note") {
+                debitNotesSum += amt;
+              } else if (adj.voucherType === "credit_note") {
+                creditNotesSum += amt;
+              } else {
+                paymentsSum += amt;
+              }
+            }
+          });
+        }
+
+        // 2. Check parentVoucherId (debit_note/credit_note links)
+        if (adj.parentVoucherId && Number(adj.parentVoucherId) === inv.voucherId) {
+          const amt = Number(adj.netAmount) || 0;
+          linkedAdjustmentAmounts[adj.voucherId] = (linkedAdjustmentAmounts[adj.voucherId] || 0) + amt;
+          if (adj.voucherType === "debit_note") {
+            debitNotesSum += amt;
+          } else if (adj.voucherType === "credit_note") {
+            creditNotesSum += amt;
+          } else if (adj.voucherType === "payment" || adj.voucherType === "receipt") {
+            paymentsSum += amt;
+          } else {
+            paymentsSum += amt;
+          }
+        }
+      });
+
+      // User logic:
+      // "and in purchase debit note will be - and in sales it will be the credit note will be the + vice versa"
+      let paid = 0;
+      if (!isCustomer) {
+        // Purchase (vendor)
+        paid = paymentsSum - debitNotesSum;
+      } else {
+        // Sales (customer)
+        paid = paymentsSum + creditNotesSum;
+      }
+
+      const pending = billing - paid;
+      if (Math.abs(pending) > 0.01) {
         const creditDays = 10;
         const invDate = new Date(inv.voucherDate);
         const dueDate = new Date(invDate);
@@ -186,7 +216,8 @@ function LedgerReportContent({
         pendingBills.push({
           date: inv.voucherDate,
           refNo: inv.voucherNo,
-          openingAmount: opening,
+          openingAmount: billing,
+          paidAmount: paid,
           pendingAmount: pending,
           dueOn: dueDate.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "2-digit" }),
           overdueDays,
@@ -195,16 +226,22 @@ function LedgerReportContent({
       }
     });
 
-    unlinkedAdjustments.forEach((adj) => {
-      pendingBills.push({
-        date: adj.date,
-        refNo: "On Account",
-        openingAmount: adj.amount,
-        pendingAmount: adj.amount,
-        dueOn: "—",
-        overdueDays: 0,
-        type: defaultType === "Dr" ? "Cr" : "Dr",
-      });
+    adjustments.forEach((adj) => {
+      const adjAmt = Number(adj.netAmount) || 0;
+      const linked = linkedAdjustmentAmounts[adj.voucherId] || 0;
+      const unlinked = adjAmt - linked;
+      if (unlinked > 0.01) {
+        pendingBills.push({
+          date: adj.voucherDate,
+          refNo: `${adj.voucherType.replace(/_/g, " ").toUpperCase()} (On Account)`,
+          openingAmount: unlinked,
+          paidAmount: 0,
+          pendingAmount: unlinked,
+          dueOn: "—",
+          overdueDays: 0,
+          type: defaultType === "Dr" ? "Cr" : "Dr",
+        });
+      }
     });
 
     return pendingBills;
@@ -212,6 +249,7 @@ function LedgerReportContent({
 
   const pendingBills = calculateOutstandings();
   const totalOpening = pendingBills.reduce((s, b) => s + (b.type === "Cr" ? -b.openingAmount : b.openingAmount), 0);
+  const totalPaid = pendingBills.reduce((s, b) => s + (b.type === "Cr" ? -b.paidAmount : b.paidAmount), 0);
   const totalPending = pendingBills.reduce((s, b) => s + (b.type === "Cr" ? -b.pendingAmount : b.pendingAmount), 0);
 
   // ─── Running Balance ─────────────────────────────────────────────────────────
@@ -405,8 +443,9 @@ function LedgerReportContent({
                 {/* Header row */}
                 <div className="grid grid-cols-12 border-b border-border bg-muted/40 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
                   <div className="col-span-2 p-3.5 pl-4 border-r border-border">Date</div>
-                  <div className="col-span-3 p-3.5 pl-4 border-r border-border">Ref. No.</div>
-                  <div className="col-span-3 p-3.5 text-right border-r border-border pr-4">Opening Amount</div>
+                  <div className="col-span-2 p-3.5 pl-4 border-r border-border">Ref. No.</div>
+                  <div className="col-span-2 p-3.5 text-right border-r border-border pr-4">Billing Amount</div>
+                  <div className="col-span-2 p-3.5 text-right border-r border-border pr-4">Paid Amount</div>
                   <div className="col-span-2 p-3.5 text-right border-r border-border pr-4">Pending Amount</div>
                   <div className="col-span-1 p-3.5 border-r border-border pl-3">Due on</div>
                   <div className="col-span-1 p-3.5 text-right pr-4">Overdue</div>
@@ -419,11 +458,14 @@ function LedgerReportContent({
                       <div className="col-span-2 p-3 pl-4 border-r border-border/50 text-foreground/80 flex items-center text-xs">
                         {fmtDate(bill.date, true)}
                       </div>
-                      <div className="col-span-3 p-3 pl-4 border-r border-border/50 font-sans font-semibold text-foreground flex items-center">
+                      <div className="col-span-2 p-3 pl-4 border-r border-border/50 font-sans font-semibold text-foreground flex items-center truncate">
                         {bill.refNo}
                       </div>
-                      <div className="col-span-3 p-3 text-right border-r border-border/50 pr-4 flex items-center justify-end">
+                      <div className="col-span-2 p-3 text-right border-r border-border/50 pr-4 flex items-center justify-end">
                         {formatAmount(bill.openingAmount, bill.type)}
+                      </div>
+                      <div className="col-span-2 p-3 text-right border-r border-border/50 pr-4 flex items-center justify-end">
+                        {formatAmount(bill.paidAmount, bill.type)}
                       </div>
                       <div className="col-span-2 p-3 text-right border-r border-border/50 pr-4 flex items-center justify-end font-bold">
                         {formatAmount(bill.pendingAmount, bill.type)}
@@ -440,9 +482,12 @@ function LedgerReportContent({
 
                 {/* Totals */}
                 <div className="grid grid-cols-12 border-t-2 border-b-2 border-double border-border bg-muted/20 font-mono text-sm font-bold text-foreground">
-                  <div className="col-span-5 p-3.5 pl-4 uppercase font-sans font-black">Total Pending</div>
-                  <div className="col-span-3 p-3.5 text-right border-r border-border/50 pr-4 font-black">
+                  <div className="col-span-4 p-3.5 pl-4 uppercase font-sans font-black">Total Pending</div>
+                  <div className="col-span-2 p-3.5 text-right border-r border-border/50 pr-4 font-black">
                     {formatAmount(Math.abs(totalOpening), totalOpening >= 0 ? "Dr" : "Cr")}
+                  </div>
+                  <div className="col-span-2 p-3.5 text-right border-r border-border/50 pr-4 font-black">
+                    {formatAmount(Math.abs(totalPaid), totalPaid >= 0 ? "Dr" : "Cr")}
                   </div>
                   <div className="col-span-2 p-3.5 text-right border-r border-border/50 pr-4 font-black">
                     {formatAmount(Math.abs(totalPending), totalPending >= 0 ? "Dr" : "Cr")}

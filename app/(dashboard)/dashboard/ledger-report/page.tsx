@@ -7,7 +7,7 @@ import {
   tVoucherEntries,
   tVouchers,
 } from "@/lib/db/schema";
-import { and, eq, isNull, sql, gte, lte, lt, inArray } from "drizzle-orm";
+import { and, eq, isNull, sql, gte, lte, lt, inArray, or } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
 import LedgerReportClient from "./LedgerReportClient";
 
@@ -195,12 +195,16 @@ export default async function LedgerReportPage({
             partyId: tVouchers.partyId,
             netAmount: tVouchers.netAmount,
             billDetails: tVouchers.billDetails,
+            parentVoucherId: tVouchers.parentVoucherId,
           })
           .from(tVouchers)
           .where(
             and(
               eq(tVouchers.companyId, companyId),
-              eq(tVouchers.partyId, selectedLedger.referenceId),
+              or(
+                eq(tVouchers.partyId, selectedLedger.referenceId),
+                eq(tVouchers.partyId, selectedLedger.ledgerId)
+              ),
               isNull(tVouchers.deletedOn),
               gte(tVouchers.voucherDate, fromDate),
               lte(tVouchers.voucherDate, toDate)
