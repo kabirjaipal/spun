@@ -44,12 +44,10 @@ interface ProfitLossClientProps {
 }
 
 const fmt = (v: number) =>
-  v === 0
-    ? ""
-    : new Intl.NumberFormat("en-IN", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }).format(Math.abs(v));
+  new Intl.NumberFormat("en-IN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Math.abs(v));
 
 const fmtDate = (d: string) =>
   new Date(d).toLocaleDateString("en-IN", {
@@ -73,7 +71,6 @@ function GroupSection({
   indented?: boolean;
 }) {
   const [open, setOpen] = useState(true);
-  if (total === 0 && items.every((i) => i.amount === 0)) return null;
   return (
     <div>
       <button
@@ -247,7 +244,7 @@ function ProfitLossContent({
       `}
     >
       <span>{label}</span>
-      <span className="font-mono tabular-nums">{amount !== 0 ? fmt(amount) : ""}</span>
+      <span className="font-mono tabular-nums">{fmt(amount)}</span>
     </div>
   );
 
@@ -350,10 +347,8 @@ function ProfitLossContent({
             <ColHeader />
 
             {/* Opening Stock */}
-            {openingStock > 0 && (
-              <Row label="Opening Stock" amount={openingStock} bold />
-            )}
-            {detailed && openingStock > 0 && (
+            <Row label="Opening Stock" amount={openingStock} bold />
+            {detailed && (
               <Row label="Stock A/c" amount={openingStock} indent />
             )}
 
@@ -394,22 +389,18 @@ function ProfitLossContent({
             />
 
             {/* Closing Stock */}
-            {closingStock > 0 && (
-              <Row label="Closing Stock" amount={closingStock} bold />
-            )}
-            {detailed && closingStock > 0 && (
+            <Row label="Closing Stock" amount={closingStock} bold />
+            {detailed && (
               <Row label="Stock A/c" amount={closingStock} indent />
             )}
 
             {/* Direct Income */}
-            {directIncItems.length > 0 && (
-              <GroupSection
-                title="Direct Income"
-                items={directIncItems}
-                total={directIncTotal}
-                detailed={detailed}
-              />
-            )}
+            <GroupSection
+              title="Direct Income"
+              items={directIncItems}
+              total={directIncTotal}
+              detailed={detailed}
+            />
 
             {/* Gross Loss c/o (only if drSide1 > crSide1) */}
             {grossProfit < 0 && (
@@ -462,14 +453,12 @@ function ProfitLossContent({
             )}
 
             {/* Indirect Income */}
-            {indirectIncItems.length > 0 && (
-              <GroupSection
-                title="Indirect Income"
-                items={indirectIncItems}
-                total={indirectIncTotal}
-                detailed={detailed}
-              />
-            )}
+            <GroupSection
+              title="Indirect Income"
+              items={indirectIncItems}
+              total={indirectIncTotal}
+              detailed={detailed}
+            />
 
             {/* Net Loss */}
             {netProfit < 0 && (
