@@ -120,6 +120,7 @@ export default async function PurchaseRegisterPage({
         address: company.address,
       }}
       monthlySummary={monthlySummary}
+      vouchers={vouchers}
       canExport={canExport}
     />
   );

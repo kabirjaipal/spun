@@ -2,7 +2,7 @@
 
 import React, { useState, Suspense } from "react";
 import { Spinner } from "@/components/ui/spinner";
-import { Download, Calendar, Search } from "lucide-react";
+import { Download, Calendar, Search, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,13 @@ interface MonthlySummaryItem {
   closingBalance: number;
 }
 
+interface Voucher {
+  voucherId: number;
+  voucherType: string;
+  voucherDate: string;
+  netAmount: string;
+}
+
 interface Company {
   companyId: number;
   companyName: string;
@@ -28,12 +35,14 @@ interface Company {
 interface SalesRegisterClientProps {
   company: Company;
   monthlySummary: MonthlySummaryItem[];
+  vouchers: Voucher[];
   canExport: boolean;
 }
 
 function SalesRegisterContent({
   company,
   monthlySummary,
+  vouchers,
   canExport,
 }: SalesRegisterClientProps) {
   const router = useRouter();
@@ -52,6 +61,55 @@ function SalesRegisterContent({
   const [startDate, setStartDate] = useState(fromParam);
   const [endDate, setEndDate] = useState(toParam);
   const [searchQuery, setSearchQuery] = useState("");
+  const [expandedMonth, setExpandedMonth] = useState<string | null>(null);
+
+  const getDailySummary = (monthKey: string) => {
+    const [year, monthNum] = monthKey.split("-").map(Number);
+    const daysInMonth = new Date(year, monthNum, 0).getDate();
+
+    const monthVouchers = vouchers.filter(
+      (v) => v.voucherDate.slice(0, 7) === monthKey
+    );
+
+    // Calculate opening balance before this month (credit sales - debit sales returns)
+    const beforeVouchers = vouchers.filter(
+      (v) => v.voucherDate < `${year}-${String(monthNum).padStart(2, "0")}-01`
+    );
+    const beforeDebit = beforeVouchers
+      .filter((v) => v.voucherType === "sales_return")
+      .reduce((sum, v) => sum + Number(v.netAmount), 0);
+    const beforeCredit = beforeVouchers
+      .filter((v) => v.voucherType === "sale")
+      .reduce((sum, v) => sum + Number(v.netAmount), 0);
+    let runningDailyBalance = beforeCredit - beforeDebit;
+
+    const dailySummaryList = [];
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = `${year}-${String(monthNum).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      const dayVouchers = monthVouchers.filter((v) => v.voucherDate === dateStr);
+
+      const credit = dayVouchers
+        .filter((v) => v.voucherType === "sale")
+        .reduce((sum, v) => sum + Number(v.netAmount), 0);
+
+      const debit = dayVouchers
+        .filter((v) => v.voucherType === "sales_return")
+        .reduce((sum, v) => sum + Number(v.netAmount), 0);
+
+      runningDailyBalance += (credit - debit);
+
+      dailySummaryList.push({
+        date: dateStr,
+        day,
+        debit,
+        credit,
+        closingBalance: runningDailyBalance,
+      });
+    }
+
+    return dailySummaryList;
+  };
 
   // Omission lists
   const [removedLines, setRemovedLines] = useState<string[]>([]);
@@ -261,38 +319,88 @@ function SalesRegisterContent({
                   const balSign = item.closingBalance >= 0 ? "Cr" : "Dr";
 
                   return (
-                    <tr
-                      key={item.monthKey}
-                      className="group/row hover:bg-muted/10 transition-colors font-medium"
-                    >
-                      {/* Particulars (Month Name) */}
-                      <td className="p-3 pl-6 font-semibold text-foreground">
-                        <div className="flex items-center justify-between">
-                          <span>{item.monthName}</span>
-                          <button
-                            onClick={() => handleRemoveLine(label)}
-                            className="opacity-0 group-hover/row:opacity-100 text-xs text-destructive hover:underline p-1 ml-2 no-print font-normal"
-                          >
-                            Omit
-                          </button>
-                        </div>
-                      </td>
+                    <React.Fragment key={item.monthKey}>
+                      <tr
+                        className="group/row hover:bg-muted/10 transition-colors font-medium cursor-pointer"
+                        onClick={() => {
+                          setExpandedMonth(expandedMonth === item.monthKey ? null : item.monthKey);
+                        }}
+                      >
+                        {/* Particulars (Month Name) */}
+                        <td className="p-3 pl-6 font-semibold text-foreground">
+                          <div className="flex items-center justify-between w-full">
+                            <div className="flex items-center gap-2">
+                              <ChevronRight
+                                className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${
+                                  expandedMonth === item.monthKey ? "rotate-90" : ""
+                                }`}
+                              />
+                              <span>{item.monthName}</span>
+                            </div>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRemoveLine(label);
+                              }}
+                              className="opacity-0 group-hover/row:opacity-100 text-xs text-destructive hover:underline p-1 ml-2 no-print font-normal"
+                            >
+                              Omit
+                            </button>
+                          </div>
+                        </td>
 
-                      {/* Debit */}
-                      <td className="p-3 text-right border-l border-border font-mono text-muted-foreground">
-                        {formatAmount(item.debit)}
-                      </td>
+                        {/* Debit */}
+                        <td className="p-3 text-right border-l border-border font-mono text-muted-foreground">
+                          {formatAmount(item.debit)}
+                        </td>
 
-                      {/* Credit */}
-                      <td className="p-3 text-right border-l border-border font-mono">
-                        {formatAmount(item.credit)}
-                      </td>
+                        {/* Credit */}
+                        <td className="p-3 text-right border-l border-border font-mono">
+                          {formatAmount(item.credit)}
+                        </td>
 
-                      {/* Closing Balance */}
-                      <td className="p-3 text-right border-l border-border font-mono font-bold text-foreground">
-                        {formatAmount(Math.abs(item.closingBalance))} {balSign}
-                      </td>
-                    </tr>
+                        {/* Closing Balance */}
+                        <td className="p-3 text-right border-l border-border font-mono font-bold text-foreground">
+                          {formatAmount(Math.abs(item.closingBalance))} {balSign}
+                        </td>
+                      </tr>
+
+                      {/* Daily Transactions sub-rows */}
+                      {expandedMonth === item.monthKey && (
+                        <tr>
+                          <td colSpan={4} className="p-0 border-b border-border bg-muted/5">
+                            <div className="p-4 pl-12 pr-6 space-y-2">
+                              <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground">
+                                Daily Transactions Breakdown ({item.monthName})
+                              </h4>
+                              <table className="w-full text-xs border border-border/60 rounded overflow-hidden">
+                                <thead>
+                                  <tr className="bg-muted/30 border-b border-border/60 text-muted-foreground text-[10px] font-bold uppercase tracking-wider">
+                                    <th className="p-2 text-left">Date</th>
+                                    <th className="p-2 text-right">Debit (Return)</th>
+                                    <th className="p-2 text-right">Credit (Sale)</th>
+                                    <th className="p-2 text-right">Closing Balance</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {getDailySummary(item.monthKey).map((dayRow) => {
+                                    const dayBalSign = dayRow.closingBalance >= 0 ? "Cr" : "Dr";
+                                    return (
+                                      <tr key={dayRow.date} className="border-b border-border/40 hover:bg-muted/10">
+                                        <td className="p-2 font-mono">{formatDateToTally(dayRow.date)}</td>
+                                        <td className="p-2 text-right font-mono text-muted-foreground">{formatAmount(dayRow.debit)}</td>
+                                        <td className="p-2 text-right font-mono">{formatAmount(dayRow.credit)}</td>
+                                        <td className="p-2 text-right font-mono font-bold">{formatAmount(Math.abs(dayRow.closingBalance))} {dayBalSign}</td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
                   );
                 })
               )}

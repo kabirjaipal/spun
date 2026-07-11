@@ -121,6 +121,7 @@ export default async function SalesRegisterPage({
         address: company.address,
       }}
       monthlySummary={monthlySummary}
+      vouchers={vouchers}
       canExport={canExport}
     />
   );
