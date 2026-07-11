@@ -9,7 +9,6 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Plus, X, ArrowLeft, Trash2 } from "lucide-react";
-import PieceMetersDialog from "@/components/PieceMetersDialog";
 
 interface DebitNoteItem {
   voucherId: number;
@@ -61,26 +60,16 @@ interface LineItem {
   id: string;
   ledgerId: string;
   hsnCode: string;
-  pcs: string;
-  quantity: string;
-  unitType: "pcs" | "mtr";
-  fold: string;
-  rate: string;
+  taxableAmount: string;
   gstRateId: string;
-  pieceMeters?: string[];
 }
 
 const EMPTY_LINE = (): LineItem => ({
   id: crypto.randomUUID(),
   ledgerId: "",
   hsnCode: "",
-  pcs: "0",
-  quantity: "0",
-  unitType: "mtr",
-  fold: "100",
-  rate: "0",
+  taxableAmount: "0",
   gstRateId: "",
-  pieceMeters: [],
 });
 
 export default function DebitNoteClient({
@@ -110,37 +99,6 @@ export default function DebitNoteClient({
   const [lineItems, setLineItems] = useState<LineItem[]>([EMPTY_LINE()]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [activePieceLineId, setActivePieceLineId] = useState<string | null>(null);
-
-  function handleSavePieceMeters(meters: string[]) {
-    if (!activePieceLineId) return;
-    setLineItems((prev) =>
-      prev.map((item) => {
-        if (item.id !== activePieceLineId) return item;
-        let pcs = 0;
-        let totalQty = 0;
-        for (const m of meters) {
-          if (m.includes("x")) {
-            const [pStr, qStr] = m.split("x");
-            const p = parseInt(pStr) || 0;
-            const q = parseFloat(qStr) || 0;
-            pcs += p;
-            totalQty += p * q;
-          } else {
-            pcs += 1;
-            totalQty += parseFloat(m) || 0;
-          }
-        }
-        return {
-          ...item,
-          pcs: String(pcs),
-          quantity: totalQty > 0 ? String(parseFloat(totalQty.toFixed(2))) : item.quantity,
-          pieceMeters: meters,
-        };
-      })
-    );
-    setActivePieceLineId(null);
-  }
 
   // Fetch purchase invoices for selected company
   const [invoices, setInvoices] = useState<PurchaseInvoiceOption[]>([]);
@@ -185,13 +143,7 @@ export default function DebitNoteClient({
 
   const lineTotals = useMemo(() => {
     return lineItems.map((item) => {
-      const pcs = Number(item.pcs) || 0;
-      const qty = Number(item.quantity) || 0;
-      const rate = Number(item.rate) || 0;
-      const fold = Number(item.fold) || 100;
-
-      const unitVal = item.unitType === "pcs" ? pcs : qty;
-      const taxable = Math.round((unitVal * rate * (fold / 100)) * 100) / 100;
+      const taxable = Number(item.taxableAmount) || 0;
 
       let cgst = 0;
       let sgst = 0;
@@ -253,9 +205,9 @@ export default function DebitNoteClient({
   async function handleSubmit() {
     if (!canCreate) return;
 
-    const validLines = lineItems.filter((l) => l.ledgerId && (Number(l.pcs) > 0 || Number(l.quantity) > 0));
+    const validLines = lineItems.filter((l) => l.ledgerId && Number(l.taxableAmount) > 0);
     if (!selectedCompany || !voucherNo || validLines.length === 0) {
-      setMessage("Please select company, enter voucher number, and add at least one valid line with Account Head and quantity/pcs.");
+      setMessage("Please select company, enter voucher number, and add at least one valid line with Account Head and Taxable Amount.");
       return;
     }
 
@@ -277,16 +229,17 @@ export default function DebitNoteClient({
           return {
             ledgerId: Number(line.ledgerId),
             hsnCode: line.hsnCode,
-            pcs: Number(line.pcs),
-            quantity: Number(line.quantity),
-            jobRateType: line.unitType,
-            fold: Number(line.fold),
-            rate: Number(line.rate),
+            pcs: 0,
+            quantity: 0,
+            jobRateType: "mtr",
+            fold: 100,
+            rate: 0,
+            taxableAmount: Number(line.taxableAmount),
             gstRateId: line.gstRateId ? Number(line.gstRateId) : null,
             cgst: totals ? totals.cgst : 0,
             sgst: totals ? totals.sgst : 0,
             igst: totals ? totals.igst : 0,
-            pieceMeters: line.pieceMeters,
+            pieceMeters: [],
           };
         }),
       };
@@ -333,9 +286,7 @@ export default function DebitNoteClient({
   }
 
   if (isCreating) {
-    const gridColsClass = isInterstate
-      ? "md:grid-cols-[2fr_0.8fr_0.8fr_0.8fr_0.8fr_0.9fr_0.8fr_0.8fr_1fr_auto]"
-      : "md:grid-cols-[2fr_0.8fr_0.8fr_0.8fr_0.8fr_0.9fr_0.8fr_0.8fr_0.8fr_1fr_auto]";
+    const gridColsClass = "md:grid-cols-[2.5fr_1.2fr_1.2fr_1fr_1fr_1fr_1.2fr_auto]";
 
     return (
       <div className="space-y-6">
@@ -424,58 +375,13 @@ export default function DebitNoteClient({
                     </div>
 
                     <div className="space-y-2">
-                      <Label >PCS</Label>
-                      <div className="flex items-center gap-1">
-                        <Input
-                          type="number"
-                          value={line.pcs}
-                          onChange={(e) => updateLine(line.id, "pcs", e.target.value)}
-                          readOnly={!!(line.pieceMeters && line.pieceMeters.length > 0)}
-                          className={line.pieceMeters && line.pieceMeters.length > 0 ? "bg-muted cursor-not-allowed" : ""}
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon"
-                          className="h-9 w-9 shrink-0"
-                          onClick={() => setActivePieceLineId(line.id)}
-                          title="Enter Piece Meters"
-                        >
-                          ⚙️
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label >Qty / Mtr</Label>
+                      <Label >Taxable Amt</Label>
                       <Input
                         type="number"
-                        value={line.quantity}
-                        onChange={(e) => updateLine(line.id, "quantity", e.target.value)}
-                        readOnly={!!(line.pieceMeters && line.pieceMeters.length > 0)}
-                        className={line.pieceMeters && line.pieceMeters.length > 0 ? "bg-muted cursor-not-allowed" : ""}
+                        value={line.taxableAmount}
+                        onChange={(e) => updateLine(line.id, "taxableAmount", e.target.value)}
+                        className="text-right"
                       />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label >Unit</Label>
-                      <Select value={line.unitType} onValueChange={(val) => updateLine(line.id, "unitType", val as any)}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="mtr">Mtr</SelectItem>
-                          <SelectItem value="pcs">Pcs</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label >Rate</Label>
-                      <Input type="number" value={line.rate} onChange={(e) => updateLine(line.id, "rate", e.target.value)} />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label >Taxable Amt</Label>
-                      <Input type="number" value={total.taxable.toFixed(2)} disabled className="text-right" />
                     </div>
 
                     <div className="space-y-2">
@@ -490,27 +396,24 @@ export default function DebitNoteClient({
                       </Select>
                     </div>
 
-                    {isInterstate ? (
-                      <div className="space-y-2">
-                        <Label >IGST</Label>
-                        <Input type="number" value={total.igst.toFixed(2)} disabled className="text-right" />
-                      </div>
-                    ) : (
-                      <>
-                        <div className="space-y-2">
-                          <Label >CGST</Label>
-                          <Input type="number" value={total.cgst.toFixed(2)} disabled className="text-right" />
-                        </div>
-                        <div className="space-y-2">
-                          <Label >SGST</Label>
-                          <Input type="number" value={total.sgst.toFixed(2)} disabled className="text-right" />
-                        </div>
-                      </>
-                    )}
+                    <div className="space-y-2">
+                      <Label >CGST</Label>
+                      <Input type="number" value={total.cgst.toFixed(2)} disabled className="text-right bg-muted" />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label >SGST</Label>
+                      <Input type="number" value={total.sgst.toFixed(2)} disabled className="text-right bg-muted" />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label >IGST</Label>
+                      <Input type="number" value={total.igst.toFixed(2)} disabled className="text-right bg-muted" />
+                    </div>
 
                     <div className="space-y-2">
                       <Label >Net Amt</Label>
-                      <Input type="number" value={total.net.toFixed(2)} disabled className="text-right" />
+                      <Input type="number" value={total.net.toFixed(2)} disabled className="text-right bg-muted" />
                     </div>
 
                     <div className="pb-1">
@@ -551,19 +454,6 @@ export default function DebitNoteClient({
             )}
           </Button>
         </div>
-        {activePieceLineId && (() => {
-          const activeLine = lineItems.find((l) => l.id === activePieceLineId);
-          return (
-            <PieceMetersDialog
-              isOpen={!!activePieceLineId}
-              onClose={() => setActivePieceLineId(null)}
-              pcsCount={Number(activeLine?.pcs) || 0}
-              quantityCount={Number(activeLine?.quantity) || 0}
-              initialMeters={activeLine?.pieceMeters || []}
-              onSave={handleSavePieceMeters}
-            />
-          );
-        })()}
       </div>
     );
   }

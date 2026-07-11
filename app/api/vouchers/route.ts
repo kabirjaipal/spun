@@ -218,8 +218,9 @@ export async function POST(request: Request) {
           const jobRateType = line.jobRateType || "mtr";
 
           const unit = jobRateType === "pcs" ? pcs : qty;
-          const rawTaxableAmount =
-            Math.round(((unit * rate * fold) / 100) * 100) / 100;
+          const rawTaxableAmount = line.taxableAmount !== undefined
+            ? Number(line.taxableAmount)
+            : Math.round(((unit * rate * fold) / 100) * 100) / 100;
           rawTotal += rawTaxableAmount;
           return { line, rawTaxableAmount, pcs, qty, rate, fold, jobRateType };
         });
