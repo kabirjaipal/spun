@@ -4,6 +4,7 @@ import React, { useState, Suspense } from "react";
 import { Spinner } from "@/components/ui/spinner";
 import { Download, ArrowRightLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 interface Bill {
   voucherId: number;
@@ -44,6 +45,8 @@ function getBucket(overdueDays: number) {
 
 function AgeingAnalysisContent({ company, payableBills, receivableBills, canExport }: Props) {
   const [mode, setMode] = useState<"payable" | "receivable">("payable");
+  const [fromDays, setFromDays] = useState<string>("");
+  const [toDays, setToDays] = useState<string>("");
 
   const bills = mode === "payable" ? payableBills : receivableBills;
 
@@ -53,13 +56,24 @@ function AgeingAnalysisContent({ company, payableBills, receivableBills, canExpo
   const formatDate = (d: string) => {
     const dt = new Date(d + "T00:00:00");
     if (isNaN(dt.getTime())) return d;
-    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     return `${dt.getDate()}-${months[dt.getMonth()]}-${String(dt.getFullYear()).slice(-2)}`;
   };
 
+  // Filter bills by overdue days range
+  const filteredBills = bills.filter((bill) => {
+    const overdueDays = getOverdueDays(bill.dueDate);
+    const fDays = fromDays !== "" ? Number(fromDays) : null;
+    const tDays = toDays !== "" ? Number(toDays) : null;
+
+    if (fDays !== null && overdueDays < fDays) return false;
+    if (tDays !== null && overdueDays > tDays) return false;
+    return true;
+  });
+
   // Group bills into buckets
   const bucketed: Bill[][] = BUCKETS.map(() => []);
-  bills.forEach(bill => {
+  filteredBills.forEach(bill => {
     const overdueDays = getOverdueDays(bill.dueDate);
     bucketed[getBucket(overdueDays)].push(bill);
   });
@@ -89,6 +103,27 @@ function AgeingAnalysisContent({ company, payableBills, receivableBills, canExpo
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 no-print">
         <h1 className="text-xl font-bold tracking-tight text-foreground">Ageing Analysis</h1>
         <div className="flex flex-wrap items-center gap-2">
+          {/* Overdue Days Range Filters */}
+          <div className="flex items-center gap-1.5 bg-background border border-border rounded-md px-2.5 py-1.5 h-10">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap">Overdue:</span>
+            <Input
+              type="number"
+              placeholder="Min"
+              value={fromDays}
+              onChange={(e) => setFromDays(e.target.value)}
+              className="w-20 h-7 text-xs px-1 border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent text-foreground placeholder:text-muted-foreground/60"
+            />
+            <span className="text-muted-foreground text-xs">—</span>
+            <Input
+              type="number"
+              placeholder="Max"
+              value={toDays}
+              onChange={(e) => setToDays(e.target.value)}
+              className="w-20 h-7 text-xs px-1 border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent text-foreground placeholder:text-muted-foreground/60"
+            />
+            <span className="text-[10px] font-semibold text-muted-foreground whitespace-nowrap">days</span>
+          </div>
+
           <Button
             variant={mode === "payable" ? "default" : "outline"}
             onClick={() => setMode("payable")}
