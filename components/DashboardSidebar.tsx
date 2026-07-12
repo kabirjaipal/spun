@@ -215,7 +215,7 @@ export default function DashboardSidebar({
                     variant="ghost"
                     size="xs"
                     onClick={() => toggleGroup(groupName)}
-                    className="w-full !justify-between !px-3 font-bold uppercase tracking-wider text-[10px] text-muted-foreground/60 hover:text-foreground"
+                    className="w-full justify-between! px-3! font-bold uppercase tracking-wider text-[10px] text-muted-foreground/60 hover:text-foreground"
                   >
                     <span>{groupName}</span>
                     {isGroupCollapsed ? (
@@ -279,7 +279,7 @@ export default function DashboardSidebar({
                 size="icon-xs"
                 onClick={() => signOut({ callbackUrl: "/login" })}
                 title="Sign Out"
-                className="!h-7 !w-7 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/20"
+                className="h-7! w-7! hover:bg-destructive/10 hover:text-destructive hover:border-destructive/20"
               >
                 <Icons.LogOut className="h-3.5 w-3.5" />
               </Button>
@@ -301,7 +301,7 @@ export default function DashboardSidebar({
                 size="icon-xs"
                 onClick={() => signOut({ callbackUrl: "/login" })}
                 title="Sign Out"
-                className="!h-7 !w-7 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/20"
+                className="h-7! w-7! hover:bg-destructive/10 hover:text-destructive hover:border-destructive/20"
               >
                 <Icons.LogOut className="h-3.5 w-3.5" />
               </Button>
