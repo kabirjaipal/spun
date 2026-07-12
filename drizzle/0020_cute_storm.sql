@@ -1,0 +1,1 @@
+ALTER TABLE "m_ledgers" ADD COLUMN "state_code" text;

@@ -40,6 +40,7 @@ export async function POST(request: Request) {
     tdsRate,
     creditDays,
     rateOfInterest,
+    stateCode,
   } = await request.json();
 
   if (!ledgerName || !ledgerType) {
@@ -62,6 +63,7 @@ export async function POST(request: Request) {
       tdsRate: tdsRate && !isNaN(Number(tdsRate)) ? String(Number(tdsRate).toFixed(2)) : "0.00",
       creditDays: creditDays && !isNaN(Number(creditDays)) ? Math.round(Number(creditDays)) : 0,
       rateOfInterest: rateOfInterest && !isNaN(Number(rateOfInterest)) ? String(Number(rateOfInterest).toFixed(2)) : "0.00",
+      stateCode: stateCode || null,
       createdBy: userId,
       updatedBy: userId,
     })

@@ -45,6 +45,7 @@ export default async function LedgersPage() {
         tdsRate: r.tdsRate,
         creditDays: r.creditDays,
         rateOfInterest: r.rateOfInterest,
+        stateCode: r.stateCode,
       }))}
       groups={groups}
       canCreate={p?.c ?? false}

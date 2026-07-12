@@ -376,6 +376,7 @@ export const mLedgers = pgTable(
       .notNull(),
     ledgerType: text("ledger_type").notNull(), // e.g., 'cash', 'bank', 'customer', 'company', etc.
     referenceId: bigint("reference_id", { mode: "number" }),
+    stateCode: text("state_code"),
     ...auditColumns,
   },
   (table) => ({

@@ -28,6 +28,7 @@ interface Ledger {
   tdsRate: string;
   creditDays: number;
   rateOfInterest: string;
+  stateCode: string | null;
 }
 
 interface LedgerGroup {
@@ -82,6 +83,7 @@ const EMPTY = {
   creditDays: 0,
   rateOfInterest: "0.00",
   newGroupName: "", // for inline creation
+  stateCode: "",
 };
 
 export default function LedgersClient({
@@ -159,6 +161,7 @@ export default function LedgersClient({
       creditDays: row.creditDays,
       rateOfInterest: row.rateOfInterest,
       newGroupName: "",
+      stateCode: row.stateCode || "",
     });
     setShowNewGroupInput(false);
     setSheetOpen(true);
