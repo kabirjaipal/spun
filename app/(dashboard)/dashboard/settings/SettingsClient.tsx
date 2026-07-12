@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { BANK_LIST } from "@/lib/banks";
 import { CURRENCIES, MARKET_CATEGORIES } from "@/lib/constants";
+import { fetchGstDetails } from "@/lib/utils";
+import { Search } from "lucide-react";
 
 interface CompanyDetails {
   companyId: number;
@@ -85,6 +87,29 @@ export default function SettingsClient({
 
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [fetchingGst, setFetchingGst] = useState(false);
+
+  const handleFetchGST = async (targetGst: string) => {
+    if (!targetGst) return;
+    setFetchingGst(true);
+    setMessage(null);
+    try {
+      const d = await fetchGstDetails(targetGst);
+      setGstNo(d.gstin);
+      if (d.companyName) setCompanyName(d.companyName);
+      if (d.panNo) setPanNo(d.panNo);
+      if (d.stateCode) setStateCode(d.stateCode);
+      if (d.state) setState(d.state);
+      if (d.city) setCity(d.city);
+      if (d.address) setAddress(d.address);
+      if (d.pincode) setPincode(d.pincode);
+      if (d.gstType) setGstType(d.gstType);
+    } catch (err: any) {
+      setMessage(err.message || "An error occurred while fetching GST details.");
+    } finally {
+      setFetchingGst(false);
+    }
+  };
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -311,7 +336,30 @@ export default function SettingsClient({
 
                 <div className="space-y-2">
                   <Label>GSTIN</Label>
-                  <Input value={gstNo} onChange={(e) => setGstNo(e.target.value.toUpperCase())} placeholder="24AAAAA0000A1Z5" />
+                  <div className="relative">
+                    <Input
+                      value={gstNo}
+                      onChange={(e) => setGstNo(e.target.value.toUpperCase())}
+                      placeholder="24AAAAA0000A1Z5"
+                      className="pr-10"
+                    />
+                    {gstNo && gstNo.trim().length >= 15 && (
+                      <Button
+                        type="button"
+                        onClick={() => handleFetchGST(gstNo)}
+                        disabled={fetchingGst}
+                        variant="ghost"
+                        className="absolute inset-y-0 right-0 h-10 w-10 p-0 text-muted-foreground hover:text-foreground"
+                        title="Fetch Details"
+                      >
+                        {fetchingGst ? (
+                          <Spinner className="h-4 w-4" />
+                        ) : (
+                          <Search className="h-4 w-4" />
+                        )}
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
             )}

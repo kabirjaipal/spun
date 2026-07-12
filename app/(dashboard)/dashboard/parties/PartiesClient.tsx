@@ -9,11 +9,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetBody, SheetFooter } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Pencil, Trash2, Building2, Landmark, MapPin, Calendar, FileText, Phone, Mail, DollarSign, Globe, ArrowLeft } from "lucide-react";
+import { Pencil, Trash2, Building2, Landmark, MapPin, Calendar, FileText, Phone, Mail, DollarSign, Globe, ArrowLeft, Search } from "lucide-react";
 import ExportButton from "@/components/ExportButton";
 import Link from "next/link";
 import { BANK_LIST, type BankData } from "@/lib/banks";
 import { CURRENCIES, MARKET_CATEGORIES, STORAGE_BANKS_KEY } from "@/lib/constants";
+import { fetchGstDetails } from "@/lib/utils";
 
 interface Party {
   companyId: number;
@@ -203,6 +204,33 @@ export default function PartiesClient({
     (r.gstNo ?? "").toLowerCase().includes(search.toLowerCase()) ||
     (r.phone ?? "").includes(search)
   );
+
+  const [fetchingGst, setFetchingGst] = useState(false);
+
+  const handleFetchGST = async (targetGst: string) => {
+    if (!targetGst) return;
+    setFetchingGst(true);
+    setError(null);
+    try {
+      const d = await fetchGstDetails(targetGst);
+      setForm((f) => ({
+        ...f,
+        gstNo: d.gstin,
+        companyName: d.companyName || f.companyName,
+        panNo: d.panNo || f.panNo,
+        stateCode: d.stateCode || f.stateCode,
+        state: d.state || f.state,
+        city: d.city || f.city,
+        address: d.address || f.address,
+        pincode: d.pincode || f.pincode,
+        gstType: d.gstType || f.gstType,
+      }));
+    } catch (err: any) {
+      setError(err.message || "An error occurred while fetching GST details.");
+    } finally {
+      setFetchingGst(false);
+    }
+  };
 
   function openCreate() {
     setError(null);
@@ -686,10 +714,26 @@ export default function PartiesClient({
                           type="text"
                           required={form.gstApplicable}
                           value={form.gstNo}
-                          onChange={(e) => setForm((f) => ({ ...f, gstNo: e.target.value }))}
-                          className="pl-10"
+                          onChange={(e) => setForm((f) => ({ ...f, gstNo: e.target.value.toUpperCase() }))}
+                          className="pl-10 pr-10"
                           placeholder="24AAAAB1234C1Z1"
                         />
+                        {form.gstNo && form.gstNo.trim().length >= 15 && (
+                          <Button
+                            type="button"
+                            onClick={() => handleFetchGST(form.gstNo)}
+                            disabled={fetchingGst}
+                            variant="ghost"
+                            className="absolute inset-y-0 right-0 h-10 w-10 p-0 text-muted-foreground hover:text-foreground"
+                            title="Fetch Details"
+                          >
+                            {fetchingGst ? (
+                              <Spinner className="h-4 w-4" />
+                            ) : (
+                              <Search className="h-4 w-4" />
+                            )}
+                          </Button>
+                        )}
                       </div>
                     </div>
 

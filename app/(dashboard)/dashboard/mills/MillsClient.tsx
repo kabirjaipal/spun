@@ -9,8 +9,9 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetBody, SheetFooter } 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, Search } from "lucide-react";
 import ExportButton from "@/components/ExportButton";
+import { fetchGstDetails } from "@/lib/utils";
 
 interface Mill {
   millId: number;
@@ -58,6 +59,29 @@ export default function MillsClient({ initialData, canCreate, canUpdate, canDele
     r.millName.toLowerCase().includes(search.toLowerCase()) ||
     (r.gstNo && r.gstNo.toLowerCase().includes(search.toLowerCase()))
   );
+
+  const [fetchingGst, setFetchingGst] = useState(false);
+
+  const handleFetchGST = async (targetGst: string) => {
+    if (!targetGst) return;
+    setFetchingGst(true);
+    try {
+      const d = await fetchGstDetails(targetGst);
+      setForm((f) => ({
+        ...f,
+        gstNo: d.gstin,
+        millName: d.companyName || f.millName,
+        address: d.address || f.address,
+        city: d.city || f.city,
+        stateCode: d.stateCode || f.stateCode,
+        gstType: d.gstType || f.gstType,
+      }));
+    } catch (err: any) {
+      alert(err.message || "An error occurred while fetching GST details.");
+    } finally {
+      setFetchingGst(false);
+    }
+  };
 
   function openCreate() {
     setEditing(null);
@@ -193,7 +217,31 @@ export default function MillsClient({ initialData, canCreate, canUpdate, canDele
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>GSTIN</Label>
-                <Input id="gstNo" placeholder="24AAAAA1111A1Z1" value={form.gstNo} onChange={(e) => setForm((f) => ({ ...f, gstNo: e.target.value }))} />
+                <div className="relative">
+                  <Input
+                    id="gstNo"
+                    placeholder="24AAAAA1111A1Z1"
+                    value={form.gstNo}
+                    onChange={(e) => setForm((f) => ({ ...f, gstNo: e.target.value.toUpperCase() }))}
+                    className="pr-10"
+                  />
+                  {form.gstNo && form.gstNo.trim().length >= 15 && (
+                    <Button
+                      type="button"
+                      onClick={() => handleFetchGST(form.gstNo)}
+                      disabled={fetchingGst}
+                      variant="ghost"
+                      className="absolute inset-y-0 right-0 h-10 w-10 p-0 text-muted-foreground hover:text-foreground"
+                      title="Fetch Details"
+                    >
+                      {fetchingGst ? (
+                        <Spinner className="h-4 w-4" />
+                      ) : (
+                        <Search className="h-4 w-4" />
+                      )}
+                    </Button>
+                  )}
+                </div>
               </div>
               <div className="space-y-2">
                 <Label>GST Type</Label>

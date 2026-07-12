@@ -7,9 +7,10 @@ import { Spinner } from "@/components/ui/spinner";
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
-import { Building2, Landmark, MapPin, Calendar, FileText, ArrowRight, Phone, Mail, DollarSign, Globe, Trash2 } from "lucide-react";
+import { Building2, Landmark, MapPin, Calendar, FileText, ArrowRight, Phone, Mail, DollarSign, Globe, Trash2, Search } from "lucide-react";
 import { BANK_LIST, type BankData } from "@/lib/banks";
 import { CURRENCIES, MARKET_CATEGORIES, APP_NAME, STORAGE_BANKS_KEY } from "@/lib/constants";
+import { fetchGstDetails } from "@/lib/utils";
 
 interface CompanyFormState {
   companyName: string;
@@ -195,6 +196,32 @@ export default function SetupCompanyPage() {
   const currentCompany = companies[activeIdx];
   const updateCurrent = (fields: Partial<CompanyFormState>) => {
     setCompanies(prev => prev.map((c, i) => i === activeIdx ? { ...c, ...fields } : c));
+  };
+
+  const [fetchingGst, setFetchingGst] = useState(false);
+
+  const handleFetchGST = async (gstNo: string) => {
+    if (!gstNo) return;
+    setFetchingGst(true);
+    setError(null);
+    try {
+      const d = await fetchGstDetails(gstNo);
+      updateCurrent({
+        gstNo: d.gstin,
+        companyName: d.companyName || currentCompany.companyName,
+        panNo: d.panNo || currentCompany.panNo,
+        stateCode: d.stateCode || currentCompany.stateCode,
+        state: d.state || currentCompany.state,
+        city: d.city || currentCompany.city,
+        address: d.address || currentCompany.address,
+        pincode: d.pincode || currentCompany.pincode,
+        gstType: d.gstType || currentCompany.gstType,
+      });
+    } catch (err: any) {
+      setError(err.message || "An error occurred while fetching GST details.");
+    } finally {
+      setFetchingGst(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -649,10 +676,26 @@ export default function SetupCompanyPage() {
                           type="text"
                           required={currentCompany.gstApplicable}
                           value={currentCompany.gstNo}
-                          onChange={(e) => updateCurrent({ gstNo: e.target.value })}
-                          className="w-full h-10 rounded-md border border-input bg-background pl-10 pr-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground/60"
+                          onChange={(e) => updateCurrent({ gstNo: e.target.value.toUpperCase() })}
+                          className="w-full h-10 rounded-md border border-input bg-background pl-10 pr-10 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground/60"
                           placeholder="24AAAAB1234C1Z1"
                         />
+                        {currentCompany.gstNo && currentCompany.gstNo.trim().length >= 15 && (
+                          <Button
+                            type="button"
+                            onClick={() => handleFetchGST(currentCompany.gstNo)}
+                            disabled={fetchingGst}
+                            variant="ghost"
+                            className="absolute inset-y-0 right-0 h-10 w-10 p-0 text-muted-foreground hover:text-foreground"
+                            title="Fetch Details"
+                          >
+                            {fetchingGst ? (
+                              <Spinner className="h-4 w-4" />
+                            ) : (
+                              <Search className="h-4 w-4" />
+                            )}
+                          </Button>
+                        )}
                       </div>
                     </div>
 

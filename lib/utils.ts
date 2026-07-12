@@ -58,5 +58,29 @@ export function formatDateToTally(dateStr: string): string {
   return `${day}-${month}-${year}`;
 }
 
+export interface GstLookupResult {
+  gstin: string;
+  companyName: string;
+  panNo: string;
+  stateCode: string;
+  state: string;
+  city: string;
+  address: string;
+  pincode: string;
+  gstType: string;
+}
+
+export async function fetchGstDetails(gstin: string): Promise<GstLookupResult> {
+  const res = await fetch(`/api/gst-lookup?gstin=${encodeURIComponent(gstin.toUpperCase().trim())}`);
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || "Failed to fetch GST details");
+  }
+  if (!data.success || !data.data) {
+    throw new Error("No data returned from GST lookup");
+  }
+  return data.data;
+}
+
 
 
