@@ -492,96 +492,105 @@ export default function PartiesClient({
                   <div>
                     <Label htmlFor="currencySymbol">Currency Symbol</Label>
                     <div className="relative mt-1">
-                      <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                      <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 z-10">
                         <DollarSign className="h-4 w-4 text-muted-foreground" />
                       </div>
-                      <select
-                          id="currencySymbol"
-                          value={form.currencySymbol}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            const match = CURRENCIES.find((c) => c.symbol === val);
-                            setForm((f) => ({
-                              ...f,
-                              currencySymbol: val,
-                              nationName: match ? match.nation : f.nationName,
-                            }));
-                          }}
-                          className="w-full h-10 rounded-md border border-input bg-background pl-10 pr-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                      <Select
+                        value={form.currencySymbol}
+                        onValueChange={(val) => {
+                          const match = CURRENCIES.find((c) => c.symbol === val);
+                          setForm((f) => ({
+                            ...f,
+                            currencySymbol: val,
+                            nationName: match ? match.nation : f.nationName,
+                          }));
+                        }}
                       >
-                        {CURRENCIES.map((c) => (
-                            <option key={c.symbol} value={c.symbol}>
+                        <SelectTrigger id="currencySymbol" className="pl-10">
+                          <SelectValue placeholder="Select Currency" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CURRENCIES.map((c) => (
+                            <SelectItem key={c.symbol} value={c.symbol}>
                               {c.label}
-                            </option>
-                        ))}
-                      </select>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
 
                   <div>
                     <Label htmlFor="nationName">Nation Name</Label>
                     <div className="relative mt-1">
-                      <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                      <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 z-10">
                         <Globe className="h-4 w-4 text-muted-foreground" />
                       </div>
-                      <select
-                          id="nationName"
-                          value={form.nationName}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            const match = CURRENCIES.find((c) => c.nation === val);
-                            setForm((f) => ({
-                              ...f,
-                              nationName: val,
-                              currencySymbol: match ? match.symbol : f.currencySymbol,
-                            }));
-                          }}
-                          className="w-full h-10 rounded-md border border-input bg-background pl-10 pr-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                      <Select
+                        value={form.nationName}
+                        onValueChange={(val) => {
+                          const match = CURRENCIES.find((c) => c.nation === val);
+                          setForm((f) => ({
+                            ...f,
+                            nationName: val,
+                            currencySymbol: match ? match.symbol : f.currencySymbol,
+                          }));
+                        }}
                       >
-                        {CURRENCIES.map((c) => (
-                            <option key={c.nation} value={c.nation}>
+                        <SelectTrigger id="nationName" className="pl-10">
+                          <SelectValue placeholder="Select Nation" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CURRENCIES.map((c) => (
+                            <SelectItem key={c.nation} value={c.nation}>
                               {c.nation}
-                            </option>
-                        ))}
-                      </select>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
 
                   <div>
                     <Label htmlFor="companyType">Party Type *</Label>
-                    <select
-                        id="companyType"
-                        value={form.companyType}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setForm((f) => ({
-                            ...f,
-                            companyType: val,
-                            marketCategory: MARKET_CATEGORIES[val][0],
-                          }));
-                        }}
-                        className="w-full h-10 mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    <Select
+                      value={form.companyType}
+                      onValueChange={(val) => {
+                        setForm((f) => ({
+                          ...f,
+                          companyType: val,
+                          marketCategory: MARKET_CATEGORIES[val][0],
+                        }));
+                      }}
                     >
-                      <option value="general">General / Standard</option>
-                      <option value="textiles">Textiles</option>
-                      <option value="diamond">Diamond</option>
-                    </select>
+                      <SelectTrigger id="companyType" className="mt-1">
+                        <SelectValue placeholder="Select Type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="general">General / Standard</SelectItem>
+                        <SelectItem value="textiles">Textiles</SelectItem>
+                        <SelectItem value="diamond">Diamond</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div>
                     <Label htmlFor="marketCategory">Market Category *</Label>
-                    <select
-                        id="marketCategory"
-                        value={form.marketCategory}
-                        onChange={(e) => setForm((f) => ({ ...f, marketCategory: e.target.value }))}
-                        className="w-full h-10 mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    <Select
+                      value={form.marketCategory}
+                      onValueChange={(val) => setForm((f) => ({ ...f, marketCategory: val }))}
                     >
-                      {MARKET_CATEGORIES[form.companyType]?.map((cat) => (
-                          <option key={cat} value={cat}>
+                      <SelectTrigger id="marketCategory" className="mt-1">
+                        <SelectValue placeholder="Select Category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {MARKET_CATEGORIES[form.companyType]?.map((cat) => (
+                          <SelectItem key={cat} value={cat}>
                             {cat}
-                          </option>
-                      ))}
-                    </select>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div>
@@ -639,16 +648,19 @@ export default function PartiesClient({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="msmeType">MSME Category</Label>
-                    <select
-                      id="msmeType"
+                    <Select
                       value={form.msmeType}
-                      onChange={(e) => setForm((f) => ({ ...f, msmeType: e.target.value }))}
-                      className="w-full h-10 mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                      onValueChange={(v) => setForm((f) => ({ ...f, msmeType: v }))}
                     >
-                      <option value="micro">Micro</option>
-                      <option value="small">Small</option>
-                      <option value="medium">Medium</option>
-                    </select>
+                      <SelectTrigger id="msmeType" className="mt-1">
+                        <SelectValue placeholder="Select Category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="micro">Micro</SelectItem>
+                        <SelectItem value="small">Small</SelectItem>
+                        <SelectItem value="medium">Medium</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div>
@@ -665,7 +677,190 @@ export default function PartiesClient({
                 </div>
               )}
             </div>
+          </div>
 
+          {/* Bank Details, MSME & GST */}
+          <div className="space-y-6">
+            <div className="rounded-lg border border-border bg-card p-6 shadow-sm space-y-4">
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                <Landmark className="h-4 w-4" />
+                <span>Bank Account Information</span>
+              </h3>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label>Select Bank</Label>
+                  <Select
+                    value={customBankActive ? "custom" : String(selectedBankIndex ?? "")}
+                    onValueChange={(val) => {
+                      if (val === "custom") {
+                        setCustomBankActive(true);
+                        setCustomIfscActive(true);
+                        setSelectedBankIndex(null);
+                        setForm((f) => ({ ...f, bankName: "", ifscCode: "", branchName: "" }));
+                      } else {
+                        setCustomBankActive(false);
+                        setCustomIfscActive(false);
+                        const bankIndex = Number(val);
+                        const bank = localBanks[bankIndex];
+                        setSelectedBankIndex(bankIndex);
+                        
+                        setForm((f) => ({
+                          ...f,
+                          bankName: bank.bankName,
+                          ifscCode: bank.branches.length > 0 ? bank.branches[0].ifscCode : "",
+                          branchName: bank.branches.length > 0 ? bank.branches[0].branchName : "",
+                        }));
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Select bank" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="custom">Other / Custom Bank</SelectItem>
+                      {localBanks.map((b, idx) => (
+                        <SelectItem key={b.bankName} value={String(idx)}>
+                          {b.bankName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {customBankActive ? (
+                  <div>
+                    <Label htmlFor="bankName">Bank Name</Label>
+                    <Input
+                      id="bankName"
+                      type="text"
+                      value={form.bankName}
+                      onChange={(e) => setForm((f) => ({ ...f, bankName: e.target.value }))}
+                      className="mt-1"
+                      placeholder="e.g. State Bank of India"
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <Label>Bank Name</Label>
+                    <span className="text-sm font-semibold text-foreground px-3 h-10 mt-1 flex items-center bg-muted/20 border rounded-md">
+                      {form.bankName}
+                    </span>
+                  </div>
+                )}
+
+                <div>
+                  <Label htmlFor="bankAccountName">Account Name</Label>
+                  <Input
+                    id="bankAccountName"
+                    type="text"
+                    value={form.bankAccountName}
+                    onChange={(e) => setForm((f) => ({ ...f, bankAccountName: e.target.value }))}
+                    className="mt-1"
+                    placeholder="e.g. Acme Fabrics Pvt Ltd"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="accountNo">Account Number</Label>
+                  <Input
+                    id="accountNo"
+                    type="text"
+                    value={form.accountNo}
+                    onChange={(e) => setForm((f) => ({ ...f, accountNo: e.target.value }))}
+                    className="mt-1"
+                    placeholder="e.g. 123456789012"
+                  />
+                </div>
+
+                <div>
+                  <Label>Select Branch / IFSC</Label>
+                  {customBankActive ? (
+                    <span className="text-sm text-muted-foreground px-3 h-10 mt-1 flex items-center bg-muted/10 border rounded-md select-none">
+                      Type custom details below
+                    </span>
+                  ) : (
+                    <Select
+                      value={customIfscActive ? "custom" : String(localBanks[selectedBankIndex!].branches.findIndex(b => b.ifscCode === form.ifscCode))}
+                      onValueChange={(val) => {
+                        if (val === "custom") {
+                          setCustomIfscActive(true);
+                          setForm((f) => ({ ...f, ifscCode: "", branchName: "" }));
+                        } else {
+                          setCustomIfscActive(false);
+                          const branchIndex = Number(val);
+                          const branch = localBanks[selectedBankIndex!].branches[branchIndex];
+                          setForm((f) => ({
+                            ...f,
+                            ifscCode: branch.ifscCode,
+                            branchName: branch.branchName,
+                          }));
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder="Select branch" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {localBanks[selectedBankIndex!].branches.map((b, idx) => (
+                          <SelectItem key={b.ifscCode} value={String(idx)}>
+                            {b.branchName} ({b.ifscCode})
+                          </SelectItem>
+                        ))}
+                        <SelectItem value="custom">Other / Custom Branch</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+
+                <div>
+                  <Label htmlFor="ifscCode">IFSC Code</Label>
+                  <Input
+                    id="ifscCode"
+                    type="text"
+                    disabled={!customIfscActive}
+                    value={form.ifscCode}
+                    onChange={(e) => setForm((f) => ({ ...f, ifscCode: e.target.value.toUpperCase() }))}
+                    className="mt-1"
+                    placeholder="e.g. SBIN0001234"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="branchName">Branch Name</Label>
+                  <Input
+                    id="branchName"
+                    type="text"
+                    disabled={!customIfscActive}
+                    value={form.branchName}
+                    onChange={(e) => setForm((f) => ({ ...f, branchName: e.target.value }))}
+                    className="mt-1"
+                    placeholder="e.g. Ring Road Branch"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="accountType">Account Type</Label>
+                  <Select
+                    value={form.accountType}
+                    onValueChange={(v) => setForm((f) => ({ ...f, accountType: v }))}
+                  >
+                    <SelectTrigger id="accountType" className="mt-1">
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="current">Current Account</SelectItem>
+                      <SelectItem value="cc">CC Account</SelectItem>
+                      <SelectItem value="od">OD Account</SelectItem>
+                      <SelectItem value="saving">Saving Account</SelectItem>
+                      <SelectItem value="other">Other Account</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            {/* GST & Taxation */}
             <div className="rounded-lg border border-border bg-card p-6 shadow-sm space-y-4">
               <div className="flex items-center justify-between border-b pb-2">
                 <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
@@ -765,192 +960,22 @@ export default function PartiesClient({
 
                     <div>
                       <Label htmlFor="gstType">Registration Type</Label>
-                      <select
-                        id="gstType"
+                      <Select
                         value={form.gstType}
-                        onChange={(e) => setForm((f) => ({ ...f, gstType: e.target.value }))}
-                        className="w-full h-10 mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                        onValueChange={(v) => setForm((f) => ({ ...f, gstType: v }))}
                       >
-                        <option value="regular">Regular</option>
-                        <option value="composition">Composition</option>
-                        <option value="export">Export</option>
-                      </select>
+                        <SelectTrigger id="gstType" className="mt-1">
+                          <SelectValue placeholder="Select type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="regular">Regular</SelectItem>
+                          <SelectItem value="composition">Composition</SelectItem>
+                          <SelectItem value="export">Export</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </>
                 )}
-              </div>
-            </div>
-          </div>
-
-          {/* Bank Details & Save Options */}
-          <div className="space-y-6 flex flex-col justify-between">
-            <div className="rounded-lg border border-border bg-card p-6 shadow-sm space-y-4">
-              <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                <Landmark className="h-4 w-4" />
-                <span>Bank Account Information</span>
-              </h3>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <Label>Select Bank</Label>
-                  <select
-                    value={customBankActive ? "custom" : selectedBankIndex ?? ""}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      if (val === "custom") {
-                        setCustomBankActive(true);
-                        setCustomIfscActive(true);
-                        setSelectedBankIndex(null);
-                        setForm((f) => ({ ...f, bankName: "", ifscCode: "", branchName: "" }));
-                      } else {
-                        setCustomBankActive(false);
-                        setCustomIfscActive(false);
-                        const bankIndex = Number(val);
-                        const bank = localBanks[bankIndex];
-                        setSelectedBankIndex(bankIndex);
-                        
-                        setForm((f) => ({
-                          ...f,
-                          bankName: bank.bankName,
-                          ifscCode: bank.branches.length > 0 ? bank.branches[0].ifscCode : "",
-                          branchName: bank.branches.length > 0 ? bank.branches[0].branchName : "",
-                        }));
-                      }
-                    }}
-                    className="w-full h-10 mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                  >
-                    <option value="custom">Other / Custom Bank</option>
-                    {localBanks.map((b, idx) => (
-                      <option key={b.bankName} value={idx}>
-                        {b.bankName}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {customBankActive ? (
-                  <div>
-                    <Label htmlFor="bankName">Bank Name</Label>
-                    <Input
-                      id="bankName"
-                      type="text"
-                      value={form.bankName}
-                      onChange={(e) => setForm((f) => ({ ...f, bankName: e.target.value }))}
-                      className="mt-1"
-                      placeholder="e.g. State Bank of India"
-                    />
-                  </div>
-                ) : (
-                  <div>
-                    <Label>Bank Name</Label>
-                    <span className="text-sm font-semibold text-foreground px-3 h-10 mt-1 flex items-center bg-muted/20 border rounded-md">
-                      {form.bankName}
-                    </span>
-                  </div>
-                )}
-
-                <div>
-                  <Label htmlFor="bankAccountName">Account Name</Label>
-                  <Input
-                    id="bankAccountName"
-                    type="text"
-                    value={form.bankAccountName}
-                    onChange={(e) => setForm((f) => ({ ...f, bankAccountName: e.target.value }))}
-                    className="mt-1"
-                    placeholder="e.g. Acme Fabrics Pvt Ltd"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="accountNo">Account Number</Label>
-                  <Input
-                    id="accountNo"
-                    type="text"
-                    value={form.accountNo}
-                    onChange={(e) => setForm((f) => ({ ...f, accountNo: e.target.value }))}
-                    className="mt-1"
-                    placeholder="e.g. 123456789012"
-                  />
-                </div>
-
-                <div>
-                  <Label>Select Branch / IFSC</Label>
-                  {customBankActive ? (
-                    <span className="text-sm text-muted-foreground px-3 h-10 mt-1 flex items-center bg-muted/10 border rounded-md select-none">
-                      Type custom details below
-                    </span>
-                  ) : (
-                    <select
-                      value={customIfscActive ? "custom" : localBanks[selectedBankIndex!].branches.findIndex(b => b.ifscCode === form.ifscCode)}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        if (val === "custom") {
-                          setCustomIfscActive(true);
-                          setForm((f) => ({ ...f, ifscCode: "", branchName: "" }));
-                        } else {
-                          setCustomIfscActive(false);
-                          const branchIndex = Number(val);
-                          const branch = localBanks[selectedBankIndex!].branches[branchIndex];
-                          setForm((f) => ({
-                            ...f,
-                            ifscCode: branch.ifscCode,
-                            branchName: branch.branchName,
-                          }));
-                        }
-                      }}
-                      className="w-full h-10 mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                    >
-                      {localBanks[selectedBankIndex!].branches.map((b, idx) => (
-                        <option key={b.ifscCode} value={idx}>
-                          {b.branchName} ({b.ifscCode})
-                        </option>
-                      ))}
-                      <option value="custom">Other / Custom Branch</option>
-                    </select>
-                  )}
-                </div>
-
-                <div>
-                  <Label htmlFor="ifscCode">IFSC Code</Label>
-                  <Input
-                    id="ifscCode"
-                    type="text"
-                    disabled={!customIfscActive}
-                    value={form.ifscCode}
-                    onChange={(e) => setForm((f) => ({ ...f, ifscCode: e.target.value.toUpperCase() }))}
-                    className="mt-1"
-                    placeholder="e.g. SBIN0001234"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="branchName">Branch Name</Label>
-                  <Input
-                    id="branchName"
-                    type="text"
-                    disabled={!customIfscActive}
-                    value={form.branchName}
-                    onChange={(e) => setForm((f) => ({ ...f, branchName: e.target.value }))}
-                    className="mt-1"
-                    placeholder="e.g. Ring Road Branch"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="accountType">Account Type</Label>
-                  <select
-                    id="accountType"
-                    value={form.accountType}
-                    onChange={(e) => setForm((f) => ({ ...f, accountType: e.target.value }))}
-                    className="w-full h-10 mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                  >
-                    <option value="current">Current Account</option>
-                    <option value="cc">CC Account</option>
-                    <option value="od">OD Account</option>
-                    <option value="saving">Saving Account</option>
-                    <option value="other">Other Account</option>
-                  </select>
-                </div>
               </div>
             </div>
           </div>
