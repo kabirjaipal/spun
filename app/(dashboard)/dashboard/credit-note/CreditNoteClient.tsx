@@ -103,6 +103,22 @@ export default function CreditNoteClient({
   // Fetch sales invoices for selected party
   const [invoices, setInvoices] = useState<SalesInvoiceOption[]>([]);
 
+  const fetchNextVoucherNo = async () => {
+    try {
+      const res = await fetch("/api/vouchers/next-number?type=credit_note");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.nextVoucherNo) setVoucherNo(data.nextVoucherNo);
+      }
+    } catch (err) {
+      console.error("Error fetching next credit note number:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchNextVoucherNo();
+  }, []);
+
   useEffect(() => {
     if (!selectedParty) {
       setInvoices([]);
@@ -276,7 +292,7 @@ export default function CreditNoteClient({
       setIsCreating(false);
 
       // Reset
-      setVoucherNo("");
+      fetchNextVoucherNo();
       setSelectedParty("");
       setSelectedInvoice("");
       setRemarks("");
@@ -310,7 +326,7 @@ export default function CreditNoteClient({
           <div className="grid gap-4 lg:grid-cols-4">
             <div className="space-y-2">
               <Label>Credit Note No</Label>
-              <Input value={voucherNo} onChange={(e) => setVoucherNo(e.target.value)} placeholder="CN-001" />
+              <Input value={voucherNo} readOnly disabled placeholder="Fetching..." className="h-10" />
             </div>
 
             <div className="space-y-2">

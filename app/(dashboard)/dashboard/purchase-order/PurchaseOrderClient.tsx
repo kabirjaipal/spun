@@ -1,7 +1,7 @@
 "use client";
 import { getLocalTodayString } from "@/lib/utils";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
@@ -106,6 +106,22 @@ export default function PurchaseOrderClient({
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [activePieceLineId, setActivePieceLineId] = useState<string | null>(null);
+
+  const fetchNextVoucherNo = async () => {
+    try {
+      const res = await fetch("/api/vouchers/next-number?type=purchase_order");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.nextVoucherNo) setVoucherNo(data.nextVoucherNo);
+      }
+    } catch (err) {
+      console.error("Error fetching next purchase order number:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchNextVoucherNo();
+  }, []);
 
   function handleSavePieceMeters(meters: string[]) {
     if (!activePieceLineId) return;
@@ -292,7 +308,7 @@ export default function PurchaseOrderClient({
       setIsCreating(false);
 
       // Reset
-      setVoucherNo("");
+      fetchNextVoucherNo();
       setSelectedCompany("");
       setDueDate("");
       setRemarks("");
@@ -340,7 +356,7 @@ export default function PurchaseOrderClient({
 
             <div className="space-y-2">
               <Label>Order Number</Label>
-              <Input value={voucherNo} onChange={(e) => setVoucherNo(e.target.value)} placeholder="PO-001" />
+              <Input value={voucherNo} readOnly disabled placeholder="Fetching..." className="h-10" />
             </div>
 
             <div className="space-y-2">

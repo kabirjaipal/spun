@@ -18,6 +18,8 @@ const DEFAULT_PREFIXES: Record<string, string> = {
   mill_outward: "MO-",
   mill_inward: "MI-",
   lot_transfer: "LT-",
+  purchase_order: "PO-",
+  sales_order: "SO-",
 };
 
 export async function GET(request: Request) {

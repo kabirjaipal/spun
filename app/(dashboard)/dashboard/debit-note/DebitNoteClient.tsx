@@ -103,6 +103,22 @@ export default function DebitNoteClient({
   // Fetch purchase invoices for selected company
   const [invoices, setInvoices] = useState<PurchaseInvoiceOption[]>([]);
 
+  const fetchNextVoucherNo = async () => {
+    try {
+      const res = await fetch("/api/vouchers/next-number?type=debit_note");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.nextVoucherNo) setVoucherNo(data.nextVoucherNo);
+      }
+    } catch (err) {
+      console.error("Error fetching next debit note number:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchNextVoucherNo();
+  }, []);
+
   useEffect(() => {
     if (!selectedCompany) {
       setInvoices([]);
@@ -273,7 +289,7 @@ export default function DebitNoteClient({
       setIsCreating(false);
 
       // Reset
-      setVoucherNo("");
+      fetchNextVoucherNo();
       setSelectedCompany("");
       setSelectedInvoice("");
       setRemarks("");
@@ -321,9 +337,9 @@ export default function DebitNoteClient({
               </Select>
             </div>
 
-            <div className="space-y-2">
+             <div className="space-y-2">
               <Label>Debit Note No</Label>
-              <Input value={voucherNo} onChange={(e) => setVoucherNo(e.target.value)} placeholder="DRN-001" />
+              <Input value={voucherNo} readOnly disabled placeholder="Fetching..." className="h-10" />
             </div>
 
             <div className="space-y-2">

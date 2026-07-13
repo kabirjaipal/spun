@@ -748,7 +748,7 @@ export async function seedRealData() {
     // Taxable: 42,000.00, GST: 2,100.00 (CGST 1,050.00, SGST 1,050.00), Net: 44,100.00
     const vPurch1Id = await createVoucher({
       voucherType: "purchase",
-      voucherNo: "PUR-2026-0001",
+      voucherNo: "P-2026-0001",
       voucherDate: "2026-04-10",
       partyId: Number(supplierApex.companyId),
       invoiceNo: "AWF-1029",
@@ -885,7 +885,7 @@ export async function seedRealData() {
     // Taxable: 60,000.00, GST: 7,200.00 (CGST 3,600.00, SGST 3,600.00), Net: 67,200.00
     const vSale1Id = await createVoucher({
       voucherType: "sale",
-      voucherNo: "SAL-2026-0001",
+      voucherNo: "S-2026-0001",
       voucherDate: "2026-04-22",
       partyId: Number(custRamesh.companyId),
       invoiceNo: "TX-001",
@@ -938,7 +938,7 @@ export async function seedRealData() {
     // Taxable: 50,000.00, IGST: 6,000.00, Net: 56,000.00
     const vSale2Id = await createVoucher({
       voucherType: "sale",
-      voucherNo: "SAL-2026-0002",
+      voucherNo: "S-2026-0002",
       voucherDate: "2026-04-25",
       partyId: Number(custShreeji.companyId),
       invoiceNo: "TX-002",
@@ -990,7 +990,7 @@ export async function seedRealData() {
     // 15.6. Receipt from Ramesh Fabric Traders (30,000.00 received in State Bank of India A/c)
     const vReceiptId = await createVoucher({
       voucherType: "receipt",
-      voucherNo: "REC-2026-0001",
+      voucherNo: "R-2026-0001",
       voucherDate: "2026-04-28",
       partyId: Number(custRamesh.companyId),
       cashBankLedgerId: Number(ledgerSBI.ledgerId),
@@ -1011,7 +1011,7 @@ export async function seedRealData() {
     // 15.7. Payment to Apex Weaving Factory (20,000.00 paid from State Bank of India A/c)
     const vPaymentId = await createVoucher({
       voucherType: "payment",
-      voucherNo: "PAY-2026-0001",
+      voucherNo: "PM-2026-0001",
       voucherDate: "2026-04-29",
       partyId: Number(supplierApex.companyId),
       cashBankLedgerId: Number(ledgerSBI.ledgerId),
@@ -1071,7 +1071,7 @@ export async function seedRealData() {
     // 15.9. Journal Voucher (depreciation/rent adjustment)
     const vJournalId = await createVoucher({
       voucherType: "journal",
-      voucherNo: "JV-2026-0001",
+      voucherNo: "J-2026-0001",
       voucherDate: "2026-04-30",
       remarks: "Rent adjustment for April 2026",
       totalAmount: "15000.00",
