@@ -68,6 +68,12 @@ interface PendingBill {
   dueOn: string;
   overdueDays: number;
   type: "Dr" | "Cr";
+  payments?: {
+    voucherNo: string;
+    voucherType: string;
+    voucherDate: string;
+    amount: number;
+  }[];
 }
 
 function LedgerReportContent({
@@ -97,6 +103,7 @@ function LedgerReportContent({
   const isPartyLedger = selectedLedger &&
     (selectedLedger.ledgerType === "customer" || selectedLedger.ledgerType === "company");
   const [viewMode, setViewMode] = useState<"vouchers" | "outstandings">("vouchers");
+  const [selectedBillForDetails, setSelectedBillForDetails] = useState<PendingBill | null>(null);
 
   const monthlySummary = useMemo(() => {
     if (!selectedLedger) return [];
@@ -254,6 +261,7 @@ function LedgerReportContent({
       let paymentsSum = 0;
       let debitNotesSum = 0;
       let creditNotesSum = 0;
+      const paymentsList: { voucherNo: string; voucherType: string; voucherDate: string; amount: number }[] = [];
 
       adjustments.forEach((adj) => {
         // 1. Check billDetails (payment/receipt links)
@@ -262,6 +270,12 @@ function LedgerReportContent({
             if (item && typeof item === "object" && Number(item.voucherId) === inv.voucherId) {
               const amt = Number(item.amount) || 0;
               linkedAdjustmentAmounts[adj.voucherId] = (linkedAdjustmentAmounts[adj.voucherId] || 0) + amt;
+              paymentsList.push({
+                voucherNo: adj.voucherNo,
+                voucherType: adj.voucherType,
+                voucherDate: adj.voucherDate,
+                amount: amt,
+              });
               if (adj.voucherType === "payment" || adj.voucherType === "receipt") {
                 paymentsSum += amt;
               } else if (adj.voucherType === "debit_note") {
@@ -279,6 +293,12 @@ function LedgerReportContent({
         if (adj.parentVoucherId && Number(adj.parentVoucherId) === inv.voucherId) {
           const amt = Number(adj.netAmount) || 0;
           linkedAdjustmentAmounts[adj.voucherId] = (linkedAdjustmentAmounts[adj.voucherId] || 0) + amt;
+          paymentsList.push({
+            voucherNo: adj.voucherNo,
+            voucherType: adj.voucherType,
+            voucherDate: adj.voucherDate,
+            amount: amt,
+          });
           if (adj.voucherType === "debit_note") {
             debitNotesSum += amt;
           } else if (adj.voucherType === "credit_note") {
@@ -320,6 +340,7 @@ function LedgerReportContent({
           dueOn: dueDate.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "2-digit" }),
           overdueDays,
           type: defaultType,
+          payments: paymentsList,
         });
       }
     });
@@ -573,7 +594,18 @@ function LedgerReportContent({
                       <div className="col-span-2 p-3 text-right border-r border-border/50 pr-4 flex items-center justify-end">
                         {formatAmount(bill.openingAmount, bill.type)}
                       </div>
-                      <div className="col-span-2 p-3 text-right border-r border-border/50 pr-4 flex items-center justify-end">
+                      <div 
+                        className={`col-span-2 p-3 text-right border-r border-border/50 pr-4 flex items-center justify-end ${
+                          bill.paidAmount > 0 
+                            ? "cursor-pointer hover:underline text-primary" 
+                            : ""
+                        }`}
+                        onClick={() => {
+                          if (bill.paidAmount > 0) {
+                            setSelectedBillForDetails(bill);
+                          }
+                        }}
+                      >
                         {formatAmount(bill.paidAmount, bill.type)}
                       </div>
                       <div className="col-span-2 p-3 text-right border-r border-border/50 pr-4 flex items-center justify-end font-bold">
@@ -667,12 +699,12 @@ function LedgerReportContent({
                       onClick={() => setSelectedMonth(item)}
                       className="grid grid-cols-12 hover:bg-muted/30 transition-colors font-mono text-sm cursor-pointer"
                     >
-                      <td className="col-span-4 p-3 pl-6 border-r border-border/50 font-sans font-medium">
+                      <div className="col-span-4 p-3 pl-6 border-r border-border/50 font-sans font-medium">
                         {item.monthName} {item.year}
-                      </td>
-                      <td className="col-span-3 p-3 text-right border-l border-r border-border/50 pr-6 font-mono text-foreground">{item.debit > 0 ? formatAmount(item.debit) : "—"}</td>
-                      <td className="col-span-3 p-3 text-right border-r border-border/50 pr-6 font-mono text-foreground">{item.credit > 0 ? formatAmount(item.credit) : "—"}</td>
-                      <td className="col-span-2 p-3 text-right pr-6 font-mono font-semibold">{formatAmount(Math.abs(item.closingBalance), item.closingBalance >= 0 ? "Dr" : "Cr")}</td>
+                      </div>
+                      <div className="col-span-3 p-3 text-right border-l border-r border-border/50 pr-6 font-mono text-foreground">{item.debit > 0 ? formatAmount(item.debit) : "—"}</div>
+                      <div className="col-span-3 p-3 text-right border-r border-border/50 pr-6 font-mono text-foreground">{item.credit > 0 ? formatAmount(item.credit) : "—"}</div>
+                      <div className="col-span-2 p-3 text-right pr-6 font-mono font-semibold">{formatAmount(Math.abs(item.closingBalance), item.closingBalance >= 0 ? "Dr" : "Cr")}</div>
                     </div>
                   ))}
                 </div>
@@ -949,6 +981,72 @@ function LedgerReportContent({
               </div>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Payment Details Dialog */}
+      <Dialog open={!!selectedBillForDetails} onOpenChange={(open) => { if (!open) setSelectedBillForDetails(null); }}>
+        <DialogContent className="max-w-md bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-foreground uppercase tracking-wider text-sm font-semibold">Payment Details</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <p className="text-xs text-muted-foreground uppercase font-semibold">Bill Reference</p>
+              <p className="text-sm font-bold text-foreground font-mono">{selectedBillForDetails?.refNo}</p>
+            </div>
+            <div className="border border-border rounded-md overflow-hidden bg-card">
+              <div className="grid grid-cols-3 bg-muted/40 text-[10px] font-bold uppercase p-2 border-b border-border text-muted-foreground">
+                <div>Date</div>
+                <div>Voucher</div>
+                <div className="text-right">Amount</div>
+              </div>
+              <div className="divide-y divide-border/60 max-h-60 overflow-y-auto">
+                {selectedBillForDetails?.payments && selectedBillForDetails.payments.length > 0 ? (
+                  selectedBillForDetails.payments.map((p, idx) => {
+                    const isDebitNote = p.voucherType === "debit_note";
+                    const isCreditNote = p.voucherType === "credit_note";
+                    // For purchase vendor bills, debit note reduces the total outstanding / represents a negative paid item
+                    const isVendor = selectedLedger?.ledgerType === "company" || selectedLedger?.ledgerType === "supplier";
+                    const sign = (isVendor && isDebitNote) ? "-" : "";
+                    return (
+                      <div key={idx} className="grid grid-cols-3 p-2 text-xs font-mono text-foreground hover:bg-muted/10 transition-colors">
+                        <div className="text-[11px] text-muted-foreground flex items-center font-sans">
+                          {fmtDate(p.voucherDate, true)}
+                        </div>
+                        <div className="font-sans flex flex-col justify-center">
+                          <span className="font-semibold text-foreground truncate text-[11px]">
+                            {p.voucherNo}
+                          </span>
+                          <span className="text-[9px] text-muted-foreground uppercase">
+                            {p.voucherType.replace(/_/g, " ")}
+                          </span>
+                        </div>
+                        <div className={`text-right font-bold flex items-center justify-end ${isDebitNote ? "text-destructive" : "text-foreground"}`}>
+                          {sign}{formatAmount(p.amount)}
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="p-4 text-center text-xs text-muted-foreground font-sans">
+                    No payment details found.
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="flex justify-between items-center bg-muted/20 p-3 rounded-md border border-border/50 font-mono text-sm font-bold">
+              <span className="font-sans text-xs text-muted-foreground uppercase">Total Adjusted</span>
+              <span className="text-foreground">
+                {formatAmount(selectedBillForDetails?.paidAmount || 0, selectedBillForDetails?.type)}
+              </span>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" className="h-9 text-sm" onClick={() => setSelectedBillForDetails(null)}>
+              Close
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
