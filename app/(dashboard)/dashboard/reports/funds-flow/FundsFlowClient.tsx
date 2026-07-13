@@ -36,15 +36,33 @@ interface Company {
   address?: string | null;
 }
 
+interface DetailedMonthItem {
+  ledgerId: number;
+  ledgerName: string;
+  openingBalance: number;
+  closingBalance: number;
+  flow: number;
+}
+
+interface DetailedMonth {
+  monthName: string;
+  assets: DetailedMonthItem[];
+  liabilities: DetailedMonthItem[];
+  openingStock: number;
+  closingStock: number;
+}
+
 interface FundsFlowClientProps {
   company: Company;
   monthlySummary: MonthlySummaryItem[];
+  detailedMonth: DetailedMonth | null;
   canExport: boolean;
 }
 
 function FundsFlowContent({
   company,
   monthlySummary,
+  detailedMonth,
   canExport,
 }: FundsFlowClientProps) {
   const router = useRouter();
@@ -62,6 +80,8 @@ function FundsFlowContent({
   const [showPeriodModal, setShowPeriodModal] = useState(false);
   const [startDate, setStartDate] = useState(fromParam);
   const [endDate, setEndDate] = useState(toParam);
+
+  const monthParam = searchParams.get("month");
 
   // Omission list
   const [removedLines, setRemovedLines] = useState<string[]>([]);
@@ -197,6 +217,33 @@ function FundsFlowContent({
         </div>
       </div>
 
+      {/* Breadcrumb / Back button */}
+      {monthParam && (
+        <div className="flex items-center gap-2 mb-1 no-print">
+          <Button
+            variant="outline"
+            className="h-9 px-3 text-sm font-semibold"
+            onClick={() => {
+              router.push(`?from=${fromParam}&to=${toParam}`);
+            }}
+          >
+            ← Back
+          </Button>
+          <div className="text-xs text-muted-foreground font-medium">
+            <span 
+              className="hover:underline cursor-pointer text-foreground" 
+              onClick={() => router.push(`?from=${fromParam}&to=${toParam}`)}
+            >
+              Funds Flow
+            </span>
+            {" / "}
+            <span className="font-semibold text-foreground">
+              {detailedMonth?.monthName || "Month"}
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Main Report Table Sheet */}
       <div className="rounded-lg border border-border bg-card overflow-hidden print-area shadow-sm">
         {/* Printable Document Header (Always visible in print) */}
@@ -236,47 +283,153 @@ function FundsFlowContent({
 
             {/* Table Body - Monthly Rows */}
             <tbody className="divide-y divide-border/40 text-foreground">
-              {activeSummary.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="p-8 text-center text-xs text-muted-foreground italic">
-                    No records found for the selected period
-                  </td>
-                </tr>
-              ) : (
-                activeSummary.map((item) => {
-                  const label = `${item.monthName} ${item.year}`;
-                  const isNegative = item.fundsFlow < 0;
+              {/* Level 1: Monthly Summary List */}
+              {!detailedMonth && (
+                activeSummary.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="p-8 text-center text-xs text-muted-foreground italic">
+                      No records found for the selected period
+                    </td>
+                  </tr>
+                ) : (
+                  activeSummary.map((item) => {
+                    const label = `${item.monthName} ${item.year}`;
+                    const isNegative = item.fundsFlow < 0;
 
-                  return (
-                    <tr
-                      key={item.monthKey}
-                      className="group/row hover:bg-muted/10 transition-colors"
-                    >
-                      <td className="p-3 pl-6 font-medium">
-                        <div className="flex items-center justify-between">
-                          <span>{item.monthName}</span>
-                          <button
-                            onClick={() => handleRemoveLine(label)}
-                            className="opacity-0 group-hover/row:opacity-100 text-xs text-destructive hover:underline p-1 ml-2 no-print font-normal"
-                          >
-                            Omit
-                          </button>
-                        </div>
+                    return (
+                      <tr
+                        key={item.monthKey}
+                        className="group/row hover:bg-muted/10 transition-colors cursor-pointer"
+                        onClick={() => {
+                          router.push(`?from=${fromParam}&to=${toParam}&month=${item.monthKey}`);
+                        }}
+                      >
+                        <td className="p-3 pl-6 font-medium">
+                          <div className="flex items-center justify-between">
+                            <span className="hover:underline hover:text-primary">{item.monthName}</span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRemoveLine(label);
+                              }}
+                              className="opacity-0 group-hover/row:opacity-100 text-xs text-destructive hover:underline p-1 ml-2 no-print font-normal"
+                            >
+                              Omit
+                            </button>
+                          </div>
+                        </td>
+                        <td className="p-2 text-right border-l border-border font-mono text-muted-foreground">
+                          {formatAmount(item.openingWorkingCapital)}
+                        </td>
+                        <td className="p-2 text-right border-l border-border font-mono text-muted-foreground">
+                          {formatAmount(item.closingWorkingCapital)}
+                        </td>
+                        <td className={`p-2 text-right border-l border-border font-mono font-semibold ${
+                          isNegative ? "text-destructive" : "text-primary"
+                        }`}>
+                          {formatAmount(item.fundsFlow)}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )
+              )}
+
+              {/* Level 2: Detailed Month Working Capital breakdown */}
+              {detailedMonth && (
+                <>
+                  {/* Current Assets Header */}
+                  <tr className="bg-muted/10 font-bold">
+                    <td className="p-3 pl-6">Current Assets</td>
+                    <td colSpan={3}></td>
+                  </tr>
+
+                  {/* Ledgers under Current Assets */}
+                  {detailedMonth.assets.map((ast) => (
+                    <tr key={ast.ledgerId} className="hover:bg-muted/5 font-medium">
+                      <td className="p-2.5 pl-12 font-sans text-muted-foreground">{ast.ledgerName}</td>
+                      <td className="p-2.5 text-right border-l border-border font-mono text-muted-foreground">
+                        {formatAmount(ast.openingBalance)}
                       </td>
-                      <td className="p-2 text-right border-l border-border font-mono text-muted-foreground">
-                        {formatAmount(item.openingWorkingCapital)}
+                      <td className="p-2.5 text-right border-l border-border font-mono text-muted-foreground">
+                        {formatAmount(ast.closingBalance)}
                       </td>
-                      <td className="p-2 text-right border-l border-border font-mono text-muted-foreground">
-                        {formatAmount(item.closingWorkingCapital)}
-                      </td>
-                      <td className={`p-2 text-right border-l border-border font-mono font-semibold ${
-                        isNegative ? "text-destructive" : "text-primary"
-                      }`}>
-                        {formatAmount(item.fundsFlow)}
+                      <td className={`p-2.5 text-right border-l border-border font-mono font-semibold ${ast.flow < 0 ? "text-destructive" : "text-primary"}`}>
+                        {formatAmount(ast.flow)}
                       </td>
                     </tr>
-                  );
-                })
+                  ))}
+
+                  {/* Closing Stock special row */}
+                  {(Math.abs(detailedMonth.openingStock) > 0.01 || Math.abs(detailedMonth.closingStock) > 0.01) && (
+                    <tr className="hover:bg-muted/5 font-medium">
+                      <td className="p-2.5 pl-12 font-sans text-muted-foreground">Closing Stock</td>
+                      <td className="p-2.5 text-right border-l border-border font-mono text-muted-foreground">
+                        {formatAmount(detailedMonth.openingStock)}
+                      </td>
+                      <td className="p-2.5 text-right border-l border-border font-mono text-muted-foreground">
+                        {formatAmount(detailedMonth.closingStock)}
+                      </td>
+                      <td className={`p-2.5 text-right border-l border-border font-mono font-semibold ${detailedMonth.closingStock - detailedMonth.openingStock < 0 ? "text-destructive" : "text-primary"}`}>
+                        {formatAmount(detailedMonth.closingStock - detailedMonth.openingStock)}
+                      </td>
+                    </tr>
+                  )}
+
+                  {/* Total Current Assets */}
+                  <tr className="bg-muted/5 font-bold border-t border-border">
+                    <td className="p-3 pl-8">Total Current Assets (A)</td>
+                    <td className="p-3 text-right border-l border-border font-mono">
+                      {formatAmount(detailedMonth.assets.reduce((sum, x) => sum + x.openingBalance, 0) + detailedMonth.openingStock)}
+                    </td>
+                    <td className="p-3 text-right border-l border-border font-mono">
+                      {formatAmount(detailedMonth.assets.reduce((sum, x) => sum + x.closingBalance, 0) + detailedMonth.closingStock)}
+                    </td>
+                    <td className={`p-3 text-right border-l border-border font-mono ${
+                      (detailedMonth.assets.reduce((sum, x) => sum + x.flow, 0) + (detailedMonth.closingStock - detailedMonth.openingStock)) < 0 ? "text-destructive" : "text-primary"
+                    }`}>
+                      {formatAmount(detailedMonth.assets.reduce((sum, x) => sum + x.flow, 0) + (detailedMonth.closingStock - detailedMonth.openingStock))}
+                    </td>
+                  </tr>
+
+                  {/* Current Liabilities Header */}
+                  <tr className="bg-muted/10 font-bold border-t border-border">
+                    <td className="p-3 pl-6">Current Liabilities</td>
+                    <td colSpan={3}></td>
+                  </tr>
+
+                  {/* Ledgers under Current Liabilities */}
+                  {detailedMonth.liabilities.map((lib) => (
+                    <tr key={lib.ledgerId} className="hover:bg-muted/5 font-medium">
+                      <td className="p-2.5 pl-12 font-sans text-muted-foreground">{lib.ledgerName}</td>
+                      <td className="p-2.5 text-right border-l border-border font-mono text-muted-foreground">
+                        {formatAmount(lib.openingBalance)}
+                      </td>
+                      <td className="p-2.5 text-right border-l border-border font-mono text-muted-foreground">
+                        {formatAmount(lib.closingBalance)}
+                      </td>
+                      <td className={`p-2.5 text-right border-l border-border font-mono font-semibold ${lib.flow < 0 ? "text-primary" : "text-destructive"}`}>
+                        {formatAmount(lib.flow)}
+                      </td>
+                    </tr>
+                  ))}
+
+                  {/* Total Current Liabilities */}
+                  <tr className="bg-muted/5 font-bold border-t border-border">
+                    <td className="p-3 pl-8">Total Current Liabilities (B)</td>
+                    <td className="p-3 text-right border-l border-border font-mono">
+                      {formatAmount(detailedMonth.liabilities.reduce((sum, x) => sum + x.openingBalance, 0))}
+                    </td>
+                    <td className="p-3 text-right border-l border-border font-mono">
+                      {formatAmount(detailedMonth.liabilities.reduce((sum, x) => sum + x.closingBalance, 0))}
+                    </td>
+                    <td className={`p-3 text-right border-l border-border font-mono ${
+                      detailedMonth.liabilities.reduce((sum, x) => sum + x.flow, 0) < 0 ? "text-primary" : "text-destructive"
+                    }`}>
+                      {formatAmount(detailedMonth.liabilities.reduce((sum, x) => sum + x.flow, 0))}
+                    </td>
+                  </tr>
+                </>
               )}
             </tbody>
 

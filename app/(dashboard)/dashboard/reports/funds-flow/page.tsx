@@ -17,7 +17,7 @@ import FundsFlowClient from "./FundsFlowClient";
 export default async function FundsFlowPage({
   searchParams,
 }: {
-  searchParams: Promise<{ from?: string; to?: string }>;
+  searchParams: Promise<{ from?: string; to?: string; month?: string }>;
 }) {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
@@ -303,7 +303,91 @@ export default async function FundsFlowPage({
     };
   });
 
-  // 8. Check permissions
+  // 8. Calculate detailed monthly breakdown if month parameter is provided
+  const monthParam = params.month;
+  let detailedMonth: {
+    monthName: string;
+    assets: any[];
+    liabilities: any[];
+    openingStock: number;
+    closingStock: number;
+  } | null = null;
+
+  if (monthParam) {
+    const [mYear, mMonthNum] = monthParam.split("-").map(Number);
+    const monthIndex = mMonthNum - 1;
+    const monthName = new Date(mYear, monthIndex, 1).toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+
+    const lastDay = new Date(mYear, mMonthNum, 0).getDate();
+    const endStr = `${mYear}-${String(mMonthNum).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+
+    const prevDay = new Date(mYear, monthIndex, 0);
+    const prevDayStr = `${prevDay.getFullYear()}-${String(prevDay.getMonth() + 1).padStart(2, "0")}-${String(prevDay.getDate()).padStart(2, "0")}`;
+
+    const openingStock = getClosingStockAtDate(prevDayStr);
+    const closingStock = getClosingStockAtDate(endStr);
+
+    const assetDetails: any[] = [];
+    const liabilityDetails: any[] = [];
+
+    ledgersList.filter(isCurrentAsset).forEach((l) => {
+      const lEntries = entries.filter((e) => e.ledgerId === l.ledgerId);
+      
+      const opening = lEntries
+        .filter((e) => e.voucherDate! <= prevDayStr)
+        .reduce((sum, e) => e.entryType === "debit" ? sum + Number(e.amount) : sum - Number(e.amount), 0);
+
+      const closing = lEntries
+        .filter((e) => e.voucherDate! <= endStr)
+        .reduce((sum, e) => e.entryType === "debit" ? sum + Number(e.amount) : sum - Number(e.amount), 0);
+
+      const flow = closing - opening;
+
+      if (Math.abs(opening) > 0.01 || Math.abs(closing) > 0.01) {
+        assetDetails.push({
+          ledgerId: l.ledgerId,
+          ledgerName: l.ledgerName,
+          openingBalance: opening,
+          closingBalance: closing,
+          flow,
+        });
+      }
+    });
+
+    ledgersList.filter(isCurrentLiability).forEach((l) => {
+      const lEntries = entries.filter((e) => e.ledgerId === l.ledgerId);
+
+      const opening = lEntries
+        .filter((e) => e.voucherDate! <= prevDayStr)
+        .reduce((sum, e) => e.entryType === "credit" ? sum + Number(e.amount) : sum - Number(e.amount), 0);
+
+      const closing = lEntries
+        .filter((e) => e.voucherDate! <= endStr)
+        .reduce((sum, e) => e.entryType === "credit" ? sum + Number(e.amount) : sum - Number(e.amount), 0);
+
+      const flow = closing - opening;
+
+      if (Math.abs(opening) > 0.01 || Math.abs(closing) > 0.01) {
+        liabilityDetails.push({
+          ledgerId: l.ledgerId,
+          ledgerName: l.ledgerName,
+          openingBalance: opening,
+          closingBalance: closing,
+          flow,
+        });
+      }
+    });
+
+    detailedMonth = {
+      monthName,
+      assets: assetDetails,
+      liabilities: liabilityDetails,
+      openingStock,
+      closingStock,
+    };
+  }
+
+  // 9. Check permissions
   const perms = getStaticPermissionsForRole(session.user.role as Role);
   const p = perms.find((x) => x.accessItem === "funds_flow_summary");
   const canExport = p?.e ?? false;
@@ -317,6 +401,7 @@ export default async function FundsFlowPage({
         address: company.address,
       }}
       monthlySummary={monthlySummary}
+      detailedMonth={detailedMonth}
       canExport={canExport}
     />
   );
