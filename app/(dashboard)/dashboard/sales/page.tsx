@@ -1,8 +1,8 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { mInventory, mTaxRates, mCompanies, tVouchers, mBrokersHaste } from "@/lib/db/schema";
-import { and, eq, isNull, desc } from "drizzle-orm";
+import { mInventory, mTaxRates, mCompanies, tVouchers, mBrokersHaste, mLedgerGroups, mLedgers } from "@/lib/db/schema";
+import { and, eq, isNull, desc, inArray } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
 import { APP_NAME } from "@/lib/constants";
 import SalesClient from "./SalesClient";
@@ -14,18 +14,63 @@ export default async function SalesPage() {
 
   const companyId = Number(session.user.companyId);
 
+  const allGroups = await db
+    .select({
+      groupId: mLedgerGroups.groupId,
+      groupName: mLedgerGroups.groupName,
+      parentGroupId: mLedgerGroups.parentGroupId,
+    })
+    .from(mLedgerGroups)
+    .where(and(eq(mLedgerGroups.companyId, companyId), isNull(mLedgerGroups.deletedOn)));
+
+  const targetGroup = allGroups.find(
+    (g) => g.groupName.toLowerCase() === "sundry debtors"
+  );
+  
+  const groupIds: number[] = [];
+  if (targetGroup) {
+    const getDescendants = (parentId: number) => {
+      groupIds.push(parentId);
+      allGroups.forEach((g) => {
+        if (g.parentGroupId === parentId) {
+          getDescendants(g.groupId);
+        }
+      });
+    };
+    getDescendants(targetGroup.groupId);
+  }
+
   const [parties, inventory, taxRates, company, pastVouchers, brokersHaste] = await Promise.all([
-    db
-      .select({
-        partyId: mCompanies.companyId,
-        partyName: mCompanies.companyName,
-        address: mCompanies.address,
-        gstNo: mCompanies.gstNo,
-        state: mCompanies.state,
-      })
-      .from(mCompanies)
-      .where(and(eq(mCompanies.parentCompanyId, companyId), isNull(mCompanies.deletedOn)))
-      .orderBy(mCompanies.companyName),
+    groupIds.length > 0
+      ? db
+          .select()
+          .from(mCompanies)
+          .innerJoin(
+            mLedgers,
+            and(
+              eq(mLedgers.referenceId, mCompanies.companyId),
+              eq(mLedgers.ledgerType, "company"),
+              isNull(mLedgers.deletedOn)
+            )
+          )
+          .where(
+            and(
+              eq(mCompanies.parentCompanyId, companyId),
+              isNull(mCompanies.deletedOn),
+              inArray(mLedgers.groupId, groupIds)
+            )
+          )
+          .orderBy(mCompanies.companyName)
+          .then((rows) =>
+            rows.map((r) => ({
+              partyId: r.m_companies.companyId,
+              partyName: r.m_companies.companyName,
+              address: r.m_companies.address,
+              gstNo: r.m_companies.gstNo,
+              state: r.m_companies.state,
+            }))
+          )
+      : Promise.resolve([]),
     db
       .select()
       .from(mInventory)
