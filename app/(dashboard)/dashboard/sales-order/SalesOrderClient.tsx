@@ -241,7 +241,7 @@ export default function SalesOrderClient({
 
     const validLines = lineItems.filter((l) => l.ledgerId && (Number(l.pcs) > 0 || Number(l.quantity) > 0));
     if (!selectedCompany || !voucherNo || validLines.length === 0) {
-      setMessage("Please select party, enter order number, and add at least one valid line with Account Head and quantity/pcs.");
+      setMessage("Please select party, enter order number, and add at least one valid line with Item and quantity/pcs.");
       return;
     }
 
@@ -341,9 +341,9 @@ export default function SalesOrderClient({
         <div className="rounded-lg border border-border bg-card p-5 shadow-sm space-y-4">
           <div className="grid gap-4 lg:grid-cols-4">
             <div className="space-y-2">
-              <Label>Party (Customer)</Label>
+              <Label>Party</Label>
               <Select value={selectedCompany} onValueChange={setSelectedCompany}>
-                <SelectTrigger><SelectValue placeholder="Choose customer" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Choose party" /></SelectTrigger>
                 <SelectContent>
                   {companies.map((c) => (
                     <SelectItem key={c.companyId} value={String(c.companyId)}>
@@ -387,9 +387,9 @@ export default function SalesOrderClient({
                     className={`grid gap-2 grid-cols-1 ${gridColsClass} items-end border-b border-border/20 pb-3`}
                   >
                     <div className="space-y-2">
-                      <Label >Account Head</Label>
+                      <Label >Item</Label>
                       <Select value={line.ledgerId} onValueChange={(val) => updateLine(line.id, "ledgerId", val)}>
-                        <SelectTrigger><SelectValue placeholder="Account Head" /></SelectTrigger>
+                        <SelectTrigger><SelectValue placeholder="Item" /></SelectTrigger>
                         <SelectContent>
                           {eligibleLedgers.map((l) => (
                             <SelectItem key={l.ledgerId} value={String(l.ledgerId)}>{l.ledgerName}</SelectItem>
@@ -559,7 +559,7 @@ export default function SalesOrderClient({
             <tr>
               <th className="px-4 py-3">Order No</th>
               <th className="px-4 py-3">Date</th>
-              <th className="px-4 py-3">Customer</th>
+              <th className="px-4 py-3">Party</th>
               <th className="px-4 py-3 text-center">Due Date</th>
               <th className="px-4 py-3 text-center">Status</th>
               <th className="px-4 py-3 text-right">Taxable Amount</th>
@@ -581,7 +581,7 @@ export default function SalesOrderClient({
                   <td className="px-4 py-3 text-muted-foreground">
                     {n.voucherDate ? new Date(n.voucherDate).toISOString().slice(0, 10) : "—"}
                   </td>
-                  <td className="px-4 py-3 text-foreground">{n.companyName || `Customer ID ${n.partyId}`}</td>
+                  <td className="px-4 py-3 text-foreground">{n.companyName || `Party ID ${n.partyId}`}</td>
                   <td className="px-4 py-3 text-center text-muted-foreground font-mono text-xs">{n.dueDate ? new Date(n.dueDate).toISOString().slice(0, 10) : "—"}</td>
                   <td className="px-4 py-3 text-center">
                     <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
