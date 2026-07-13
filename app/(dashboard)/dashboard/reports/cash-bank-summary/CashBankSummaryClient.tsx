@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, Suspense } from "react";
+import React, { useState, Suspense, useMemo } from "react";
 import { Spinner } from "@/components/ui/spinner";
 import { Download, Calendar, Eye, EyeOff, RefreshCw, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -29,15 +29,29 @@ interface LedgerSummary {
   isBank: boolean;
 }
 
+interface LedgerEntry {
+  entryId: number;
+  voucherId: number;
+  ledgerId: number;
+  entryType: "debit" | "credit";
+  amount: number;
+  voucherNo: string;
+  voucherType: string;
+  voucherDate: string;
+  remarks?: string | null;
+}
+
 interface CashBankSummaryClientProps {
   company: Company;
   ledgers: LedgerSummary[];
+  ledgerEntries: LedgerEntry[];
   canExport: boolean;
 }
 
 function CashBankSummaryContent({
   company,
   ledgers,
+  ledgerEntries,
   canExport,
 }: CashBankSummaryClientProps) {
   const router = useRouter();
@@ -53,8 +67,8 @@ function CashBankSummaryContent({
   const toParam = searchParams.get("to") || `${fyStartYear + 1}-03-31`;
 
   const [isDetailed, setIsDetailed] = useState(true);
-  const [showOpening, setShowOpening] = useState(false);
-  const [showTransactions, setShowTransactions] = useState(false);
+  const [showOpening, setShowOpening] = useState(true);
+  const [showTransactions, setShowTransactions] = useState(true);
   const [showPeriodModal, setShowPeriodModal] = useState(false);
   const [startDate, setStartDate] = useState(fromParam);
   const [endDate, setEndDate] = useState(toParam);
@@ -62,6 +76,8 @@ function CashBankSummaryContent({
   // Omission lists
   const [removedLines, setRemovedLines] = useState<string[]>([]);
   const [lastRemovedLine, setLastRemovedLine] = useState<string | null>(null);
+  const [selectedLedgerForPopup, setSelectedLedgerForPopup] = useState<LedgerSummary | null>(null);
+  const [popupType, setPopupType] = useState<"opening" | "transactions" | "closing">("transactions");
 
   const handleApplyPeriod = () => {
     setShowPeriodModal(false);
@@ -94,6 +110,27 @@ function CashBankSummaryContent({
       setLastRemovedLine(popped || null);
     }
   };
+
+  const popupEntries = useMemo(() => {
+    if (!selectedLedgerForPopup) return [];
+
+    const ledgerId = selectedLedgerForPopup.ledgerId;
+    const filtered = ledgerEntries.filter((e) => e.ledgerId === ledgerId);
+
+    if (popupType === "opening") {
+      return filtered.filter((e) => {
+        const d = e.voucherDate;
+        return d < fromParam || (d === fromParam && e.voucherNo.startsWith("OP-"));
+      });
+    } else if (popupType === "transactions") {
+      return filtered.filter((e) => {
+        const d = e.voucherDate;
+        return d >= fromParam && d <= toParam && !e.voucherNo.startsWith("OP-");
+      });
+    } else {
+      return filtered;
+    }
+  }, [selectedLedgerForPopup, popupType, ledgerEntries, fromParam, toParam]);
 
   // Filter ledgers by omission list
   const activeLedgers = ledgers.filter(
@@ -355,12 +392,19 @@ function CashBankSummaryContent({
                   {/* Cash nested ledgers (Detailed view) */}
                   {isDetailed &&
                     cashLedgers.map((l) => (
-                      <tr key={l.ledgerId} className="hover:bg-muted/5 group/ledg text-xs font-normal">
-                        <td className="p-2 pl-12 italic text-foreground/90">
+                      <tr 
+                        key={l.ledgerId} 
+                        className="hover:bg-muted/5 group/ledg text-xs font-normal cursor-pointer"
+                        onClick={() => router.push(`/dashboard/reports/ledger-report?ledgerId=${l.ledgerId}&from=${fromParam}&to=${toParam}`)}
+                      >
+                        <td className="p-2 pl-12 italic text-foreground/90 hover:underline hover:text-primary">
                           <div className="flex items-center justify-between">
                             <span>{l.ledgerName}</span>
                             <button
-                              onClick={() => handleRemoveLine(l.ledgerName)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRemoveLine(l.ledgerName);
+                              }}
                               className="opacity-0 group-hover/ledg:opacity-100 text-[10px] text-destructive hover:underline p-1 ml-2 no-print"
                             >
                               Omit
@@ -369,28 +413,82 @@ function CashBankSummaryContent({
                         </td>
                         {showOpening && (
                           <>
-                            <td className="p-2 text-right border-l border-border font-mono text-muted-foreground">
+                            <td 
+                              className={`p-2 text-right border-l border-border font-mono text-muted-foreground ${l.openingBalance >= 0 ? "hover:underline text-primary" : ""}`}
+                              onClick={(e) => {
+                                if (l.openingBalance >= 0) {
+                                  e.stopPropagation();
+                                  setSelectedLedgerForPopup(l);
+                                  setPopupType("opening");
+                                }
+                              }}
+                            >
                               {l.openingBalance >= 0 ? formatAmount(l.openingBalance) : "—"}
                             </td>
-                            <td className="p-2 text-right border-l border-border font-mono text-destructive">
+                            <td 
+                              className={`p-2 text-right border-l border-border font-mono text-destructive ${l.openingBalance < 0 ? "hover:underline text-primary" : ""}`}
+                              onClick={(e) => {
+                                if (l.openingBalance < 0) {
+                                  e.stopPropagation();
+                                  setSelectedLedgerForPopup(l);
+                                  setPopupType("opening");
+                                }
+                              }}
+                            >
                               {l.openingBalance < 0 ? formatAmount(l.openingBalance) : "—"}
                             </td>
                           </>
                         )}
                         {showTransactions && (
                           <>
-                            <td className="p-2 text-right border-l border-border font-mono text-muted-foreground">
+                            <td 
+                              className={`p-2 text-right border-l border-border font-mono text-muted-foreground ${l.debitPeriod > 0 ? "hover:underline text-primary" : ""}`}
+                              onClick={(e) => {
+                                if (l.debitPeriod > 0) {
+                                  e.stopPropagation();
+                                  setSelectedLedgerForPopup(l);
+                                  setPopupType("transactions");
+                                }
+                              }}
+                            >
                               {l.debitPeriod > 0 ? formatAmount(l.debitPeriod) : "—"}
                             </td>
-                            <td className="p-2 text-right border-l border-border font-mono text-muted-foreground">
+                            <td 
+                              className={`p-2 text-right border-l border-border font-mono text-muted-foreground ${l.creditPeriod > 0 ? "hover:underline text-primary" : ""}`}
+                              onClick={(e) => {
+                                if (l.creditPeriod > 0) {
+                                  e.stopPropagation();
+                                  setSelectedLedgerForPopup(l);
+                                  setPopupType("transactions");
+                                }
+                              }}
+                            >
                               {l.creditPeriod > 0 ? formatAmount(l.creditPeriod) : "—"}
                             </td>
                           </>
                         )}
-                        <td className="p-2 text-right border-l border-border font-mono text-muted-foreground">
+                        <td 
+                          className={`p-2 text-right border-l border-border font-mono text-muted-foreground ${l.closingBalance >= 0 ? "hover:underline text-primary" : ""}`}
+                          onClick={(e) => {
+                            if (l.closingBalance >= 0) {
+                              e.stopPropagation();
+                              setSelectedLedgerForPopup(l);
+                              setPopupType("closing");
+                            }
+                          }}
+                        >
                           {l.closingBalance >= 0 ? formatAmount(l.closingBalance) : "—"}
                         </td>
-                        <td className="p-2 text-right border-l border-border font-mono text-destructive">
+                        <td 
+                          className={`p-2 text-right border-l border-border font-mono text-destructive ${l.closingBalance < 0 ? "hover:underline text-primary" : ""}`}
+                          onClick={(e) => {
+                            if (l.closingBalance < 0) {
+                              e.stopPropagation();
+                              setSelectedLedgerForPopup(l);
+                              setPopupType("closing");
+                            }
+                          }}
+                        >
                           {l.closingBalance < 0 ? formatAmount(l.closingBalance) : "—"}
                         </td>
                       </tr>
@@ -444,12 +542,19 @@ function CashBankSummaryContent({
                   {/* Bank nested ledgers (Detailed view) */}
                   {isDetailed &&
                     bankLedgers.map((l) => (
-                      <tr key={l.ledgerId} className="hover:bg-muted/5 group/ledg text-xs font-normal">
-                        <td className="p-2 pl-12 italic text-foreground/90">
+                      <tr 
+                        key={l.ledgerId} 
+                        className="hover:bg-muted/5 group/ledg text-xs font-normal cursor-pointer"
+                        onClick={() => router.push(`/dashboard/reports/ledger-report?ledgerId=${l.ledgerId}&from=${fromParam}&to=${toParam}`)}
+                      >
+                        <td className="p-2 pl-12 italic text-foreground/90 hover:underline hover:text-primary">
                           <div className="flex items-center justify-between">
                             <span>{l.ledgerName}</span>
                             <button
-                              onClick={() => handleRemoveLine(l.ledgerName)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRemoveLine(l.ledgerName);
+                              }}
                               className="opacity-0 group-hover/ledg:opacity-100 text-[10px] text-destructive hover:underline p-1 ml-2 no-print"
                             >
                               Omit
@@ -458,28 +563,82 @@ function CashBankSummaryContent({
                         </td>
                         {showOpening && (
                           <>
-                            <td className="p-2 text-right border-l border-border font-mono text-muted-foreground">
+                            <td 
+                              className={`p-2 text-right border-l border-border font-mono text-muted-foreground ${l.openingBalance >= 0 ? "hover:underline text-primary" : ""}`}
+                              onClick={(e) => {
+                                if (l.openingBalance >= 0) {
+                                  e.stopPropagation();
+                                  setSelectedLedgerForPopup(l);
+                                  setPopupType("opening");
+                                }
+                              }}
+                            >
                               {l.openingBalance >= 0 ? formatAmount(l.openingBalance) : "—"}
                             </td>
-                            <td className="p-2 text-right border-l border-border font-mono text-destructive">
+                            <td 
+                              className={`p-2 text-right border-l border-border font-mono text-destructive ${l.openingBalance < 0 ? "hover:underline text-primary" : ""}`}
+                              onClick={(e) => {
+                                if (l.openingBalance < 0) {
+                                  e.stopPropagation();
+                                  setSelectedLedgerForPopup(l);
+                                  setPopupType("opening");
+                                }
+                              }}
+                            >
                               {l.openingBalance < 0 ? formatAmount(l.openingBalance) : "—"}
                             </td>
                           </>
                         )}
                         {showTransactions && (
                           <>
-                            <td className="p-2 text-right border-l border-border font-mono text-muted-foreground">
+                            <td 
+                              className={`p-2 text-right border-l border-border font-mono text-muted-foreground ${l.debitPeriod > 0 ? "hover:underline text-primary" : ""}`}
+                              onClick={(e) => {
+                                if (l.debitPeriod > 0) {
+                                  e.stopPropagation();
+                                  setSelectedLedgerForPopup(l);
+                                  setPopupType("transactions");
+                                }
+                              }}
+                            >
                               {l.debitPeriod > 0 ? formatAmount(l.debitPeriod) : "—"}
                             </td>
-                            <td className="p-2 text-right border-l border-border font-mono text-muted-foreground">
+                            <td 
+                              className={`p-2 text-right border-l border-border font-mono text-muted-foreground ${l.creditPeriod > 0 ? "hover:underline text-primary" : ""}`}
+                              onClick={(e) => {
+                                if (l.creditPeriod > 0) {
+                                  e.stopPropagation();
+                                  setSelectedLedgerForPopup(l);
+                                  setPopupType("transactions");
+                                }
+                              }}
+                            >
                               {l.creditPeriod > 0 ? formatAmount(l.creditPeriod) : "—"}
                             </td>
                           </>
                         )}
-                        <td className="p-2 text-right border-l border-border font-mono text-muted-foreground">
+                        <td 
+                          className={`p-2 text-right border-l border-border font-mono text-muted-foreground ${l.closingBalance >= 0 ? "hover:underline text-primary" : ""}`}
+                          onClick={(e) => {
+                            if (l.closingBalance >= 0) {
+                              e.stopPropagation();
+                              setSelectedLedgerForPopup(l);
+                              setPopupType("closing");
+                            }
+                          }}
+                        >
                           {l.closingBalance >= 0 ? formatAmount(l.closingBalance) : "—"}
                         </td>
-                        <td className="p-2 text-right border-l border-border font-mono text-destructive">
+                        <td 
+                          className={`p-2 text-right border-l border-border font-mono text-destructive ${l.closingBalance < 0 ? "hover:underline text-primary" : ""}`}
+                          onClick={(e) => {
+                            if (l.closingBalance < 0) {
+                              e.stopPropagation();
+                              setSelectedLedgerForPopup(l);
+                              setPopupType("closing");
+                            }
+                          }}
+                        >
                           {l.closingBalance < 0 ? formatAmount(l.closingBalance) : "—"}
                         </td>
                       </tr>
@@ -585,6 +744,82 @@ function CashBankSummaryContent({
               Apply Period
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Detailed Entries Modal */}
+      <Dialog 
+        open={selectedLedgerForPopup !== null} 
+        onOpenChange={(open) => {
+          if (!open) setSelectedLedgerForPopup(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-5xl md:max-w-6xl lg:max-w-7xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">
+              {selectedLedgerForPopup?.ledgerName} — {popupType === "opening" ? "Opening Balance" : popupType === "transactions" ? "Transactions" : "Closing Balance"} Breakup
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="overflow-x-auto mt-4">
+            <table className="w-full text-sm border-collapse">
+              <thead>
+                <tr className="border-b border-border bg-muted/40 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  <th className="p-3 text-left">Date</th>
+                  <th className="p-3 text-left">Voucher Type</th>
+                  <th className="p-3 text-left">Voucher No</th>
+                  <th className="p-3 text-left">Remarks</th>
+                  <th className="p-3 text-right">Debit</th>
+                  <th className="p-3 text-right">Credit</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/60">
+                {popupEntries.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="p-8 text-center text-muted-foreground italic">
+                      No voucher entries found for this category in the selected period.
+                    </td>
+                  </tr>
+                ) : (
+                  popupEntries.map((e: LedgerEntry) => (
+                    <tr key={e.entryId} className="hover:bg-muted/10">
+                      <td className="p-3 text-muted-foreground font-mono">
+                        {new Date(e.voucherDate).toLocaleDateString("en-IN", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        })}
+                      </td>
+                      <td className="p-3 font-medium capitalize">{e.voucherType.replace(/_/g, " ")}</td>
+                      <td className="p-3 text-muted-foreground font-mono font-medium">{e.voucherNo}</td>
+                      <td className="p-3 text-xs text-muted-foreground max-w-[200px] truncate" title={e.remarks || ""}>
+                        {e.remarks || "—"}
+                      </td>
+                      <td className="p-3 text-right font-mono">
+                        {e.entryType === "debit" ? formatAmount(e.amount) : "—"}
+                      </td>
+                      <td className="p-3 text-right font-mono text-destructive">
+                        {e.entryType === "credit" ? formatAmount(e.amount) : "—"}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+              {popupEntries.length > 0 && (
+                <tfoot>
+                  <tr className="border-t-2 border-border font-bold bg-muted/20">
+                    <td colSpan={4} className="p-3 text-right">Total:</td>
+                    <td className="p-3 text-right font-mono">
+                      {formatAmount(popupEntries.filter((x: LedgerEntry) => x.entryType === "debit").reduce((sum: number, x: LedgerEntry) => sum + x.amount, 0))}
+                    </td>
+                    <td className="p-3 text-right font-mono text-destructive">
+                      {formatAmount(popupEntries.filter((x: LedgerEntry) => x.entryType === "credit").reduce((sum: number, x: LedgerEntry) => sum + x.amount, 0))}
+                    </td>
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

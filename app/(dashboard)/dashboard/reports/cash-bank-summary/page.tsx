@@ -8,7 +8,7 @@ import {
   tVoucherEntries,
   tVouchers,
 } from "@/lib/db/schema";
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, isNull, sql, lte, inArray } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
 import CashBankSummaryClient from "./CashBankSummaryClient";
 
@@ -59,10 +59,10 @@ export default async function CashBankSummaryPage({
       ledgerName: mLedgers.ledgerName,
       ledgerType: mLedgers.ledgerType,
       groupId: mLedgers.groupId,
-      openDebit: sql<number>`coalesce(sum(case when ${tVouchers.voucherDate} < ${fromDate} and ${tVoucherEntries.entryType} = 'debit' then ${tVoucherEntries.amount} else 0 end), 0)`,
-      openCredit: sql<number>`coalesce(sum(case when ${tVouchers.voucherDate} < ${fromDate} and ${tVoucherEntries.entryType} = 'credit' then ${tVoucherEntries.amount} else 0 end), 0)`,
-      periodDebit: sql<number>`coalesce(sum(case when ${tVouchers.voucherDate} >= ${fromDate} and ${tVouchers.voucherDate} <= ${toDate} and ${tVoucherEntries.entryType} = 'debit' then ${tVoucherEntries.amount} else 0 end), 0)`,
-      periodCredit: sql<number>`coalesce(sum(case when ${tVouchers.voucherDate} >= ${fromDate} and ${tVouchers.voucherDate} <= ${toDate} and ${tVoucherEntries.entryType} = 'credit' then ${tVoucherEntries.amount} else 0 end), 0)`,
+      openDebit: sql<number>`coalesce(sum(case when (${tVouchers.voucherDate} < ${fromDate} or (${tVouchers.voucherDate} = ${fromDate} and ${tVouchers.voucherNo} like 'OP-%')) and ${tVoucherEntries.entryType} = 'debit' then ${tVoucherEntries.amount} else 0 end), 0)`,
+      openCredit: sql<number>`coalesce(sum(case when (${tVouchers.voucherDate} < ${fromDate} or (${tVouchers.voucherDate} = ${fromDate} and ${tVouchers.voucherNo} like 'OP-%')) and ${tVoucherEntries.entryType} = 'credit' then ${tVoucherEntries.amount} else 0 end), 0)`,
+      periodDebit: sql<number>`coalesce(sum(case when ${tVouchers.voucherDate} >= ${fromDate} and ${tVouchers.voucherDate} <= ${toDate} and not (${tVouchers.voucherDate} = ${fromDate} and ${tVouchers.voucherNo} like 'OP-%') and ${tVoucherEntries.entryType} = 'debit' then ${tVoucherEntries.amount} else 0 end), 0)`,
+      periodCredit: sql<number>`coalesce(sum(case when ${tVouchers.voucherDate} >= ${fromDate} and ${tVouchers.voucherDate} <= ${toDate} and not (${tVouchers.voucherDate} = ${fromDate} and ${tVouchers.voucherNo} like 'OP-%') and ${tVoucherEntries.entryType} = 'credit' then ${tVoucherEntries.amount} else 0 end), 0)`,
     })
     .from(mLedgers)
     .leftJoin(
@@ -143,6 +143,36 @@ export default async function CashBankSummaryPage({
   const p = perms.find((x) => x.accessItem === "cash_bank_summary");
   const canExport = p?.e ?? false;
 
+  const cashBankLedgerIds = ledgers
+    .filter((l) => l.isCash || l.isBank)
+    .map((l) => l.ledgerId);
+
+  let ledgerEntries: any[] = [];
+  if (cashBankLedgerIds.length > 0) {
+    ledgerEntries = await db
+      .select({
+        entryId: tVoucherEntries.voucherEntryId,
+        voucherId: tVoucherEntries.voucherId,
+        ledgerId: tVoucherEntries.ledgerId,
+        entryType: tVoucherEntries.entryType,
+        amount: sql<number>`cast(${tVoucherEntries.amount} as double precision)`,
+        voucherNo: tVouchers.voucherNo,
+        voucherType: tVouchers.voucherType,
+        voucherDate: tVouchers.voucherDate,
+        remarks: tVouchers.remarks,
+      })
+      .from(tVoucherEntries)
+      .leftJoin(tVouchers, eq(tVoucherEntries.voucherId, tVouchers.voucherId))
+      .where(
+        and(
+          inArray(tVoucherEntries.ledgerId, cashBankLedgerIds),
+          isNull(tVouchers.deletedOn),
+          lte(tVouchers.voucherDate, toDate)
+        )
+      )
+      .orderBy(tVouchers.voucherDate, tVoucherEntries.voucherEntryId);
+  }
+
   return (
     <CashBankSummaryClient
       company={{
@@ -152,6 +182,7 @@ export default async function CashBankSummaryPage({
         address: company.address,
       }}
       ledgers={ledgers}
+      ledgerEntries={ledgerEntries}
       canExport={canExport}
     />
   );
