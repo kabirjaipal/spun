@@ -109,16 +109,26 @@ function AgeingAnalysisContent({ company, payableBills, receivableBills, canExpo
             <Input
               type="number"
               placeholder="Min"
+              min={0}
               value={fromDays}
-              onChange={(e) => setFromDays(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val.includes("-") || Number(val) < 0) return;
+                setFromDays(val);
+              }}
               className="w-20 h-7 text-xs px-1 border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent text-foreground placeholder:text-muted-foreground/60"
             />
             <span className="text-muted-foreground text-xs">—</span>
             <Input
               type="number"
               placeholder="Max"
+              min={0}
               value={toDays}
-              onChange={(e) => setToDays(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val.includes("-") || Number(val) < 0) return;
+                setToDays(val);
+              }}
               className="w-20 h-7 text-xs px-1 border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent text-foreground placeholder:text-muted-foreground/60"
             />
             <span className="text-[10px] font-semibold text-muted-foreground whitespace-nowrap">days</span>
