@@ -80,10 +80,13 @@ function GroupOutstandingsContent({
   const [startDate, setStartDate] = useState(fromParam);
   const [endDate, setEndDate] = useState(toParam);
   const [searchQuery, setSearchQuery] = useState("");
-  const [overdueFilter, setOverdueFilter] = useState<number>(0);
-  const [expandedLedgers, setExpandedLedgers] = useState<Record<number, boolean>>({});
+  const [minOverdue, setMinOverdue] = useState("");
+  const [maxOverdue, setMaxOverdue] = useState("");
   const [removedLines, setRemovedLines] = useState<string[]>([]);
   const [lastRemovedLine, setLastRemovedLine] = useState<string | null>(null);
+
+  const ledgerIdParam = searchParams.get("ledgerId");
+  const monthParam = searchParams.get("month");
 
   // Resolve pending bills for a specific ledger
   const getLedgerPendingBills = (l: LedgerItem) => {
@@ -266,7 +269,11 @@ function GroupOutstandingsContent({
   const ledgersWithDetails = visibleLedgers.map((l) => {
     const allBills = getLedgerPendingBills(l);
     // Filter bills by overdue filter
-    const filteredBills = allBills.filter((b) => overdueFilter === 0 || b.overdueDays >= overdueFilter);
+    const filteredBills = allBills.filter((b) => {
+      const minMatch = minOverdue === "" || b.overdueDays >= Number(minOverdue);
+      const maxMatch = maxOverdue === "" || b.overdueDays <= Number(maxOverdue);
+      return minMatch && maxMatch;
+    });
     
     // Recalculate debit/credit sums based on filtered pending bills
     let debit = 0;
@@ -276,11 +283,37 @@ function GroupOutstandingsContent({
       else credit += b.pendingAmount;
     });
 
+    // Group bills by month
+    const monthlyGroups: Record<string, { monthName: string; monthKey: string; debit: number; credit: number; bills: any[] }> = {};
+    filteredBills.forEach((bill: any) => {
+      const dateObj = new Date(bill.date);
+      const monthKey = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, "0")}`;
+      const monthName = dateObj.toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+      
+      if (!monthlyGroups[monthKey]) {
+        monthlyGroups[monthKey] = {
+          monthKey,
+          monthName,
+          debit: 0,
+          credit: 0,
+          bills: [],
+        };
+      }
+      
+      if (bill.type === "Dr") monthlyGroups[monthKey].debit += bill.pendingAmount;
+      else monthlyGroups[monthKey].credit += bill.pendingAmount;
+      
+      monthlyGroups[monthKey].bills.push(bill);
+    });
+
+    const monthlyBills = Object.values(monthlyGroups).sort((a, b) => a.monthKey.slice(0, 7).localeCompare(b.monthKey.slice(0, 7)));
+
     return {
       ...l,
       debit,
       credit,
       bills: filteredBills,
+      monthlyBills,
     };
   });
 
@@ -289,9 +322,17 @@ function GroupOutstandingsContent({
     (l) => l.debit > 0 || l.credit > 0
   );
 
+  const currentLedger = ledgerIdParam ? ledgersToDisplay.find(x => x.ledgerId === Number(ledgerIdParam)) : null;
+  const currentMonth = (currentLedger && monthParam) ? currentLedger.monthlyBills.find(x => x.monthKey === monthParam) : null;
+
   // Calculate totals of visible rows
-  const totalDebit = ledgersToDisplay.reduce((sum, l) => sum + l.debit, 0);
-  const totalCredit = ledgersToDisplay.reduce((sum, l) => sum + l.credit, 0);
+  const totalDebit = currentLedger 
+    ? (currentMonth ? currentMonth.bills.filter((x: any) => x.type === "Dr").reduce((sum: number, x: any) => sum + x.pendingAmount, 0) : currentLedger.monthlyBills.reduce((sum: number, l: any) => sum + l.debit, 0)) 
+    : ledgersToDisplay.reduce((sum: number, l: any) => sum + l.debit, 0);
+
+  const totalCredit = currentLedger 
+    ? (currentMonth ? currentMonth.bills.filter((x: any) => x.type === "Cr").reduce((sum: number, x: any) => sum + x.pendingAmount, 0) : currentLedger.monthlyBills.reduce((sum: number, l: any) => sum + l.credit, 0)) 
+    : ledgersToDisplay.reduce((sum: number, l: any) => sum + l.credit, 0);
 
   const triggerPrint = () => {
     window.print();
@@ -366,23 +407,30 @@ function GroupOutstandingsContent({
             </SelectContent>
           </Select>
 
-          {/* Overdue Days Filter */}
-          <Select
-            value={String(overdueFilter)}
-            onValueChange={(val) => setOverdueFilter(Number(val))}
-          >
-            <SelectTrigger className="w-[180px] h-10 text-sm bg-background text-foreground">
-              <SelectValue placeholder="Filter Overdue" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="0">All Bills</SelectItem>
-              <SelectItem value="10">&gt; 10 Days Overdue</SelectItem>
-              <SelectItem value="30">&gt; 30 Days Overdue</SelectItem>
-              <SelectItem value="45">&gt; 45 Days Overdue</SelectItem>
-              <SelectItem value="60">&gt; 60 Days Overdue</SelectItem>
-              <SelectItem value="90">&gt; 90 Days Overdue</SelectItem>
-            </SelectContent>
-          </Select>
+          {/* Custom Overdue Days Range */}
+          <div className="flex items-center gap-1.5 no-print">
+            <Label htmlFor="min-overdue" className="text-xs font-semibold uppercase text-muted-foreground whitespace-nowrap">Min Days</Label>
+            <Input
+              id="min-overdue"
+              type="number"
+              placeholder="Min"
+              value={minOverdue}
+              onChange={(e) => setMinOverdue(e.target.value)}
+              className="w-20 bg-background border-border h-10 text-sm"
+            />
+          </div>
+
+          <div className="flex items-center gap-1.5 no-print">
+            <Label htmlFor="max-overdue" className="text-xs font-semibold uppercase text-muted-foreground whitespace-nowrap">Max Days</Label>
+            <Input
+              id="max-overdue"
+              type="number"
+              placeholder="Max"
+              value={maxOverdue}
+              onChange={(e) => setMaxOverdue(e.target.value)}
+              className="w-20 bg-background border-border h-10 text-sm"
+            />
+          </div>
 
           {/* Search Input Bar */}
           <div className="relative w-64">
@@ -416,6 +464,56 @@ function GroupOutstandingsContent({
         </div>
       </div>
 
+      {/* Breadcrumb / Back button */}
+      {(ledgerIdParam || monthParam) && (
+        <div className="flex items-center gap-2 mb-1 no-print">
+          <Button
+            variant="outline"
+            className="h-9 px-3 text-sm font-semibold"
+            onClick={() => {
+              if (monthParam) {
+                router.push(`?from=${fromParam}&to=${toParam}&groupId=${selectedGroup.groupId}&ledgerId=${ledgerIdParam}`);
+              } else {
+                router.push(`?from=${fromParam}&to=${toParam}&groupId=${selectedGroup.groupId}`);
+              }
+            }}
+          >
+            ← Back
+          </Button>
+          <div className="text-xs text-muted-foreground font-medium">
+            <span 
+              className="hover:underline cursor-pointer text-foreground" 
+              onClick={() => router.push(`?from=${fromParam}&to=${toParam}&groupId=${selectedGroup.groupId}`)}
+            >
+              {selectedGroup.groupName}
+            </span>
+            {ledgerIdParam && (
+              <>
+                {" / "}
+                <span 
+                  className={`font-semibold text-foreground ${monthParam ? "hover:underline cursor-pointer" : ""}`}
+                  onClick={() => {
+                    if (monthParam) {
+                      router.push(`?from=${fromParam}&to=${toParam}&groupId=${selectedGroup.groupId}&ledgerId=${ledgerIdParam}`);
+                    }
+                  }}
+                >
+                  {currentLedger?.ledgerName || "Ledger"}
+                </span>
+              </>
+            )}
+            {monthParam && (
+              <>
+                {" / "}
+                <span className="font-semibold text-foreground">
+                  {currentMonth?.monthName || "Month"}
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Main Report Table Container */}
       <div className="rounded-lg border border-border bg-card overflow-hidden print-area shadow-sm">
         {/* Printable Document Title Block */}
@@ -436,153 +534,164 @@ function GroupOutstandingsContent({
           <table className="w-full border-collapse text-sm">
             {/* Table Headers */}
             <thead>
-              <tr className="border-b border-border bg-muted/40 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                <th className="p-3 text-left pl-6 min-w-[240px]" rowSpan={2}>
-                  Particulars
-                </th>
-                <th className="p-2 text-center border-l border-border" colSpan={2}>
-                  Pending Bills
-                </th>
-              </tr>
-              <tr className="border-b border-border bg-muted/20 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                <th className="p-3 text-right border-l border-border w-[180px]">Debit</th>
-                <th className="p-3 text-right border-l border-border w-[180px]">Credit</th>
-              </tr>
+              {(!currentLedger || !currentMonth) ? (
+                <>
+                  <tr className="border-b border-border bg-muted/40 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                    <th className="p-3 text-left pl-6 min-w-[240px]" rowSpan={2}>
+                      {!currentLedger ? "Particulars" : "Month"}
+                    </th>
+                    <th className="p-2 text-center border-l border-border" colSpan={2}>
+                      Pending Bills
+                    </th>
+                  </tr>
+                  <tr className="border-b border-border bg-muted/20 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                    <th className="p-3 text-right border-l border-border w-[180px]">Debit</th>
+                    <th className="p-3 text-right border-l border-border w-[180px]">Credit</th>
+                  </tr>
+                </>
+              ) : (
+                <tr className="border-b border-border bg-muted/40 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  <th className="p-3 text-left pl-6">Date</th>
+                  <th className="p-3 text-left">Ref No</th>
+                  <th className="p-3 text-right">Billing Amt</th>
+                  <th className="p-3 text-right">Paid Amt</th>
+                  <th className="p-3 text-right">Pending Amt</th>
+                  <th className="p-3 text-left">Due Date</th>
+                  <th className="p-3 text-right">Overdue</th>
+                  <th className="p-3 text-left">Who Did</th>
+                </tr>
+              )}
             </thead>
 
             {/* Table Rows */}
             <tbody className="divide-y divide-border/40 text-foreground">
-              {ledgersToDisplay.length === 0 ? (
-                <tr>
-                  <td colSpan={3} className="p-8 text-center text-xs text-muted-foreground italic">
-                    No outstanding ledger balances found for this group/period
-                  </td>
-                </tr>
-              ) : (
-                ledgersToDisplay.map((l) => {
-                  const isExpanded = !!expandedLedgers[l.ledgerId];
-                  const debitVal = l.debit;
-                  const creditVal = l.credit;
+              {/* Level 1: Ledger List */}
+              {!currentLedger && (
+                ledgersToDisplay.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} className="p-8 text-center text-xs text-muted-foreground italic">
+                      No outstanding ledger balances found for this group/period
+                    </td>
+                  </tr>
+                ) : (
+                  ledgersToDisplay.map((l) => (
+                    <tr
+                      key={l.ledgerId}
+                      className="group/row hover:bg-muted/10 transition-colors font-medium cursor-pointer"
+                      onClick={() => {
+                        router.push(`?from=${fromParam}&to=${toParam}&groupId=${selectedGroup.groupId}&ledgerId=${l.ledgerId}`);
+                      }}
+                    >
+                      <td className="p-3 pl-6 font-semibold">
+                        <div className="flex items-center justify-between w-full">
+                          <span className="hover:underline hover:text-primary">{l.ledgerName}</span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemoveLine(String(l.ledgerId));
+                            }}
+                            className="opacity-0 group-hover/row:opacity-100 text-xs text-destructive hover:underline p-1 ml-2 no-print font-normal"
+                          >
+                            Omit
+                          </button>
+                        </div>
+                      </td>
+                      <td className="p-3 text-right border-l border-border font-mono">
+                        {formatAmount(l.debit)}
+                      </td>
+                      <td className="p-3 text-right border-l border-border font-mono font-bold text-foreground">
+                        {formatAmount(l.credit)}
+                      </td>
+                    </tr>
+                  ))
+                )
+              )}
 
-                  return (
-                    <React.Fragment key={l.ledgerId}>
-                      {/* Main Ledger Row */}
-                      <tr
-                        className="group/row hover:bg-muted/10 transition-colors font-medium cursor-pointer"
-                        onClick={() => {
-                          setExpandedLedgers((prev) => ({
-                            ...prev,
-                            [l.ledgerId]: !prev[l.ledgerId],
-                          }));
-                        }}
-                      >
-                        {/* Particulars (Ledger Name) */}
-                        <td className="p-3 pl-6 font-semibold">
-                          <div className="flex items-center justify-between w-full">
-                            <div className="flex items-center gap-2">
-                              <ChevronRight
-                                className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${
-                                  isExpanded ? "rotate-90" : ""
-                                }`}
-                              />
-                              <span>{l.ledgerName}</span>
-                            </div>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleRemoveLine(String(l.ledgerId));
-                              }}
-                              className="opacity-0 group-hover/row:opacity-100 text-xs text-destructive hover:underline p-1 ml-2 no-print font-normal"
-                            >
-                              Omit
-                            </button>
-                          </div>
-                        </td>
+              {/* Level 2: Month Summary for Selected Ledger */}
+              {currentLedger && !currentMonth && (
+                currentLedger.monthlyBills.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} className="p-8 text-center text-xs text-muted-foreground italic">
+                      No monthly outstanding balances found for this ledger
+                    </td>
+                  </tr>
+                ) : (
+                  currentLedger.monthlyBills.map((month: any) => (
+                    <tr
+                      key={month.monthKey}
+                      className="hover:bg-muted/10 transition-colors cursor-pointer font-medium"
+                      onClick={() => {
+                        router.push(`?from=${fromParam}&to=${toParam}&groupId=${selectedGroup.groupId}&ledgerId=${currentLedger.ledgerId}&month=${month.monthKey}`);
+                      }}
+                    >
+                      <td className="p-3 pl-6 font-semibold">
+                        <span className="hover:underline hover:text-primary">{month.monthName}</span>
+                      </td>
+                      <td className="p-3 text-right border-l border-border font-mono">
+                        {formatAmount(month.debit)}
+                      </td>
+                      <td className="p-3 text-right border-l border-border font-mono font-bold text-foreground">
+                        {formatAmount(month.credit)}
+                      </td>
+                    </tr>
+                  ))
+                )
+              )}
 
-                        {/* Debit */}
-                        <td className="p-3 text-right border-l border-border font-mono">
-                          {formatAmount(debitVal)}
-                        </td>
-
-                        {/* Credit */}
-                        <td className="p-3 text-right border-l border-border font-mono font-bold text-foreground">
-                          {formatAmount(creditVal)}
-                        </td>
-                      </tr>
-
-                      {/* Detailed Outstanding Vouchers Drill-down */}
-                      {isExpanded && (
-                        <tr className="bg-muted/5">
-                          <td colSpan={3} className="p-0 border-b border-border">
-                            <div className="p-4 pl-12 pr-6 space-y-2">
-                              <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground">
-                                Pending Bills Breakdown
-                              </h4>
-                              <table className="w-full text-xs border border-border/60 rounded overflow-hidden">
-                                <thead>
-                                  <tr className="bg-muted/30 border-b border-border/60 text-muted-foreground text-[10px] font-bold uppercase tracking-wider">
-                                    <th className="p-2 text-left">Date</th>
-                                    <th className="p-2 text-left">Month</th>
-                                    <th className="p-2 text-left">Ref No</th>
-                                    <th className="p-2 text-right">Billing Amt</th>
-                                    <th className="p-2 text-right">Paid Amt</th>
-                                    <th className="p-2 text-right">Pending Amt</th>
-                                    <th className="p-2 text-left">Due Date</th>
-                                    <th className="p-2 text-right">Overdue</th>
-                                    <th className="p-2 text-left">Who Did</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {l.bills.length === 0 ? (
-                                    <tr>
-                                      <td colSpan={9} className="p-4 text-center text-muted-foreground italic">
-                                        No pending bills matching active overdue filters.
-                                      </td>
-                                    </tr>
-                                  ) : (
-                                    l.bills.map((bill: any, idx: number) => {
-                                      const billDate = new Date(bill.date);
-                                      const monthName = billDate.toLocaleDateString("en-IN", { month: "long" });
-                                      return (
-                                        <tr key={idx} className="border-b border-border/40 hover:bg-muted/10">
-                                          <td className="p-2 font-mono">{formatDateToTally(bill.date)}</td>
-                                          <td className="p-2 font-sans">{monthName}</td>
-                                          <td className="p-2 font-semibold">{bill.refNo}</td>
-                                          <td className="p-2 text-right font-mono">{formatAmount(bill.billingAmount)}</td>
-                                          <td className="p-2 text-right font-mono">{formatAmount(bill.paidAmount)}</td>
-                                          <td className="p-2 text-right font-mono font-bold">{formatAmount(bill.pendingAmount)} {bill.type}</td>
-                                          <td className="p-2 font-mono">{bill.dueDate}</td>
-                                          <td className="p-2 text-right font-sans font-semibold text-destructive">
-                                            {bill.overdueDays > 0 ? `${bill.overdueDays} days` : "—"}
-                                          </td>
-                                          <td className="p-2 text-muted-foreground">{bill.createdBy}</td>
-                                        </tr>
-                                      );
-                                    })
-                                  )}
-                                </tbody>
-                              </table>
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </React.Fragment>
-                  );
-                })
+              {/* Level 3: Pending Bills Breakdown for Selected Ledger & Month */}
+              {currentLedger && currentMonth && (
+                currentMonth.bills.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="p-8 text-center text-xs text-muted-foreground italic">
+                      No pending bills found for this month
+                    </td>
+                  </tr>
+                ) : (
+                  currentMonth.bills.map((bill: any, idx: number) => (
+                    <tr key={idx} className="border-b border-border/40 hover:bg-muted/10">
+                      <td className="p-3 pl-6 font-mono">{formatDateToTally(bill.date)}</td>
+                      <td className="p-3 font-semibold">{bill.refNo}</td>
+                      <td className="p-3 text-right font-mono">{formatAmount(bill.billingAmount)}</td>
+                      <td className="p-3 text-right font-mono">{formatAmount(bill.paidAmount)}</td>
+                      <td className="p-3 text-right font-mono font-bold">{formatAmount(bill.pendingAmount)} {bill.type}</td>
+                      <td className="p-3 font-mono">{bill.dueDate}</td>
+                      <td className="p-3 text-right font-sans font-semibold text-destructive">
+                        {bill.overdueDays > 0 ? `${bill.overdueDays} days` : "—"}
+                      </td>
+                      <td className="p-3 text-muted-foreground">{bill.createdBy}</td>
+                    </tr>
+                  ))
+                )
               )}
             </tbody>
 
             {/* Table Footer - Grand Totals */}
             <tfoot>
-              <tr className="border-t-2 border-double border-border bg-muted/20 text-sm font-bold">
-                <td className="p-3 pl-6">Grand Total</td>
-                <td className="p-3 text-right border-l border-border font-mono text-base">
-                  {formatAmount(totalDebit)}
-                </td>
-                <td className="p-3 text-right border-l border-border font-mono text-base">
-                  {formatAmount(totalCredit)}
-                </td>
-              </tr>
+              {(!currentLedger || !currentMonth) ? (
+                <tr className="border-t-2 border-double border-border bg-muted/20 text-sm font-bold">
+                  <td className="p-3 pl-6">Grand Total</td>
+                  <td className="p-3 text-right border-l border-border font-mono text-base">
+                    {formatAmount(totalDebit)}
+                  </td>
+                  <td className="p-3 text-right border-l border-border font-mono text-base">
+                    {formatAmount(totalCredit)}
+                  </td>
+                </tr>
+              ) : (
+                <tr className="border-t-2 border-double border-border bg-muted/20 text-sm font-bold">
+                  <td colSpan={2} className="p-3 pl-6">Grand Total</td>
+                  <td className="p-3 text-right font-mono">
+                    {formatAmount(currentMonth.bills.reduce((sum: number, b: any) => sum + b.billingAmount, 0))}
+                  </td>
+                  <td className="p-3 text-right font-mono">
+                    {formatAmount(currentMonth.bills.reduce((sum: number, b: any) => sum + b.paidAmount, 0))}
+                  </td>
+                  <td className="p-3 text-right border-l border-border font-mono text-base">
+                    {formatAmount(totalDebit || totalCredit)}
+                  </td>
+                  <td colSpan={3}></td>
+                </tr>
+              )}
             </tfoot>
           </table>
         </div>
