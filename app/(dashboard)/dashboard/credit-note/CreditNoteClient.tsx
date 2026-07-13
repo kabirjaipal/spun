@@ -125,7 +125,7 @@ export default function CreditNoteClient({
   }, [ledgers]);
 
   const eligibleLedgers = useMemo(() => {
-    return ledgers.filter((l) => l.ledgerType !== "company");
+    return ledgers;
   }, [ledgers]);
 
   const custObj = useMemo(() => {
