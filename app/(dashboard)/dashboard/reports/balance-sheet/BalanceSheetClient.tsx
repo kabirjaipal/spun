@@ -360,77 +360,104 @@ function BalanceSheetContent({
             Balance Sheet
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            as at {new Date(endDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "2-digit" })}
+            as at {new Date(endDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
           </p>
         </div>
-        {/* Header Columns */}
-        <div className="grid grid-cols-4 border-b border-border bg-muted/40 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-          <div className="col-span-1 p-3">Liabilities</div>
-          <div className="col-span-1 p-3 text-right font-normal border-r border-border normal-case">
-            as at {new Date(endDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "2-digit" })}
+
+        {/* Top Header Box to mimic Tally style */}
+        <div className="grid grid-cols-3 bg-muted/50 text-muted-foreground px-4 py-2.5 text-xs font-bold border-b border-border uppercase tracking-wider no-print">
+          <div>Balance Sheet</div>
+          <div className="text-center text-foreground font-semibold">{company.companyName}</div>
+          <div className="text-right">
+            As At {new Date(endDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
           </div>
-          <div className="col-span-1 p-3 pl-4">Assets</div>
-          <div className="col-span-1 p-3 text-right font-normal normal-case">
-            as at {new Date(endDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "2-digit" })}
+        </div>
+
+        {/* Header Columns */}
+        <div className="grid grid-cols-2 border-b border-border text-xs font-bold uppercase tracking-wider text-muted-foreground">
+          {/* Liabilities Header */}
+          <div className="flex items-center p-3 border-r border-border bg-muted/20">
+            <span className="flex-1 font-bold text-sm text-foreground">Liabilities</span>
+            <span className="w-36 text-right pr-4 font-normal text-xs normal-case text-muted-foreground"></span>
+            <span className="w-36 text-right font-semibold text-xs normal-case text-muted-foreground">
+              as at {new Date(endDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+            </span>
+          </div>
+          {/* Assets Header */}
+          <div className="flex items-center p-3 pl-4 bg-muted/20">
+            <span className="flex-1 font-bold text-sm text-foreground">Assets</span>
+            <span className="w-36 text-right pr-4 font-normal text-xs normal-case text-muted-foreground"></span>
+            <span className="w-36 text-right font-semibold text-xs normal-case text-muted-foreground">
+              as at {new Date(endDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+            </span>
           </div>
         </div>
 
         {/* Content Columns Side-by-Side */}
-        <div className="grid grid-cols-2 text-sm min-h-[300px]">
+        <div className="grid grid-cols-2 text-sm min-h-[400px]">
           {/* Liabilities Column */}
-          <div className="col-span-1 flex flex-col border-r border-border">
-            <div className="flex-1">
+          <div className="col-span-1 flex flex-col border-r border-border justify-between">
+            <div className="flex-1 py-2">
               {displayLiabilities.map((grp) => (
                 <div key={grp.name} className="group/row">
                   {/* Main Group Row */}
                   <div
                     onClick={() => grp.ledgers.length > 0 && setDrillDownData({ title: grp.name, items: grp.ledgers })}
-                    className={`flex justify-between items-center p-3 hover:bg-muted/30 cursor-pointer ${grp.name === "Capital Account" ? "bg-amber-100/30 dark:bg-amber-900/5 font-semibold" : ""
-                      }`}
+                    className="flex items-center justify-between py-2.5 px-3 hover:bg-muted/30 cursor-pointer"
                   >
-                    <span className="font-bold text-foreground">{grp.name}</span>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-foreground font-mono">
-                        {Math.abs(grp.amount) > 0.009 ? formatAmount(grp.amount) : "—"}
-                      </span>
+                    <div className="flex-1 flex items-center gap-2">
+                      <span className="font-bold text-foreground">{grp.name}</span>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           handleRemoveLine(grp.name);
                         }}
-                        className="opacity-0 group-hover/row:opacity-100 text-xs text-destructive hover:underline p-1 ml-1 no-print"
+                        className="opacity-0 group-hover/row:opacity-100 text-xs text-destructive hover:underline p-1 no-print"
                       >
                         Omit
                       </button>
+                    </div>
+                    <div className="flex">
+                      <div className="w-36"></div>
+                      <div className="w-36 text-right font-mono font-bold text-foreground">
+                        {Math.abs(grp.amount) > 0.009 ? formatAmount(grp.amount) : "—"}
+                      </div>
                     </div>
                   </div>
 
                   {/* Sub-Ledgers (Detailed View) */}
                   {isDetailed && grp.ledgers && (
-                    <div className="pl-6 pb-2">
-                      {grp.ledgers.map((l) => (
+                    <div className="pb-2">
+                      {grp.ledgers.map((l, idx) => (
                         <div
                           key={l.name}
-                          className="flex justify-between items-center py-1.5 px-3 text-xs text-foreground/90 group/ledg"
+                          className="flex items-center justify-between py-1.5 px-3 pl-8 hover:bg-muted/10 group/ledg"
                         >
-                          {l.ledgerId ? (
-                            <a
-                              href={`/dashboard/reports/ledger-report?ledgerId=${l.ledgerId}`}
-                              className="italic text-primary hover:underline font-semibold cursor-pointer"
-                            >
-                              {l.name}
-                            </a>
-                          ) : (
-                            <span className="italic">{l.name}</span>
-                          )}
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono">{formatAmount(l.amount)}</span>
+                          <div className="flex-1 flex items-center gap-2">
+                            {l.ledgerId ? (
+                              <a
+                                href={`/dashboard/reports/ledger-report?ledgerId=${l.ledgerId}`}
+                                className="text-xs text-primary hover:underline font-semibold cursor-pointer"
+                              >
+                                {l.name}
+                              </a>
+                            ) : (
+                              <span className="text-xs italic text-foreground/80">{l.name}</span>
+                            )}
                             <button
                               onClick={() => handleRemoveLine(l.name)}
-                              className="opacity-0 group-hover/ledg:opacity-100 text-[10px] text-destructive hover:underline no-print"
+                              className="opacity-0 group-hover/ledg:opacity-100 text-xs text-destructive hover:underline no-print"
                             >
                               Omit
                             </button>
+                          </div>
+                          <div className="flex">
+                            <div className={`w-36 text-right pr-4 font-mono text-xs text-foreground/90 ${
+                              idx === grp.ledgers.length - 1 ? "border-b border-border pb-0.5" : ""
+                            }`}>
+                              {formatAmount(l.amount)}
+                            </div>
+                            <div className="w-36"></div>
                           </div>
                         </div>
                       ))}
@@ -439,61 +466,80 @@ function BalanceSheetContent({
                 </div>
               ))}
             </div>
+
+            {/* Total Row for Liabilities */}
+            <div className="border-t border-border bg-muted/20 p-3 flex items-center justify-between font-bold border-b-4 border-double">
+              <span>Total</span>
+              <div className="flex">
+                <div className="w-36"></div>
+                <div className="w-36 text-right font-mono text-base">{formatAmount(finalTotal)}</div>
+              </div>
+            </div>
           </div>
 
           {/* Assets Column */}
-          <div className="col-span-1 flex flex-col">
-            <div className="flex-1">
+          <div className="col-span-1 flex flex-col justify-between">
+            <div className="flex-1 py-2">
               {displayAssets.map((grp) => (
                 <div key={grp.name} className="group/row">
                   {/* Main Group Row */}
                   <div
                     onClick={() => grp.ledgers.length > 0 && setDrillDownData({ title: grp.name, items: grp.ledgers })}
-                    className="flex justify-between items-center p-3 hover:bg-muted/30 cursor-pointer"
+                    className="flex items-center justify-between py-2.5 px-3 hover:bg-muted/30 cursor-pointer"
                   >
-                    <span className="font-bold text-foreground">{grp.name}</span>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-foreground font-mono">
-                        {Math.abs(grp.amount) > 0.009 ? formatAmount(grp.amount) : "—"}
-                      </span>
+                    <div className="flex-1 flex items-center gap-2">
+                      <span className="font-bold text-foreground">{grp.name}</span>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           handleRemoveLine(grp.name);
                         }}
-                        className="opacity-0 group-hover/row:opacity-100 text-xs text-destructive hover:underline p-1 ml-1 no-print"
+                        className="opacity-0 group-hover/row:opacity-100 text-xs text-destructive hover:underline p-1 no-print"
                       >
                         Omit
                       </button>
+                    </div>
+                    <div className="flex">
+                      <div className="w-36"></div>
+                      <div className="w-36 text-right font-mono font-bold text-foreground">
+                        {Math.abs(grp.amount) > 0.009 ? formatAmount(grp.amount) : "—"}
+                      </div>
                     </div>
                   </div>
 
                   {/* Sub-Ledgers (Detailed View) */}
                   {isDetailed && grp.ledgers && (
-                    <div className="pl-6 pb-2">
-                      {grp.ledgers.map((l) => (
+                    <div className="pb-2">
+                      {grp.ledgers.map((l, idx) => (
                         <div
                           key={l.name}
-                          className="flex justify-between items-center py-1.5 px-3 text-xs text-foreground/90 group/ledg"
+                          className="flex items-center justify-between py-1.5 px-3 pl-8 hover:bg-muted/10 group/ledg"
                         >
-                          {l.ledgerId ? (
-                            <a
-                              href={`/dashboard/reports/ledger-report?ledgerId=${l.ledgerId}`}
-                              className="italic text-primary hover:underline font-semibold cursor-pointer"
-                            >
-                              {l.name}
-                            </a>
-                          ) : (
-                            <span className="italic">{l.name}</span>
-                          )}
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono">{formatAmount(l.amount)}</span>
+                          <div className="flex-1 flex items-center gap-2">
+                            {l.ledgerId ? (
+                              <a
+                                href={`/dashboard/reports/ledger-report?ledgerId=${l.ledgerId}`}
+                                className="text-xs text-primary hover:underline font-semibold cursor-pointer"
+                              >
+                                {l.name}
+                              </a>
+                            ) : (
+                              <span className="text-xs italic text-foreground/80">{l.name}</span>
+                            )}
                             <button
                               onClick={() => handleRemoveLine(l.name)}
-                              className="opacity-0 group-hover/ledg:opacity-100 text-[10px] text-destructive hover:underline no-print"
+                              className="opacity-0 group-hover/ledg:opacity-100 text-xs text-destructive hover:underline no-print"
                             >
                               Omit
                             </button>
+                          </div>
+                          <div className="flex">
+                            <div className={`w-36 text-right pr-4 font-mono text-xs text-foreground/90 ${
+                              idx === grp.ledgers.length - 1 ? "border-b border-border pb-0.5" : ""
+                            }`}>
+                              {formatAmount(l.amount)}
+                            </div>
+                            <div className="w-36"></div>
                           </div>
                         </div>
                       ))}
@@ -502,18 +548,15 @@ function BalanceSheetContent({
                 </div>
               ))}
             </div>
-          </div>
-        </div>
 
-        {/* Totals Section */}
-        <div className="grid grid-cols-2 border-t border-border text-sm font-bold bg-muted/20">
-          <div className="col-span-1 p-3 flex justify-between items-center border border-border">
-            <span>Total</span>
-            <span className="font-mono text-base">{formatAmount(finalTotal)}</span>
-          </div>
-          <div className="col-span-1 p-3 flex justify-between items-center border border-border">
-            <span>Total</span>
-            <span className="font-mono text-base">{formatAmount(finalTotal)}</span>
+            {/* Total Row for Assets */}
+            <div className="border-t border-border bg-muted/20 p-3 flex items-center justify-between font-bold border-b-4 border-double">
+              <span>Total</span>
+              <div className="flex">
+                <div className="w-36"></div>
+                <div className="w-36 text-right font-mono text-base">{formatAmount(finalTotal)}</div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
