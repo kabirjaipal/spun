@@ -2,7 +2,7 @@
 
 import React, { useState, Suspense } from "react";
 import { Spinner } from "@/components/ui/spinner";
-import { Download, Calendar, ChevronDown, ChevronRight } from "lucide-react";
+import { Download, Calendar, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -56,7 +56,7 @@ const fmtDate = (d: string) =>
     year: "2-digit",
   });
 
-// Collapsible group row + ledger rows — Tally style
+// Static group row + ledger rows — Tally style
 function GroupSection({
   title,
   items,
@@ -70,60 +70,87 @@ function GroupSection({
   detailed: boolean;
   indented?: boolean;
 }) {
-  const [open, setOpen] = useState(true);
-  return (
-    <div>
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className={`w-full flex justify-between items-center py-2 pr-4 text-[13px] font-bold text-foreground hover:bg-muted/20 transition-colors no-print-hover ${
-          indented ? "pl-8" : "pl-4"
-        }`}
-      >
-        <span className="flex items-center gap-1.5">
-          {detailed
-            ? open
-              ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-              : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            : null}
-          {title}
-        </span>
-        {(!detailed || !open) && (
-          <span className="font-mono tabular-nums">{fmt(total)}</span>
-        )}
-      </button>
+  if (total === 0 && items.length === 0) return null;
 
-      {detailed && open && (
-        <div>
-          {items.map((it) =>
-            it.amount !== 0 ? (
-              <div
-                key={it.name}
-                className="flex justify-between items-center py-1.5 pl-12 pr-4 text-xs text-foreground/80 font-sans"
-              >
-                <span>
-                  {it.ledgerId ? (
-                    <a
-                      href={`/dashboard/reports/ledger-report?ledgerId=${it.ledgerId}`}
-                      className="text-primary hover:underline font-semibold cursor-pointer"
-                    >
-                      {it.name}
-                    </a>
-                  ) : (
-                    it.name
-                  )}
-                </span>
-                <span className="font-mono tabular-nums">{fmt(it.amount)}</span>
-              </div>
-            ) : null
-          )}
-          {/* Group sub-total right-aligned */}
-          <div className="flex justify-end pr-4 pb-1">
-            <span className="font-mono text-[13px] font-bold tabular-nums border-t border-border/50 pt-1 min-w-[100px] text-right">
-              {fmt(total)}
-            </span>
+  return (
+    <div className="group/row">
+      {/* Main Group Row */}
+      <div className="flex items-center justify-between py-2.5 px-3">
+        <div className="flex-1 flex items-center gap-2">
+          <span className={`font-bold text-foreground ${indented ? "pl-6" : ""}`}>
+            {title}
+          </span>
+        </div>
+        <div className="flex">
+          <div className="w-36"></div>
+          <div className="w-36 text-right font-mono font-bold text-foreground">
+            {total !== 0 ? fmt(total) : "—"}
           </div>
         </div>
+      </div>
+
+      {/* Sub-Ledgers (Detailed View) */}
+      {detailed && items.length > 0 && (
+        <div className="pb-2">
+          {items.map((l, idx) => (
+            l.amount !== 0 ? (
+              <div
+                key={l.name}
+                className="flex items-center justify-between py-1.5 px-3 pl-8 hover:bg-muted/10 group/ledg"
+              >
+                <div className="flex-1 flex items-center gap-2">
+                  {l.ledgerId ? (
+                    <a
+                      href={`/dashboard/reports/ledger-report?ledgerId=${l.ledgerId}`}
+                      className="text-xs text-primary hover:underline font-semibold cursor-pointer"
+                    >
+                      {l.name}
+                    </a>
+                  ) : (
+                    <span className="text-xs italic text-foreground/80">{l.name}</span>
+                  )}
+                </div>
+                <div className="flex">
+                  <div className={`w-36 text-right pr-4 font-mono text-xs text-foreground/90 ${
+                    idx === items.length - 1 ? "border-b border-border pb-0.5" : ""
+                  }`}>
+                    {fmt(l.amount)}
+                  </div>
+                  <div className="w-36"></div>
+                </div>
+              </div>
+            ) : null
+          ))}
+        </div>
       )}
+    </div>
+  );
+}
+
+function NetResultRow({
+  label,
+  amount,
+  color,
+}: {
+  label: string;
+  amount: number;
+  color: "profit" | "loss";
+}) {
+  return (
+    <div className="flex items-center justify-between py-2.5 px-3">
+      <div className="flex-1 font-bold">
+        <span className={color === "profit" ? "text-success" : "text-danger"}>
+          {label}
+        </span>
+      </div>
+      <div className="flex">
+        <div className="w-36"></div>
+        <div className="w-36 text-right font-mono font-bold">
+          <span className={color === "profit" ? "text-success" : "text-danger"}>
+            {fmt(amount)}
+          </span>
+        </div>
+      </div>
     </div>
   );
 }
@@ -223,7 +250,6 @@ function ProfitLossContent({
   const drSide1 = openingStock + purchaseTotal + directExpTotal;
   const crSide1 = salesTotal + closingStock + directIncTotal;
   const grossProfit = crSide1 - drSide1; // > 0 = GP, < 0 = GL
-  const tradingTotal = Math.max(drSide1, crSide1);
 
   // ── P&L Account totals ──────────────────────────────────────────────────────
   const indirectExpTotal = indirectExpItems.reduce((s, i) => s + i.amount, 0);
@@ -234,59 +260,14 @@ function ProfitLossContent({
   const drSide2 = grossLossBF + indirectExpTotal;
   const crSide2 = grossProfitBF + indirectIncTotal;
   const netProfit = crSide2 - drSide2; // > 0 = NP, < 0 = NL
-  const plTotal = Math.max(drSide2, crSide2);
 
-  // ── UI helpers ──────────────────────────────────────────────────────────────
-  const Row = ({
-    label,
-    amount,
-    bold,
-    color,
-    indent,
-  }: {
-    label: string;
-    amount: number;
-    bold?: boolean;
-    color?: "profit" | "loss";
-    indent?: boolean;
-  }) => (
-    <div
-      className={`flex justify-between items-center py-2 pr-4 text-[13px]
-        ${indent ? "pl-10" : "pl-4"}
-        ${bold ? "font-bold" : "font-normal"}
-        ${color === "profit" ? "text-green-700 dark:text-green-400 font-bold" : ""}
-        ${color === "loss" ? "text-red-600 dark:text-red-400 font-bold" : ""}
-        ${!color ? "text-foreground" : ""}
-      `}
-    >
-      <span>{label}</span>
-      <span className="font-mono tabular-nums">{fmt(amount)}</span>
-    </div>
-  );
-
-  const Divider = ({ total }: { total: number }) => (
-    <div className="border-t border-border mt-0.5 mx-4 flex justify-end">
-      <span className="font-mono font-bold text-[13px] tabular-nums py-2 text-foreground">
-        {fmt(total)}
-      </span>
-    </div>
-  );
-
-  const GrandTotal = ({ total }: { total: number }) => (
-    <div className="flex justify-between items-center py-2.5 px-4 border-t-2 border-double border-border bg-muted/10 font-black text-[13px] text-foreground">
-      <span className="uppercase tracking-wide">Total</span>
-      <span className="font-mono tabular-nums">{fmt(total)}</span>
-    </div>
-  );
-
-  const ColHeader = () => (
-    <div className="px-4 py-2.5 bg-muted/40 border-b border-border">
-      <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Particulars</span>
-    </div>
-  );
+  // ── Unified totals ──────────────────────────────────────────────────────────
+  const leftSum = openingStock + purchaseTotal + directExpTotal + indirectExpTotal;
+  const rightSum = salesTotal + closingStock + directIncTotal + indirectIncTotal;
+  const finalTotal = netProfit > 0 ? rightSum : leftSum;
 
   return (
-    <div className="space-y-5 select-none">
+    <div className="space-y-6 select-none">
       <style dangerouslySetInnerHTML={{
         __html: `
           @media print {
@@ -316,172 +297,174 @@ function ProfitLossContent({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setDetailed((d) => !d)}>
-            {detailed ? "Condensed" : "Detailed"}
+          <Button variant="outline" onClick={() => setDetailed((d) => !d)} className="flex items-center gap-2">
+            {detailed ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            {detailed ? "Condensed View" : "Detailed View"}
           </Button>
           <Button
             variant="outline"
-            size="sm"
             onClick={() => setShowPeriodModal(true)}
-            className="flex items-center gap-1.5"
+            className="flex items-center gap-2"
           >
-            <Calendar className="h-3.5 w-3.5" />
+            <Calendar className="h-4 w-4" />
             Period
           </Button>
           <Button
-            size="sm"
             onClick={() => window.print()}
-            className="flex items-center gap-1.5"
+            className="flex items-center gap-2"
           >
-            <Download className="h-3.5 w-3.5" />
+            <Download className="h-4 w-4" />
             Save as PDF
           </Button>
         </div>
       </div>
 
-      {/* ── Report ─────────────────────────────────────────────────────────── */}
+      {/* Main Report Table Grid */}
       <div className="rounded-lg border border-border bg-card overflow-hidden print-area shadow-sm font-sans">
-
-        {/* Company info header — always visible on screen AND in print */}
-        <div className="text-center py-5 border-b border-border bg-muted/10">
-          <h2 className="text-lg font-black uppercase tracking-widest text-foreground">{company.companyName}</h2>
-          {company.address && <p className="text-xs text-muted-foreground mt-0.5">{company.address}</p>}
-          {company.gstNo && <p className="text-xs text-muted-foreground">GSTIN: {company.gstNo}</p>}
-          <p className="text-sm font-bold uppercase tracking-widest text-foreground mt-2">Profit &amp; Loss Account</p>
-          <p className="text-xs text-muted-foreground mt-0.5">{fmtDate(fromParam)} to {fmtDate(toParam)}</p>
+        {/* Print-only Header */}
+        <div className="hidden print:block text-center py-6 border-b border-border bg-card">
+          <h1 className="text-xl font-bold uppercase tracking-wider text-foreground">
+            {company.companyName}
+          </h1>
+          <p className="text-sm font-semibold text-muted-foreground uppercase tracking-widest mt-1">
+            Profit &amp; Loss A/c
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {fmtDate(fromParam)} to {fmtDate(toParam)}
+          </p>
         </div>
 
-        {/* ── TRADING ACCOUNT separator ─────────────────────────────────── */}
-        <div className="px-3 py-1 bg-muted/30 border-b border-t border-border text-[10px] font-black uppercase tracking-widest text-center text-muted-foreground">
-          Trading Account
-        </div>
-
-        {/* Trading: two columns */}
-        <div className="grid grid-cols-2 border-b-2 border-double border-border">
-          {/* Dr side */}
-          <div className="border-r border-border">
-            <ColHeader />
-
-            {/* Opening Stock */}
-            <Row label="Opening Stock" amount={openingStock} bold />
-            {detailed && (
-              <Row label="Stock A/c" amount={openingStock} indent />
-            )}
-
-            {/* Purchase Accounts */}
-            <GroupSection
-              title="Purchase Accounts"
-              items={purchaseItems}
-              total={purchaseTotal}
-              detailed={detailed}
-            />
-
-            {/* Direct Expenses */}
-            <GroupSection
-              title="Direct Expenses"
-              items={directExpItems}
-              total={directExpTotal}
-              detailed={detailed}
-            />
-
-            {/* Gross Profit b/f (only if crSide1 > drSide1) */}
-            {grossProfit > 0 && (
-              <Row label="Gross Profit b/f" amount={grossProfit} color="profit" />
-            )}
-
-            <Divider total={tradingTotal} />
-          </div>
-
-          {/* Cr side */}
-          <div>
-            <ColHeader />
-
-            {/* Sales */}
-            <GroupSection
-              title="Sales Accounts"
-              items={salesItems}
-              total={salesTotal}
-              detailed={detailed}
-            />
-
-            {/* Closing Stock */}
-            <Row label="Closing Stock" amount={closingStock} bold />
-            {detailed && (
-              <Row label="Stock A/c" amount={closingStock} indent />
-            )}
-
-            {/* Direct Income */}
-            <GroupSection
-              title="Direct Income"
-              items={directIncItems}
-              total={directIncTotal}
-              detailed={detailed}
-            />
-
-            {/* Gross Loss c/o (only if drSide1 > crSide1) */}
-            {grossProfit < 0 && (
-              <Row label="Gross Loss c/o" amount={Math.abs(grossProfit)} color="loss" />
-            )}
-
-            <Divider total={tradingTotal} />
+        {/* Top Header Box to mimic Tally style */}
+        <div className="grid grid-cols-3 bg-muted/50 text-muted-foreground px-4 py-2.5 text-xs font-bold border-b border-border uppercase tracking-wider no-print">
+          <div>Profit &amp; Loss A/c</div>
+          <div className="text-center text-foreground font-semibold">{company.companyName}</div>
+          <div className="text-right font-bold">
+            {fmtDate(fromParam)} to {fmtDate(toParam)}
           </div>
         </div>
 
-        {/* ── P&L ACCOUNT separator ─────────────────────────────────────── */}
-        <div className="px-3 py-1 bg-muted/30 border-b border-border text-[10px] font-black uppercase tracking-widest text-center text-muted-foreground">
-          Profit &amp; Loss Account
+        {/* Column Headers */}
+        <div className="grid grid-cols-2 border-b border-border text-xs font-bold uppercase tracking-wider text-muted-foreground">
+          {/* Left Side Header */}
+          <div className="flex items-center p-3 border-r border-border bg-muted/20">
+            <span className="flex-1 font-bold text-sm text-foreground">Particulars</span>
+            <span className="w-36 text-right pr-4 font-normal text-xs normal-case text-muted-foreground"></span>
+            <span className="w-36 text-right font-semibold text-xs normal-case text-muted-foreground">
+              {fmtDate(fromParam)} to {fmtDate(toParam)}
+            </span>
+          </div>
+          {/* Right Side Header */}
+          <div className="flex items-center p-3 pl-4 bg-muted/20">
+            <span className="flex-1 font-bold text-sm text-foreground">Particulars</span>
+            <span className="w-36 text-right pr-4 font-normal text-xs normal-case text-muted-foreground"></span>
+            <span className="w-36 text-right font-semibold text-xs normal-case text-muted-foreground">
+              {fmtDate(fromParam)} to {fmtDate(toParam)}
+            </span>
+          </div>
         </div>
 
-        {/* P&L: two columns */}
-        <div className="grid grid-cols-2">
-          {/* Dr side */}
-          <div className="border-r border-border">
-            <ColHeader />
+        {/* Content Columns Side-by-Side */}
+        <div className="grid grid-cols-2 text-sm min-h-[400px]">
+          {/* Left Column (Expenses / Debits) */}
+          <div className="col-span-1 flex flex-col border-r border-border justify-between">
+            <div className="flex-1 py-2">
+              {/* Opening Stock */}
+              <GroupSection
+                title="Opening Stock"
+                items={[{ name: "Stock A/c", amount: openingStock }]}
+                total={openingStock}
+                detailed={detailed}
+              />
 
-            {/* Gross Loss b/f */}
-            {grossLossBF > 0 && (
-              <Row label="Gross Loss b/f" amount={grossLossBF} color="loss" />
-            )}
+              {/* Purchase Accounts */}
+              <GroupSection
+                title="Purchase Accounts"
+                items={purchaseItems}
+                total={purchaseTotal}
+                detailed={detailed}
+              />
 
-            {/* Indirect Expenses */}
-            <GroupSection
-              title="Indirect Expenses"
-              items={indirectExpItems}
-              total={indirectExpTotal}
-              detailed={detailed}
-            />
+              {/* Direct Expenses */}
+              <GroupSection
+                title="Direct Expenses"
+                items={directExpItems}
+                total={directExpTotal}
+                detailed={detailed}
+              />
 
-            {/* Net Profit */}
-            {netProfit > 0 && (
-              <Row label="Net Profit" amount={netProfit} color="profit" />
-            )}
+              {/* Indirect Expenses */}
+              <GroupSection
+                title="Indirect Expenses"
+                items={indirectExpItems}
+                total={indirectExpTotal}
+                detailed={detailed}
+              />
 
-            <GrandTotal total={plTotal > 0 ? plTotal : drSide2} />
+              {/* Nett Profit (only if netProfit > 0) */}
+              {netProfit > 0 && (
+                <NetResultRow label="Nett Profit" amount={netProfit} color="profit" />
+              )}
+            </div>
+
+            {/* Total Row for Left Side */}
+            <div className="border-t border-border bg-muted/20 p-3 flex items-center justify-between font-bold border-b-4 border-double">
+              <span>Total</span>
+              <div className="flex">
+                <div className="w-36"></div>
+                <div className="w-36 text-right font-mono text-base">{fmt(finalTotal)}</div>
+              </div>
+            </div>
           </div>
 
-          {/* Cr side */}
-          <div>
-            <ColHeader />
+          {/* Right Column (Incomes / Credits) */}
+          <div className="col-span-1 flex flex-col justify-between">
+            <div className="flex-1 py-2">
+              {/* Sales Accounts */}
+              <GroupSection
+                title="Sales Accounts"
+                items={salesItems}
+                total={salesTotal}
+                detailed={detailed}
+              />
 
-            {/* Gross Profit b/f */}
-            {grossProfitBF > 0 && (
-              <Row label="Gross Profit b/f" amount={grossProfitBF} color="profit" />
-            )}
+              {/* Direct Incomes */}
+              <GroupSection
+                title="Direct Income"
+                items={directIncItems}
+                total={directIncTotal}
+                detailed={detailed}
+              />
 
-            {/* Indirect Income */}
-            <GroupSection
-              title="Indirect Income"
-              items={indirectIncItems}
-              total={indirectIncTotal}
-              detailed={detailed}
-            />
+              {/* Closing Stock */}
+              <GroupSection
+                title="Closing Stock"
+                items={[{ name: "Stock A/c", amount: closingStock }]}
+                total={closingStock}
+                detailed={detailed}
+              />
 
-            {/* Net Loss */}
-            {netProfit < 0 && (
-              <Row label="Net Loss" amount={Math.abs(netProfit)} color="loss" />
-            )}
+              {/* Indirect Incomes */}
+              <GroupSection
+                title="Indirect Incomes"
+                items={indirectIncItems}
+                total={indirectIncTotal}
+                detailed={detailed}
+              />
 
-            <GrandTotal total={plTotal > 0 ? plTotal : crSide2} />
+              {/* Nett Loss (only if netProfit < 0) */}
+              {netProfit < 0 && (
+                <NetResultRow label="Nett Loss" amount={Math.abs(netProfit)} color="loss" />
+              )}
+            </div>
+
+            {/* Total Row for Right Side */}
+            <div className="border-t border-border bg-muted/20 p-3 flex items-center justify-between font-bold border-b-4 border-double">
+              <span>Total</span>
+              <div className="flex">
+                <div className="w-36"></div>
+                <div className="w-36 text-right font-mono text-base">{fmt(finalTotal)}</div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
