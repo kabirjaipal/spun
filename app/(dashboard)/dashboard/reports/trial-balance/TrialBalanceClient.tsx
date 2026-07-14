@@ -28,8 +28,10 @@ interface Ledger {
   ledgerName: string;
   ledgerType: string;
   groupId: number | null;
-  debit: number;
-  credit: number;
+  openingDebit: number;
+  openingCredit: number;
+  periodDebit: number;
+  periodCredit: number;
 }
 
 interface TrialBalanceClientProps {
@@ -43,8 +45,10 @@ interface TreeNode {
   id: string; // "group-{id}" or "ledger-{id}"
   name: string;
   type: "group" | "ledger";
-  debit: number;
-  credit: number;
+  openingDebit: number;
+  openingCredit: number;
+  closingDebit: number;
+  closingCredit: number;
   level: number;
   groupId?: number;
   ledgerId?: number;
@@ -77,7 +81,6 @@ function TrialBalanceContent({
   const [removedLines, setRemovedLines] = useState<string[]>([]);
   const [lastRemovedLine, setLastRemovedLine] = useState<string | null>(null);
 
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [isDetailed, setIsDetailed] = useState(true);
 
   // Formatting to Indian Currency (en-IN)
@@ -106,8 +109,10 @@ function TrialBalanceContent({
       id: `group-${g.groupId}`,
       name: g.groupName,
       type: "group",
-      debit: 0,
-      credit: 0,
+      openingDebit: 0,
+      openingCredit: 0,
+      closingDebit: 0,
+      closingCredit: 0,
       level: 0,
       groupId: g.groupId,
       children: [],
@@ -115,13 +120,16 @@ function TrialBalanceContent({
 
     // Initialize ledger nodes with net balances
     const ledgerNodes: TreeNode[] = activeLedgers.map((l) => {
-      const net = l.debit - l.credit;
+      const opNet = l.openingDebit - l.openingCredit;
+      const clNet = (l.openingDebit + l.periodDebit) - (l.openingCredit + l.periodCredit);
       return {
         id: `ledger-${l.ledgerId}`,
         name: l.ledgerName,
         type: "ledger",
-        debit: net > 0 ? net : 0,
-        credit: net < 0 ? Math.abs(net) : 0,
+        openingDebit: opNet > 0 ? opNet : 0,
+        openingCredit: opNet < 0 ? Math.abs(opNet) : 0,
+        closingDebit: clNet > 0 ? clNet : 0,
+        closingCredit: clNet < 0 ? Math.abs(clNet) : 0,
         level: 0,
         ledgerId: l.ledgerId,
         children: [],
@@ -140,28 +148,25 @@ function TrialBalanceContent({
     // Roll up ledger balances to all ancestor groups
     activeLedgers.forEach((l, idx) => {
       const node = ledgerNodes[idx];
-      const d = node.debit;
-      const c = node.credit;
-      if (d === 0 && c === 0) return;
+      const od = node.openingDebit;
+      const oc = node.openingCredit;
+      const cd = node.closingDebit;
+      const cc = node.closingCredit;
+      if (od === 0 && oc === 0 && cd === 0 && cc === 0) return;
 
       let currentGroupId = l.groupId;
       let depth = 0;
       while (currentGroupId && depth < 10) {
         const parentGroup = groupMap.get(currentGroupId);
         if (!parentGroup) break;
-        parentGroup.debit += d;
-        parentGroup.credit += c;
+        parentGroup.openingDebit += od;
+        parentGroup.openingCredit += oc;
+        parentGroup.closingDebit += cd;
+        parentGroup.closingCredit += cc;
         const groupInfo = activeGroups.find((g) => g.groupId === currentGroupId);
         currentGroupId = groupInfo ? (groupInfo.parentGroupId ?? null) : null;
         depth++;
       }
-    });
-
-    // Net each group node
-    groupNodes.forEach((node) => {
-      const net = node.debit - node.credit;
-      node.debit = net > 0 ? net : 0;
-      node.credit = net < 0 ? Math.abs(net) : 0;
     });
 
     const rootNodes: TreeNode[] = [];
@@ -205,9 +210,20 @@ function TrialBalanceContent({
         })
         .filter((node) => {
           if (node.type === "ledger") {
-            return node.debit !== 0 || node.credit !== 0;
+            return (
+              node.openingDebit !== 0 ||
+              node.openingCredit !== 0 ||
+              node.closingDebit !== 0 ||
+              node.closingCredit !== 0
+            );
           }
-          return node.children.length > 0 || node.debit !== 0 || node.credit !== 0;
+          return (
+            node.children.length > 0 ||
+            node.openingDebit !== 0 ||
+            node.openingCredit !== 0 ||
+            node.closingDebit !== 0 ||
+            node.closingCredit !== 0
+          );
         })
         .sort((a, b) => a.name.localeCompare(b.name));
     };
@@ -228,38 +244,6 @@ function TrialBalanceContent({
 
   const { finalizedRoots, activeLedgers } = buildTreeData();
 
-  // If detailed view toggled, expand all groups by default
-  useEffect(() => {
-    if (isDetailed) {
-      const allGroupIds = new Set<string>();
-      const collectIds = (nodes: TreeNode[]) => {
-        nodes.forEach((n) => {
-          if (n.type === "group") {
-            allGroupIds.add(n.id);
-            collectIds(n.children);
-          }
-        });
-      };
-      collectIds(finalizedRoots);
-      setExpandedGroups(allGroupIds);
-    } else {
-      setExpandedGroups(new Set());
-    }
-  }, [isDetailed, ledgers, groups, removedLines]);
-
-  // Expand / collapse single group helper
-  const toggleGroupExpand = (id: string) => {
-    setExpandedGroups((prev) => {
-      const copy = new Set(prev);
-      if (copy.has(id)) {
-        copy.delete(id);
-      } else {
-        copy.add(id);
-      }
-      return copy;
-    });
-  };
-
   // Generate flat visible rows list
   const getVisibleRows = () => {
     const rows: TreeNode[] = [];
@@ -279,8 +263,7 @@ function TrialBalanceContent({
 
         rows.push(n);
 
-        // If search is active, show all matched children regardless of collapsed state
-        const isExpanded = searchTerm ? true : expandedGroups.has(n.id);
+        const isExpanded = searchTerm ? true : isDetailed;
         if (n.type === "group" && isExpanded && n.children.length > 0) {
           traverse(n.children);
         }
@@ -316,18 +299,31 @@ function TrialBalanceContent({
   };
 
   // Grand totals computation using netted balances
-  const totalDebit = activeLedgers.reduce((sum, l) => {
-    const net = l.debit - l.credit;
+  const grandOpeningDebit = activeLedgers.reduce((sum, l) => {
+    const net = l.openingDebit - l.openingCredit;
     return sum + (net > 0 ? net : 0);
   }, 0);
-  const totalCredit = activeLedgers.reduce((sum, l) => {
-    const net = l.debit - l.credit;
+
+  const grandOpeningCredit = activeLedgers.reduce((sum, l) => {
+    const net = l.openingDebit - l.openingCredit;
     return sum + (net < 0 ? Math.abs(net) : 0);
   }, 0);
-  const balanceDiff = Math.abs(totalDebit - totalCredit);
-  const hasDiff = balanceDiff > 0.01;
 
-  const finalTotal = Math.max(totalDebit, totalCredit);
+  const grandClosingDebit = activeLedgers.reduce((sum, l) => {
+    const net = (l.openingDebit + l.periodDebit) - (l.openingCredit + l.periodCredit);
+    return sum + (net > 0 ? net : 0);
+  }, 0);
+
+  const grandClosingCredit = activeLedgers.reduce((sum, l) => {
+    const net = (l.openingDebit + l.periodDebit) - (l.openingCredit + l.periodCredit);
+    return sum + (net < 0 ? Math.abs(net) : 0);
+  }, 0);
+
+  const openingDiff = Math.abs(grandOpeningDebit - grandOpeningCredit);
+  const closingDiff = Math.abs(grandClosingDebit - grandClosingCredit);
+  const hasOpeningDiff = openingDiff > 0.01;
+  const hasClosingDiff = closingDiff > 0.01;
+  const hasAnyDiff = hasOpeningDiff || hasClosingDiff;
 
   // Apply Period to URL params
   const handleApplyPeriod = () => {
@@ -433,10 +429,25 @@ function TrialBalanceContent({
 
         {/* Table Header Columns */}
         <div className="grid grid-cols-12 border-b border-border bg-muted/40 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-          <div className="col-span-8 p-3.5 border-r border-border pl-4">Particulars</div>
-          <div className="col-span-4 grid grid-cols-2 text-right">
-            <div className="p-3.5 border-r border-border">Debit</div>
-            <div className="p-3.5">Credit</div>
+          {/* Particulars Title */}
+          <div className="col-span-6 p-3.5 border-r border-border pl-4 flex items-center">
+            Particulars
+          </div>
+          {/* Opening Balance Column Group */}
+          <div className="col-span-3 border-r border-border flex flex-col text-center">
+            <div className="p-2 border-b border-border font-bold">Opening Balance</div>
+            <div className="grid grid-cols-2 text-right">
+              <div className="p-2 border-r border-border">Debit</div>
+              <div className="p-2">Credit</div>
+            </div>
+          </div>
+          {/* Closing Balance Column Group */}
+          <div className="col-span-3 flex flex-col text-center">
+            <div className="p-2 border-b border-border font-bold">Closing Balance</div>
+            <div className="grid grid-cols-2 text-right">
+              <div className="p-2 border-r border-border">Debit</div>
+              <div className="p-2">Credit</div>
+            </div>
           </div>
         </div>
 
@@ -453,18 +464,11 @@ function TrialBalanceContent({
               return (
                 <div
                   key={row.id}
-                  onClick={() => isGrp && toggleGroupExpand(row.id)}
-                  className="grid grid-cols-12 transition-colors cursor-pointer group/row hover:bg-muted/30 text-foreground"
+                  className="grid grid-cols-12 transition-colors group/row hover:bg-muted/30 text-foreground"
                 >
                   {/* Name cell with hierarchy indent */}
-                  <div className="col-span-8 p-3 border-r border-border flex items-center justify-between">
+                  <div className="col-span-6 p-3 border-r border-border flex items-center justify-between">
                     <div className={`flex items-center select-none ${getIndentationClass(row.level)}`}>
-                      {isGrp && (
-                        <span className="mr-1.5 text-muted-foreground font-mono text-xs font-bold w-3">
-                          {expandedGroups.has(row.id) ? "▼" : "▶"}
-                        </span>
-                      )}
-                      {!isGrp && <span className="w-3 mr-1.5" />}
                       {!isGrp ? (
                         <a
                           href={`/dashboard/reports/ledger-report?ledgerId=${row.ledgerId}`}
@@ -486,20 +490,30 @@ function TrialBalanceContent({
                         e.stopPropagation();
                         handleRemoveRow(row.name);
                       }}
-                      className="opacity-0 group-hover/row:opacity-100 transition-opacity text-[10px] text-destructive hover:underline p-1 ml-2 mr-2 no-print"
+                      className="opacity-0 group-hover/row:opacity-100 transition-opacity text-xs text-destructive hover:underline p-1 ml-2 mr-2 no-print"
                       title="Omit this row"
                     >
                       Omit
                     </button>
                   </div>
 
-                  {/* Debit and Credit totals */}
-                  <div className="col-span-4 grid grid-cols-2 text-right font-mono font-medium text-xs">
-                    <div className="p-3 border-r border-border flex items-center justify-end pr-3.5">
-                      {row.debit > 0 ? formatAmount(row.debit) : "—"}
+                  {/* Opening Balance Columns */}
+                  <div className="col-span-3 grid grid-cols-2 text-right font-mono font-medium text-xs border-r border-border">
+                    <div className="p-3 border-r border-border flex items-center justify-end pr-3.5 text-foreground/90">
+                      {row.openingDebit > 0 ? formatAmount(row.openingDebit) : "—"}
                     </div>
-                    <div className="p-3 flex items-center justify-end pr-3.5">
-                      {row.credit > 0 ? formatAmount(row.credit) : "—"}
+                    <div className="p-3 flex items-center justify-end pr-3.5 text-foreground/90">
+                      {row.openingCredit > 0 ? formatAmount(row.openingCredit) : "—"}
+                    </div>
+                  </div>
+
+                  {/* Closing Balance Columns */}
+                  <div className="col-span-3 grid grid-cols-2 text-right font-mono font-medium text-xs">
+                    <div className="p-3 border-r border-border flex items-center justify-end pr-3.5 text-foreground/90">
+                      {row.closingDebit > 0 ? formatAmount(row.closingDebit) : "—"}
+                    </div>
+                    <div className="p-3 flex items-center justify-end pr-3.5 text-foreground/90">
+                      {row.closingCredit > 0 ? formatAmount(row.closingCredit) : "—"}
                     </div>
                   </div>
                 </div>
@@ -508,37 +522,55 @@ function TrialBalanceContent({
           )}
 
           {/* Difference in trial balance row (balancing row) */}
-          {hasDiff && (
+          {hasAnyDiff && (
             <div className="grid grid-cols-12 bg-destructive/5 text-sm font-semibold text-destructive">
-              <div className="col-span-8 p-3 border-r border-border pl-4 flex items-center justify-between">
-                <span>Difference in Trial Balance</span>
-                <span className="text-[10px] bg-destructive/15 text-destructive px-1.5 py-0.5 rounded font-normal no-print">
+              <div className="col-span-6 p-3 border-r border-border pl-4 flex items-center justify-between">
+                <span>Difference in Opening / Closing Balances</span>
+                <span className="text-xs bg-destructive/15 text-destructive px-1.5 py-0.5 rounded font-normal no-print">
                   Unbalanced Books
                 </span>
               </div>
-              <div className="col-span-4 grid grid-cols-2 text-right font-mono font-bold text-xs">
+              {/* Opening Balance Diff */}
+              <div className="col-span-3 grid grid-cols-2 text-right font-mono font-bold text-xs border-r border-border">
                 <div className="p-3 border-r border-border pr-3.5">
-                  {totalDebit < totalCredit ? formatAmount(balanceDiff) : "—"}
+                  {hasOpeningDiff && grandOpeningDebit < grandOpeningCredit ? formatAmount(openingDiff) : "—"}
                 </div>
                 <div className="p-3 pr-3.5">
-                  {totalCredit < totalDebit ? formatAmount(balanceDiff) : "—"}
+                  {hasOpeningDiff && grandOpeningCredit < grandOpeningDebit ? formatAmount(openingDiff) : "—"}
+                </div>
+              </div>
+              {/* Closing Balance Diff */}
+              <div className="col-span-3 grid grid-cols-2 text-right font-mono font-bold text-xs">
+                <div className="p-3 border-r border-border pr-3.5">
+                  {hasClosingDiff && grandClosingDebit < grandClosingCredit ? formatAmount(closingDiff) : "—"}
+                </div>
+                <div className="p-3 pr-3.5">
+                  {hasClosingDiff && grandClosingCredit < grandClosingDebit ? formatAmount(closingDiff) : "—"}
                 </div>
               </div>
             </div>
           )}
         </div>
 
-        {/* Summary Totals Row */}
-        <div className="grid grid-cols-12 border-t-2 border-b-2 border-double border-border bg-muted/20 text-sm font-bold text-foreground">
-          <div className="col-span-8 p-3.5 border-r border-border pl-4 uppercase">
+        {/* Summary Grand Totals Row */}
+        <div className="grid grid-cols-12 border-t-2 border-b-4 border-double border-border bg-muted/20 text-sm font-bold text-foreground">
+          <div className="col-span-6 p-3.5 border-r border-border pl-4 uppercase">
             Grand Total
           </div>
-          <div className="col-span-4 grid grid-cols-2 text-right font-mono text-base font-extrabold">
-            <div className="p-3 border-r border-border pr-3.5">
-              ₹{formatAmount(finalTotal)}
+          <div className="col-span-3 grid grid-cols-2 text-right font-mono text-xs border-r border-border">
+            <div className="p-3.5 border-r border-border pr-3.5 font-extrabold text-foreground">
+              {formatAmount(grandOpeningDebit)}
             </div>
-            <div className="p-3 pr-3.5">
-              ₹{formatAmount(finalTotal)}
+            <div className="p-3.5 pr-3.5 font-extrabold text-foreground">
+              {formatAmount(grandOpeningCredit)}
+            </div>
+          </div>
+          <div className="col-span-3 grid grid-cols-2 text-right font-mono text-xs">
+            <div className="p-3.5 border-r border-border pr-3.5 font-extrabold text-foreground">
+              {formatAmount(grandClosingDebit)}
+            </div>
+            <div className="p-3.5 pr-3.5 font-extrabold text-foreground">
+              {formatAmount(grandClosingCredit)}
             </div>
           </div>
         </div>
@@ -568,8 +600,6 @@ function TrialBalanceContent({
           </div>
         </div>
       )}
-
-
 
       {/* Date Period selector dialog (Omitted during print) */}
       <Dialog open={showPeriodModal} onOpenChange={setShowPeriodModal}>

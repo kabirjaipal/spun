@@ -52,15 +52,17 @@ export default async function TrialBalancePage({
     .from(mLedgerGroups)
     .where(and(eq(mLedgerGroups.companyId, companyId), isNull(mLedgerGroups.deletedOn)));
 
-  // 3. Fetch Ledgers with balances matching the selected date range
+  // 3. Fetch Ledgers with opening and period balances
   const ledgers = await db
     .select({
       ledgerId: mLedgers.ledgerId,
       ledgerName: mLedgers.ledgerName,
       ledgerType: mLedgers.ledgerType,
       groupId: mLedgers.groupId,
-      debit: sql<number>`coalesce(sum(case when ${tVoucherEntries.entryType} = 'debit' and ${tVouchers.voucherId} is not null then ${tVoucherEntries.amount} else 0 end), 0)`,
-      credit: sql<number>`coalesce(sum(case when ${tVoucherEntries.entryType} = 'credit' and ${tVouchers.voucherId} is not null then ${tVoucherEntries.amount} else 0 end), 0)`,
+      openingDebit: sql<number>`coalesce(sum(case when ${tVoucherEntries.entryType} = 'debit' and ${tVouchers.voucherId} is not null and ${tVouchers.voucherDate} < ${fromDate} then ${tVoucherEntries.amount} else 0 end), 0)`,
+      openingCredit: sql<number>`coalesce(sum(case when ${tVoucherEntries.entryType} = 'credit' and ${tVouchers.voucherId} is not null and ${tVouchers.voucherDate} < ${fromDate} then ${tVoucherEntries.amount} else 0 end), 0)`,
+      periodDebit: sql<number>`coalesce(sum(case when ${tVoucherEntries.entryType} = 'debit' and ${tVouchers.voucherId} is not null and ${tVouchers.voucherDate} >= ${fromDate} and ${tVouchers.voucherDate} <= ${toDate} then ${tVoucherEntries.amount} else 0 end), 0)`,
+      periodCredit: sql<number>`coalesce(sum(case when ${tVoucherEntries.entryType} = 'credit' and ${tVouchers.voucherId} is not null and ${tVouchers.voucherDate} >= ${fromDate} and ${tVouchers.voucherDate} <= ${toDate} then ${tVoucherEntries.amount} else 0 end), 0)`,
     })
     .from(mLedgers)
     .leftJoin(
@@ -71,9 +73,7 @@ export default async function TrialBalancePage({
       tVouchers,
       and(
         eq(tVoucherEntries.voucherId, tVouchers.voucherId),
-        isNull(tVouchers.deletedOn),
-        gte(tVouchers.voucherDate, fromDate),
-        lte(tVouchers.voucherDate, toDate)
+        isNull(tVouchers.deletedOn)
       )
     )
     .where(and(eq(mLedgers.companyId, companyId), isNull(mLedgers.deletedOn)))
@@ -99,8 +99,10 @@ export default async function TrialBalancePage({
         ledgerName: l.ledgerName,
         ledgerType: l.ledgerType,
         groupId: l.groupId,
-        debit: Number(l.debit),
-        credit: Number(l.credit),
+        openingDebit: Number(l.openingDebit),
+        openingCredit: Number(l.openingCredit),
+        periodDebit: Number(l.periodDebit),
+        periodCredit: Number(l.periodCredit),
       }))}
       canExport={canExport}
     />
