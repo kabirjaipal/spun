@@ -77,6 +77,16 @@ function CashFlowSummaryContent({
     }).format(abs);
   };
 
+  const formatDateToTally = (dateStr: string) => {
+    const d = new Date(dateStr + "T00:00:00");
+    if (isNaN(d.getTime())) return dateStr;
+    const day = d.getDate();
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const month = months[d.getMonth()];
+    const year = String(d.getFullYear()).slice(-2);
+    return `${day}-${month}-${year}`;
+  };
+
   const handleRemoveLine = (name: string) => {
     setRemovedLines((prev) => [...prev, name]);
     setLastRemovedLine(name);
@@ -210,7 +220,7 @@ function CashFlowSummaryContent({
             {/* Header row */}
             <div className="flex justify-between items-center bg-muted/30 p-3 font-bold uppercase tracking-wider text-xs border-b border-border text-muted-foreground">
               <span>Inflow</span>
-              <span>1-Apr-25 to 30-Apr-25</span>
+              <span>{formatDateToTally(fromParam)} to {formatDateToTally(toParam)}</span>
             </div>
 
             {/* List items */}
@@ -271,7 +281,7 @@ function CashFlowSummaryContent({
             {/* Header row */}
             <div className="flex justify-between items-center bg-muted/30 p-3 font-bold uppercase tracking-wider text-xs border-b border-border text-muted-foreground">
               <span>Outflow</span>
-              <span>1-Apr-25 to 30-Apr-25</span>
+              <span>{formatDateToTally(fromParam)} to {formatDateToTally(toParam)}</span>
             </div>
 
             {/* List items */}

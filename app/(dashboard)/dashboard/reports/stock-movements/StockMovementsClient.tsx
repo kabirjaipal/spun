@@ -20,6 +20,8 @@ interface InventoryItem {
   inventoryId: number;
   inventoryName: string;
   unit: string;
+  openingStockQty: number;
+  openingStockRate: number;
 }
 
 interface StockMovement {
@@ -93,8 +95,9 @@ function StockMovementsContent({
       curr.setMonth(curr.getMonth() + 1);
     }
 
-    let runningQty = 0;
-    let runningVal = 0;
+    const item = items.find((i) => String(i.inventoryId) === selectedItemId);
+    let runningQty = item ? Number(item.openingStockQty || 0) : 0;
+    let runningVal = item ? Number(item.openingStockQty || 0) * Number(item.openingStockRate || 0) : 0;
 
     return monthsList.map((month) => {
       const monthMovements = movements.filter(
@@ -137,25 +140,27 @@ function StockMovementsContent({
         movements: monthMovements,
       };
     });
-  }, [startDate, endDate, movements, selectedItemId]);
+  }, [startDate, endDate, movements, selectedItemId, items]);
 
   const selectedMonthTotals = useMemo(() => {
-    if (!selectedMonth) return { inwardQtySum: 0, outwardQtySum: 0, valueSum: 0 };
+    if (!selectedMonth) return { inwardQtySum: 0, outwardQtySum: 0, inwardValueSum: 0, outwardValueSum: 0 };
     let inwardQtySum = 0;
     let outwardQtySum = 0;
-    let valueSum = 0;
+    let inwardValueSum = 0;
+    let outwardValueSum = 0;
 
     selectedMonth.movements.forEach((m: any) => {
       const isInward = m.movementType === "purchase" || m.movementType === "opening" || (m.movementType === "adjustment" && m.quantity >= 0);
       if (isInward) {
         inwardQtySum += m.quantity;
+        inwardValueSum += m.amount;
       } else {
         outwardQtySum += Math.abs(m.quantity);
+        outwardValueSum += m.amount;
       }
-      valueSum += m.amount;
     });
 
-    return { inwardQtySum, outwardQtySum, valueSum };
+    return { inwardQtySum, outwardQtySum, inwardValueSum, outwardValueSum };
   }, [selectedMonth]);
 
   // Search input inside item dropdown
@@ -212,13 +217,15 @@ function StockMovementsContent({
   const handleExportCSV = () => {
     if (!canExport) return;
     let csv = "data:text/csv;charset=utf-8,";
-    csv += "Date,Voucher No,Voucher Type,Item Name,Movement,Inward Qty,Outward Qty,Rate,Value\n";
+    csv += "Date,Voucher No,Voucher Type,Item Name,Movement,Inward Qty,Inward Value,Outward Qty,Outward Value,Rate\n";
 
     movements.forEach((m) => {
       const isInward = m.movementType === "purchase" || m.movementType === "opening" || (m.movementType === "adjustment" && m.quantity >= 0);
       const inwardQtyStr = isInward ? m.quantity.toFixed(2) : "";
+      const inwardValueStr = isInward ? m.amount.toFixed(2) : "";
       const outwardQtyStr = !isInward ? Math.abs(m.quantity).toFixed(2) : "";
-      csv += `"${m.voucherDate}","${m.voucherNo || "N/A"}","${m.voucherType || "N/A"}","${m.inventoryName}","${m.movementType}","${inwardQtyStr}","${outwardQtyStr}","${m.rate.toFixed(2)}","${m.amount.toFixed(2)}"\n`;
+      const outwardValueStr = !isInward ? m.amount.toFixed(2) : "";
+      csv += `"${m.voucherDate}","${m.voucherNo || "N/A"}","${m.voucherType || "N/A"}","${m.inventoryName}","${m.movementType}","${inwardQtyStr}","${inwardValueStr}","${outwardQtyStr}","${outwardValueStr}","${m.rate.toFixed(2)}"\n`;
     });
 
     const encodedUri = encodeURI(csv);
@@ -234,19 +241,21 @@ function StockMovementsContent({
   const totals = useMemo(() => {
     let inwardQtySum = 0;
     let outwardQtySum = 0;
-    let valueSum = 0;
+    let inwardValueSum = 0;
+    let outwardValueSum = 0;
 
     movements.forEach((m) => {
       const isInward = m.movementType === "purchase" || m.movementType === "opening" || (m.movementType === "adjustment" && m.quantity >= 0);
       if (isInward) {
         inwardQtySum += m.quantity;
+        inwardValueSum += m.amount;
       } else {
         outwardQtySum += Math.abs(m.quantity);
+        outwardValueSum += m.amount;
       }
-      valueSum += m.amount;
     });
 
-    return { inwardQtySum, outwardQtySum, valueSum };
+    return { inwardQtySum, outwardQtySum, inwardValueSum, outwardValueSum };
   }, [movements]);
 
   return (
@@ -451,25 +460,27 @@ function StockMovementsContent({
               })}
             </tbody>
             <tfoot>
-              <tr className="border-t-2 border-b-2 border-border font-bold bg-muted/20 text-xs">
+              <tr className="border-t border-b-4 border-double border-border font-bold bg-muted/20 text-xs">
                 <td className="p-3 text-left font-bold border-r border-border text-foreground">
                   Grand Total
                 </td>
                 <td className="p-2 text-right border-r border-border font-mono text-foreground font-bold">
-                  {totals.inwardQtySum > 0 ? totals.inwardQtySum.toFixed(2) : "—"}
+                  {totals.inwardQtySum > 0 ? formatQty(totals.inwardQtySum, movements[0]?.unit || "pcs") : "—"}
                 </td>
                 <td className="p-2 text-right border-r border-border font-mono text-emerald-600 font-bold">
                   ₹{formatAmount(monthlySummary.reduce((sum, item) => sum + item.inwardValue, 0))}
                 </td>
                 <td className="p-2 text-right border-r border-border font-mono text-foreground font-bold">
-                  {totals.outwardQtySum > 0 ? totals.outwardQtySum.toFixed(2) : "—"}
+                  {totals.outwardQtySum > 0 ? formatQty(totals.outwardQtySum, movements[0]?.unit || "pcs") : "—"}
                 </td>
                 <td className="p-2 text-right border-r border-border font-mono text-amber-600 font-bold">
                   ₹{formatAmount(monthlySummary.reduce((sum, item) => sum + item.outwardValue, 0))}
                 </td>
-                <td className="p-2 border-r border-border"></td>
+                <td className="p-2 text-right border-r border-border font-mono font-bold text-foreground">
+                  {monthlySummary.length > 0 ? formatQty(monthlySummary[monthlySummary.length - 1].closingQty, movements[0]?.unit || "pcs") : "—"}
+                </td>
                 <td className="p-3 text-right font-mono font-bold text-foreground text-sm">
-                  ₹{formatAmount(totals.valueSum)}
+                  ₹{formatAmount(monthlySummary.length > 0 ? monthlySummary[monthlySummary.length - 1].closingValue : 0)}
                 </td>
               </tr>
             </tfoot>
@@ -479,21 +490,22 @@ function StockMovementsContent({
           <table className="w-full text-sm border-collapse border border-border">
             <thead>
               <tr className="bg-muted/40 border-b border-border text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                <th className="p-3 text-left border-r border-border w-[12%] font-bold text-foreground">Date</th>
-                <th className="p-3 text-left border-r border-border w-[15%] font-bold text-foreground">Voucher No</th>
-                <th className="p-3 text-left border-r border-border w-[15%] font-bold text-foreground">Voucher Type</th>
+                <th className="p-3 text-left border-r border-border w-[10%] font-bold text-foreground">Date</th>
+                <th className="p-3 text-left border-r border-border w-[12%] font-bold text-foreground">Voucher No</th>
+                <th className="p-3 text-left border-r border-border w-[12%] font-bold text-foreground">Voucher Type</th>
                 <th className="p-3 text-left border-r border-border font-bold text-foreground">Item Name</th>
-                <th className="p-3 text-left border-r border-border w-[10%] font-bold text-foreground">Type</th>
-                <th className="p-3 text-right border-r border-border w-[12%] font-bold text-foreground">Inward Qty</th>
-                <th className="p-3 text-right border-r border-border w-[12%] font-bold text-foreground">Outward Qty</th>
-                <th className="p-3 text-right border-r border-border w-[10%] font-bold text-foreground">Rate</th>
-                <th className="p-3 text-right w-[12%] font-bold text-foreground">Value</th>
+                <th className="p-3 text-left border-r border-border w-[8%] font-bold text-foreground">Type</th>
+                <th className="p-3 text-right border-r border-border w-[10%] font-bold text-foreground">Inward Qty</th>
+                <th className="p-3 text-right border-r border-border w-[10%] font-bold text-foreground">Inward Value</th>
+                <th className="p-3 text-right border-r border-border w-[10%] font-bold text-foreground">Outward Qty</th>
+                <th className="p-3 text-right border-r border-border w-[10%] font-bold text-foreground">Outward Value</th>
+                <th className="p-3 text-right w-[8%] font-bold text-foreground">Rate</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/60">
               {movements.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="p-8 text-center text-sm text-muted-foreground">
+                  <td colSpan={10} className="p-8 text-center text-sm text-muted-foreground">
                     No movements recorded in this period.
                   </td>
                 </tr>
@@ -528,14 +540,17 @@ function StockMovementsContent({
                       <td className="p-2.5 text-right border-r border-border font-mono text-emerald-600 dark:text-emerald-500 font-semibold">
                         {isInward ? formatQty(m.quantity, m.unit) : "—"}
                       </td>
+                      <td className="p-2.5 text-right border-r border-border font-mono text-emerald-600 dark:text-emerald-500 font-semibold">
+                        {isInward ? `₹${formatAmount(m.amount)}` : "—"}
+                      </td>
                       <td className="p-2.5 text-right border-r border-border font-mono text-amber-600 dark:text-amber-500 font-semibold">
                         {!isInward ? formatQty(Math.abs(m.quantity), m.unit) : "—"}
                       </td>
-                      <td className="p-2.5 text-right border-r border-border font-mono text-muted-foreground">
-                        {m.rate > 0 ? `₹${formatAmount(m.rate)}` : "—"}
+                      <td className="p-2.5 text-right border-r border-border font-mono text-amber-600 dark:text-amber-500 font-semibold">
+                        {!isInward ? `₹${formatAmount(m.amount)}` : "—"}
                       </td>
-                      <td className="p-2.5 text-right font-mono text-foreground font-bold">
-                        ₹{formatAmount(m.amount)}
+                      <td className="p-2.5 text-right font-mono text-muted-foreground">
+                        {m.rate > 0 ? `₹${formatAmount(m.rate)}` : "—"}
                       </td>
                     </tr>
                   );
@@ -543,20 +558,23 @@ function StockMovementsContent({
               )}
             </tbody>
             <tfoot>
-              <tr className="border-t-2 border-b-2 border-border font-bold bg-muted/20 text-xs">
+              <tr className="border-t border-b-4 border-double border-border font-bold bg-muted/20 text-xs">
                 <td colSpan={5} className="p-3 text-left font-bold border-r border-border text-foreground">
                   Grand Total
                 </td>
                 <td className="p-2 text-right border-r border-border font-mono text-emerald-600 dark:text-emerald-500 font-bold">
-                  {totals.inwardQtySum > 0 ? totals.inwardQtySum.toFixed(2) : "—"}
+                  {totals.inwardQtySum > 0 ? formatQty(totals.inwardQtySum, movements[0]?.unit || "pcs") : "—"}
+                </td>
+                <td className="p-2 text-right border-r border-border font-mono text-emerald-600 dark:text-emerald-500 font-bold">
+                  {totals.inwardValueSum > 0 ? `₹${formatAmount(totals.inwardValueSum)}` : "—"}
                 </td>
                 <td className="p-2 text-right border-r border-border font-mono text-amber-600 dark:text-amber-500 font-bold">
-                  {totals.outwardQtySum > 0 ? totals.outwardQtySum.toFixed(2) : "—"}
+                  {totals.outwardQtySum > 0 ? formatQty(totals.outwardQtySum, movements[0]?.unit || "pcs") : "—"}
                 </td>
-                <td className="p-2 border-r border-border"></td>
-                <td className="p-3 text-right font-mono font-bold text-foreground text-sm">
-                  ₹{formatAmount(totals.valueSum)}
+                <td className="p-2 text-right border-r border-border font-mono text-amber-600 dark:text-amber-500 font-bold">
+                  {totals.outwardValueSum > 0 ? `₹${formatAmount(totals.outwardValueSum)}` : "—"}
                 </td>
+                <td className="p-3 border-0"></td>
               </tr>
             </tfoot>
           </table>
@@ -616,21 +634,22 @@ function StockMovementsContent({
               <table className="w-full text-sm border-collapse border border-border">
                 <thead>
                   <tr className="bg-muted/40 border-b border-border text-xs font-bold uppercase tracking-wider text-muted-foreground font-semibold">
-                    <th className="p-3 text-left border-r border-border w-[12%] font-bold text-foreground">Date</th>
-                    <th className="p-3 text-left border-r border-border w-[15%] font-bold text-foreground">Voucher No</th>
-                    <th className="p-3 text-left border-r border-border w-[15%] font-bold text-foreground">Voucher Type</th>
+                    <th className="p-3 text-left border-r border-border w-[10%] font-bold text-foreground">Date</th>
+                    <th className="p-3 text-left border-r border-border w-[12%] font-bold text-foreground">Voucher No</th>
+                    <th className="p-3 text-left border-r border-border w-[12%] font-bold text-foreground">Voucher Type</th>
                     <th className="p-3 text-left border-r border-border font-bold text-foreground">Item Name</th>
-                    <th className="p-3 text-left border-r border-border w-[10%] font-bold text-foreground">Type</th>
-                    <th className="p-3 text-right border-r border-border w-[12%] font-bold text-foreground">Inward Qty</th>
-                    <th className="p-3 text-right border-r border-border w-[12%] font-bold text-foreground">Outward Qty</th>
-                    <th className="p-3 text-right border-r border-border w-[10%] font-bold text-foreground">Rate</th>
-                    <th className="p-3 text-right w-[12%] font-bold text-foreground">Value</th>
+                    <th className="p-3 text-left border-r border-border w-[8%] font-bold text-foreground">Type</th>
+                    <th className="p-3 text-right border-r border-border w-[10%] font-bold text-foreground">Inward Qty</th>
+                    <th className="p-3 text-right border-r border-border w-[10%] font-bold text-foreground">Inward Value</th>
+                    <th className="p-3 text-right border-r border-border w-[10%] font-bold text-foreground">Outward Qty</th>
+                    <th className="p-3 text-right border-r border-border w-[10%] font-bold text-foreground">Outward Value</th>
+                    <th className="p-3 text-right w-[8%] font-bold text-foreground">Rate</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/60">
                   {selectedMonth?.movements.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="p-8 text-center text-sm text-muted-foreground">
+                      <td colSpan={10} className="p-8 text-center text-sm text-muted-foreground">
                         No movements recorded in this month.
                       </td>
                     </tr>
@@ -665,14 +684,17 @@ function StockMovementsContent({
                           <td className="p-2.5 text-right border-r border-border font-mono text-emerald-600 dark:text-emerald-500 font-semibold">
                             {isInward ? formatQty(m.quantity, m.unit) : "—"}
                           </td>
+                          <td className="p-2.5 text-right border-r border-border font-mono text-emerald-600 dark:text-emerald-500 font-semibold">
+                            {isInward ? `₹${formatAmount(m.amount)}` : "—"}
+                          </td>
                           <td className="p-2.5 text-right border-r border-border font-mono text-amber-600 dark:text-amber-500 font-semibold">
                             {!isInward ? formatQty(Math.abs(m.quantity), m.unit) : "—"}
                           </td>
-                          <td className="p-2.5 text-right border-r border-border font-mono text-muted-foreground">
-                            {m.rate > 0 ? `₹${formatAmount(m.rate)}` : "—"}
+                          <td className="p-2.5 text-right border-r border-border font-mono text-amber-600 dark:text-amber-500 font-semibold">
+                            {!isInward ? `₹${formatAmount(m.amount)}` : "—"}
                           </td>
-                          <td className="p-2.5 text-right font-mono text-foreground font-bold">
-                            ₹{formatAmount(m.amount)}
+                          <td className="p-2.5 text-right font-mono text-muted-foreground">
+                            {m.rate > 0 ? `₹${formatAmount(m.rate)}` : "—"}
                           </td>
                         </tr>
                       );
@@ -680,20 +702,23 @@ function StockMovementsContent({
                   )}
                 </tbody>
                 <tfoot>
-                  <tr className="border-t-2 border-b-2 border-border font-bold bg-muted/20 text-xs">
+                  <tr className="border-t border-b-4 border-double border-border font-bold bg-muted/20 text-xs">
                     <td colSpan={5} className="p-3 text-left font-bold border-r border-border text-foreground">
                       Monthly Total
                     </td>
                     <td className="p-2 text-right border-r border-border font-mono text-emerald-600 dark:text-emerald-500 font-bold">
-                      {selectedMonthTotals.inwardQtySum > 0 ? selectedMonthTotals.inwardQtySum.toFixed(2) : "—"}
+                      {selectedMonthTotals.inwardQtySum > 0 ? formatQty(selectedMonthTotals.inwardQtySum, selectedMonth?.movements[0]?.unit || "pcs") : "—"}
+                    </td>
+                    <td className="p-2 text-right border-r border-border font-mono text-emerald-600 dark:text-emerald-500 font-bold">
+                      {selectedMonthTotals.inwardValueSum > 0 ? `₹${formatAmount(selectedMonthTotals.inwardValueSum)}` : "—"}
                     </td>
                     <td className="p-2 text-right border-r border-border font-mono text-amber-600 dark:text-amber-500 font-bold">
-                      {selectedMonthTotals.outwardQtySum > 0 ? selectedMonthTotals.outwardQtySum.toFixed(2) : "—"}
+                      {selectedMonthTotals.outwardQtySum > 0 ? formatQty(selectedMonthTotals.outwardQtySum, selectedMonth?.movements[0]?.unit || "pcs") : "—"}
                     </td>
-                    <td className="p-2 border-r border-border"></td>
-                    <td className="p-3 text-right font-mono font-bold text-foreground text-sm">
-                      ₹{formatAmount(selectedMonthTotals.valueSum)}
+                    <td className="p-2 text-right border-r border-border font-mono text-amber-600 dark:text-amber-500 font-bold">
+                      {selectedMonthTotals.outwardValueSum > 0 ? `₹${formatAmount(selectedMonthTotals.outwardValueSum)}` : "—"}
                     </td>
+                    <td className="p-3 border-0"></td>
                   </tr>
                 </tfoot>
               </table>

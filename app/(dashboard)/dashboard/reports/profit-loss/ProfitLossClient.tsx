@@ -184,18 +184,23 @@ function ProfitLossContent({
     const net = l.debit - l.credit;
     const grp = topGroup(l.groupId);
 
-    if (l.ledgerType === "sales") {
+    const isSales = l.ledgerType === "sales" || grp.includes("sales");
+    const isIncome = l.ledgerType === "income" || grp.includes("income");
+    const isPurchase = l.ledgerType === "purchase" || grp.includes("purchase");
+    const isExpense = l.ledgerType === "expense" || grp.includes("expense");
+
+    if (isSales) {
       salesItems.push({ name: l.ledgerName, amount: l.credit - l.debit, ledgerId: l.ledgerId });
-    } else if (l.ledgerType === "income") {
+    } else if (isIncome) {
       const isDirect =
         grp.includes("direct") ||
         grp.includes("trading") ||
         grp.includes("revenue");
       if (isDirect) directIncItems.push({ name: l.ledgerName, amount: l.credit - l.debit, ledgerId: l.ledgerId });
       else indirectIncItems.push({ name: l.ledgerName, amount: l.credit - l.debit, ledgerId: l.ledgerId });
-    } else if (l.ledgerType === "purchase") {
+    } else if (isPurchase) {
       purchaseItems.push({ name: l.ledgerName, amount: net, ledgerId: l.ledgerId });
-    } else if (l.ledgerType === "expense") {
+    } else if (isExpense) {
       const isDirect =
         grp.includes("direct") ||
         grp.includes("trading") ||

@@ -334,6 +334,9 @@ function GroupOutstandingsContent({
     ? (currentMonth ? currentMonth.bills.filter((x: any) => x.type === "Cr").reduce((sum: number, x: any) => sum + x.pendingAmount, 0) : currentLedger.monthlyBills.reduce((sum: number, l: any) => sum + l.credit, 0)) 
     : ledgersToDisplay.reduce((sum: number, l: any) => sum + l.credit, 0);
 
+  const netPending = Math.abs(totalDebit - totalCredit);
+  const netPendingType = totalDebit >= totalCredit ? "Dr" : "Cr";
+
   const triggerPrint = () => {
     window.print();
   };
@@ -686,8 +689,8 @@ function GroupOutstandingsContent({
                   <td className="p-3 text-right font-mono">
                     {formatAmount(currentMonth.bills.reduce((sum: number, b: any) => sum + b.paidAmount, 0))}
                   </td>
-                  <td className="p-3 text-right border-l border-border font-mono text-base">
-                    {formatAmount(totalDebit || totalCredit)}
+                  <td className="p-3 text-right border-l border-border font-mono text-base text-foreground">
+                    {netPending > 0.01 ? `${formatAmount(netPending)} ${netPendingType}` : "—"}
                   </td>
                   <td colSpan={3}></td>
                 </tr>

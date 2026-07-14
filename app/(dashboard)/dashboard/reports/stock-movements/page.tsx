@@ -42,6 +42,8 @@ export default async function StockMovementsPage({
       inventoryId: mInventory.inventoryId,
       inventoryName: mInventory.inventoryName,
       unit: mInventory.unit,
+      openingStockQty: mInventory.openingStockQty,
+      openingStockRate: mInventory.openingStockRate,
     })
     .from(mInventory)
     .where(and(eq(mInventory.companyId, companyId), isNull(mInventory.deletedOn)))
@@ -109,6 +111,8 @@ export default async function StockMovementsPage({
         inventoryId: Number(i.inventoryId),
         inventoryName: i.inventoryName,
         unit: i.unit,
+        openingStockQty: Number(i.openingStockQty || 0),
+        openingStockRate: Number(i.openingStockRate || 0),
       }))}
       movements={movements.map((m) => ({
         stockMovementId: m.stockMovementId,

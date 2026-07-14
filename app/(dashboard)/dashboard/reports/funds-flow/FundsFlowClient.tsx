@@ -134,6 +134,15 @@ function FundsFlowContent({
   const grandClosing = activeSummary.length > 0 ? activeSummary[activeSummary.length - 1].closingWorkingCapital : 0;
   const grandFlow = grandClosing - grandOpening;
 
+  // Detailed month totals (if viewing detailed month)
+  const detailedOpening = detailedMonth
+    ? (detailedMonth.assets.reduce((sum, x) => sum + x.openingBalance, 0) + detailedMonth.openingStock) - detailedMonth.liabilities.reduce((sum, x) => sum + x.openingBalance, 0)
+    : 0;
+  const detailedClosing = detailedMonth
+    ? (detailedMonth.assets.reduce((sum, x) => sum + x.closingBalance, 0) + detailedMonth.closingStock) - detailedMonth.liabilities.reduce((sum, x) => sum + x.closingBalance, 0)
+    : 0;
+  const detailedFlow = detailedClosing - detailedOpening;
+
   // Recharts data format
   const chartData = activeSummary.map((item) => ({
     name: item.monthName.slice(0, 3), // e.g. "Apr"
@@ -438,15 +447,15 @@ function FundsFlowContent({
               <tr className="border-t border-border bg-muted/20 text-sm font-bold">
                 <td className="p-3 pl-6">Grand Total</td>
                 <td className="p-2 text-right border-l border-border font-mono">
-                  {formatAmount(grandOpening)}
+                  {formatAmount(detailedMonth ? detailedOpening : grandOpening)}
                 </td>
                 <td className="p-2 text-right border-l border-border font-mono">
-                  {formatAmount(grandClosing)}
+                  {formatAmount(detailedMonth ? detailedClosing : grandClosing)}
                 </td>
                 <td className={`p-2 text-right border-l border-border font-mono text-base ${
-                  grandFlow < 0 ? "text-destructive" : "text-primary"
+                  (detailedMonth ? detailedFlow : grandFlow) < 0 ? "text-destructive" : "text-primary"
                 }`}>
-                  {formatAmount(grandFlow)}
+                  {formatAmount(detailedMonth ? detailedFlow : grandFlow)}
                 </td>
               </tr>
             </tfoot>

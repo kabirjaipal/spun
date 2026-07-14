@@ -75,9 +75,7 @@ export default async function ProfitLossPage({
     .where(
       and(
         eq(mLedgers.companyId, companyId),
-        isNull(mLedgers.deletedOn),
-        // Only P&L account types
-        sql`${mLedgers.ledgerType} in ('sales', 'purchase', 'expense', 'income')`
+        isNull(mLedgers.deletedOn)
       )
     )
     .groupBy(mLedgers.ledgerId, mLedgers.ledgerName, mLedgers.ledgerType, mLedgers.groupId)
@@ -90,9 +88,9 @@ export default async function ProfitLossPage({
       inventoryId: mInventory.inventoryId,
       openingQty: mInventory.openingStockQty,
       openingRate: mInventory.openingStockRate,
-      qtyIn: sql<number>`coalesce(sum(case when ${tStockMovements.movementType} in ('purchase','opening') and ${tVouchers.voucherDate} < ${fromDate} then ${tStockMovements.quantity} else 0 end), 0)`,
-      qtyOut: sql<number>`coalesce(sum(case when ${tStockMovements.movementType} = 'sale' and ${tVouchers.voucherDate} < ${fromDate} then ${tStockMovements.quantity} else 0 end), 0)`,
-      avgRateIn: sql<number>`coalesce(avg(case when ${tStockMovements.movementType} in ('purchase','opening') then ${tStockMovements.rate} else null end), 0)`,
+      qtyIn: sql<number>`coalesce(sum(case when (${tStockMovements.movementType} in ('purchase','opening') or (${tStockMovements.movementType} = 'adjustment' and ${tStockMovements.quantity} >= 0)) and ${tVouchers.voucherDate} < ${fromDate} then ${tStockMovements.quantity} else 0 end), 0)`,
+      qtyOut: sql<number>`coalesce(sum(case when (${tStockMovements.movementType} = 'sale' or (${tStockMovements.movementType} = 'adjustment' and ${tStockMovements.quantity} < 0)) and ${tVouchers.voucherDate} < ${fromDate} then abs(${tStockMovements.quantity}) else 0 end), 0)`,
+      totalInwardVal: sql<number>`coalesce(sum(case when (${tStockMovements.movementType} in ('purchase','opening') or (${tStockMovements.movementType} = 'adjustment' and ${tStockMovements.quantity} >= 0)) and ${tVouchers.voucherDate} < ${fromDate} then (case when ${tStockMovements.amount} > 0 then ${tStockMovements.amount} else abs(${tStockMovements.quantity}) * (case when ${tStockMovements.rate} > 0 then ${tStockMovements.rate} else ${mInventory.openingStockRate} end) end) else 0 end), 0)`,
     })
     .from(mInventory)
     .leftJoin(
@@ -106,7 +104,9 @@ export default async function ProfitLossPage({
   let openingStock = 0;
   for (const item of openingStockData) {
     const qty = Number(item.openingQty) + Number(item.qtyIn) - Number(item.qtyOut);
-    const rate = Number(item.avgRateIn) > 0 ? Number(item.avgRateIn) : Number(item.openingRate);
+    const totalInwardQty = Number(item.openingQty) + Number(item.qtyIn);
+    const totalInwardVal = (Number(item.openingQty) * Number(item.openingRate)) + Number(item.totalInwardVal);
+    const rate = totalInwardQty > 0 ? totalInwardVal / totalInwardQty : Number(item.openingRate);
     openingStock += Math.max(0, qty) * rate;
   }
 
@@ -116,9 +116,9 @@ export default async function ProfitLossPage({
       inventoryId: mInventory.inventoryId,
       openingQty: mInventory.openingStockQty,
       openingRate: mInventory.openingStockRate,
-      qtyIn: sql<number>`coalesce(sum(case when ${tStockMovements.movementType} in ('purchase','opening') then ${tStockMovements.quantity} else 0 end), 0)`,
-      qtyOut: sql<number>`coalesce(sum(case when ${tStockMovements.movementType} = 'sale' then ${tStockMovements.quantity} else 0 end), 0)`,
-      avgRateIn: sql<number>`coalesce(avg(case when ${tStockMovements.movementType} in ('purchase','opening') then ${tStockMovements.rate} else null end), 0)`,
+      qtyIn: sql<number>`coalesce(sum(case when ${tStockMovements.movementType} in ('purchase','opening') or (${tStockMovements.movementType} = 'adjustment' and ${tStockMovements.quantity} >= 0) then ${tStockMovements.quantity} else 0 end), 0)`,
+      qtyOut: sql<number>`coalesce(sum(case when ${tStockMovements.movementType} = 'sale' or (${tStockMovements.movementType} = 'adjustment' and ${tStockMovements.quantity} < 0) then abs(${tStockMovements.quantity}) else 0 end), 0)`,
+      totalInwardVal: sql<number>`coalesce(sum(case when ${tStockMovements.movementType} in ('purchase','opening') or (${tStockMovements.movementType} = 'adjustment' and ${tStockMovements.quantity} >= 0) then (case when ${tStockMovements.amount} > 0 then ${tStockMovements.amount} else abs(${tStockMovements.quantity}) * (case when ${tStockMovements.rate} > 0 then ${tStockMovements.rate} else ${mInventory.openingStockRate} end) end) else 0 end), 0)`,
     })
     .from(mInventory)
     .leftJoin(
@@ -132,7 +132,7 @@ export default async function ProfitLossPage({
         isNull(mInventory.deletedOn),
         or(
           isNull(tStockMovements.voucherId),
-          and(isNull(tVouchers.deletedOn), lte(tVouchers.voucherDate, toDate))
+          lte(tVouchers.voucherDate, toDate)
         )
       )
     )
@@ -141,7 +141,9 @@ export default async function ProfitLossPage({
   let closingStock = 0;
   for (const item of closingStockData) {
     const qty = Number(item.openingQty) + Number(item.qtyIn) - Number(item.qtyOut);
-    const rate = Number(item.avgRateIn) > 0 ? Number(item.avgRateIn) : Number(item.openingRate);
+    const totalInwardQty = Number(item.openingQty) + Number(item.qtyIn);
+    const totalInwardVal = (Number(item.openingQty) * Number(item.openingRate)) + Number(item.totalInwardVal);
+    const rate = totalInwardQty > 0 ? totalInwardVal / totalInwardQty : Number(item.openingRate);
     closingStock += Math.max(0, qty) * rate;
   }
 

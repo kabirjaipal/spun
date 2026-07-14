@@ -121,9 +121,8 @@ export default async function CashFlowSummaryPage({
       )
     );
 
-  // Map to store accumulated inflows/outflows per ledger
-  const ledgerInflows = new Map<number, number>();
-  const ledgerOutflows = new Map<number, number>();
+  // Map to store net cash flow per ledger (credits add, debits subtract)
+  const ledgerNetCashFlow = new Map<number, number>();
 
   if (vouchers.length > 0) {
     const voucherIds = vouchers.map((v) => v.voucherId);
@@ -164,23 +163,26 @@ export default async function CashFlowSummaryPage({
 
       if (Math.abs(netCashBankChange) < 0.009) return;
 
-      if (netCashBankChange > 0) {
-        // Net Inflow: Source is the credits of other ledgers
-        otherLeg.forEach((e) => {
-          const amt = Number(e.amount);
-          const val = e.entryType === "credit" ? amt : -amt;
-          ledgerInflows.set(e.ledgerId, (ledgerInflows.get(e.ledgerId) || 0) + val);
-        });
-      } else {
-        // Net Outflow: Destination is the debits of other ledgers
-        otherLeg.forEach((e) => {
-          const amt = Number(e.amount);
-          const val = e.entryType === "debit" ? amt : -amt;
-          ledgerOutflows.set(e.ledgerId, (ledgerOutflows.get(e.ledgerId) || 0) + val);
-        });
-      }
+      // Credit entries in other legs represent inflow (source of cash)
+      // Debit entries in other legs represent outflow (use of cash)
+      otherLeg.forEach((e) => {
+        const amt = Number(e.amount);
+        const val = e.entryType === "credit" ? amt : -amt;
+        ledgerNetCashFlow.set(e.ledgerId, (ledgerNetCashFlow.get(e.ledgerId) || 0) + val);
+      });
     });
   }
+
+  const ledgerInflows = new Map<number, number>();
+  const ledgerOutflows = new Map<number, number>();
+
+  ledgerNetCashFlow.forEach((netAmount, ledgerId) => {
+    if (netAmount > 0.009) {
+      ledgerInflows.set(ledgerId, netAmount);
+    } else if (netAmount < -0.009) {
+      ledgerOutflows.set(ledgerId, Math.abs(netAmount));
+    }
+  });
 
   // Helper to determine the top-level ledger group (recursing up to root group)
   const getTopLevelGroup = (groupId: number | null): { groupId: number; groupName: string } | null => {

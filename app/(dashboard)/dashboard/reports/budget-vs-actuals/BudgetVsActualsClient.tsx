@@ -102,6 +102,25 @@ function BudgetVsActualsContent({ company, ledgers, groups, canExport }: Props) 
     return `${dt.getDate()}-${months[dt.getMonth()]}-${String(dt.getFullYear()).slice(-2)}`;
   };
 
+  const isDebitNatured = (l: Ledger, groupName: string) => {
+    const type = l.ledgerType.toLowerCase();
+    const grp = groupName.toLowerCase();
+    return (
+      type === "expense" ||
+      type === "purchase" ||
+      type === "asset" ||
+      type === "cash" ||
+      type === "bank" ||
+      grp.includes("expense") ||
+      grp.includes("purchase") ||
+      grp.includes("asset") ||
+      grp.includes("cash") ||
+      grp.includes("bank") ||
+      grp.includes("stock") ||
+      grp.includes("hand")
+    );
+  };
+
   const activeLedgers = ledgers.filter((l) => !removedLines.includes(String(l.ledgerId)));
   const filteredLedgers = activeLedgers.filter((l) => {
     const term = searchQuery.toLowerCase();
@@ -219,6 +238,10 @@ function BudgetVsActualsContent({ company, ledgers, groups, canExport }: Props) 
                   const variance = actualVal - budgetVal;
                   const variancePercent = budgetVal > 0 ? (variance / budgetVal) * 100 : 0;
 
+                  const isDebit = isDebitNatured(l, getGroupName(l.groupId));
+                  const isFavorable = isDebit ? variance <= 0 : variance >= 0;
+                  const colorClass = isFavorable ? "text-primary" : "text-destructive";
+
                   return (
                     <tr key={l.ledgerId} className="group/row hover:bg-muted/10 transition-colors font-medium">
                       <td className="p-3 pl-6">
@@ -246,10 +269,10 @@ function BudgetVsActualsContent({ company, ledgers, groups, canExport }: Props) 
                         />
                       </td>
                       <td className="p-3 text-right border-l border-border font-mono">{formatAmount(actualVal)}</td>
-                      <td className={`p-3 text-right border-l border-border font-mono ${variance >= 0 ? "text-primary" : "text-destructive"}`}>
+                      <td className={`p-3 text-right border-l border-border font-mono ${colorClass}`}>
                         {formatAmount(variance)}
                       </td>
-                      <td className={`p-3 text-right border-l border-border font-mono text-xs ${variance >= 0 ? "text-primary" : "text-destructive"}`}>
+                      <td className={`p-3 text-right border-l border-border font-mono text-xs ${colorClass}`}>
                         {variancePercent.toFixed(1)}%
                       </td>
                     </tr>
@@ -262,10 +285,10 @@ function BudgetVsActualsContent({ company, ledgers, groups, canExport }: Props) 
                 <td className="p-3 pl-6" colSpan={2}>Total</td>
                 <td className="p-3 text-right border-l border-border font-mono text-foreground">{formatAmount(totalBudget)}</td>
                 <td className="p-3 text-right border-l border-border font-mono text-foreground">{formatAmount(totalActual)}</td>
-                <td className={`p-3 text-right border-l border-border font-mono ${totalVariance >= 0 ? "text-primary" : "text-destructive"}`}>
+                <td className="p-3 text-right border-l border-border font-mono text-foreground">
                   {formatAmount(totalVariance)}
                 </td>
-                <td className={`p-3 text-right border-l border-border font-mono text-xs ${totalVariance >= 0 ? "text-primary" : "text-destructive"}`}>
+                <td className="p-3 text-right border-l border-border font-mono text-xs text-foreground">
                   {totalVariancePercent.toFixed(1)}%
                 </td>
               </tr>

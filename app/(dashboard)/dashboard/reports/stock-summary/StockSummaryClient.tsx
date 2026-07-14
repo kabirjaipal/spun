@@ -607,6 +607,10 @@ function StockSummaryContent({
                   const groupNameKey = g.groupName;
                   const isGroupExpanded = expandedGroups[groupNameKey] ?? isDetailed;
                   const groupValue = g.items.reduce((s, item) => s + (item.closingValue || 0), 0);
+                  const firstUnit = g.items[0]?.unit || "";
+                  const hasSameUnit = g.items.every((item) => item.unit === firstUnit);
+                  const groupQty = hasSameUnit ? g.items.reduce((s, item) => s + (item.closingQty || 0), 0) : null;
+                  const groupRate = (groupQty && groupQty > 0) ? groupValue / groupQty : null;
 
                   return (
                     <React.Fragment key={groupNameKey}>
@@ -632,8 +636,12 @@ function StockSummaryContent({
                               </span>
                             </div>
                           </td>
-                          <td className="p-2 border-r border-border"></td>
-                          <td className="p-2 border-r border-border"></td>
+                          <td className="p-2 text-right border-r border-border font-mono font-bold text-foreground">
+                            {groupQty !== null ? formatQty(groupQty, firstUnit) : ""}
+                          </td>
+                          <td className="p-2 text-right border-r border-border font-mono font-semibold text-muted-foreground italic">
+                            {groupRate !== null ? formatAmount(groupRate) : ""}
+                          </td>
                           <td className="p-2 text-right font-mono font-bold text-foreground">
                             {groupValue > 0 ? formatAmount(groupValue) : "—"}
                           </td>
@@ -684,9 +692,22 @@ function StockSummaryContent({
               </tbody>
               <tfoot>
                 {/* Total Row with standard double lines */}
-                <tr className="border-t-2 border-b-2 border-border font-bold bg-muted/20 text-sm">
+                <tr className="border-t border-b-4 border-double border-border font-bold bg-muted/20 text-sm">
                   <td className="p-3 text-left font-bold border-r border-border text-foreground">Grand Total</td>
-                  <td className="p-2 border-r border-border"></td>
+                  <td className="p-2 border-r border-border text-right font-mono font-bold text-foreground">
+                    {(() => {
+                      const allReportItems = processedItems.filter((i) => !removedLines.includes(i.inventoryName));
+                      if (allReportItems.length > 0) {
+                        const firstUnit = allReportItems[0]?.unit;
+                        const hasSameUnit = allReportItems.every((item) => item.unit === firstUnit);
+                        if (hasSameUnit) {
+                          const totalQty = allReportItems.reduce((s, i) => s + (i.closingQty || 0), 0);
+                          return formatQty(totalQty, firstUnit);
+                        }
+                      }
+                      return "";
+                    })()}
+                  </td>
                   <td className="p-2 border-r border-border"></td>
                   <td className="p-3 text-right font-mono font-bold text-foreground text-base">
                     {formatAmount(totalValueSum)}
@@ -726,47 +747,78 @@ function StockSummaryContent({
                     return gName === selectedGroup && !removedLines.includes(i.inventoryName);
                   });
 
-                  return itemsInGroup.map((item) => (
-                    <tr
-                      key={item.inventoryId}
-                      onClick={() => {
-                        setSelectedItemId(item.inventoryId);
-                        setCurrentScreen("monthly");
-                      }}
-                      className="hover:bg-muted/10 cursor-pointer border-b border-border/40 text-xs transition-colors"
-                    >
-                      <td className="p-3 text-left border-r border-border text-foreground font-semibold pl-3">
-                        <div className="flex justify-between items-center group/row">
-                          <span>{item.inventoryName}</span>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRemoveLine(item.inventoryName);
-                            }}
-                            className="opacity-0 group-hover/row:opacity-100 text-[10px] text-destructive hover:underline p-1 ml-2 no-print border-0 bg-transparent cursor-pointer"
-                          >
-                            Omit
-                          </button>
-                        </div>
-                      </td>
-                      <td className="p-2 text-right border-r border-border font-mono text-foreground font-semibold">
-                        {formatQty(item.closingQty, item.unit)}
-                      </td>
-                      <td className="p-2 text-right border-r border-border font-mono text-muted-foreground italic">
-                        {item.closingRate !== null ? formatAmount(item.closingRate) : "—"}
-                      </td>
-                      <td className="p-2 text-right font-mono text-foreground font-bold">
-                        {item.closingValue !== null ? formatAmount(item.closingValue) : "—"}
-                      </td>
-                    </tr>
-                  ));
+                  const firstUnit = itemsInGroup[0]?.unit || "";
+                  const hasSameUnit = itemsInGroup.every((item) => item.unit === firstUnit);
+                  const groupQty = hasSameUnit ? itemsInGroup.reduce((s, item) => s + (item.closingQty || 0), 0) : null;
+
+                  return (
+                    <>
+                      {itemsInGroup.map((item) => (
+                        <tr
+                          key={item.inventoryId}
+                          onClick={() => {
+                            setSelectedItemId(item.inventoryId);
+                            setCurrentScreen("monthly");
+                          }}
+                          className="hover:bg-muted/10 cursor-pointer border-b border-border/40 text-xs transition-colors"
+                        >
+                          <td className="p-3 text-left border-r border-border text-foreground font-semibold pl-3">
+                            <div className="flex justify-between items-center group/row">
+                              <span>{item.inventoryName}</span>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRemoveLine(item.inventoryName);
+                                }}
+                                className="opacity-0 group-hover/row:opacity-100 text-[10px] text-destructive hover:underline p-1 ml-2 no-print border-0 bg-transparent cursor-pointer"
+                              >
+                                Omit
+                              </button>
+                            </div>
+                          </td>
+                          <td className="p-2 text-right border-r border-border font-mono text-foreground font-semibold">
+                            {formatQty(item.closingQty, item.unit)}
+                          </td>
+                          <td className="p-2 text-right border-r border-border font-mono text-muted-foreground italic">
+                            {item.closingRate !== null ? formatAmount(item.closingRate) : "—"}
+                          </td>
+                          <td className="p-2 text-right font-mono text-foreground font-bold">
+                            {item.closingValue !== null ? formatAmount(item.closingValue) : "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </>
+                  );
                 })()}
               </tbody>
               <tfoot>
                 {/* Total Row */}
-                <tr className="border-t-2 border-b-2 border-border font-bold bg-muted/20 text-sm">
+                <tr className="border-t border-b-4 border-double border-border font-bold bg-muted/20 text-sm">
                   <td className="p-3 text-left font-bold border-r border-border text-foreground">Grand Total</td>
-                  <td className="p-2 border-r border-border"></td>
+                  <td className="p-2 border-r border-border text-right font-mono font-bold text-foreground">
+                    {(() => {
+                      const itemsInGroup = processedItems.filter((i) => {
+                        let gName = "";
+                        if (grouping === "group") {
+                          const grp = groups.find((g) => g.groupId === i.inventoryGroupId);
+                          if (grp) gName = grp.groupName;
+                        } else {
+                          const cat = categories.find((c) => c.categoryId === i.inventoryCategoryId);
+                          if (cat) gName = cat.categoryName;
+                        }
+                        return gName === selectedGroup && !removedLines.includes(i.inventoryName);
+                      });
+                      if (itemsInGroup.length > 0) {
+                        const firstUnit = itemsInGroup[0]?.unit;
+                        const hasSameUnit = itemsInGroup.every((item) => item.unit === firstUnit);
+                        if (hasSameUnit) {
+                          const totalQty = itemsInGroup.reduce((s, i) => s + (i.closingQty || 0), 0);
+                          return formatQty(totalQty, firstUnit);
+                        }
+                      }
+                      return "";
+                    })()}
+                  </td>
                   <td className="p-2 border-r border-border"></td>
                   <td className="p-3 text-right font-mono font-bold text-foreground text-base">
                     {formatAmount(totalValueSum)}

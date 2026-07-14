@@ -36,6 +36,7 @@ interface BalanceSheetClientProps {
   groups: LedgerGroup[];
   ledgers: Ledger[];
   calculatedClosingStock: number;
+  calculatedOpeningStock: number;
   canExport: boolean;
 }
 
@@ -46,6 +47,7 @@ function BalanceSheetContent({
   groups,
   ledgers,
   calculatedClosingStock,
+  calculatedOpeningStock,
   canExport,
 }: BalanceSheetClientProps) {
   const router = useRouter();
@@ -192,6 +194,11 @@ function BalanceSheetContent({
       const sub = getSubGroup(l.groupId || null, l.ledgerType);
       const name = l.ledgerName;
 
+      // Skip stock ledger balances (opening stock) in assets list, as closing stock is added separately
+      if (sub.toLowerCase().includes("stock")) {
+        return;
+      }
+
       if (isLiabilityGroup(sub)) {
         if (!liabilitiesGroups[sub]) liabilitiesGroups[sub] = [];
         liabilitiesGroups[sub].push({ name, amount: -bal, ledgerId: l.ledgerId });
@@ -205,7 +212,7 @@ function BalanceSheetContent({
       assetsGroups["Stock-in-hand"] = [{ name: "Closing Stock", amount: calculatedClosingStock }];
     }
 
-    const netProfitVal = salesTotal + calculatedClosingStock - purchaseTotal - expensesTotal + incomeTotal;
+    const netProfitVal = salesTotal + calculatedClosingStock - calculatedOpeningStock - purchaseTotal - expensesTotal + incomeTotal;
 
     const liabilitiesList = Object.entries(liabilitiesGroups).map(([name, items]) => ({
       name,

@@ -105,7 +105,7 @@ function GstReportContent({
   // -------------------------------------------------------------
   const getVoucherErrors = (v: Voucher) => {
     const errors: string[] = [];
-    const isGstVoucher = ["sale", "purchase", "credit_note", "debit_note"].includes(v.voucherType);
+    const isGstVoucher = ["sale", "purchase", "credit_note", "debit_note", "sales_return", "purchase_return"].includes(v.voucherType);
     if (!isGstVoucher) return errors;
 
     if (v.items.length === 0) {
@@ -137,15 +137,15 @@ function GstReportContent({
   // Triangulation Categorization
   const uncertainVouchers = vouchers.filter((v) => getVoucherErrors(v).length > 0);
   const includedVouchers = vouchers.filter(
-    (v) => ["sale", "purchase", "credit_note", "debit_note"].includes(v.voucherType) && getVoucherErrors(v).length === 0
+    (v) => ["sale", "purchase", "credit_note", "debit_note", "sales_return", "purchase_return"].includes(v.voucherType) && getVoucherErrors(v).length === 0
   );
-  const notRelevantVouchers = vouchers.filter((v) => !["sale", "purchase", "credit_note", "debit_note"].includes(v.voucherType));
+  const notRelevantVouchers = vouchers.filter((v) => !["sale", "purchase", "credit_note", "debit_note", "sales_return", "purchase_return"].includes(v.voucherType));
 
   // -------------------------------------------------------------
   // GSTR-1 DATASHEET ROLLUPS
   // -------------------------------------------------------------
   const sales = includedVouchers.filter((v) => v.voucherType === "sale");
-  const notes = includedVouchers.filter((v) => ["credit_note", "debit_note"].includes(v.voucherType));
+  const notes = includedVouchers.filter((v) => ["credit_note", "sales_return"].includes(v.voucherType));
 
   // 1. B2B Invoices (Registered Customer)
   const gstr1B2B = sales.filter((v) => v.partyGstNo && v.partyGstNo.trim().length === 15);
@@ -195,8 +195,8 @@ function GstReportContent({
     let sgst = 0;
 
     list.forEach((v) => {
-      // Credit note values are subtracted to reflect return adjustments
-      const sign = v.voucherType === "credit_note" ? -1 : 1;
+      // Credit note and returns are subtracted to reflect return adjustments
+      const sign = ["credit_note", "purchase_return", "sales_return", "debit_note"].includes(v.voucherType) ? -1 : 1;
       invoiceValue += v.netAmount * sign;
       v.items.forEach((item) => {
         taxableValue += item.taxableAmount * sign;
@@ -220,7 +220,7 @@ function GstReportContent({
   // -------------------------------------------------------------
   // GSTR-3B DATASHEET ROLLUPS
   // -------------------------------------------------------------
-  const purchases = includedVouchers.filter((v) => v.voucherType === "purchase");
+  const purchases = includedVouchers.filter((v) => ["purchase", "purchase_return", "debit_note"].includes(v.voucherType));
 
   // Table 3.1 (a) Outward Taxable Supplies (excluding zero-rated, nil-rated, exempted)
   const gstr3bOutwardTaxable = sales.filter((v) => v.items.some((i) => i.taxPercent > 0));
@@ -320,8 +320,8 @@ function GstReportContent({
     });
 
     includedVouchers.forEach((v) => {
-      const isSale = ["sale", "credit_note", "debit_note"].includes(v.voucherType);
-      const sign = v.voucherType === "credit_note" ? -1 : 1;
+      const isSale = ["sale", "credit_note", "sales_return"].includes(v.voucherType);
+      const sign = ["credit_note", "purchase_return", "sales_return", "debit_note"].includes(v.voucherType) ? -1 : 1;
 
       v.items.forEach((item) => {
         const rate = item.taxPercent;

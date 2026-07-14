@@ -110,18 +110,18 @@ function RatioAnalysisContent({
 
   // Current Ratio = Current Assets : Current Liabilities
   const currentRatio = data.currentLiabilities !== 0 
-    ? (data.currentAssets / data.currentLiabilities).toFixed(2) 
+    ? Math.abs(data.currentAssets / data.currentLiabilities).toFixed(2) 
     : "0.00";
 
   // Quick Ratio = (Current Assets - Closing Stock) : Current Liabilities
   const quickRatio = data.currentLiabilities !== 0 
-    ? ((data.currentAssets - data.closingStock) / data.currentLiabilities).toFixed(2) 
+    ? Math.abs((data.currentAssets - data.closingStock) / data.currentLiabilities).toFixed(2) 
     : "0.00";
 
   // Debt/Equity = Loans Liability : (Capital Account + Net Profit)
   const equity = data.capitalAccount + data.netProfit;
   const debtEquityRatio = equity !== 0 
-    ? (data.loansLiability / equity).toFixed(2) 
+    ? Math.abs(data.loansLiability / equity).toFixed(2) 
     : "0.00";
 
   // GP % = Gross Profit / Sales Accounts
