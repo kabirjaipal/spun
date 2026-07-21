@@ -1,8 +1,8 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { mInventory, mTaxRates, mCompanies, mLedgerGroups, mLedgers } from "@/lib/db/schema";
-import { and, eq, isNull, inArray } from "drizzle-orm";
+import { mInventory, mTaxRates, mCompanies, mLedgerGroups, mLedgers, tVouchers } from "@/lib/db/schema";
+import { and, eq, isNull, inArray, desc } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
 import { APP_NAME } from "@/lib/constants";
 import SalesReturnClient from "./SalesReturnClient";
@@ -40,7 +40,7 @@ export default async function SalesReturnPage() {
     getDescendants(targetGroup.groupId);
   }
 
-  const [companies, inventory, taxRates, company] = await Promise.all([
+  const [companies, inventory, taxRates, company, pastVouchers] = await Promise.all([
     groupIds.length > 0
       ? db
           .select()
@@ -76,14 +76,45 @@ export default async function SalesReturnPage() {
     db.query.mCompanies.findFirst({
       where: eq(mCompanies.companyId, companyId),
     }),
+    db
+      .select({
+        voucherId: tVouchers.voucherId,
+        voucherNo: tVouchers.voucherNo,
+        voucherDate: tVouchers.voucherDate,
+        status: tVouchers.status,
+        totalAmount: tVouchers.totalAmount,
+        taxAmount: tVouchers.taxAmount,
+        netAmount: tVouchers.netAmount,
+        remarks: tVouchers.remarks,
+        partyId: tVouchers.partyId,
+      })
+      .from(tVouchers)
+      .where(and(eq(tVouchers.companyId, companyId), eq(tVouchers.voucherType, "credit_note"), isNull(tVouchers.deletedOn)))
+      .orderBy(desc(tVouchers.voucherDate), desc(tVouchers.voucherId))
+      .limit(50)
   ]);
 
   const perms = getStaticPermissionsForRole(session.user.role as Role);
   const p = perms.find((x) => x.accessItem === "sales_return") || perms.find((x) => x.accessItem === "sales") || { c: true };
 
+  // Resolve parties for the past vouchers
+  const partyIds = pastVouchers.map((v) => v.partyId).filter(Boolean) as number[];
+  const pastParties = partyIds.length > 0
+    ? await db.select().from(mCompanies).where(inArray(mCompanies.companyId, partyIds))
+    : [];
+
+  const vouchersWithParties = pastVouchers.map((v) => ({
+    ...v,
+    party: pastParties.find((p) => p.companyId === v.partyId) ? {
+      name: pastParties.find((p) => p.companyId === v.partyId)!.companyName,
+      gstNo: pastParties.find((p) => p.companyId === v.partyId)!.gstNo,
+      address: pastParties.find((p) => p.companyId === v.partyId)!.address,
+    } : null,
+  }));
+
   return (
     <SalesReturnClient
-      company={company ? { companyName: company.companyName, gstNo: company.gstNo, address: company.address, companyType: company.companyType, state: company.state } : { companyName: `{APP_NAME} Company`, companyType: "general", state: null }}
+      company={company ? { companyName: company.companyName, gstNo: company.gstNo, address: company.address, companyType: company.companyType, state: company.state } : { companyName: `${APP_NAME} Company`, companyType: "general", state: null }}
       companies={companies.map((comp) => ({
         companyId: comp.companyId,
         companyName: comp.companyName,
@@ -104,6 +135,7 @@ export default async function SalesReturnPage() {
         taxPercent: String(rate.taxPercent),
       }))}
       canCreate={p?.c ?? false}
+      initialPastVouchers={vouchersWithParties}
     />
   );
 }

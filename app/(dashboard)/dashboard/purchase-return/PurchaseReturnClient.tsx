@@ -12,8 +12,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Trash2, Loader2, Edit } from "lucide-react";
+import { Trash2, Loader2, Edit, FileText, Eye } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import PieceMetersDialog from "@/components/PieceMetersDialog";
+import PrintInvoiceModal from "@/components/PrintInvoiceModal";
 import { formatDate, getLocalTodayString } from "@/lib/utils";
 
 interface CompanyOption {
@@ -67,7 +69,7 @@ interface PurchaseInvoice {
     sgst: string;
     igst: string;
     netAmount: string;
-    pieceMeters?: string[];
+    pieceMeters?: string[] | null;
   }>;
 }
 
@@ -91,6 +93,23 @@ interface ReturnLineItem {
   pieceMeters?: string[];
 }
 
+interface PastVoucher {
+  voucherId: number;
+  voucherNo: string;
+  voucherDate: string;
+  status: string;
+  totalAmount: string;
+  taxAmount: string;
+  netAmount: string;
+  remarks: string | null;
+  partyId: number | null;
+  party: {
+    name: string;
+    gstNo: string | null;
+    address: string | null;
+  } | null;
+}
+
 export default function PurchaseReturnClient({
   company,
   companies,
@@ -98,6 +117,7 @@ export default function PurchaseReturnClient({
   ledgers,
   taxRates,
   canCreate,
+  initialPastVouchers = [],
 }: {
   company: {
     companyName: string;
@@ -111,6 +131,7 @@ export default function PurchaseReturnClient({
   ledgers: LedgerOption[];
   taxRates: TaxRateOption[];
   canCreate: boolean;
+  initialPastVouchers?: PastVoucher[];
 }) {
   const [selectedCompany, setSelectedCompany] = useState("");
   const [voucherNo, setVoucherNo] = useState(""); // Purchase Return No
@@ -169,6 +190,8 @@ export default function PurchaseReturnClient({
 
   // Line items for return & editing state
   const [lineItems, setLineItems] = useState<ReturnLineItem[]>([]);
+  const [pastVouchers, setPastVouchers] = useState<PastVoucher[]>(initialPastVouchers);
+  const [printVoucher, setPrintVoucher] = useState<any>(null);
   const [editingLineId, setEditingLineId] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState<{
     hsnCode: string;
@@ -302,9 +325,9 @@ export default function PurchaseReturnClient({
         inventoryName: line.inventoryName || "Item",
         ledgerId: String(line.ledgerId),
         hsnCode: line.hsnCode || "",
-        pcs: String(line.pcs),
+        pcs: "",
         originalPcs: line.pcs,
-        quantity: String(line.quantity),
+        quantity: "",
         originalQuantity: Number(line.quantity),
         fold: String(line.fold),
         rate: String(line.rate),
@@ -576,12 +599,32 @@ export default function PurchaseReturnClient({
         body: JSON.stringify(body),
       });
 
+      const json = await response.json();
       if (!response.ok) {
-        const json = await response.json();
         throw new Error(json.error || "Failed to save purchase return.");
       }
 
       setMessage("Purchase Return created successfully.");
+      const savedVoucher = json.voucher || json;
+      setPastVouchers((prev) => [
+        {
+          voucherId: savedVoucher.voucherId,
+          voucherNo: savedVoucher.voucherNo,
+          voucherDate: savedVoucher.voucherDate,
+          status: savedVoucher.status,
+          totalAmount: savedVoucher.totalAmount,
+          taxAmount: savedVoucher.taxAmount,
+          netAmount: savedVoucher.netAmount,
+          remarks: savedVoucher.remarks,
+          partyId: savedVoucher.partyId,
+          party: companies.find((c) => c.companyId === savedVoucher.partyId) ? {
+            name: companies.find((c) => c.companyId === savedVoucher.partyId)!.companyName,
+            gstNo: companies.find((c) => c.companyId === savedVoucher.partyId)!.gstNo,
+            address: companies.find((c) => c.companyId === savedVoucher.partyId)!.address,
+          } : null,
+        },
+        ...prev,
+      ]);
       fetchNextVoucherNo();
       setRemarks("");
       setLrNo("");
@@ -836,13 +879,6 @@ export default function PurchaseReturnClient({
                     <div className="flex items-center gap-2">
                       <Button
                         variant="ghost"
-                        onClick={() => openEditForm(line.id)}
-                        className="text-primary hover:bg-primary/10 hover:text-primary h-9 px-3 text-xs uppercase font-semibold flex items-center gap-1.5"
-                      >
-                        <Edit className="h-4 w-4" /> Edit
-                      </Button>
-                      <Button
-                        variant="ghost"
                         onClick={() => removeLine(line.id)}
                         className="text-danger hover:bg-danger/10 hover:text-danger h-9 px-3 text-xs uppercase font-semibold flex items-center gap-1.5"
                       >
@@ -851,116 +887,7 @@ export default function PurchaseReturnClient({
                     </div>
                   </div>
 
-                  {/* Edit Form - shows when edit icon is clicked */}
-                  {editingLineId === line.id && (
-                    <div className="bg-muted/30 p-4 rounded-lg border border-border space-y-3">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-bold uppercase tracking-wider text-foreground">
-                          Edit Return Details
-                        </span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={closeEditForm}
-                          className="h-7 px-2 text-xs"
-                        >
-                          Cancel
-                        </Button>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-                        <div className="space-y-1.5">
-                          <Label >
-                            HSN Code
-                          </Label>
-                          <Input
-                            value={editFormData.hsnCode}
-                            onChange={(e) =>
-                              setEditFormData({
-                                ...editFormData,
-                                hsnCode: e.target.value,
-                              })
-                            }
-                            placeholder="HSN Code"
-                            className="h-9"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label >
-                            Fold %
-                          </Label>
-                          <Input
-                            type="number"
-                            value={editFormData.fold}
-                            onChange={(e) =>
-                              setEditFormData({
-                                ...editFormData,
-                                fold: e.target.value,
-                              })
-                            }
-                            className="h-9 text-right"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label >
-                            Return PCS
-                          </Label>
-                          <Input
-                            type="number"
-                            value={editFormData.returnPcs}
-                            onChange={(e) =>
-                              setEditFormData({
-                                ...editFormData,
-                                returnPcs: e.target.value,
-                              })
-                            }
-                            className="h-9 text-right"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label >
-                            Return Qty ({unit})
-                          </Label>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={editFormData.returnQty}
-                            onChange={(e) =>
-                              setEditFormData({
-                                ...editFormData,
-                                returnQty: e.target.value,
-                              })
-                            }
-                            className="h-9 text-right"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label >
-                            Rate (₹)
-                          </Label>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={editFormData.rate}
-                            onChange={(e) =>
-                              setEditFormData({
-                                ...editFormData,
-                                rate: e.target.value,
-                              })
-                            }
-                            className="h-9 text-right"
-                          />
-                        </div>
-                      </div>
-                      <div className="flex justify-end">
-                        <Button
-                          onClick={saveEditForm}
-                          className="h-9 px-4 text-xs font-bold uppercase"
-                        >
-                          Save Changes
-                        </Button>
-                      </div>
-                    </div>
-                  )}
+
 
                   {/* Input Fields Grid */}
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
@@ -991,7 +918,6 @@ export default function PurchaseReturnClient({
                         onChange={(e) =>
                           updateLine(line.id, "fold", e.target.value)
                         }
-                        readOnly
                         className="h-10 text-right"
                       />
                     </div>
@@ -1008,7 +934,6 @@ export default function PurchaseReturnClient({
                           onChange={(e) =>
                             updateLine(line.id, "pcs", e.target.value)
                           }
-                          readOnly
                           className="h-10 text-right w-full"
                         />
                         <Button
@@ -1035,7 +960,6 @@ export default function PurchaseReturnClient({
                         onChange={(e) =>
                           updateLine(line.id, "quantity", e.target.value)
                         }
-                        readOnly
                         className="h-10 text-right"
                       />
                     </div>
@@ -1052,7 +976,6 @@ export default function PurchaseReturnClient({
                         onChange={(e) =>
                           updateLine(line.id, "rate", e.target.value)
                         }
-                        readOnly
                         className="h-10 text-right"
                       />
                     </div>
@@ -1422,6 +1345,124 @@ export default function PurchaseReturnClient({
           />
         ) : null;
       })()}
+
+      {/* Past Vouchers List */}
+      <div className="rounded-lg border border-border bg-card overflow-hidden shadow-sm mt-6">
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-border">
+          <FileText className="h-4 w-4 text-muted-foreground" />
+          <div>
+            <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">
+              Purchase Return History
+            </h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Last 50 posted purchase return vouchers
+            </p>
+          </div>
+        </div>
+
+        {pastVouchers.length === 0 ? (
+          <div className="px-5 py-10 text-center text-sm text-muted-foreground">
+            No purchase return vouchers yet. Create your first return above.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[900px]">
+              <thead className="bg-muted/40 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border">
+                <tr>
+                  <th className="px-4 py-3">Voucher No</th>
+                  <th className="px-4 py-3">Date</th>
+                  <th className="px-4 py-3">Party</th>
+                  <th className="px-4 py-3">Remarks</th>
+                  <th className="px-4 py-3 text-right">Taxable</th>
+                  <th className="px-4 py-3 text-right">GST</th>
+                  <th className="px-4 py-3 text-right">Net Total</th>
+                  <th className="px-4 py-3 text-center">Status</th>
+                  <th className="px-4 py-3" />
+                </tr>
+              </thead>
+              <tbody>
+                {pastVouchers.map((v) => (
+                  <tr
+                    key={v.voucherId}
+                    className="border-b border-border/40 hover:bg-muted/10 transition-colors"
+                  >
+                    <td className="px-4 py-3 font-mono font-semibold text-foreground">
+                      {v.voucherNo}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {v.voucherDate}
+                    </td>
+                    <td className="px-4 py-3 text-foreground font-medium">
+                      {v.party?.name ?? "—"}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground italic text-xs max-w-[160px] truncate">
+                      {v.remarks || "—"}
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono text-foreground">
+                      {Number(v.totalAmount).toFixed(2)}
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono text-muted-foreground">
+                      {Number(v.taxAmount).toFixed(2)}
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono font-bold text-foreground">
+                      {Number(v.netAmount).toFixed(2)}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <Badge
+                        variant={
+                          v.status === "posted" ? "secondary" : "outline"
+                        }
+                        className="text-xs uppercase font-semibold"
+                      >
+                        {v.status}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        title="Preview Return"
+                        onClick={() => {
+                          setPrintVoucher({
+                            voucher: {
+                              voucherNo: v.voucherNo,
+                              voucherDate: v.voucherDate,
+                              voucherType: "purchase_return",
+                              remarks: v.remarks,
+                              totalAmount: Number(v.totalAmount),
+                              taxAmount: Number(v.taxAmount),
+                              netAmount: Number(v.netAmount),
+                            },
+                            party: v.party ?? {
+                              name: "Company",
+                              gstNo: null,
+                              address: null,
+                            },
+                          });
+                        }}
+                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {printVoucher && (
+        <PrintInvoiceModal
+          isOpen={!!printVoucher}
+          onClose={() => setPrintVoucher(null)}
+          company={company}
+          party={printVoucher.party}
+          voucher={printVoucher.voucher}
+          lines={[]}
+        />
+      )}
     </div>
   );
 }
