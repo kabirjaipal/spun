@@ -227,50 +227,22 @@ export async function POST(request: Request) {
           return { line, rawTaxableAmount, pcs, qty, rate, fold, jobRateType };
         });
 
-        // Calculate discounted amounts for all lines first
-        const linesDiscounted = linesInfo.map(({ line, rawTaxableAmount, ...rest }) => {
-          const lineDiscount1 = calculatePreTaxDiscount(
-            rawTaxableAmount,
-            rawTotal,
-            discountType,
-            discountValue,
-          );
-          const lineDiscount2 = calculatePreTaxDiscount(
-            rawTaxableAmount,
-            rawTotal,
-            discountType2,
-            discountValue2,
-          );
-          const totalLineDiscount = lineDiscount1 + lineDiscount2;
-          const discountedAmount = Math.max(
-            0,
-            Math.round((rawTaxableAmount - totalLineDiscount) * 100) / 100,
-          );
-          return { line, rawTaxableAmount, discountedAmount, ...rest };
-        });
-
-        const totalDiscountedAmount = linesDiscounted.reduce(
-          (sum, item) => sum + item.discountedAmount,
-          0,
-        );
-
         for (const {
           line,
           rawTaxableAmount,
-          discountedAmount,
           pcs,
           qty,
           rate,
           fold,
           jobRateType,
-        } of linesDiscounted) {
-          const allocatedCharge = totalDiscountedAmount > 0
-            ? (discountedAmount / totalDiscountedAmount) * extraChargesNum
-            : extraChargesNum / linesDiscounted.length;
+        } of linesInfo) {
+          const allocatedCharge = rawTotal > 0
+            ? (rawTaxableAmount / rawTotal) * extraChargesNum
+            : extraChargesNum / linesInfo.length;
 
           const taxableAmount = Math.max(
             0,
-            Math.round((discountedAmount + allocatedCharge) * 100) / 100,
+            Math.round((rawTaxableAmount + allocatedCharge) * 100) / 100,
           );
 
           let cgst = line.cgst !== undefined ? Number(line.cgst) : 0;
@@ -318,7 +290,33 @@ export async function POST(request: Request) {
             lineNet,
           });
         }
-        computedNet = Math.round(computedNet * 100) / 100;
+
+        // Calculate post-tax total discounts
+        const discount1Amt = linesInfo.reduce(
+          (sum, item) =>
+            sum +
+            calculatePreTaxDiscount(
+              item.rawTaxableAmount,
+              rawTotal,
+              discountType,
+              discountValue,
+            ),
+          0,
+        );
+        const discount2Amt = linesInfo.reduce(
+          (sum, item) =>
+            sum +
+            calculatePreTaxDiscount(
+              item.rawTaxableAmount,
+              rawTotal,
+              discountType2,
+              discountValue2,
+            ),
+          0,
+        );
+        const totalDiscount = discount1Amt + discount2Amt;
+
+        computedNet = Math.round((computedNet - totalDiscount) * 100) / 100;
       } else if (voucherType === "receipt" || voucherType === "payment") {
         computedTotal = Number(totalAmount || 0);
         computedNet = computedTotal;

@@ -300,41 +300,17 @@ export default function SalesClient({
 
     const rawTotal = linesRaw.reduce((sum, item) => sum + item.netAmount, 0);
 
-    // Calculate discounted amount for all lines
-    const linesDiscounted = linesRaw.map(({ line, amount, netAmount }) => {
-      const lineDiscount1 = calculatePreTaxDiscount(
-        netAmount,
-        rawTotal,
-        discountType,
-        discountValue,
-      );
-      const lineDiscount2 = calculatePreTaxDiscount(
-        netAmount,
-        rawTotal,
-        discountType2,
-        discountValue2,
-      );
-      const lineDiscount = lineDiscount1 + lineDiscount2;
-      const discountedNetAmount = Math.max(
-        0,
-        Math.round((netAmount - lineDiscount) * 100) / 100,
-      );
-      return { line, amount, rawNetAmount: netAmount, discountedNetAmount, lineDiscount };
-    });
-
-    const totalDiscountedSubtotal = linesDiscounted.reduce((sum, item) => sum + item.discountedNetAmount, 0);
-
-    // Calculate total extra charges based on discounted subtotal
+    // Calculate total extra charges based on raw subtotal (pre-tax, pre-discount)
     const calculatedExtraCharges = extraCharges.reduce((sum, c) => {
       if (!c.value) return sum;
       const isLess = c.effect === "less";
       const amt = c.type === "percentage"
-        ? (totalDiscountedSubtotal * Number(c.value)) / 100
+        ? (rawTotal * Number(c.value)) / 100
         : Number(c.value);
       return isLess ? sum - amt : sum + amt;
     }, 0);
 
-    return linesDiscounted.map(({ line, amount, rawNetAmount, discountedNetAmount, lineDiscount }) => {
+    return linesRaw.map(({ line, amount, netAmount }) => {
       const gstRatePercent =
         Number(
           line.gstRateId
@@ -343,11 +319,12 @@ export default function SalesClient({
             : 0,
         ) || 0;
 
-      const allocatedExtraCharge = totalDiscountedSubtotal > 0
-        ? (discountedNetAmount / totalDiscountedSubtotal) * calculatedExtraCharges
-        : calculatedExtraCharges / linesDiscounted.length;
+      // Allocate extra charges proportionally on raw subtotal
+      const allocatedExtraCharge = rawTotal > 0
+        ? (netAmount / rawTotal) * calculatedExtraCharges
+        : calculatedExtraCharges / linesRaw.length;
 
-      const taxableAmount = discountedNetAmount + allocatedExtraCharge;
+      const taxableAmount = netAmount + allocatedExtraCharge;
 
       const totalTax =
         Math.round(((taxableAmount * gstRatePercent) / 100) * 100) / 100;
@@ -363,16 +340,31 @@ export default function SalesClient({
         sgst = Math.round((totalTax - cgst) * 100) / 100;
       }
 
+      // Calculate post-tax discount details per line for display
+      const lineDiscount1 = calculatePreTaxDiscount(
+        netAmount,
+        rawTotal,
+        discountType,
+        discountValue,
+      );
+      const lineDiscount2 = calculatePreTaxDiscount(
+        netAmount,
+        rawTotal,
+        discountType2,
+        discountValue2,
+      );
+      const lineDiscount = lineDiscount1 + lineDiscount2;
+
       return {
         amount,
-        rawNetAmount,
-        netAmount: discountedNetAmount,
+        rawNetAmount: netAmount,
+        netAmount: netAmount, // Revert to pre-discount netAmount for line net calculation
         lineDiscount,
         cgst,
         sgst,
         igst,
         totalTax,
-        net: discountedNetAmount + totalTax,
+        net: netAmount + totalTax,
       };
     });
   }, [
@@ -453,8 +445,8 @@ export default function SalesClient({
   }, [extraCharges, grandTotals.netAmount]);
 
   const finalGrandTotal = useMemo(() => {
-    return grandTotals.total + totalExtraCharges;
-  }, [grandTotals.total, totalExtraCharges]);
+    return grandTotals.total + totalExtraCharges - (discount1Amt + discount2Amt);
+  }, [grandTotals.total, totalExtraCharges, discount1Amt, discount2Amt]);
 
   function updateLine(id: string, field: keyof LineItem, value: string) {
     setLineItems((items) =>
@@ -1368,47 +1360,19 @@ export default function SalesClient({
             Summary
           </h2>
 
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">
-              Subtotal (Before Discount):
-            </span>
-            <span className="font-semibold text-foreground">
+          <div className="flex justify-between font-medium">
+            <span className="text-muted-foreground">Subtotal:</span>
+            <span className="text-foreground">
               ₹{grandTotals.rawNetAmount.toFixed(2)}
             </span>
           </div>
-
-          {discount1Amt > 0 && (
-            <div className="flex justify-between text-danger">
-              <span>
-                Discount 1 (
-                {discountType === "percentage"
-                  ? `${Number(discountValue)}%`
-                  : "Flat"}
-                ):
-              </span>
-              <span>-₹{discount1Amt.toFixed(2)}</span>
-            </div>
-          )}
-
-          {discount2Amt > 0 && (
-            <div className="flex justify-between text-danger">
-              <span>
-                Discount 2 (
-                {discountType2 === "percentage"
-                  ? `${Number(discountValue2)}%`
-                  : "Flat"}
-                ):
-              </span>
-              <span>-₹{discount2Amt.toFixed(2)}</span>
-            </div>
-          )}
 
           {extraCharges
             .filter((c) => c.value)
             .map((c) => {
               const isLess = c.effect === "less";
               const amt = c.type === "percentage"
-                ? (grandTotals.netAmount * Number(c.value)) / 100
+                ? (grandTotals.rawNetAmount * Number(c.value)) / 100
                 : Number(c.value);
               return (
                 <div key={c.id} className={`flex justify-between ${isLess ? "text-danger" : "text-success font-medium"}`}>
@@ -1426,7 +1390,7 @@ export default function SalesClient({
           <div className="flex justify-between border-t border-border pt-2 font-bold">
             <span className="text-muted-foreground">Total Taxable Value:</span>
             <span className="text-foreground">
-              ₹{(grandTotals.netAmount + totalExtraCharges).toFixed(2)}
+              ₹{(grandTotals.rawNetAmount + totalExtraCharges).toFixed(2)}
             </span>
           </div>
 
@@ -1445,6 +1409,36 @@ export default function SalesClient({
             <div className="flex justify-between text-muted-foreground">
               <span>IGST:</span>
               <span>₹{grandTotals.igst.toFixed(2)}</span>
+            </div>
+          )}
+
+          {(discount1Amt > 0 || discount2Amt > 0) && (
+            <div className="border-t border-border/50 pt-2 space-y-1">
+              {discount1Amt > 0 && (
+                <div className="flex justify-between text-danger font-medium">
+                  <span>
+                    Discount 1 (
+                    {discountType === "percentage"
+                      ? `${Number(discountValue)}%`
+                      : "Flat"}
+                    ):
+                  </span>
+                  <span>-₹{discount1Amt.toFixed(2)}</span>
+                </div>
+              )}
+
+              {discount2Amt > 0 && (
+                <div className="flex justify-between text-danger font-medium">
+                  <span>
+                    Discount 2 (
+                    {discountType2 === "percentage"
+                      ? `${Number(discountValue2)}%`
+                      : "Flat"}
+                    ):
+                  </span>
+                  <span>-₹{discount2Amt.toFixed(2)}</span>
+                </div>
+              )}
             </div>
           )}
 
