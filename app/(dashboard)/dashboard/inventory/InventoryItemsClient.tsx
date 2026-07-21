@@ -45,12 +45,13 @@ const EMPTY = {
   inventoryName: "",
   unit: "",
   gstRateId: "",
-  openingStockQty: "0",
-  openingStockRate: "0",
+  openingStockQty: "",
+  openingStockRate: "",
+  openingStockAmount: "",
   hsnCode: "",
   inventoryGroupId: "",
   inventoryCategoryId: "",
-  gstType: "state",
+  gstType: "none",
   gstPercent: "0",
   isConsumable: false,
   consumeWithInventoryId: "",
@@ -99,20 +100,103 @@ export default function InventoryItemsClient({
     r.inventoryCode.toLowerCase().includes(search.toLowerCase())
   );
 
-  function openCreate() { setEditing(null); setForm(EMPTY); setSheetOpen(true); }
+  const handleQtyChange = (val: string) => {
+    setForm((f) => {
+      const qty = parseFloat(val);
+      const rate = parseFloat(f.openingStockRate);
+      let amount = f.openingStockAmount;
+      if (!isNaN(qty) && !isNaN(rate)) {
+        amount = (qty * rate).toFixed(2);
+      }
+      return {
+        ...f,
+        openingStockQty: val,
+        openingStockAmount: amount,
+      };
+    });
+  };
+
+  const handleRateChange = (val: string) => {
+    setForm((f) => {
+      const qty = parseFloat(f.openingStockQty);
+      const rate = parseFloat(val);
+      let amount = f.openingStockAmount;
+      if (!isNaN(qty) && !isNaN(rate)) {
+        amount = (qty * rate).toFixed(2);
+      }
+      return {
+        ...f,
+        openingStockRate: val,
+        openingStockAmount: amount,
+      };
+    });
+  };
+
+  const handleAmountChange = (val: string) => {
+    setForm((f) => {
+      const amt = parseFloat(val);
+      let qtyStr = f.openingStockQty;
+      let rateStr = f.openingStockRate;
+
+      if (!isNaN(amt)) {
+        const qty = parseFloat(f.openingStockQty);
+        const rate = parseFloat(f.openingStockRate);
+
+        if (!isNaN(qty) && qty !== 0) {
+          rateStr = (amt / qty).toFixed(2);
+        } else if (!isNaN(rate) && rate !== 0) {
+          qtyStr = (amt / rate).toFixed(4);
+        } else {
+          qtyStr = "1";
+          rateStr = amt.toFixed(2);
+        }
+      }
+
+      return {
+        ...f,
+        openingStockAmount: val,
+        openingStockQty: qtyStr,
+        openingStockRate: rateStr,
+      };
+    });
+  };
+
+  function openCreate() {
+    const numbers = data
+      .map((item) => {
+        const match = item.inventoryCode.match(/^item-(\d+)$/i);
+        return match ? parseInt(match[1], 10) : 0;
+      })
+      .filter((num) => num > 0);
+    const nextNum = numbers.length > 0 ? Math.max(...numbers) + 1 : 1;
+    const nextCode = `item-${nextNum}`;
+
+    setEditing(null);
+    setForm({
+      ...EMPTY,
+      inventoryCode: nextCode,
+    });
+    setSheetOpen(true);
+  }
+
   function openEdit(row: InventoryItem) {
+    const qty = parseFloat(row.openingStockQty) || 0;
+    const rate = parseFloat(row.openingStockRate) || 0;
+    const amt = (qty * rate).toFixed(2);
+
     setEditing(row);
     setForm({
       inventoryCode: row.inventoryCode,
       inventoryName: row.inventoryName,
       unit: row.unit,
       gstRateId: row.gstRateId ? String(row.gstRateId) : "",
-      openingStockQty: row.openingStockQty,
-      openingStockRate: row.openingStockRate,
+      openingStockQty: row.openingStockQty === "0.0000" ? "" : row.openingStockQty,
+      openingStockRate: row.openingStockRate === "0.00" ? "" : row.openingStockRate,
+      openingStockAmount: qty && rate ? amt : "",
       hsnCode: row.hsnCode || "",
       inventoryGroupId: row.inventoryGroupId ? String(row.inventoryGroupId) : "",
       inventoryCategoryId: row.inventoryCategoryId ? String(row.inventoryCategoryId) : "",
-      gstType: row.gstType || "state",
+      gstType: row.gstType || "none",
       gstPercent: row.gstPercent || "0",
       isConsumable: row.isConsumable,
       consumeWithInventoryId: row.consumeWithInventoryId ? String(row.consumeWithInventoryId) : "",
@@ -132,14 +216,15 @@ export default function InventoryItemsClient({
       body: JSON.stringify({
         ...form,
         gstRateId: form.gstRateId && form.gstRateId !== "none" ? Number(form.gstRateId) : null,
-        openingStockQty: Number(form.openingStockQty),
-        openingStockRate: Number(form.openingStockRate),
+        openingStockQty: form.openingStockQty ? Number(form.openingStockQty) : 0,
+        openingStockRate: form.openingStockRate ? Number(form.openingStockRate) : 0,
         inventoryGroupId: form.inventoryGroupId && form.inventoryGroupId !== "none" ? Number(form.inventoryGroupId) : null,
         inventoryCategoryId: form.inventoryCategoryId && form.inventoryCategoryId !== "none" ? Number(form.inventoryCategoryId) : null,
         consumeWithInventoryId: form.consumeWithInventoryId && form.consumeWithInventoryId !== "none" ? Number(form.consumeWithInventoryId) : null,
         consumptionRatio: Number(form.consumptionRatio),
         shortagePercent: Number(form.shortagePercent),
         gstPercent: Number(form.gstPercent),
+        gstType: form.gstType === "none" ? null : form.gstType,
       }),
     });
     const row = await res.json();
@@ -286,7 +371,7 @@ export default function InventoryItemsClient({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Item Code</Label>
-                <Input id="inventoryCode" placeholder="FAB-001" value={form.inventoryCode} onChange={(e) => setForm((f) => ({ ...f, inventoryCode: e.target.value }))} />
+                <Input id="inventoryCode" placeholder="FAB-001" value={form.inventoryCode} disabled={true} />
               </div>
               <div className="space-y-2">
                 <Label>Item Name</Label>
@@ -339,6 +424,7 @@ export default function InventoryItemsClient({
                   <Select value={form.gstType} onValueChange={(v) => setForm((f) => ({ ...f, gstType: v }))}>
                     <SelectTrigger id="gstType"><SelectValue /></SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
                       <SelectItem value="state">State GST</SelectItem>
                       <SelectItem value="center">Center GST</SelectItem>
                     </SelectContent>
@@ -402,14 +488,18 @@ export default function InventoryItemsClient({
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-4 border-t border-border pt-4">
+            <div className="grid grid-cols-3 gap-4 border-t border-border pt-4">
               <div className="space-y-2">
                 <Label>Opening Qty</Label>
-                <Input id="openingStockQty" type="number" step={0.01} value={form.openingStockQty} onChange={(e) => setForm((f) => ({ ...f, openingStockQty: e.target.value }))} />
+                <Input id="openingStockQty" type="number" step={0.01} placeholder="Optional" value={form.openingStockQty} onChange={(e) => handleQtyChange(e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label>Rate (₹)</Label>
-                <Input id="openingStockRate" type="number" step={0.01} value={form.openingStockRate} onChange={(e) => setForm((f) => ({ ...f, openingStockRate: e.target.value }))} />
+                <Input id="openingStockRate" type="number" step={0.01} placeholder="Optional" value={form.openingStockRate} onChange={(e) => handleRateChange(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Amount (₹)</Label>
+                <Input id="openingStockAmount" type="number" step={0.01} placeholder="Optional" value={form.openingStockAmount} onChange={(e) => handleAmountChange(e.target.value)} />
               </div>
             </div>
           </SheetBody>

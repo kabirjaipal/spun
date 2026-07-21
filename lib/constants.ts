@@ -41,6 +41,7 @@ export const DEFAULT_LEDGER_GROUPS = [
   "Sales Return",
   "Purchase Return",
   "Direct Expenses",
+  "Indirect Expenses",
   "Indirect Income",
   "Profit & Loss",
   "Unsecured Loans",

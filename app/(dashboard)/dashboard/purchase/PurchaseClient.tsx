@@ -139,7 +139,32 @@ export default function PurchaseClient({
   const [invoiceDate, setInvoiceDate] = useState(
     getLocalTodayString(),
   );
+  const [isInvoiceDateCustom, setIsInvoiceDateCustom] = useState(false);
+  const [isLrDateCustom, setIsLrDateCustom] = useState(false);
   const [goodsName, setGoodsName] = useState("");
+
+  const handleVoucherDateChange = (val: string) => {
+    setVoucherDate(val);
+    if (!isInvoiceDateCustom) {
+      setInvoiceDate(val);
+    }
+    if (!isLrDateCustom) {
+      setLrDate(val);
+    }
+  };
+
+  const handleInvoiceDateChange = (val: string) => {
+    setInvoiceDate(val);
+    setIsInvoiceDateCustom(true);
+    if (!isLrDateCustom) {
+      setLrDate(val);
+    }
+  };
+
+  const handleLrDateChange = (val: string) => {
+    setLrDate(val);
+    setIsLrDateCustom(true);
+  };
 
   // Textile-specific logistics fields
   const [broker, setBroker] = useState("");
@@ -541,7 +566,9 @@ export default function PurchaseClient({
       setBroker("");
       setHaste("");
       setLrNo("");
-      setLrDate("");
+       setLrDate("");
+      setIsInvoiceDateCustom(false);
+      setIsLrDateCustom(false);
       setTransport("");
       setDiscountValue("");
       setDiscountValue2("");
@@ -683,7 +710,7 @@ export default function PurchaseClient({
               <Input
                 type="date"
                 value={voucherDate}
-                onChange={(e) => setVoucherDate(e.target.value)}
+                onChange={(e) => handleVoucherDateChange(e.target.value)}
                 className="h-10"
               />
             </div>
@@ -707,20 +734,7 @@ export default function PurchaseClient({
               <Input
                 type="date"
                 value={invoiceDate}
-                onChange={(e) => setInvoiceDate(e.target.value)}
-                className="h-10"
-              />
-            </div>
-
-            {/* Name of Goods Purchased */}
-            <div className="space-y-1.5 md:col-span-2">
-              <Label >
-                Name of Goods Purchased
-              </Label>
-              <Input
-                value={goodsName}
-                onChange={(e) => setGoodsName(e.target.value)}
-                placeholder="e.g. Cotton fabric, Polyester yarn, Chemicals"
+                onChange={(e) => handleInvoiceDateChange(e.target.value)}
                 className="h-10"
               />
             </div>
@@ -812,7 +826,7 @@ export default function PurchaseClient({
               <Input
                 type="date"
                 value={lrDate}
-                onChange={(e) => setLrDate(e.target.value)}
+                onChange={(e) => handleLrDateChange(e.target.value)}
                 className="h-10"
               />
             </div>

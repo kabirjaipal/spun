@@ -118,6 +118,19 @@ export default function JobOutwardClient({
   const [voucherDate, setVoucherDate] = useState(
     getLocalTodayString(),
   );
+  const [isLrDateCustom, setIsLrDateCustom] = useState(false);
+
+  const handleVoucherDateChange = (val: string) => {
+    setVoucherDate(val);
+    if (!isLrDateCustom) {
+      setLrDate(val);
+    }
+  };
+
+  const handleLrDateChange = (val: string) => {
+    setLrDate(val);
+    setIsLrDateCustom(true);
+  };
 
   const [broker, setBroker] = useState("");
   const [haste, setHaste] = useState("");
@@ -366,6 +379,7 @@ export default function JobOutwardClient({
       setHaste("");
       setLrNo("");
       setLrDate("");
+      setIsLrDateCustom(false);
       setTransport("");
       setLotNo("");
       setExtraCharges([]);
@@ -560,7 +574,7 @@ export default function JobOutwardClient({
               <Input
                 type="date"
                 value={voucherDate}
-                onChange={(e) => setVoucherDate(e.target.value)}
+                onChange={(e) => handleVoucherDateChange(e.target.value)}
                 className="h-10"
               />
             </div>
@@ -664,7 +678,7 @@ export default function JobOutwardClient({
               <Input
                 type="date"
                 value={lrDate}
-                onChange={(e) => setLrDate(e.target.value)}
+                onChange={(e) => handleLrDateChange(e.target.value)}
                 className="h-10"
               />
             </div>

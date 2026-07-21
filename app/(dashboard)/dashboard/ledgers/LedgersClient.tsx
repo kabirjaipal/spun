@@ -83,6 +83,7 @@ const EMPTY = {
   creditDays: 0,
   rateOfInterest: "0.00",
   newGroupName: "", // for inline creation
+  newGroupParentId: "", // parent group ID for inline group creation
   stateCode: "",
 };
 
@@ -120,10 +121,14 @@ export default function LedgersClient({
 
   const selectedGroup = groupList.find((g) => String(g.groupId) === form.groupId);
   const groupNameLower = selectedGroup ? selectedGroup.groupName.toLowerCase() : "";
+  
+  const selectedNewParentGroup = groupList.find((g) => String(g.groupId) === form.newGroupParentId);
+  const parentGroupNameLower = selectedNewParentGroup ? selectedNewParentGroup.groupName.toLowerCase() : "";
   const newGroupNameLower = form.newGroupName.toLowerCase();
 
   const isCreditorOrDebtor = showNewGroupInput
-    ? (newGroupNameLower.includes("creditor") || newGroupNameLower.includes("debitor") || newGroupNameLower.includes("debtor"))
+    ? (newGroupNameLower.includes("creditor") || newGroupNameLower.includes("debitor") || newGroupNameLower.includes("debtor") ||
+       parentGroupNameLower.includes("creditor") || parentGroupNameLower.includes("debitor") || parentGroupNameLower.includes("debtor"))
     : (groupNameLower.includes("creditor") || groupNameLower.includes("debitor") || groupNameLower.includes("debtor"));
 
   const handleFetchGST = async (targetGst: string) => {
@@ -169,6 +174,7 @@ export default function LedgersClient({
       creditDays: row.creditDays,
       rateOfInterest: row.rateOfInterest,
       newGroupName: "",
+      newGroupParentId: "",
       stateCode: row.stateCode || "",
     });
     setShowNewGroupInput(false);
@@ -187,7 +193,10 @@ export default function LedgersClient({
         const groupRes = await fetch("/api/ledger-groups", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ groupName: form.newGroupName }),
+          body: JSON.stringify({
+            groupName: form.newGroupName,
+            parentGroupId: form.newGroupParentId ? Number(form.newGroupParentId) : null,
+          }),
         });
         if (groupRes.ok) {
           const newGroup = await groupRes.json();
@@ -330,9 +339,23 @@ export default function LedgersClient({
               <div className="col-span-1 sm:col-span-2 space-y-2">
                 <Label>Group</Label>
                 {showNewGroupInput ? (
-                  <div className="flex gap-2">
-                    <Input placeholder="Enter new group name" value={form.newGroupName} onChange={(e) => setForm((f) => ({ ...f, newGroupName: e.target.value }))} />
-                    <Button type="button" variant="outline" onClick={() => setShowNewGroupInput(false)}>Select Group</Button>
+                  <div className="space-y-3 border border-border p-3 rounded-md bg-muted/10">
+                    <div className="flex gap-2">
+                      <Input placeholder="Enter new group name" value={form.newGroupName} onChange={(e) => setForm((f) => ({ ...f, newGroupName: e.target.value }))} />
+                      <Button type="button" variant="outline" onClick={() => {
+                        setShowNewGroupInput(false);
+                        setForm((f) => ({ ...f, newGroupName: "", newGroupParentId: "" }));
+                      }}>Select Group</Button>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs uppercase text-muted-foreground">Parent Group (Optional)</Label>
+                      <Select value={form.newGroupParentId} onValueChange={(v) => setForm((f) => ({ ...f, newGroupParentId: v }))}>
+                        <SelectTrigger id="newGroupParentId"><SelectValue placeholder="Select parent group (optional)" /></SelectTrigger>
+                        <SelectContent>
+                          {groupList.map((g) => <SelectItem key={g.groupId} value={String(g.groupId)}>{g.groupName}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 ) : (
                   <div className="flex gap-2">

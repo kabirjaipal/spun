@@ -246,6 +246,7 @@ export async function seedRealData() {
       "Sales Return",
       "Purchase Return",
       "Direct Expenses",
+      "Indirect Expenses",
       "Indirect Income",
       "Profit & Loss",
       "Unsecured Loans",

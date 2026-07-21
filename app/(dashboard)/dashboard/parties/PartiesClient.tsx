@@ -388,7 +388,10 @@ export default function PartiesClient({
                       type="text"
                       required
                       value={form.companyName}
-                      onChange={(e) => setForm((f) => ({ ...f, companyName: e.target.value }))}
+                      onChange={(e) => {
+                        const newName = e.target.value;
+                        setForm((f) => ({ ...f, companyName: newName, bankAccountName: newName }));
+                      }}
                       className="mt-1"
                       placeholder="e.g. Acme Fabrics Pvt Ltd"
                     />

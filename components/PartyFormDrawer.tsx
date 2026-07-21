@@ -252,7 +252,10 @@ export default function PartyFormDrawer({ isOpen, onClose, onCreated }: PartyFor
                 type="text"
                 required
                 value={form.companyName}
-                onChange={(e) => setForm((f) => ({ ...f, companyName: e.target.value }))}
+                onChange={(e) => {
+                  const newName = e.target.value;
+                  setForm((f) => ({ ...f, companyName: newName, bankAccountName: newName }));
+                }}
                 className="h-9 mt-1"
                 placeholder="e.g. Acme Fabrics Pvt Ltd"
               />

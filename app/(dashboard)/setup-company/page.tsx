@@ -206,9 +206,10 @@ export default function SetupCompanyPage() {
     setError(null);
     try {
       const d = await fetchGstDetails(gstNo);
+      const newCompName = d.companyName || currentCompany.companyName;
       updateCurrent({
         gstNo: d.gstin,
-        companyName: d.companyName || currentCompany.companyName,
+        companyName: newCompName,
         panNo: d.panNo || currentCompany.panNo,
         stateCode: d.stateCode || currentCompany.stateCode,
         state: d.state || currentCompany.state,
@@ -216,6 +217,7 @@ export default function SetupCompanyPage() {
         address: d.address || currentCompany.address,
         pincode: d.pincode || currentCompany.pincode,
         gstType: d.gstType || currentCompany.gstType,
+        bankAccountName: newCompName,
       });
     } catch (err: any) {
       setError(err.message || "An error occurred while fetching GST details.");
@@ -413,7 +415,10 @@ export default function SetupCompanyPage() {
                       type="text"
                       required
                       value={currentCompany.companyName}
-                      onChange={(e) => updateCurrent({ companyName: e.target.value })}
+                      onChange={(e) => {
+                        const newName = e.target.value;
+                        updateCurrent({ companyName: newName, bankAccountName: newName });
+                      }}
                       className="w-full h-10 rounded-md border border-input bg-background pl-10 pr-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground/60"
                       placeholder="e.g. Acme Fabrics Pvt Ltd"
                     />
