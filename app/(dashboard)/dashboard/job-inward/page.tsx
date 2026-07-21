@@ -72,7 +72,7 @@ export default async function JobInwardPage() {
 
   return (
     <JobInwardClient
-      company={company ? { companyName: company.companyName, gstNo: company.gstNo, address: company.address } : { companyName: `{APP_NAME} Company` }}
+      company={company ? { companyName: company.companyName, gstNo: company.gstNo, address: company.address, state: company.state, jobPartyType: company.jobPartyType } : { companyName: `${APP_NAME} Company`, jobPartyType: "trader" }}
       jobs={jobs.map((job) => ({
         jobId: job.jobId,
         jobName: job.jobName,

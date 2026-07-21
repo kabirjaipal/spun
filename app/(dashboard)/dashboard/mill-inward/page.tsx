@@ -72,7 +72,7 @@ export default async function MillInwardPage() {
 
   return (
     <MillInwardClient
-      company={company ? { companyName: company.companyName, gstNo: company.gstNo, address: company.address } : { companyName: `{APP_NAME} Company` }}
+      company={company ? { companyName: company.companyName, gstNo: company.gstNo, address: company.address, state: company.state, jobPartyType: company.jobPartyType } : { companyName: `${APP_NAME} Company`, jobPartyType: "trader" }}
       mills={mills.map((mill) => ({
         millId: mill.millId,
         millName: mill.millName,

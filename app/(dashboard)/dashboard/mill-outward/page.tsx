@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { mMills, mInventory, mTaxRates, mCompanies, mBrokersHaste } from "@/lib/db/schema";
+import { mMills, mInventory, mTaxRates, mCompanies, mBrokersHaste, tVouchers, tVoucherItems } from "@/lib/db/schema";
 import { and, eq, isNull } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
 import { APP_NAME } from "@/lib/constants";
@@ -14,7 +14,7 @@ export default async function MillOutwardPage() {
 
   const companyId = Number(session.user.companyId);
 
-  const [mills, inventory, taxRates, company, brokersHaste] = await Promise.all([
+  const [mills, inventory, taxRates, company, brokersHaste, inwardVouchers, inwardItems] = await Promise.all([
     db
       .select()
       .from(mMills)
@@ -38,6 +38,33 @@ export default async function MillOutwardPage() {
       .from(mBrokersHaste)
       .where(and(eq(mBrokersHaste.companyId, companyId), isNull(mBrokersHaste.deletedOn)))
       .orderBy(mBrokersHaste.name),
+    db
+      .select({
+        voucherId: tVouchers.voucherId,
+        voucherNo: tVouchers.voucherNo,
+        voucherDate: tVouchers.voucherDate,
+        partyId: tVouchers.partyId,
+        lotNo: tVouchers.lotNo,
+      })
+      .from(tVouchers)
+      .where(and(eq(tVouchers.companyId, companyId), eq(tVouchers.voucherType, "mill_inward"), isNull(tVouchers.deletedOn))),
+    db
+      .select({
+        voucherItemId: tVoucherItems.voucherItemId,
+        voucherId: tVoucherItems.voucherId,
+        inventoryId: tVoucherItems.inventoryId,
+        hsnCode: tVoucherItems.hsnCode,
+        pcs: tVoucherItems.pcs,
+        quantity: tVoucherItems.quantity,
+        fold: tVoucherItems.fold,
+        rate: tVoucherItems.rate,
+        jobType: tVoucherItems.jobType,
+        jobRateType: tVoucherItems.jobRateType,
+        gstRateId: tVoucherItems.gstRateId,
+      })
+      .from(tVoucherItems)
+      .innerJoin(tVouchers, eq(tVoucherItems.voucherId, tVouchers.voucherId))
+      .where(and(eq(tVouchers.companyId, companyId), eq(tVouchers.voucherType, "mill_inward"), isNull(tVoucherItems.deletedOn))),
   ]);
 
   const perms = getStaticPermissionsForRole(session.user.role as Role);
@@ -45,7 +72,7 @@ export default async function MillOutwardPage() {
 
   return (
     <MillOutwardClient
-      company={company ? { companyName: company.companyName, gstNo: company.gstNo, address: company.address } : { companyName: `{APP_NAME} Company` }}
+      company={company ? { companyName: company.companyName, gstNo: company.gstNo, address: company.address, state: company.state, jobPartyType: company.jobPartyType } : { companyName: `${APP_NAME} Company`, jobPartyType: "trader" }}
       mills={mills.map((mill) => ({
         millId: mill.millId,
         millName: mill.millName,
@@ -69,6 +96,26 @@ export default async function MillOutwardPage() {
         id: r.id,
         name: r.name,
         type: r.type,
+      }))}
+      inwardVouchers={inwardVouchers.map((v) => ({
+        voucherId: Number(v.voucherId),
+        voucherNo: v.voucherNo,
+        voucherDate: String(v.voucherDate),
+        partyId: v.partyId ? Number(v.partyId) : null,
+        lotNo: v.lotNo,
+      }))}
+      inwardItems={inwardItems.map((item) => ({
+        voucherItemId: Number(item.voucherItemId),
+        voucherId: Number(item.voucherId),
+        inventoryId: Number(item.inventoryId),
+        hsnCode: item.hsnCode,
+        pcs: item.pcs,
+        quantity: String(item.quantity),
+        fold: String(item.fold),
+        rate: String(item.rate),
+        jobType: item.jobType,
+        jobRateType: item.jobRateType as "pcs" | "mtr" | null,
+        gstRateId: item.gstRateId ? Number(item.gstRateId) : null,
       }))}
       canCreate={p?.c ?? false}
     />

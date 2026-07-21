@@ -58,6 +58,7 @@ export const mCompanies = pgTable(
     financialYearStart: date("financial_year_start"),
     companyType: text("company_type").default("general").notNull(),
     marketCategory: text("market_category"),
+    jobPartyType: text("job_party_type").default("trader").notNull(), // 'trader' or 'process_house'
     msmeRegistered: boolean("msme_registered").default(false).notNull(),
     msmeType: text("msme_type"), // 'micro', 'small', 'medium'
     msmeNo: text("msme_no"), // Udyam Registration Number e.g. UDYAM-GJ-01-0012345

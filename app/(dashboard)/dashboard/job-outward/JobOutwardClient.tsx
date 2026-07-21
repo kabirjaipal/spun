@@ -76,23 +76,51 @@ const EMPTY_LINE = (): LineItem => ({
   pieceMeters: [],
 });
 
+interface InwardVoucher {
+  voucherId: number;
+  voucherNo: string;
+  voucherDate: string;
+  partyId: number | null;
+  lotNo: string | null;
+}
+
+interface InwardItem {
+  voucherItemId: number;
+  voucherId: number;
+  inventoryId: number;
+  hsnCode: string | null;
+  pcs: number;
+  quantity: string;
+  fold: string;
+  rate: string;
+  jobType: string | null;
+  jobRateType: "pcs" | "mtr" | null;
+  gstRateId: number | null;
+}
+
 export default function JobOutwardClient({
   company,
   jobs,
   inventory,
   taxRates,
   brokersHaste,
+  inwardVouchers,
+  inwardItems,
   canCreate,
 }: {
   company: {
     companyName: string;
     gstNo?: string | null;
     address?: string | null;
+    state?: string | null;
+    jobPartyType?: string | null;
   };
   jobs: JobOption[];
   inventory: InventoryOption[];
   taxRates: TaxRateOption[];
   brokersHaste: BrokerHasteOption[];
+  inwardVouchers: InwardVoucher[];
+  inwardItems: InwardItem[];
   canCreate: boolean;
 }) {
   const [localJobs, setLocalJobs] = useState<JobOption[]>(jobs);
@@ -156,11 +184,18 @@ export default function JobOutwardClient({
   );
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [discountType, setDiscountType] = useState<"percentage" | "value">("percentage");
+  const [discountValue, setDiscountValue] = useState("");
+  const [discountType2, setDiscountType2] = useState<"percentage" | "value">("percentage");
+  const [discountValue2, setDiscountValue2] = useState("");
+  const [selectedInwardVoucherId, setSelectedInwardVoucherId] = useState("");
+
   type ExtraCharge = {
     id: string;
     label: string;
     value: string;
     type: "percentage" | "value";
+    effect: "add" | "less";
   };
   const [extraCharges, setExtraCharges] = useState<ExtraCharge[]>([]);
   function updateExtraCharge(
@@ -190,9 +225,89 @@ export default function JobOutwardClient({
     fetchNextVoucherNo();
   }, []);
 
+  const defaultJobTypes = ["dyeing", "printing", "weaving", "stitching", "embroidery"];
+  const uniqueJobTypes = useMemo(() => {
+    const types = new Set(defaultJobTypes);
+    inwardItems?.forEach((item) => {
+      if (item.jobType) types.add(item.jobType);
+    });
+    lineItems.forEach((item) => {
+      if (item.jobType) types.add(item.jobType);
+    });
+    return Array.from(types);
+  }, [inwardItems, lineItems]);
+
   const selectedJobDetails = useMemo(() => {
     return localJobs.find((j) => String(j.jobId) === selectedJob) || null;
   }, [selectedJob, localJobs]);
+
+  const partyInwardVouchers = useMemo(() => {
+    if (!selectedJob) return [];
+    return inwardVouchers.filter((v) => String(v.partyId) === selectedJob);
+  }, [selectedJob, inwardVouchers]);
+
+  useEffect(() => {
+    if (company.jobPartyType !== "process_house" || !selectedInwardVoucherId) {
+      return;
+    }
+    const parentVoucher = inwardVouchers.find(
+      (v) => v.voucherId === Number(selectedInwardVoucherId),
+    );
+    const parentItems = inwardItems.filter(
+      (item) => item.voucherId === Number(selectedInwardVoucherId),
+    );
+    setLineItems(
+      parentItems.map((item) => ({
+        id: crypto.randomUUID(),
+        inventoryId: String(item.inventoryId),
+        hsnCode: item.hsnCode || "",
+        pcs: String(item.pcs),
+        quantity: String(item.quantity),
+        fold: String(item.fold || 100),
+        rate: String(item.rate || 0),
+        jobType: item.jobType || "dyeing",
+        jobRateType: (item.jobRateType as any) || "mtr",
+        gstRateId: item.gstRateId ? String(item.gstRateId) : "",
+      })),
+    );
+    if (parentVoucher) {
+      setRemarks(`Outward against JI Lot: ${parentVoucher.lotNo || ""}`);
+    }
+  }, [selectedInwardVoucherId, inwardItems, inwardVouchers, company.jobPartyType]);
+
+  const isInterstate = useMemo(() => {
+    const jobWorker = localJobs.find((c) => String(c.jobId) === selectedJob);
+    if (!jobWorker) return false;
+    const companyGst = company?.gstNo || "";
+    const workerGst = jobWorker?.gstNo || "";
+    if (companyGst && workerGst) {
+      return companyGst.trim().slice(0, 2) !== workerGst.trim().slice(0, 2);
+    }
+    return false;
+  }, [company, selectedJob, localJobs]);
+
+  const rawTotal = useMemo(() => {
+    return lineItems.reduce((sum, line) => {
+      const pcs = Number(line.pcs) || 0;
+      const qty = Number(line.quantity) || 0;
+      const fold = Number(line.fold) || 100;
+      const rate = Number(line.rate) || 0;
+      const unit = line.jobRateType === "pcs" ? pcs : qty;
+      const netAmount = Math.round(((unit * rate * fold) / 100) * 100) / 100;
+      return sum + netAmount;
+    }, 0);
+  }, [lineItems]);
+
+  const totalExtraCharges = useMemo(() => {
+    return extraCharges.reduce((sum, c) => {
+      if (!c.value) return sum;
+      const isLess = c.effect === "less";
+      const amt = c.type === "percentage"
+        ? (rawTotal * Number(c.value)) / 100
+        : Number(c.value);
+      return isLess ? sum - amt : sum + amt;
+    }, 0);
+  }, [extraCharges, rawTotal]);
 
   const lineTotals = useMemo(() => {
     return lineItems.map((line) => {
@@ -205,6 +320,13 @@ export default function JobOutwardClient({
       const amount = Math.round(unit * rate * 100) / 100;
       const netAmount = Math.round(((unit * rate * fold) / 100) * 100) / 100;
 
+      // Allocate extra charges proportionally
+      const allocatedExtraCharge = rawTotal > 0
+        ? (netAmount / rawTotal) * totalExtraCharges
+        : totalExtraCharges / (lineItems.length || 1);
+
+      const taxableAmount = Math.max(0, netAmount + allocatedExtraCharge);
+
       const gstRatePercent =
         Number(
           line.gstRateId
@@ -213,36 +335,64 @@ export default function JobOutwardClient({
             : 0,
         ) || 0;
       const totalTax =
-        Math.round(((netAmount * gstRatePercent) / 100) * 100) / 100;
+        Math.round(((taxableAmount * gstRatePercent) / 100) * 100) / 100;
 
-      return { amount, netAmount, totalTax, net: netAmount + totalTax };
+      let cgst = 0;
+      let sgst = 0;
+      let igst = 0;
+      if (isInterstate) {
+        igst = totalTax;
+      } else {
+        cgst = Math.round((totalTax / 2) * 100) / 100;
+        sgst = Math.round((totalTax - cgst) * 100) / 100;
+      }
+
+      return {
+        amount,
+        netAmount,
+        taxableAmount,
+        totalTax,
+        cgst,
+        sgst,
+        igst,
+        net: taxableAmount + totalTax,
+      };
     });
-  }, [lineItems, taxRates]);
+  }, [lineItems, taxRates, totalExtraCharges, rawTotal, isInterstate]);
 
   const grandTotals = useMemo(() => {
     return lineTotals.reduce(
       (acc, item) => ({
         amount: acc.amount + item.amount,
         netAmount: acc.netAmount + item.netAmount,
+        taxableAmount: acc.taxableAmount + item.taxableAmount,
         tax: acc.tax + item.totalTax,
+        cgst: acc.cgst + item.cgst,
+        sgst: acc.sgst + item.sgst,
+        igst: acc.igst + item.igst,
         total: acc.total + item.net,
       }),
-      { amount: 0, netAmount: 0, tax: 0, total: 0 },
+      { amount: 0, netAmount: 0, taxableAmount: 0, tax: 0, cgst: 0, sgst: 0, igst: 0, total: 0 },
     );
   }, [lineTotals]);
 
-  const totalExtraCharges = useMemo(() => {
-    return extraCharges.reduce((sum, c) => {
-      if (!c.value) return sum;
-      if (c.type === "percentage")
-        return sum + (grandTotals.total * Number(c.value)) / 100;
-      return sum + Number(c.value);
-    }, 0);
-  }, [extraCharges, grandTotals.total]);
+  const calculatePreTaxDiscount = (val: string, type: "percentage" | "value", base: number) => {
+    if (!val) return 0;
+    if (type === "percentage") return (base * Number(val)) / 100;
+    return Number(val);
+  };
+
+  const discount1Amt = useMemo(() => {
+    return calculatePreTaxDiscount(discountValue, discountType, grandTotals.total);
+  }, [discountValue, discountType, grandTotals.total]);
+
+  const discount2Amt = useMemo(() => {
+    return calculatePreTaxDiscount(discountValue2, discountType2, grandTotals.total);
+  }, [discountValue2, discountType2, grandTotals.total]);
 
   const finalGrandTotal = useMemo(() => {
-    return grandTotals.total + totalExtraCharges;
-  }, [grandTotals.total, totalExtraCharges]);
+    return Math.max(0, grandTotals.total - (discount1Amt + discount2Amt));
+  }, [grandTotals.total, discount1Amt, discount2Amt]);
 
   function updateLine(id: string, field: keyof LineItem, value: string) {
     setLineItems((items) =>
@@ -251,6 +401,16 @@ export default function JobOutwardClient({
 
         if (field === "inventoryId") {
           const prod = inventory.find((p) => String(p.inventoryId) === value);
+          // Fetch the last dated rate from DB
+          fetch(`/api/inventory/last-rate?inventoryId=${value}`)
+            .then((res) => res.json())
+            .then((data) => {
+              if (data && data.rate !== undefined) {
+                updateLine(id, "rate", String(data.rate));
+              }
+            })
+            .catch((err) => console.error("Error fetching last rate", err));
+
           return {
             ...item,
             inventoryId: value,
@@ -305,9 +465,16 @@ export default function JobOutwardClient({
 
   async function handleSubmit() {
     if (!canCreate) return;
-    if (!selectedJob || !voucherNo || !lotNo) {
-      setMessage("Select Job Party, enter lot number and voucher number.");
-      return;
+    if (company.jobPartyType === "process_house") {
+      if (!selectedJob || !voucherNo || !selectedInwardVoucherId) {
+        setMessage("Select Job Party, Inward Voucher and enter voucher number.");
+        return;
+      }
+    } else {
+      if (!selectedJob || !voucherNo) {
+        setMessage("Select Job Party and enter voucher number.");
+        return;
+      }
     }
 
     const validLines = lineItems.filter((line) => line.inventoryId);
@@ -318,6 +485,10 @@ export default function JobOutwardClient({
 
     setSaving(true);
     setMessage(null);
+
+    const parentVoucher = inwardVouchers.find(
+      (v) => v.voucherId === Number(selectedInwardVoucherId),
+    );
 
     try {
       const body = {
@@ -334,9 +505,14 @@ export default function JobOutwardClient({
         transport,
         vehicleNo,
         personName,
-        lotNo,
+        lotNo: company.jobPartyType === "process_house" ? parentVoucher?.lotNo || null : lotNo || null,
         printRate,
         printAmount,
+        parentVoucherId: company.jobPartyType === "process_house" ? Number(selectedInwardVoucherId) : null,
+        discountType: discountValue ? discountType : null,
+        discountValue: discountValue ? Number(discountValue) : null,
+        discountType2: discountValue2 ? discountType2 : null,
+        discountValue2: discountValue2 ? Number(discountValue2) : null,
         extraCharges: totalExtraCharges,
         extraChargesData: extraCharges
           .filter((c) => c.value)
@@ -353,7 +529,10 @@ export default function JobOutwardClient({
             jobType: line.jobType,
             jobRateType: line.jobRateType,
             gstRateId: line.gstRateId ? Number(line.gstRateId) : null,
-            taxableAmount: totals.amount,
+            cgst: totals.cgst,
+            sgst: totals.sgst,
+            igst: totals.igst,
+            taxableAmount: totals.taxableAmount,
             lineNet: totals.net,
             pieceMeters: line.pieceMeters,
           };
@@ -382,6 +561,9 @@ export default function JobOutwardClient({
       setIsLrDateCustom(false);
       setTransport("");
       setLotNo("");
+      setSelectedInwardVoucherId("");
+      setDiscountValue("");
+      setDiscountValue2("");
       setExtraCharges([]);
       setLineItems([EMPTY_LINE()]);
 
@@ -553,18 +735,48 @@ export default function JobOutwardClient({
               <Input value={voucherNo} readOnly disabled placeholder="Fetching..." className="h-10" />
             </div>
 
-            {/* Lot No. */}
-            <div className="space-y-1.5">
-              <Label >
-                Lot No.
-              </Label>
-              <Input
-                value={lotNo}
-                onChange={(e) => setLotNo(e.target.value)}
-                placeholder="e.g. LOT-450"
-                className="h-10"
-              />
-            </div>
+            {/* Lot No. / Inward Voucher select */}
+            {company.jobPartyType === "process_house" ? (
+              <div className="space-y-1.5 md:col-span-2">
+                <Label>
+                  Against Inward Voucher No *
+                </Label>
+                <Select
+                  value={selectedInwardVoucherId}
+                  onValueChange={setSelectedInwardVoucherId}
+                  disabled={!selectedJob}
+                >
+                  <SelectTrigger className="h-10">
+                    <SelectValue
+                      placeholder={
+                        selectedJob
+                          ? "Select Inward Voucher"
+                          : "Select Job Party first"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {partyInwardVouchers.map((v) => (
+                      <SelectItem key={v.voucherId} value={String(v.voucherId)}>
+                        JI: {v.voucherNo} {v.lotNo ? `(Lot No: ${v.lotNo})` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                <Label>
+                  Lot No. (Optional)
+                </Label>
+                <Input
+                  value={lotNo}
+                  onChange={(e) => setLotNo(e.target.value)}
+                  placeholder="e.g. LOT-450"
+                  className="h-10"
+                />
+              </div>
+            )}
 
             {/* Challan Date */}
             <div className="space-y-1.5">
@@ -842,21 +1054,18 @@ export default function JobOutwardClient({
                     <Label >
                       Job Type
                     </Label>
-                    <Select
+                    <Input
                       value={line.jobType}
-                      onValueChange={(v) => updateLine(line.id, "jobType", v)}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Job type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="dyeing">Dyeing</SelectItem>
-                        <SelectItem value="printing">Printing</SelectItem>
-                        <SelectItem value="weaving">Weaving</SelectItem>
-                        <SelectItem value="stitching">Stitching</SelectItem>
-                        <SelectItem value="embroidery">Embroidery</SelectItem>
-                      </SelectContent>
-                    </Select>
+                      onChange={(e) => updateLine(line.id, "jobType", e.target.value)}
+                      placeholder="e.g. dyeing"
+                      list={`job-types-${line.id}`}
+                      className="h-10"
+                    />
+                    <datalist id={`job-types-${line.id}`}>
+                      {uniqueJobTypes.map((t) => (
+                        <option key={t} value={t} />
+                      ))}
+                    </datalist>
                   </div>
 
                   {/* Unit */}
@@ -922,7 +1131,7 @@ export default function JobOutwardClient({
                 </div>
 
                 {/* Calculations Summary Strip */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-muted/30 p-3 rounded-lg border border-border/50 text-xs mt-2">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4 bg-muted/30 p-3 rounded-lg border border-border/50 text-xs mt-2">
                   <div className="space-y-0.5">
                     <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px]">
                       Amount
@@ -936,13 +1145,25 @@ export default function JobOutwardClient({
                   </div>
                   <div className="space-y-0.5">
                     <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px]">
-                      Net Amount
+                      Taxable Amount
                     </span>
                     <span className="font-semibold text-foreground text-sm">
                       ₹{" "}
-                      {totals.netAmount.toLocaleString("en-IN", {
+                      {totals.taxableAmount.toLocaleString("en-IN", {
                         minimumFractionDigits: 2,
                       })}
+                    </span>
+                  </div>
+                  <div className="space-y-0.5">
+                    <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px]">
+                      {isInterstate ? "IGST" : "CGST / SGST"}
+                    </span>
+                    <span className="font-semibold text-foreground text-sm">
+                      {isInterstate ? (
+                        `₹ ${totals.igst.toFixed(2)}`
+                      ) : (
+                        `₹ ${totals.cgst.toFixed(2)} + ₹ ${totals.sgst.toFixed(2)}`
+                      )}
                     </span>
                   </div>
                   <div className="space-y-0.5">
@@ -974,131 +1195,250 @@ export default function JobOutwardClient({
         </div>
 
         {/* Summary Footer */}
-        <div className="flex flex-wrap items-center justify-between border-t border-border pt-4 gap-4 text-xs">
-          {/* Print Controls */}
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2">
-              <Label >
-                Print Challan:
-              </Label>
-              <select
-                value={printRate ? "yes" : "no"}
-                onChange={(e) => setPrintRate(e.target.value === "yes")}
-                className="h-9 rounded border border-border bg-background px-3 py-1 font-semibold uppercase text-xs"
-              >
-                <option value="yes">Print Rate (Yes)</option>
-                <option value="no">Print Rate (No)</option>
-              </select>
-            </div>
-            <div className="flex items-center gap-2">
-              <select
-                value={printAmount ? "yes" : "no"}
-                onChange={(e) => setPrintAmount(e.target.value === "yes")}
-                className="h-9 rounded border border-border bg-background px-3 py-1 font-semibold uppercase text-xs"
-              >
-                <option value="yes">Print Amount (Yes)</option>
-                <option value="no">Print Amount (No)</option>
-              </select>
+        <div className="grid gap-6 md:grid-cols-3 border-t border-border pt-4">
+          {/* Column 1: Print Controls */}
+          <div className="rounded-lg border border-border bg-card p-5 space-y-4 shadow-sm text-xs">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">
+              Print Controls
+            </h2>
+            <div className="space-y-3">
+              <div className="flex flex-col gap-1.5">
+                <Label>Print Rate</Label>
+                <select
+                  value={printRate ? "yes" : "no"}
+                  onChange={(e) => setPrintRate(e.target.value === "yes")}
+                  className="h-10 rounded border border-border bg-background px-3 py-1 font-semibold uppercase text-xs text-foreground"
+                >
+                  <option value="yes">Print Rate (Yes)</option>
+                  <option value="no">Print Rate (No)</option>
+                </select>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label>Print Amount</Label>
+                <select
+                  value={printAmount ? "yes" : "no"}
+                  onChange={(e) => setPrintAmount(e.target.value === "yes")}
+                  className="h-10 rounded border border-border bg-background px-3 py-1 font-semibold uppercase text-xs text-foreground"
+                >
+                  <option value="yes">Print Amount (Yes)</option>
+                  <option value="no">Print Amount (No)</option>
+                </select>
+              </div>
             </div>
           </div>
 
-          <div className="flex-1 space-y-2">
-            <div className="flex items-center justify-between">
-              <Label >
-                Extra Charges
-              </Label>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() =>
-                  setExtraCharges((prev) => [
-                    ...prev,
-                    {
-                      id: crypto.randomUUID(),
-                      label: "",
-                      value: "",
-                      type: "value",
-                    },
-                  ])
-                }
-                className="h-7 px-2 text-xs"
-              >
-                + Add Charge
-              </Button>
-            </div>
-            {extraCharges.map((charge) => (
-              <div
-                key={charge.id}
-                className="grid grid-cols-[1fr_90px_90px_auto] gap-2 items-center"
-              >
-                <Input
-                  placeholder="Label (e.g. Freight)"
-                  value={charge.label}
-                  onChange={(e) =>
-                    updateExtraCharge(charge.id, "label", e.target.value)
-                  }
-                  className="h-9"
-                />
+          {/* Column 2: Apply Discounts */}
+          <div className="rounded-lg border border-border bg-card p-5 space-y-4 shadow-sm">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-2">
+              Apply Discounts (Post-Tax)
+            </h2>
+            {/* Discount 1 */}
+            <div className="grid grid-cols-2 gap-3 pb-3 border-b border-border/40">
+              <div className="space-y-1.5">
+                <Label>Discount 1 Value</Label>
                 <Input
                   type="number"
                   step="0.01"
                   placeholder="0.00"
-                  value={charge.value}
-                  onChange={(e) =>
-                    updateExtraCharge(charge.id, "value", e.target.value)
-                  }
+                  value={discountValue}
+                  onChange={(e) => setDiscountValue(e.target.value)}
                   className="h-9"
                 />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Type</Label>
                 <Select
-                  value={charge.type}
-                  onValueChange={(val) =>
-                    updateExtraCharge(charge.id, "type", val)
-                  }
+                  value={discountType}
+                  onValueChange={(val) => setDiscountType(val as any)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full h-9">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="value">₹ Flat</SelectItem>
-                    <SelectItem value="percentage">% Rate</SelectItem>
+                    <SelectItem value="percentage">Percentage (%)</SelectItem>
+                    <SelectItem value="value">Flat Value (₹)</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+            </div>
+
+            {/* Discount 2 */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Discount 2 Value</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={discountValue2}
+                  onChange={(e) => setDiscountValue2(e.target.value)}
+                  className="h-9"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Type</Label>
+                <Select
+                  value={discountType2}
+                  onValueChange={(val) => setDiscountType2(val as any)}
+                >
+                  <SelectTrigger className="w-full h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="percentage">Percentage (%)</SelectItem>
+                    <SelectItem value="value">Flat Value (₹)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+
+          {/* Column 3: Extra Charges & Totals Display */}
+          <div className="rounded-lg border border-border bg-card p-5 space-y-4 shadow-sm text-xs">
+            <div className="flex items-center justify-between border-b border-border pb-2">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                Extra Charges (Pre-GST)
+              </h2>
+              <div className="flex items-center gap-2">
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="h-9 w-9 p-0 text-destructive hover:text-destructive"
                   onClick={() =>
-                    setExtraCharges((prev) =>
-                      prev.filter((c) => c.id !== charge.id),
-                    )
+                    setExtraCharges((prev) => [
+                      ...prev,
+                      {
+                        id: crypto.randomUUID(),
+                        label: "",
+                        value: "",
+                        type: "value",
+                        effect: "add",
+                      },
+                    ])
                   }
+                  className="h-7 px-2 text-xs text-success hover:text-success hover:bg-success/10"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  + Add
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() =>
+                    setExtraCharges((prev) => [
+                      ...prev,
+                      {
+                        id: crypto.randomUUID(),
+                        label: "",
+                        value: "",
+                        type: "value",
+                        effect: "less",
+                      },
+                    ])
+                  }
+                  className="h-7 px-2 text-xs text-danger hover:text-danger hover:bg-danger/10"
+                >
+                  - Less
                 </Button>
               </div>
-            ))}
-          </div>
+            </div>
 
-          <div className="space-y-1.5 text-right font-mono">
-            {extraCharges
-              .filter((c) => c.value)
-              .map((c) => (
-                <div key={c.id} className="text-xs text-muted-foreground">
-                  {c.label || "Extra Charges"}: +₹
-                  {(c.type === "percentage"
-                    ? (grandTotals.total * Number(c.value)) / 100
-                    : Number(c.value)
-                  ).toFixed(2)}
+            <div className="max-h-[180px] overflow-y-auto space-y-2">
+              {extraCharges.map((charge) => (
+                <div
+                  key={charge.id}
+                  className="grid grid-cols-[1fr_80px_70px_70px_auto] gap-1 items-center"
+                >
+                  <Input
+                    placeholder="Label"
+                    value={charge.label}
+                    onChange={(e) =>
+                      updateExtraCharge(charge.id, "label", e.target.value)
+                    }
+                    className="h-8 text-xs"
+                  />
+                  <Select
+                    value={charge.effect}
+                    onValueChange={(val) =>
+                      updateExtraCharge(charge.id, "effect", val as any)
+                    }
+                  >
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="add">Add (+)</SelectItem>
+                      <SelectItem value="less">Less (-)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={charge.value}
+                    onChange={(e) =>
+                      updateExtraCharge(charge.id, "value", e.target.value)
+                    }
+                    className="h-8 text-right text-xs"
+                  />
+                  <Select
+                    value={charge.type}
+                    onValueChange={(val) =>
+                      updateExtraCharge(charge.id, "type", val as any)
+                    }
+                  >
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="value">₹ Flat</SelectItem>
+                      <SelectItem value="percentage">% Rate</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={() =>
+                      setExtraCharges((prev) =>
+                        prev.filter((c) => c.id !== charge.id),
+                      )
+                    }
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
               ))}
-            <div className="text-muted-foreground">Total Outward Amount:</div>
-            <div className="text-lg font-black text-foreground">
-              ₹{" "}
-              {finalGrandTotal.toLocaleString("en-IN", {
-                minimumFractionDigits: 2,
-              })}
+            </div>
+
+            {/* Calculations Breakdowns and Grand Total */}
+            <div className="pt-2 border-t border-border/40 space-y-1 text-right font-mono text-[11px] text-muted-foreground">
+              <div>Subtotal: ₹{grandTotals.netAmount.toFixed(2)}</div>
+              {extraCharges
+                .filter((c) => c.value)
+                .map((c) => {
+                  const val = c.type === "percentage" ? (rawTotal * Number(c.value)) / 100 : Number(c.value);
+                  return (
+                    <div key={c.id}>
+                      {c.label || "Charge"}: {c.effect === "less" ? "-" : "+"}₹{val.toFixed(2)}
+                    </div>
+                  );
+                })}
+              <div>Taxable Value: ₹{grandTotals.taxableAmount.toFixed(2)}</div>
+              {isInterstate ? (
+                <div>IGST: ₹{grandTotals.igst.toFixed(2)}</div>
+              ) : (
+                <>
+                  <div>CGST: ₹{grandTotals.cgst.toFixed(2)}</div>
+                  <div>SGST: ₹{grandTotals.sgst.toFixed(2)}</div>
+                </>
+              )}
+              {discount1Amt > 0 && <div>Discount 1: -₹{discount1Amt.toFixed(2)}</div>}
+              {discount2Amt > 0 && <div>Discount 2: -₹{discount2Amt.toFixed(2)}</div>}
+              <div className="text-sm font-bold text-foreground pt-1 border-t border-border/55 mt-1 font-sans">
+                Grand Total: ₹{finalGrandTotal.toFixed(2)}
+              </div>
             </div>
           </div>
         </div>

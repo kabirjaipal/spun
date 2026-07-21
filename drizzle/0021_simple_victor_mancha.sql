@@ -1,0 +1,1 @@
+ALTER TABLE "m_companies" ADD COLUMN "job_party_type" text DEFAULT 'trader' NOT NULL;

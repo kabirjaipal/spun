@@ -42,6 +42,7 @@ interface CompanyFormState {
   msmeRegistered: boolean;
   msmeType: string;
   msmeNo: string;
+  jobPartyType: string;
 }
 
 const currentYear = new Date().getFullYear();
@@ -77,6 +78,7 @@ const createEmptyCompanyState = (): CompanyFormState => ({
   msmeRegistered: false,
   msmeType: "micro",
   msmeNo: "",
+  jobPartyType: "trader",
 });
 
 function mergeBanks(base: BankData[], custom: BankData[]): BankData[] {
@@ -272,6 +274,7 @@ export default function SetupCompanyPage() {
             financialYearStart: c.financialYearStart,
             companyType: c.companyType,
             marketCategory: c.marketCategory,
+            jobPartyType: c.jobPartyType,
             msmeRegistered: c.msmeRegistered,
             msmeType: c.msmeRegistered ? c.msmeType : null,
             msmeNo: c.msmeRegistered ? c.msmeNo : null,
@@ -589,6 +592,21 @@ export default function SetupCompanyPage() {
                     <option value="general">General / Standard</option>
                     <option value="textiles">Textiles</option>
                     <option value="diamond">Diamond</option>
+                  </select>
+                </div>
+
+                <div>
+                  <Label htmlFor="jobPartyType" className="text-xs font-semibold uppercase block mb-1.5">
+                    JOB PARTY TYPE *
+                  </Label>
+                  <select
+                    id="jobPartyType"
+                    value={currentCompany.jobPartyType}
+                    onChange={(e) => updateCurrent({ jobPartyType: e.target.value })}
+                    className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  >
+                    <option value="trader">Trader (Outward Lot First)</option>
+                    <option value="process_house">Process House (Inward Lot First)</option>
                   </select>
                 </div>
 
