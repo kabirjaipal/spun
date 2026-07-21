@@ -233,6 +233,7 @@ export default function PurchaseReturnClient({
     label: string;
     value: string;
     type: "percentage" | "value";
+    effect: "add" | "less";
   };
   const [extraCharges, setExtraCharges] = useState<ExtraCharge[]>([]);
   function updateExtraCharge(
@@ -337,20 +338,40 @@ export default function PurchaseReturnClient({
   }, [company, selectedCompany, companies]);
 
   const lineTotals = useMemo(() => {
-    return lineItems.map((line) => {
+    const linesRaw = lineItems.map((line) => {
       const qty = Number(line.quantity) || 0;
       const rate = Number(line.rate) || 0;
       const fold = Number(line.fold) || 100;
+      const amount = Math.round(qty * rate * 100) / 100;
+      const netAmount = Math.round(((qty * rate * fold) / 100) * 100) / 100;
+      return { line, amount, netAmount };
+    });
+
+    const totalSubtotal = linesRaw.reduce((sum, item) => sum + item.netAmount, 0);
+
+    const calculatedExtraCharges = extraCharges.reduce((sum, c) => {
+      if (!c.value) return sum;
+      const isLess = c.effect === "less";
+      const amt = c.type === "percentage"
+        ? (totalSubtotal * Number(c.value)) / 100
+        : Number(c.value);
+      return isLess ? sum - amt : sum + amt;
+    }, 0);
+
+    return linesRaw.map(({ line, amount, netAmount }) => {
       const gstRatePercent =
         Number(
           line.gstRateId
             ? taxRates.find((t) => String(t.taxRateId) === line.gstRateId)
-              ?.taxPercent
+                ?.taxPercent
             : 0,
         ) || 0;
 
-      const amount = Math.round(qty * rate * 100) / 100;
-      const netAmount = Math.round(((qty * rate * fold) / 100) * 100) / 100;
+      const allocatedExtraCharge = totalSubtotal > 0
+        ? (netAmount / totalSubtotal) * calculatedExtraCharges
+        : calculatedExtraCharges / linesRaw.length;
+
+      const taxableAmount = netAmount + allocatedExtraCharge;
 
       let defaultCgst = 0;
       let defaultSgst = 0;
@@ -379,9 +400,9 @@ export default function PurchaseReturnClient({
           : defaultIgst
         : 0;
 
-      const cgst = Math.round(((netAmount * cgstPercent) / 100) * 100) / 100;
-      const sgst = Math.round(((netAmount * sgstPercent) / 100) * 100) / 100;
-      const igst = Math.round(((netAmount * igstPercent) / 100) * 100) / 100;
+      const cgst = Math.round(((taxableAmount * cgstPercent) / 100) * 100) / 100;
+      const sgst = Math.round(((taxableAmount * sgstPercent) / 100) * 100) / 100;
+      const igst = Math.round(((taxableAmount * igstPercent) / 100) * 100) / 100;
 
       const totalTaxVal = cgst + sgst + igst;
 
@@ -398,7 +419,7 @@ export default function PurchaseReturnClient({
         net: netAmount + totalTaxVal,
       };
     });
-  }, [lineItems, taxRates, isInterstate]);
+  }, [lineItems, taxRates, isInterstate, extraCharges]);
 
   const grandTotals = useMemo(() => {
     return lineTotals.reduce(
@@ -418,11 +439,13 @@ export default function PurchaseReturnClient({
   const totalExtraCharges = useMemo(() => {
     return extraCharges.reduce((sum, c) => {
       if (!c.value) return sum;
-      if (c.type === "percentage")
-        return sum + (grandTotals.total * Number(c.value)) / 100;
-      return sum + Number(c.value);
+      const isLess = c.effect === "less";
+      const amt = c.type === "percentage"
+        ? (grandTotals.netAmount * Number(c.value)) / 100
+        : Number(c.value);
+      return isLess ? sum - amt : sum + amt;
     }, 0);
-  }, [extraCharges, grandTotals.total]);
+  }, [extraCharges, grandTotals.netAmount]);
 
   const finalGrandTotal = useMemo(() => {
     return grandTotals.total + totalExtraCharges;
@@ -649,74 +672,72 @@ export default function PurchaseReturnClient({
               />
             </div>
 
-            {selectedCompany && (
-              <div className="space-y-2 col-span-1 md:col-span-2">
-                <Label >
-                  Select Invoices to Return Items From
-                </Label>
-                {loadingInvoices ? (
-                  <div className="flex items-center gap-2">
-                    <Spinner className="text-muted-foreground" />
-                    <span>Loading invoices</span>
-                  </div>
-                ) : invoices.length === 0 ? (
-                  <p className="text-xs text-muted-foreground italic">
-                    No purchase invoices found for this company.
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    <Select
-                      value=""
-                      onValueChange={(val) => {
-                        const inv = invoices.find(
-                          (i) => String(i.voucherId) === val,
+            <div className="space-y-2 col-span-1 md:col-span-2">
+              <Label className="text-xs font-semibold uppercase text-primary">
+                Select Invoices to Return Items From (Optional)
+              </Label>
+              {loadingInvoices ? (
+                <div className="flex items-center gap-2">
+                  <Spinner className="text-muted-foreground" />
+                  <span>Loading invoices</span>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Select
+                    value=""
+                    onValueChange={(val) => {
+                      const inv = invoices.find(
+                        (i) => String(i.voucherId) === val,
+                      );
+                      if (inv) handleToggleInvoice(inv);
+                    }}
+                    disabled={!selectedCompany}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder={!selectedCompany ? "Select a Party first" : "Click to select/toggle purchase invoices"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {invoices.map((inv) => {
+                        const isSelected = selectedInvoiceIds.includes(
+                          inv.voucherId,
                         );
-                        if (inv) handleToggleInvoice(inv);
-                      }}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Click to select/toggle purchase invoices" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {invoices.map((inv) => {
-                          const isSelected = selectedInvoiceIds.includes(
-                            inv.voucherId,
-                          );
-                          return (
-                            <SelectItem
-                              key={inv.voucherId}
-                              value={String(inv.voucherId)}
-                            >
-                              {isSelected ? "✓ " : ""}
-                              {inv.voucherNo} ({formatDate(inv.voucherDate)}) -
-                              ₹{Number(inv.netAmount).toFixed(2)}
-                            </SelectItem>
-                          );
-                        })}
-                      </SelectContent>
-                    </Select>
+                        return (
+                          <SelectItem
+                            key={inv.voucherId}
+                            value={String(inv.voucherId)}
+                          >
+                            {isSelected ? "✓ " : ""}
+                            {inv.voucherNo} ({formatDate(inv.voucherDate)}) -
+                            ₹{Number(inv.netAmount).toFixed(2)}
+                          </SelectItem>
+                        );
+                      })}
+                      {selectedCompany && invoices.length === 0 && (
+                        <SelectItem value="none" disabled>No purchase invoices found for this company</SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
 
-                    {selectedInvoiceIds.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 pt-1">
-                        {selectedInvoiceIds.map((id) => {
-                          const inv = invoices.find((i) => i.voucherId === id);
-                          if (!inv) return null;
-                          return (
-                            <span
-                              key={id}
-                              onClick={() => handleToggleInvoice(inv)}
-                              className="inline-flex items-center gap-1 bg-primary/10 text-primary hover:bg-danger/10 hover:text-danger border border-primary/20 rounded px-2.5 py-0.5 text-xs font-medium cursor-pointer transition-colors"
-                            >
-                              {inv.voucherNo} ✕
-                            </span>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
+                  {selectedInvoiceIds.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {selectedInvoiceIds.map((id) => {
+                        const inv = invoices.find((i) => i.voucherId === id);
+                        if (!inv) return null;
+                        return (
+                          <span
+                            key={id}
+                            onClick={() => handleToggleInvoice(inv)}
+                            className="inline-flex items-center gap-1 bg-primary/10 text-primary hover:bg-danger/10 hover:text-danger border border-primary/20 rounded px-2.5 py-0.5 text-xs font-medium cursor-pointer transition-colors"
+                          >
+                            {inv.voucherNo} ✕
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -1215,32 +1236,55 @@ export default function PurchaseReturnClient({
           <div className="flex-1 space-y-2">
             <div className="flex items-center justify-between">
               <Label >
-                Extra Charges
+                Extra Charges & Deductions
               </Label>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() =>
-                  setExtraCharges((prev) => [
-                    ...prev,
-                    {
-                      id: crypto.randomUUID(),
-                      label: "",
-                      value: "",
-                      type: "value",
-                    },
-                  ])
-                }
-                className="h-7 px-2 text-xs"
-              >
-                + Add Charge
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() =>
+                    setExtraCharges((prev) => [
+                      ...prev,
+                      {
+                        id: crypto.randomUUID(),
+                        label: "",
+                        value: "",
+                        type: "value",
+                        effect: "add",
+                      },
+                    ])
+                  }
+                  className="h-7 px-2 text-xs text-success hover:text-success"
+                >
+                  + Add Charge
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() =>
+                    setExtraCharges((prev) => [
+                      ...prev,
+                      {
+                        id: crypto.randomUUID(),
+                        label: "",
+                        value: "",
+                        type: "value",
+                        effect: "less",
+                      },
+                    ])
+                  }
+                  className="h-7 px-2 text-xs text-danger hover:text-danger"
+                >
+                  - Less Charge
+                </Button>
+              </div>
             </div>
             {extraCharges.map((charge) => (
               <div
                 key={charge.id}
-                className="grid grid-cols-[1fr_90px_90px_auto] gap-2 items-center"
+                className="grid grid-cols-[1fr_90px_90px_90px_auto] gap-2 items-center"
               >
                 <Input
                   placeholder="Label (e.g. Freight)"
@@ -1250,6 +1294,20 @@ export default function PurchaseReturnClient({
                   }
                   className="h-9"
                 />
+                <Select
+                  value={charge.effect}
+                  onValueChange={(val) =>
+                    updateExtraCharge(charge.id, "effect", val as any)
+                  }
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="add">Add (+)</SelectItem>
+                    <SelectItem value="less">Less (-)</SelectItem>
+                  </SelectContent>
+                </Select>
                 <Input
                   type="number"
                   step="0.01"
@@ -1258,15 +1316,15 @@ export default function PurchaseReturnClient({
                   onChange={(e) =>
                     updateExtraCharge(charge.id, "value", e.target.value)
                   }
-                  className="h-9"
+                  className="h-9 text-right font-medium"
                 />
                 <Select
                   value={charge.type}
                   onValueChange={(val) =>
-                    updateExtraCharge(charge.id, "type", val)
+                    updateExtraCharge(charge.id, "type", val as any)
                   }
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="h-9">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1294,16 +1352,27 @@ export default function PurchaseReturnClient({
           <div className="space-y-1.5 text-right font-mono">
             {extraCharges
               .filter((c) => c.value)
-              .map((c) => (
-                <div key={c.id} className="text-xs text-muted-foreground">
-                  {c.label || "Extra Charges"}: +₹
-                  {(c.type === "percentage"
-                    ? (grandTotals.total * Number(c.value)) / 100
-                    : Number(c.value)
-                  ).toFixed(2)}
-                </div>
-              ))}
-            <div className="text-muted-foreground font-semibold uppercase text-xs">
+              .map((c) => {
+                const isLess = c.effect === "less";
+                const amt = c.type === "percentage"
+                  ? (grandTotals.netAmount * Number(c.value)) / 100
+                  : Number(c.value);
+                return (
+                  <div key={c.id} className={`text-xs ${isLess ? "text-danger" : "text-success font-medium"}`}>
+                    {c.label || (isLess ? "Deduction" : "Extra Charge")}: {isLess ? "-" : "+"}₹{amt.toFixed(2)}
+                  </div>
+                );
+              })}
+            <div className="text-muted-foreground font-semibold uppercase text-[10px] pt-1">
+              Taxable Value: ₹{grandTotals.netAmount.toFixed(2)}
+            </div>
+            <div className="text-muted-foreground font-semibold uppercase text-[10px]">
+              Total Taxable (with Charges): ₹{(grandTotals.netAmount + totalExtraCharges).toFixed(2)}
+            </div>
+            <div className="text-muted-foreground font-semibold uppercase text-[10px]">
+              GST Tax Amount: ₹{grandTotals.tax.toFixed(2)}
+            </div>
+            <div className="text-muted-foreground font-semibold uppercase text-xs pt-1 border-t border-border/50">
               Total Return Amount:
             </div>
             <div className="text-lg font-black text-foreground">

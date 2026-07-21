@@ -188,6 +188,7 @@ export default function SalesReturnClient({
     label: string;
     value: string;
     type: "percentage" | "value";
+    effect: "add" | "less";
   };
   const [extraCharges, setExtraCharges] = useState<ExtraCharge[]>([]);
   function updateExtraCharge(
@@ -282,10 +283,27 @@ export default function SalesReturnClient({
   }, [company, selectedCompany, companies]);
 
   const lineTotals = useMemo(() => {
-    return lineItems.map((line) => {
+    const linesRaw = lineItems.map((line) => {
       const qty = Number(line.quantity) || 0;
       const rate = Number(line.rate) || 0;
       const fold = Number(line.fold) || 100;
+      const amount = Math.round(qty * rate * 100) / 100;
+      const netAmount = Math.round(((qty * rate * fold) / 100) * 100) / 100;
+      return { line, amount, netAmount };
+    });
+
+    const totalSubtotal = linesRaw.reduce((sum, item) => sum + item.netAmount, 0);
+
+    const calculatedExtraCharges = extraCharges.reduce((sum, c) => {
+      if (!c.value) return sum;
+      const isLess = c.effect === "less";
+      const amt = c.type === "percentage"
+        ? (totalSubtotal * Number(c.value)) / 100
+        : Number(c.value);
+      return isLess ? sum - amt : sum + amt;
+    }, 0);
+
+    return linesRaw.map(({ line, amount, netAmount }) => {
       const gstRatePercent =
         Number(
           line.gstRateId
@@ -294,8 +312,11 @@ export default function SalesReturnClient({
             : 0,
         ) || 0;
 
-      const amount = Math.round(qty * rate * 100) / 100;
-      const netAmount = Math.round(((qty * rate * fold) / 100) * 100) / 100;
+      const allocatedExtraCharge = totalSubtotal > 0
+        ? (netAmount / totalSubtotal) * calculatedExtraCharges
+        : calculatedExtraCharges / linesRaw.length;
+
+      const taxableAmount = netAmount + allocatedExtraCharge;
 
       let defaultCgst = 0;
       let defaultSgst = 0;
@@ -324,9 +345,9 @@ export default function SalesReturnClient({
           : defaultIgst
         : 0;
 
-      const cgst = Math.round(((netAmount * cgstPercent) / 100) * 100) / 100;
-      const sgst = Math.round(((netAmount * sgstPercent) / 100) * 100) / 100;
-      const igst = Math.round(((netAmount * igstPercent) / 100) * 100) / 100;
+      const cgst = Math.round(((taxableAmount * cgstPercent) / 100) * 100) / 100;
+      const sgst = Math.round(((taxableAmount * sgstPercent) / 100) * 100) / 100;
+      const igst = Math.round(((taxableAmount * igstPercent) / 100) * 100) / 100;
 
       const totalTaxVal = cgst + sgst + igst;
 
@@ -343,7 +364,7 @@ export default function SalesReturnClient({
         net: netAmount + totalTaxVal,
       };
     });
-  }, [lineItems, taxRates, isInterstate]);
+  }, [lineItems, taxRates, isInterstate, extraCharges]);
 
   const grandTotals = useMemo(() => {
     return lineTotals.reduce(
@@ -363,11 +384,13 @@ export default function SalesReturnClient({
   const totalExtraCharges = useMemo(() => {
     return extraCharges.reduce((sum, c) => {
       if (!c.value) return sum;
-      if (c.type === "percentage")
-        return sum + (grandTotals.total * Number(c.value)) / 100;
-      return sum + Number(c.value);
+      const isLess = c.effect === "less";
+      const amt = c.type === "percentage"
+        ? (grandTotals.netAmount * Number(c.value)) / 100
+        : Number(c.value);
+      return isLess ? sum - amt : sum + amt;
     }, 0);
-  }, [extraCharges, grandTotals.total]);
+  }, [extraCharges, grandTotals.netAmount]);
 
   const finalGrandTotal = useMemo(() => {
     return grandTotals.total + totalExtraCharges;
@@ -621,43 +644,45 @@ export default function SalesReturnClient({
               />
             </div>
 
-            {selectedCompany && (
-              <div className="space-y-4 col-span-1 md:col-span-2">
-                <Label >
-                  Select Invoices to Return Items From
-                </Label>
-                {loadingInvoices ? (
-                  <div className="flex items-center gap-2">
-                    <Spinner className="text-muted-foreground" />
-                    <span>Loading invoices</span>
-                  </div>
-                ) : invoices.length === 0 ? (
-                  <p className="text-xs text-muted-foreground italic">
-                    No sales invoices found for this company.
-                  </p>
-                ) : (
-                  <div className="max-h-36 overflow-y-auto space-y-2 border border-border rounded p-2 bg-muted/10">
-                    {invoices.map((inv) => (
-                      <label
-                        key={inv.voucherId}
-                        className="flex items-center gap-2 text-xs text-foreground cursor-pointer"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedInvoiceIds.includes(inv.voucherId)}
-                          onChange={() => handleToggleInvoice(inv)}
-                          className="rounded border-border text-primary focus:ring-primary h-3.5 w-3.5"
-                        />
-                        <span>
-                          {inv.voucherNo} ({formatDate(inv.voucherDate)}) - ₹
-                          {Number(inv.netAmount).toFixed(2)}
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+            <div className="space-y-4 col-span-1 md:col-span-2">
+              <Label className="text-xs font-semibold uppercase text-primary">
+                Select Invoices to Return Items From (Optional)
+              </Label>
+              {loadingInvoices ? (
+                <div className="flex items-center gap-2">
+                  <Spinner className="text-muted-foreground" />
+                  <span>Loading invoices</span>
+                </div>
+              ) : !selectedCompany ? (
+                <div className="border border-border rounded p-2 bg-muted/10 text-xs text-muted-foreground italic">
+                  Select a Party first to show invoices
+                </div>
+              ) : invoices.length === 0 ? (
+                <p className="text-xs text-muted-foreground italic">
+                  No sales invoices found for this company.
+                </p>
+              ) : (
+                <div className="max-h-36 overflow-y-auto space-y-2 border border-border rounded p-2 bg-muted/10">
+                  {invoices.map((inv) => (
+                    <label
+                      key={inv.voucherId}
+                      className="flex items-center gap-2 text-xs text-foreground cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedInvoiceIds.includes(inv.voucherId)}
+                        onChange={() => handleToggleInvoice(inv)}
+                        className="rounded border-border text-primary focus:ring-primary h-3.5 w-3.5"
+                      />
+                      <span>
+                        {inv.voucherNo} ({formatDate(inv.voucherDate)}) - ₹
+                        {Number(inv.netAmount).toFixed(2)}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -1156,32 +1181,55 @@ export default function SalesReturnClient({
           <div className="flex-1 space-y-2">
             <div className="flex items-center justify-between">
               <Label >
-                Extra Charges
+                Extra Charges & Deductions
               </Label>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() =>
-                  setExtraCharges((prev) => [
-                    ...prev,
-                    {
-                      id: crypto.randomUUID(),
-                      label: "",
-                      value: "",
-                      type: "value",
-                    },
-                  ])
-                }
-                className="h-7 px-2 text-xs"
-              >
-                + Add Charge
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() =>
+                    setExtraCharges((prev) => [
+                      ...prev,
+                      {
+                        id: crypto.randomUUID(),
+                        label: "",
+                        value: "",
+                        type: "value",
+                        effect: "add",
+                      },
+                    ])
+                  }
+                  className="h-7 px-2 text-xs text-success hover:text-success"
+                >
+                  + Add Charge
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() =>
+                    setExtraCharges((prev) => [
+                      ...prev,
+                      {
+                        id: crypto.randomUUID(),
+                        label: "",
+                        value: "",
+                        type: "value",
+                        effect: "less",
+                      },
+                    ])
+                  }
+                  className="h-7 px-2 text-xs text-danger hover:text-danger"
+                >
+                  - Less Charge
+                </Button>
+              </div>
             </div>
             {extraCharges.map((charge) => (
               <div
                 key={charge.id}
-                className="grid grid-cols-[1fr_90px_90px_auto] gap-2 items-center"
+                className="grid grid-cols-[1fr_90px_90px_90px_auto] gap-2 items-center"
               >
                 <Input
                   placeholder="Label (e.g. Freight)"
@@ -1191,6 +1239,20 @@ export default function SalesReturnClient({
                   }
                   className="h-9"
                 />
+                <Select
+                  value={charge.effect}
+                  onValueChange={(val) =>
+                    updateExtraCharge(charge.id, "effect", val as any)
+                  }
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="add">Add (+)</SelectItem>
+                    <SelectItem value="less">Less (-)</SelectItem>
+                  </SelectContent>
+                </Select>
                 <Input
                   type="number"
                   step="0.01"
@@ -1199,15 +1261,15 @@ export default function SalesReturnClient({
                   onChange={(e) =>
                     updateExtraCharge(charge.id, "value", e.target.value)
                   }
-                  className="h-9"
+                  className="h-9 text-right font-medium"
                 />
                 <Select
                   value={charge.type}
                   onValueChange={(val) =>
-                    updateExtraCharge(charge.id, "type", val)
+                    updateExtraCharge(charge.id, "type", val as any)
                   }
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="h-9">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1235,16 +1297,27 @@ export default function SalesReturnClient({
           <div className="space-y-1.5 text-right font-mono">
             {extraCharges
               .filter((c) => c.value)
-              .map((c) => (
-                <div key={c.id} className="text-xs text-muted-foreground">
-                  {c.label || "Extra Charges"}: +₹
-                  {(c.type === "percentage"
-                    ? (grandTotals.total * Number(c.value)) / 100
-                    : Number(c.value)
-                  ).toFixed(2)}
-                </div>
-              ))}
-            <div className="text-muted-foreground font-semibold uppercase text-xs">
+              .map((c) => {
+                const isLess = c.effect === "less";
+                const amt = c.type === "percentage"
+                  ? (grandTotals.netAmount * Number(c.value)) / 100
+                  : Number(c.value);
+                return (
+                  <div key={c.id} className={`text-xs ${isLess ? "text-danger" : "text-success font-medium"}`}>
+                    {c.label || (isLess ? "Deduction" : "Extra Charge")}: {isLess ? "-" : "+"}₹{amt.toFixed(2)}
+                  </div>
+                );
+              })}
+            <div className="text-muted-foreground font-semibold uppercase text-[10px] pt-1">
+              Taxable Value: ₹{grandTotals.netAmount.toFixed(2)}
+            </div>
+            <div className="text-muted-foreground font-semibold uppercase text-[10px]">
+              Total Taxable (with Charges): ₹{(grandTotals.netAmount + totalExtraCharges).toFixed(2)}
+            </div>
+            <div className="text-muted-foreground font-semibold uppercase text-[10px]">
+              GST Tax Amount: ₹{grandTotals.tax.toFixed(2)}
+            </div>
+            <div className="text-muted-foreground font-semibold uppercase text-xs pt-1 border-t border-border/50">
               Total Return Amount:
             </div>
             <div className="text-lg font-black text-foreground">

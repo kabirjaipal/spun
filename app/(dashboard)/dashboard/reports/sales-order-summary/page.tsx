@@ -58,6 +58,24 @@ export default async function SalesOrderSummaryPage({
     )
     .orderBy(tVouchers.voucherDate, tVouchers.voucherNo);
 
+  // Fetch sales bills that are linked to any sales order
+  const bills = await db
+    .select({
+      voucherId: tVouchers.voucherId,
+      voucherNo: tVouchers.voucherNo,
+      voucherDate: tVouchers.voucherDate,
+      netAmount: tVouchers.netAmount,
+      parentVoucherId: tVouchers.parentVoucherId,
+    })
+    .from(tVouchers)
+    .where(
+      and(
+        eq(tVouchers.companyId, companyId),
+        eq(tVouchers.voucherType, "sale"),
+        isNull(tVouchers.deletedOn),
+      )
+    );
+
   const perms = getStaticPermissionsForRole(session.user.role as Role);
   const canExport = perms.find((x) => x.accessItem === "sales_order_summary")?.e ?? false;
 
@@ -73,6 +91,10 @@ export default async function SalesOrderSummaryPage({
         ...o,
         netAmount: Number(o.netAmount),
         partyName: o.partyName || "General Customer",
+      }))}
+      bills={bills.map(b => ({
+        ...b,
+        netAmount: Number(b.netAmount),
       }))}
       canExport={canExport}
     />

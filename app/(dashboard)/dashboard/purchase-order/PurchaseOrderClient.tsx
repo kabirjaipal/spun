@@ -54,7 +54,7 @@ interface TaxRateOption {
 
 interface LineItem {
   id: string;
-  ledgerId: string;
+  inventoryId: string;
   hsnCode: string;
   pcs: string;
   quantity: string;
@@ -67,7 +67,7 @@ interface LineItem {
 
 const EMPTY_LINE = (): LineItem => ({
   id: crypto.randomUUID(),
-  ledgerId: "",
+  inventoryId: "",
   hsnCode: "",
   pcs: "0",
   quantity: "0",
@@ -222,6 +222,15 @@ export default function PurchaseOrderClient({
     setLineItems((items) =>
       items.map((item) => {
         if (item.id !== id) return item;
+        if (field === "inventoryId") {
+          const prod = inventory.find((p) => String(p.inventoryId) === value);
+          return {
+            ...item,
+            inventoryId: value,
+            hsnCode: prod?.inventoryCode || "",
+            gstRateId: prod?.gstRateId ? String(prod.gstRateId) : "",
+          };
+        }
         return { ...item, [field]: value };
       })
     );
@@ -239,7 +248,7 @@ export default function PurchaseOrderClient({
   async function handleSubmit() {
     if (!canCreate) return;
 
-    const validLines = lineItems.filter((l) => l.ledgerId && (Number(l.pcs) > 0 || Number(l.quantity) > 0));
+    const validLines = lineItems.filter((l) => l.inventoryId && (Number(l.pcs) > 0 || Number(l.quantity) > 0));
     if (!selectedCompany || !voucherNo || validLines.length === 0) {
       setMessage("Please select company, enter order number, and add at least one valid line with Item and quantity/pcs.");
       return;
@@ -261,7 +270,7 @@ export default function PurchaseOrderClient({
         lineItems: validLines.map((line) => {
           const totals = lineTotals[lineItems.indexOf(line)];
           return {
-            ledgerId: Number(line.ledgerId),
+            inventoryId: Number(line.inventoryId),
             hsnCode: line.hsnCode,
             pcs: Number(line.pcs),
             quantity: Number(line.quantity),
@@ -388,11 +397,13 @@ export default function PurchaseOrderClient({
                   >
                     <div className="space-y-2">
                       <Label >Item</Label>
-                      <Select value={line.ledgerId} onValueChange={(val) => updateLine(line.id, "ledgerId", val)}>
+                      <Select value={line.inventoryId} onValueChange={(val) => updateLine(line.id, "inventoryId", val)}>
                         <SelectTrigger><SelectValue placeholder="Item" /></SelectTrigger>
                         <SelectContent>
-                          {eligibleLedgers.map((l) => (
-                            <SelectItem key={l.ledgerId} value={String(l.ledgerId)}>{l.ledgerName}</SelectItem>
+                          {inventory.map((item) => (
+                            <SelectItem key={item.inventoryId} value={String(item.inventoryId)}>
+                              {item.inventoryCode} — {item.inventoryName}
+                            </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>

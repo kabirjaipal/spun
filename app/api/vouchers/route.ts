@@ -227,15 +227,8 @@ export async function POST(request: Request) {
           return { line, rawTaxableAmount, pcs, qty, rate, fold, jobRateType };
         });
 
-        for (const {
-          line,
-          rawTaxableAmount,
-          pcs,
-          qty,
-          rate,
-          fold,
-          jobRateType,
-        } of linesInfo) {
+        // Calculate discounted amounts for all lines first
+        const linesDiscounted = linesInfo.map(({ line, rawTaxableAmount, ...rest }) => {
           const lineDiscount1 = calculatePreTaxDiscount(
             rawTaxableAmount,
             rawTotal,
@@ -249,9 +242,35 @@ export async function POST(request: Request) {
             discountValue2,
           );
           const totalLineDiscount = lineDiscount1 + lineDiscount2;
-          const taxableAmount = Math.max(
+          const discountedAmount = Math.max(
             0,
             Math.round((rawTaxableAmount - totalLineDiscount) * 100) / 100,
+          );
+          return { line, rawTaxableAmount, discountedAmount, ...rest };
+        });
+
+        const totalDiscountedAmount = linesDiscounted.reduce(
+          (sum, item) => sum + item.discountedAmount,
+          0,
+        );
+
+        for (const {
+          line,
+          rawTaxableAmount,
+          discountedAmount,
+          pcs,
+          qty,
+          rate,
+          fold,
+          jobRateType,
+        } of linesDiscounted) {
+          const allocatedCharge = totalDiscountedAmount > 0
+            ? (discountedAmount / totalDiscountedAmount) * extraChargesNum
+            : extraChargesNum / linesDiscounted.length;
+
+          const taxableAmount = Math.max(
+            0,
+            Math.round((discountedAmount + allocatedCharge) * 100) / 100,
           );
 
           let cgst = line.cgst !== undefined ? Number(line.cgst) : 0;
@@ -299,7 +318,7 @@ export async function POST(request: Request) {
             lineNet,
           });
         }
-        computedNet = Math.round((computedNet + extraChargesNum) * 100) / 100;
+        computedNet = Math.round(computedNet * 100) / 100;
       } else if (voucherType === "receipt" || voucherType === "payment") {
         computedTotal = Number(totalAmount || 0);
         computedNet = computedTotal;

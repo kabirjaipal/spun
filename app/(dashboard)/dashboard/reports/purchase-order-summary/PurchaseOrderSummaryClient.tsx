@@ -19,6 +19,14 @@ interface Order {
   dueDate: string | null;
 }
 
+interface Bill {
+  voucherId: number;
+  voucherNo: string;
+  voucherDate: string;
+  netAmount: number;
+  parentVoucherId: number | null;
+}
+
 interface Company {
   companyId: number;
   companyName: string;
@@ -29,10 +37,11 @@ interface Company {
 interface Props {
   company: Company;
   orders: Order[];
+  bills: Bill[];
   canExport: boolean;
 }
 
-function PurchaseOrderSummaryContent({ company, orders, canExport }: Props) {
+function PurchaseOrderSummaryContent({ company, orders, bills, canExport }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -80,6 +89,21 @@ function PurchaseOrderSummaryContent({ company, orders, canExport }: Props) {
 
   const totalAmount = filteredOrders.reduce((sum, o) => sum + o.netAmount, 0);
 
+  const totalBilledAmount = useMemo(() => {
+    return filteredOrders.reduce((sum, o) => {
+      const orderBills = bills.filter((b) => Number(b.parentVoucherId) === o.voucherId);
+      return sum + orderBills.reduce((s, b) => s + b.netAmount, 0);
+    }, 0);
+  }, [filteredOrders, bills]);
+
+  const totalPendingAmount = useMemo(() => {
+    return filteredOrders.reduce((sum, o) => {
+      const orderBills = bills.filter((b) => Number(b.parentVoucherId) === o.voucherId);
+      const billed = orderBills.reduce((s, b) => s + b.netAmount, 0);
+      return sum + Math.max(0, o.netAmount - billed);
+    }, 0);
+  }, [filteredOrders, bills]);
+
   const monthlySummary = useMemo(() => {
     const start = new Date(fromParam + "T00:00:00");
     const end = new Date(toParam + "T00:00:00");
@@ -103,16 +127,28 @@ function PurchaseOrderSummaryContent({ company, orders, canExport }: Props) {
       const orderCount = monthOrders.length;
       const netAmount = monthOrders.reduce((sum, o) => sum + o.netAmount, 0);
 
+      let monthBilled = 0;
+      let monthPending = 0;
+      monthOrders.forEach((o) => {
+        const orderBills = bills.filter((b) => Number(b.parentVoucherId) === o.voucherId);
+        const billed = orderBills.reduce((s, b) => s + b.netAmount, 0);
+        const pending = Math.max(0, o.netAmount - billed);
+        monthBilled += billed;
+        monthPending += pending;
+      });
+
       return {
         monthKey: month.key,
         monthName: month.monthName,
         year: month.year,
         orderCount,
         netAmount,
+        billedAmount: monthBilled,
+        pendingAmount: monthPending,
         orders: monthOrders,
       };
     });
-  }, [fromParam, toParam, filteredOrders]);
+  }, [fromParam, toParam, filteredOrders, bills]);
 
   const handleRestoreLine = () => {
     if (lastRemovedLine) {
@@ -198,10 +234,12 @@ function PurchaseOrderSummaryContent({ company, orders, canExport }: Props) {
             /* MONTHLY SUMMARY TABLE */
             <table className="w-full border-collapse text-sm">
               <thead>
-                <tr className="border-b border-border bg-muted/40 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                <tr className="border-b border-border bg-muted/40 text-xs font-bold uppercase tracking-wider text-muted-foreground border">
                   <th className="p-3 text-left pl-6">Particulars (Month)</th>
-                  <th className="p-3 text-center w-[200px]">Total Orders</th>
-                  <th className="p-3 text-right border-l border-border w-[250px]">Order Amount</th>
+                  <th className="p-3 text-center w-[120px]">Total Orders</th>
+                  <th className="p-3 text-right border-l border-border w-[180px]">Order Amount</th>
+                  <th className="p-3 text-right border-l border-border w-[180px]">Billed Amount</th>
+                  <th className="p-3 text-right border-l border-border w-[180px]">Pending Amount</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/40 text-foreground">
@@ -220,6 +258,12 @@ function PurchaseOrderSummaryContent({ company, orders, canExport }: Props) {
                     <td className="p-3 text-right border-l border-border font-mono font-bold">
                       {formatAmount(item.netAmount)}
                     </td>
+                    <td className="p-3 text-right border-l border-border font-mono text-muted-foreground">
+                      {formatAmount(item.billedAmount)}
+                    </td>
+                    <td className="p-3 text-right border-l border-border font-mono text-primary font-bold">
+                      {formatAmount(item.pendingAmount)}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -229,6 +273,12 @@ function PurchaseOrderSummaryContent({ company, orders, canExport }: Props) {
                   <td className="p-3 text-center font-mono">{monthlySummary.reduce((sum, item) => sum + item.orderCount, 0)}</td>
                   <td className="p-3 text-right border-l border-border font-mono text-base text-foreground">
                     {formatAmount(totalAmount)}
+                  </td>
+                  <td className="p-3 text-right border-l border-border font-mono text-base text-muted-foreground">
+                    {formatAmount(totalBilledAmount)}
+                  </td>
+                  <td className="p-3 text-right border-l border-border font-mono text-base text-primary font-bold">
+                    {formatAmount(totalPendingAmount)}
                   </td>
                 </tr>
               </tfoot>
@@ -240,53 +290,79 @@ function PurchaseOrderSummaryContent({ company, orders, canExport }: Props) {
                 <tr className="border-b border-border bg-muted/40 text-xs font-bold uppercase tracking-wider text-muted-foreground">
                   <th className="p-3 text-left pl-6 w-[120px]">Date</th>
                   <th className="p-3 text-left w-[150px]">Order No.</th>
-                  <th className="p-3 text-left min-w-[200px]">Party Name</th>
+                  <th className="p-3 text-left min-w-[200px]">Party / Bill Details</th>
                   <th className="p-3 text-center w-[120px]">Due Date</th>
                   <th className="p-3 text-center w-[120px]">Status</th>
-                  <th className="p-3 text-right border-l border-border w-[160px]">Order Amount</th>
+                  <th className="p-3 text-right border-l border-border w-[140px]">Order Amount</th>
+                  <th className="p-3 text-right border-l border-border w-[140px]">Billed Amount</th>
+                  <th className="p-3 text-right border-l border-border w-[140px]">Pending Amount</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/40 text-foreground">
                 {filteredOrders.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="p-8 text-center text-xs text-muted-foreground italic">
+                    <td colSpan={8} className="p-8 text-center text-xs text-muted-foreground italic">
                       No purchase orders found for the selected period
                     </td>
                   </tr>
                 ) : (
-                  filteredOrders.map((o) => (
-                    <tr key={o.voucherId} className="group/row hover:bg-muted/10 transition-colors font-medium">
-                      <td className="p-3 pl-6 font-mono text-xs whitespace-nowrap">{formatDateToTally(o.voucherDate)}</td>
-                      <td className="p-3 font-mono text-xs">{o.voucherNo}</td>
-                      <td className="p-3">
-                        <div className="flex items-center justify-between">
-                          <span>{o.partyName}</span>
-                          <button
-                            onClick={() => {
-                              setRemovedLines((p) => [...p, String(o.voucherId)]);
-                              setLastRemovedLine(String(o.voucherId));
-                            }}
-                            className="opacity-0 group-hover/row:opacity-100 text-xs text-destructive hover:underline p-1 ml-2 no-print font-normal"
-                          >
-                            Omit
-                          </button>
-                        </div>
-                      </td>
-                      <td className="p-3 text-center font-mono text-xs">{o.dueDate ? formatDateToTally(o.dueDate) : "—"}</td>
-                      <td className="p-3 text-center">
-                        <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
-                          {o.status}
-                        </span>
-                      </td>
-                      <td className="p-3 text-right border-l border-border font-mono font-bold">{formatAmount(o.netAmount)}</td>
-                    </tr>
-                  ))
+                  filteredOrders.map((o) => {
+                    const orderBills = bills.filter((b) => Number(b.parentVoucherId) === o.voucherId);
+                    const billedAmt = orderBills.reduce((sum, b) => sum + b.netAmount, 0);
+                    const pendingAmt = Math.max(0, o.netAmount - billedAmt);
+
+                    return (
+                      <React.Fragment key={o.voucherId}>
+                        <tr className="group/row hover:bg-muted/10 transition-colors font-medium">
+                          <td className="p-3 pl-6 font-mono text-xs whitespace-nowrap">{formatDateToTally(o.voucherDate)}</td>
+                          <td className="p-3 font-mono text-xs">{o.voucherNo}</td>
+                          <td className="p-3">
+                            <div className="flex items-center justify-between">
+                              <span className="font-semibold text-foreground">{o.partyName}</span>
+                              <button
+                                onClick={() => {
+                                  setRemovedLines((p) => [...p, String(o.voucherId)]);
+                                  setLastRemovedLine(String(o.voucherId));
+                                }}
+                                className="opacity-0 group-hover/row:opacity-100 text-xs text-destructive hover:underline p-1 ml-2 no-print font-normal"
+                              >
+                                Omit
+                              </button>
+                            </div>
+                          </td>
+                          <td className="p-3 text-center font-mono text-xs">{o.dueDate ? formatDateToTally(o.dueDate) : "—"}</td>
+                          <td className="p-3 text-center">
+                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold uppercase tracking-wider ${pendingAmt === 0 ? "bg-success/10 text-success border border-success/20" : "bg-warning/10 text-warning border border-warning/20"}`}>
+                              {pendingAmt === 0 ? "Fully Billed" : "Pending"}
+                            </span>
+                          </td>
+                          <td className="p-3 text-right border-l border-border font-mono font-bold">{formatAmount(o.netAmount)}</td>
+                          <td className="p-3 text-right border-l border-border font-mono text-muted-foreground">{formatAmount(billedAmt)}</td>
+                          <td className="p-3 text-right border-l border-border font-mono text-primary font-bold">{formatAmount(pendingAmt)}</td>
+                        </tr>
+                        {orderBills.map((b) => (
+                          <tr key={b.voucherId} className="bg-muted/20 font-medium text-xs text-muted-foreground border-b border-border/10">
+                            <td className="p-2 pl-12 font-mono text-[11px]">{formatDateToTally(b.voucherDate)}</td>
+                            <td className="p-2 font-mono text-[11px]">{b.voucherNo}</td>
+                            <td className="p-2 pl-6 italic" colSpan={3}>
+                              └─ Bill Ref for Order {o.voucherNo}
+                            </td>
+                            <td className="p-2 text-right border-l border-border/30 font-mono">—</td>
+                            <td className="p-2 text-right border-l border-border/30 font-mono">{formatAmount(b.netAmount)}</td>
+                            <td className="p-2 text-right border-l border-border/30 font-mono">—</td>
+                          </tr>
+                        ))}
+                      </React.Fragment>
+                    );
+                  })
                 )}
               </tbody>
               <tfoot>
                 <tr className="border-t-2 border-double border-border bg-muted/20 text-sm font-bold">
                   <td className="p-3 pl-6" colSpan={5}>Total</td>
                   <td className="p-3 text-right border-l border-border font-mono text-base text-foreground">{formatAmount(totalAmount)}</td>
+                  <td className="p-3 text-right border-l border-border font-mono text-base text-muted-foreground">{formatAmount(totalBilledAmount)}</td>
+                  <td className="p-3 text-right border-l border-border font-mono text-base text-primary font-bold">{formatAmount(totalPendingAmount)}</td>
                 </tr>
               </tfoot>
             </table>
@@ -338,57 +414,94 @@ function PurchaseOrderSummaryContent({ company, orders, canExport }: Props) {
                   <tr className="border-b border-border bg-muted/40 text-xs font-bold uppercase tracking-wider text-muted-foreground font-semibold">
                     <th className="p-3 text-left pl-6 w-[120px]">Date</th>
                     <th className="p-3 text-left w-[150px]">Order No.</th>
-                    <th className="p-3 text-left min-w-[200px]">Party Name</th>
+                    <th className="p-3 text-left min-w-[200px]">Party / Bill Details</th>
                     <th className="p-3 text-center w-[120px]">Due Date</th>
                     <th className="p-3 text-center w-[120px]">Status</th>
-                    <th className="p-3 text-right border-l border-border w-[160px]">Order Amount</th>
+                    <th className="p-3 text-right border-l border-border w-[140px]">Order Amount</th>
+                    <th className="p-3 text-right border-l border-border w-[140px]">Billed Amount</th>
+                    <th className="p-3 text-right border-l border-border w-[140px]">Pending Amount</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/40 text-foreground">
                   {selectedMonth?.orders.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="p-8 text-center text-xs text-muted-foreground italic">
+                      <td colSpan={8} className="p-8 text-center text-xs text-muted-foreground italic">
                         No orders recorded for this month
                       </td>
                     </tr>
                   ) : (
-                    selectedMonth?.orders.map((o: any) => (
-                      <tr key={o.voucherId} className="group/row hover:bg-muted/10 transition-colors font-medium">
-                        <td className="p-3 pl-6 font-mono text-xs whitespace-nowrap">{formatDateToTally(o.voucherDate)}</td>
-                        <td className="p-3 font-mono text-xs">{o.voucherNo}</td>
-                        <td className="p-3">
-                          <div className="flex items-center justify-between">
-                            <span>{o.partyName}</span>
-                            <button
-                              onClick={() => {
-                                setRemovedLines((p) => [...p, String(o.voucherId)]);
-                                setLastRemovedLine(String(o.voucherId));
-                                setSelectedMonth((prev: any) => {
-                                  if (!prev) return null;
-                                  const updatedOrders = prev.orders.filter((x: any) => String(x.voucherId) !== String(o.voucherId));
-                                  return {
-                                    ...prev,
-                                    orderCount: updatedOrders.length,
-                                    netAmount: updatedOrders.reduce((sum: number, x: any) => sum + x.netAmount, 0),
-                                    orders: updatedOrders,
-                                  };
-                                });
-                              }}
-                              className="opacity-0 group-hover/row:opacity-100 text-xs text-destructive hover:underline p-1 ml-2 no-print font-normal"
-                            >
-                              Omit
-                            </button>
-                          </div>
-                        </td>
-                        <td className="p-3 text-center font-mono text-xs">{o.dueDate ? formatDateToTally(o.dueDate) : "—"}</td>
-                        <td className="p-3 text-center">
-                          <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
-                            {o.status}
-                          </span>
-                        </td>
-                        <td className="p-3 text-right border-l border-border font-mono font-bold">{formatAmount(o.netAmount)}</td>
-                      </tr>
-                    ))
+                    selectedMonth?.orders.map((o: any) => {
+                      const orderBills = bills.filter((b) => Number(b.parentVoucherId) === o.voucherId);
+                      const billedAmt = orderBills.reduce((sum, b) => sum + b.netAmount, 0);
+                      const pendingAmt = Math.max(0, o.netAmount - billedAmt);
+
+                      return (
+                        <React.Fragment key={o.voucherId}>
+                          <tr className="group/row hover:bg-muted/10 transition-colors font-medium">
+                            <td className="p-3 pl-6 font-mono text-xs whitespace-nowrap">{formatDateToTally(o.voucherDate)}</td>
+                            <td className="p-3 font-mono text-xs">{o.voucherNo}</td>
+                            <td className="p-3">
+                              <div className="flex items-center justify-between">
+                                <span className="font-semibold">{o.partyName}</span>
+                                <button
+                                  onClick={() => {
+                                    setRemovedLines((p) => [...p, String(o.voucherId)]);
+                                    setLastRemovedLine(String(o.voucherId));
+                                    setSelectedMonth((prev: any) => {
+                                      if (!prev) return null;
+                                      const updatedOrders = prev.orders.filter((x: any) => String(x.voucherId) !== String(o.voucherId));
+                                      
+                                      let updatedBilled = 0;
+                                      let updatedPending = 0;
+                                      updatedOrders.forEach((uo: any) => {
+                                        const uoBills = bills.filter((b) => Number(b.parentVoucherId) === uo.voucherId);
+                                        const bAmt = uoBills.reduce((sum, b) => sum + b.netAmount, 0);
+                                        const pAmt = Math.max(0, uo.netAmount - bAmt);
+                                        updatedBilled += bAmt;
+                                        updatedPending += pAmt;
+                                      });
+
+                                      return {
+                                        ...prev,
+                                        orderCount: updatedOrders.length,
+                                        netAmount: updatedOrders.reduce((sum: number, x: any) => sum + x.netAmount, 0),
+                                        billedAmount: updatedBilled,
+                                        pendingAmount: updatedPending,
+                                        orders: updatedOrders,
+                                      };
+                                    });
+                                  }}
+                                  className="opacity-0 group-hover/row:opacity-100 text-xs text-destructive hover:underline p-1 ml-2 no-print font-normal"
+                                >
+                                  Omit
+                                </button>
+                              </div>
+                            </td>
+                            <td className="p-3 text-center font-mono text-xs">{o.dueDate ? formatDateToTally(o.dueDate) : "—"}</td>
+                            <td className="p-3 text-center">
+                              <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold uppercase tracking-wider ${pendingAmt === 0 ? "bg-success/10 text-success border border-success/20" : "bg-warning/10 text-warning border border-warning/20"}`}>
+                                {pendingAmt === 0 ? "Fully Billed" : "Pending"}
+                              </span>
+                            </td>
+                            <td className="p-3 text-right border-l border-border font-mono font-bold">{formatAmount(o.netAmount)}</td>
+                            <td className="p-3 text-right border-l border-border font-mono text-muted-foreground">{formatAmount(billedAmt)}</td>
+                            <td className="p-3 text-right border-l border-border font-mono text-primary font-bold">{formatAmount(pendingAmt)}</td>
+                          </tr>
+                          {orderBills.map((b: any) => (
+                            <tr key={b.voucherId} className="bg-muted/20 font-medium text-xs text-muted-foreground border-b border-border/10">
+                              <td className="p-2 pl-12 font-mono text-[11px]">{formatDateToTally(b.voucherDate)}</td>
+                              <td className="p-2 font-mono text-[11px]">{b.voucherNo}</td>
+                              <td className="p-2 pl-6 italic" colSpan={3}>
+                                └─ Bill Ref for Order {o.voucherNo}
+                              </td>
+                              <td className="p-2 text-right border-l border-border/30 font-mono">—</td>
+                              <td className="p-2 text-right border-l border-border/30 font-mono">{formatAmount(b.netAmount)}</td>
+                              <td className="p-2 text-right border-l border-border/30 font-mono">—</td>
+                            </tr>
+                          ))}
+                        </React.Fragment>
+                      );
+                    })
                   )}
                 </tbody>
                 <tfoot>
@@ -396,6 +509,12 @@ function PurchaseOrderSummaryContent({ company, orders, canExport }: Props) {
                     <td className="p-3 pl-6" colSpan={5}>Monthly Total</td>
                     <td className="p-3 text-right border-l border-border font-mono text-base text-foreground">
                       {formatAmount(selectedMonth?.netAmount || 0)}
+                    </td>
+                    <td className="p-3 text-right border-l border-border font-mono text-base text-muted-foreground">
+                      {formatAmount(selectedMonth?.billedAmount || 0)}
+                    </td>
+                    <td className="p-3 text-right border-l border-border font-mono text-base text-primary font-bold">
+                      {formatAmount(selectedMonth?.pendingAmount || 0)}
                     </td>
                   </tr>
                 </tfoot>

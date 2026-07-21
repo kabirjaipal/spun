@@ -171,6 +171,62 @@ export default function SalesClient({
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [printVoucher, setPrintVoucher] = useState<any>(null);
+
+  const [salesOrders, setSalesOrders] = useState<any[]>([]);
+  const [parentVoucherId, setParentVoucherId] = useState<string>("");
+
+  useEffect(() => {
+    if (!selectedParty) {
+      setSalesOrders([]);
+      setParentVoucherId("");
+      return;
+    }
+
+    async function fetchOrders() {
+      try {
+        const res = await fetch(
+          `/api/vouchers?type=sales_order&partyId=${selectedParty}&includeItems=true`,
+        );
+        if (res.ok) {
+          const data = await res.json();
+          setSalesOrders(data);
+        }
+      } catch (err) {
+        console.error("Error fetching sales orders:", err);
+      }
+    }
+
+    fetchOrders();
+  }, [selectedParty]);
+
+  const handleSalesOrderChange = (val: string) => {
+    setParentVoucherId(val === "none" ? "" : val);
+    if (!val || val === "none") {
+      setLineItems([EMPTY_LINE()]);
+      return;
+    }
+
+    const so = salesOrders.find((x) => String(x.voucherId) === val);
+    if (so && so.lineItems) {
+      setLineItems(
+        so.lineItems.map((li: any) => ({
+          id: crypto.randomUUID(),
+          inventoryId: String(li.inventoryId),
+          hsnCode: li.hsnCode || "",
+          pcs: String(li.pcs || 0),
+          quantity: String(li.quantity || 0),
+          fold: String(li.fold || 100),
+          rate: String(li.rate || 0),
+          gstRateId: String(li.gstRateId || ""),
+          cgst: "",
+          sgst: "",
+          igst: "",
+          unitType: li.jobRateType === "pcs" ? "pcs" : "meter",
+          pieceMeters: li.pieceMeters || [],
+        }))
+      );
+    }
+  };
   const [pastVouchers, setPastVouchers] =
     useState<PastVoucher[]>(initialPastVouchers);
 
@@ -188,6 +244,7 @@ export default function SalesClient({
     label: string;
     value: string;
     type: "percentage" | "value";
+    effect: "add" | "less";
   };
   const [extraCharges, setExtraCharges] = useState<ExtraCharge[]>([]);
   function updateExtraCharge(
@@ -242,17 +299,9 @@ export default function SalesClient({
     });
 
     const rawTotal = linesRaw.reduce((sum, item) => sum + item.netAmount, 0);
-    const discountValNum = Number(discountValue) || 0;
 
-    return linesRaw.map(({ line, amount, netAmount }) => {
-      const gstRatePercent =
-        Number(
-          line.gstRateId
-            ? taxRates.find((t) => String(t.taxRateId) === line.gstRateId)
-                ?.taxPercent
-            : 0,
-        ) || 0;
-
+    // Calculate discounted amount for all lines
+    const linesDiscounted = linesRaw.map(({ line, amount, netAmount }) => {
       const lineDiscount1 = calculatePreTaxDiscount(
         netAmount,
         rawTotal,
@@ -270,8 +319,38 @@ export default function SalesClient({
         0,
         Math.round((netAmount - lineDiscount) * 100) / 100,
       );
+      return { line, amount, rawNetAmount: netAmount, discountedNetAmount, lineDiscount };
+    });
+
+    const totalDiscountedSubtotal = linesDiscounted.reduce((sum, item) => sum + item.discountedNetAmount, 0);
+
+    // Calculate total extra charges based on discounted subtotal
+    const calculatedExtraCharges = extraCharges.reduce((sum, c) => {
+      if (!c.value) return sum;
+      const isLess = c.effect === "less";
+      const amt = c.type === "percentage"
+        ? (totalDiscountedSubtotal * Number(c.value)) / 100
+        : Number(c.value);
+      return isLess ? sum - amt : sum + amt;
+    }, 0);
+
+    return linesDiscounted.map(({ line, amount, rawNetAmount, discountedNetAmount, lineDiscount }) => {
+      const gstRatePercent =
+        Number(
+          line.gstRateId
+            ? taxRates.find((t) => String(t.taxRateId) === line.gstRateId)
+                ?.taxPercent
+            : 0,
+        ) || 0;
+
+      const allocatedExtraCharge = totalDiscountedSubtotal > 0
+        ? (discountedNetAmount / totalDiscountedSubtotal) * calculatedExtraCharges
+        : calculatedExtraCharges / linesDiscounted.length;
+
+      const taxableAmount = discountedNetAmount + allocatedExtraCharge;
+
       const totalTax =
-        Math.round(((discountedNetAmount * gstRatePercent) / 100) * 100) / 100;
+        Math.round(((taxableAmount * gstRatePercent) / 100) * 100) / 100;
 
       let cgst = 0;
       let sgst = 0;
@@ -286,7 +365,7 @@ export default function SalesClient({
 
       return {
         amount,
-        rawNetAmount: netAmount,
+        rawNetAmount,
         netAmount: discountedNetAmount,
         lineDiscount,
         cgst,
@@ -304,6 +383,7 @@ export default function SalesClient({
     discountValue,
     discountType2,
     discountValue2,
+    extraCharges,
   ]);
 
   const grandTotals = useMemo(() => {
@@ -364,11 +444,13 @@ export default function SalesClient({
   const totalExtraCharges = useMemo(() => {
     return extraCharges.reduce((sum, c) => {
       if (!c.value) return sum;
-      if (c.type === "percentage")
-        return sum + (grandTotals.total * Number(c.value)) / 100;
-      return sum + Number(c.value);
+      const isLess = c.effect === "less";
+      const amt = c.type === "percentage"
+        ? (grandTotals.netAmount * Number(c.value)) / 100
+        : Number(c.value);
+      return isLess ? sum - amt : sum + amt;
     }, 0);
-  }, [extraCharges, grandTotals.total]);
+  }, [extraCharges, grandTotals.netAmount]);
 
   const finalGrandTotal = useMemo(() => {
     return grandTotals.total + totalExtraCharges;
@@ -481,6 +563,7 @@ export default function SalesClient({
         voucherNo: invoiceNo,
         voucherDate,
         partyId: Number(selectedParty),
+        parentVoucherId: parentVoucherId ? Number(parentVoucherId) : null,
         remarks: remarks || `Sales - ${salesType.toUpperCase()}`,
         broker,
         haste,
@@ -662,6 +745,32 @@ export default function SalesClient({
                       {c.partyName} {c.gstNo ? `(${c.gstNo})` : ""}
                     </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label className="text-xs font-semibold uppercase text-primary">
+                Link Sales Order (Optional)
+              </Label>
+              <Select
+                value={parentVoucherId || "none"}
+                onValueChange={handleSalesOrderChange}
+                disabled={!selectedParty}
+              >
+                <SelectTrigger className="h-10">
+                  <SelectValue placeholder={!selectedParty ? "Select a Party first" : "Select Sales Order to load items"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None / Direct Invoice</SelectItem>
+                  {salesOrders.map((so) => (
+                    <SelectItem key={so.voucherId} value={String(so.voucherId)}>
+                      Order: {so.voucherNo} ({new Date(so.voucherDate).toLocaleDateString()}) — ₹{Number(so.netAmount).toFixed(2)}
+                    </SelectItem>
+                  ))}
+                  {selectedParty && salesOrders.length === 0 && (
+                    <SelectItem value="none" disabled>No sales orders found for this party</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -1136,32 +1245,55 @@ export default function SalesClient({
           <div className="pt-3 border-t border-border/40 space-y-3">
             <div className="flex items-center justify-between">
               <Label >
-                Extra Charges
+                Extra Charges & Deductions
               </Label>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() =>
-                  setExtraCharges((prev) => [
-                    ...prev,
-                    {
-                      id: crypto.randomUUID(),
-                      label: "",
-                      value: "",
-                      type: "value",
-                    },
-                  ])
-                }
-                className="h-7 px-2 text-xs"
-              >
-                + Add Charge
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() =>
+                    setExtraCharges((prev) => [
+                      ...prev,
+                      {
+                        id: crypto.randomUUID(),
+                        label: "",
+                        value: "",
+                        type: "value",
+                        effect: "add",
+                      },
+                    ])
+                  }
+                  className="h-7 px-2 text-xs text-success hover:text-success"
+                >
+                  + Add Charge
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() =>
+                    setExtraCharges((prev) => [
+                      ...prev,
+                      {
+                        id: crypto.randomUUID(),
+                        label: "",
+                        value: "",
+                        type: "value",
+                        effect: "less",
+                      },
+                    ])
+                  }
+                  className="h-7 px-2 text-xs text-danger hover:text-danger"
+                >
+                  - Less Charge
+                </Button>
+              </div>
             </div>
             {extraCharges.map((charge) => (
               <div
                 key={charge.id}
-                className="grid grid-cols-[1fr_90px_90px_auto] gap-2 items-center"
+                className="grid grid-cols-[1fr_90px_90px_90px_auto] gap-2 items-center"
               >
                 <Input
                   placeholder="Label (e.g. Freight)"
@@ -1171,6 +1303,20 @@ export default function SalesClient({
                   }
                   className="h-9"
                 />
+                <Select
+                  value={charge.effect}
+                  onValueChange={(val) =>
+                    updateExtraCharge(charge.id, "effect", val as any)
+                  }
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="add">Add (+)</SelectItem>
+                    <SelectItem value="less">Less (-)</SelectItem>
+                  </SelectContent>
+                </Select>
                 <Input
                   type="number"
                   step="0.01"
@@ -1179,15 +1325,15 @@ export default function SalesClient({
                   onChange={(e) =>
                     updateExtraCharge(charge.id, "value", e.target.value)
                   }
-                  className="h-9"
+                  className="h-9 text-right font-medium"
                 />
                 <Select
                   value={charge.type}
                   onValueChange={(val) =>
-                    updateExtraCharge(charge.id, "type", val)
+                    updateExtraCharge(charge.id, "type", val as any)
                   }
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="h-9">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1257,10 +1403,30 @@ export default function SalesClient({
             </div>
           )}
 
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Taxable Value:</span>
-            <span className="font-semibold text-foreground">
-              ₹{grandTotals.netAmount.toFixed(2)}
+          {extraCharges
+            .filter((c) => c.value)
+            .map((c) => {
+              const isLess = c.effect === "less";
+              const amt = c.type === "percentage"
+                ? (grandTotals.netAmount * Number(c.value)) / 100
+                : Number(c.value);
+              return (
+                <div key={c.id} className={`flex justify-between ${isLess ? "text-danger" : "text-success font-medium"}`}>
+                  <span>
+                    {c.label || (isLess ? "Deduction" : "Extra Charge")} (
+                    {c.type === "percentage" ? `${c.value}%` : "Flat"}):
+                  </span>
+                  <span>
+                    {isLess ? "-" : "+"}₹{amt.toFixed(2)}
+                  </span>
+                </div>
+              );
+            })}
+
+          <div className="flex justify-between border-t border-border pt-2 font-bold">
+            <span className="text-muted-foreground">Total Taxable Value:</span>
+            <span className="text-foreground">
+              ₹{(grandTotals.netAmount + totalExtraCharges).toFixed(2)}
             </span>
           </div>
 
@@ -1282,25 +1448,7 @@ export default function SalesClient({
             </div>
           )}
 
-          {extraCharges
-            .filter((c) => c.value)
-            .map((c) => (
-              <div key={c.id} className="flex justify-between text-foreground">
-                <span>
-                  {c.label || "Extra Charges"} (
-                  {c.type === "percentage" ? `${c.value}%` : "Flat"}):
-                </span>
-                <span className="font-semibold text-success">
-                  +₹
-                  {(c.type === "percentage"
-                    ? (grandTotals.total * Number(c.value)) / 100
-                    : Number(c.value)
-                  ).toFixed(2)}
-                </span>
-              </div>
-            ))}
-
-          <div className="flex justify-between border-t border-border pt-2 text-base font-bold">
+          <div className="flex justify-between border-t-2 border-double border-border pt-2 text-base font-bold">
             <span>Grand Total:</span>
             <span className="text-foreground">
               ₹{finalGrandTotal.toFixed(2)}

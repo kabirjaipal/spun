@@ -37,7 +37,7 @@ interface PrintInvoiceModalProps {
     taxAmount: number;
     netAmount: number;
     extraCharges?: number | string | null;
-    extraChargesData?: Array<{ label?: string; value: string; type: "percentage" | "value" }> | null;
+    extraChargesData?: Array<{ label?: string; value: string; type: "percentage" | "value"; effect?: "add" | "less" }> | null;
   };
   lines: InvoiceLine[];
 }
@@ -298,12 +298,17 @@ export default function PrintInvoiceModal({ isOpen, onClose, company, party, vou
           ${voucher.remarks ? `<div class="remarks-label">Remarks</div><div class="remarks-value">${voucher.remarks}</div>` : ""}
         </div>
         <div class="totals-box">
-          <div class="total-row"><span class="total-label">Taxable Subtotal</span><span class="total-amount">${fmt(voucher.totalAmount)}</span></div>
-          <div class="total-row"><span class="total-label">GST Tax (${isSale ? "Collected" : "Paid"})</span><span class="total-amount">${fmt(voucher.taxAmount)}</span></div>
+          <div class="total-row"><span class="total-label">Subtotal</span><span class="total-amount">${fmt(voucher.totalAmount)}</span></div>
           ${(voucher.extraChargesData && voucher.extraChargesData.length > 0
-            ? voucher.extraChargesData.map(c => `<div class="total-row"><span class="total-label">${c.label || "Extra Charges"}</span><span class="total-amount">+${fmt(c.type === "percentage" ? (voucher.totalAmount + voucher.taxAmount) * Number(c.value) / 100 : Number(c.value))}</span></div>`).join("")
-            : Number(voucher.extraCharges) > 0 ? `<div class="total-row"><span class="total-label">Extra Charges</span><span class="total-amount">+${fmt(Number(voucher.extraCharges))}</span></div>` : ""
+            ? voucher.extraChargesData.map(c => {
+                const isLess = c.effect === "less";
+                const amt = c.type === "percentage" ? voucher.totalAmount * Number(c.value) / 100 : Number(c.value);
+                return `<div class="total-row"><span class="total-label">${c.label || (isLess ? "Deduction" : "Extra Charge")}</span><span class="total-amount">${isLess ? "-" : "+"}${fmt(amt)}</span></div>`;
+              }).join("")
+            : Number(voucher.extraCharges) !== 0 ? `<div class="total-row"><span class="total-label">${Number(voucher.extraCharges) < 0 ? "Deduction" : "Extra Charge"}</span><span class="total-amount">${Number(voucher.extraCharges) < 0 ? "-" : "+"}${fmt(Math.abs(Number(voucher.extraCharges)))}</span></div>` : ""
           )}
+          <div class="total-row"><span class="total-label">Total Taxable Value</span><span class="total-amount">${fmt(voucher.totalAmount + (Number(voucher.extraCharges) || 0))}</span></div>
+          <div class="total-row"><span class="total-label">GST Tax (${isSale ? "Collected" : "Paid"})</span><span class="total-amount">${fmt(voucher.taxAmount)}</span></div>
           <div class="grand-row"><span class="grand-label">Grand Total</span><span class="grand-amount">${fmt(voucher.netAmount)}</span></div>
         </div>
       </div>
@@ -434,19 +439,32 @@ export default function PrintInvoiceModal({ isOpen, onClose, company, party, vou
                     <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: "#777" }}>Taxable Subtotal</span>
                     <span style={{ fontFamily: "monospace", fontWeight: 700, fontSize: 12 }}>{fmt(voucher.totalAmount)}</span>
                   </div>
+                  {(voucher.extraChargesData && voucher.extraChargesData.length > 0
+                    ? voucher.extraChargesData.map(c => ({
+                        label: c.label,
+                        value: c.value,
+                        type: c.type,
+                        effect: c.effect
+                      }))
+                    : Number(voucher.extraCharges) !== 0 ? [{ label: Number(voucher.extraCharges) < 0 ? "Deduction" : "Extra Charge", value: String(Math.abs(Number(voucher.extraCharges))), type: "value" as const, effect: Number(voucher.extraCharges) < 0 ? "less" as const : "add" as const }] : []
+                  ).map((c, i) => {
+                    const isLess = c.effect === "less";
+                    const amt = c.type === "percentage" ? voucher.totalAmount * Number(c.value) / 100 : Number(c.value);
+                    return (
+                      <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: 8, borderBottom: "1px solid #eee" }}>
+                        <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: "#777" }}>{c.label || (isLess ? "Deduction" : "Extra Charge")}</span>
+                        <span style={{ fontFamily: "monospace", fontWeight: 700, fontSize: 12 }}>{isLess ? "-" : "+"}{fmt(amt)}</span>
+                      </div>
+                    );
+                  })}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: 8, borderBottom: "1px solid #eee" }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: "#777" }}>Total Taxable Value</span>
+                    <span style={{ fontFamily: "monospace", fontWeight: 700, fontSize: 12 }}>{fmt(voucher.totalAmount + (Number(voucher.extraCharges) || 0))}</span>
+                  </div>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: 8, borderBottom: "1px solid #eee" }}>
                     <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: "#777" }}>GST Tax ({isSale ? "Collected" : "Paid"})</span>
                     <span style={{ fontFamily: "monospace", fontWeight: 700, fontSize: 12 }}>{fmt(voucher.taxAmount)}</span>
                   </div>
-                  {(voucher.extraChargesData && voucher.extraChargesData.length > 0
-                    ? voucher.extraChargesData
-                    : Number(voucher.extraCharges) > 0 ? [{ label: "Extra Charges", value: String(voucher.extraCharges), type: "value" as const }] : []
-                  ).map((c, i) => (
-                    <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: 8, borderBottom: "1px solid #eee" }}>
-                      <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: "#777" }}>{c.label || "Extra Charges"}</span>
-                      <span style={{ fontFamily: "monospace", fontWeight: 700, fontSize: 12 }}>+{fmt(c.type === "percentage" ? (voucher.totalAmount + voucher.taxAmount) * Number(c.value) / 100 : Number(c.value))}</span>
-                    </div>
-                  ))}
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 6 }}>
                     <span style={{ fontSize: 13, fontWeight: 800, textTransform: "uppercase" }}>Grand Total</span>
                     <span style={{ fontFamily: "monospace", fontWeight: 800, fontSize: 18 }}>{fmt(voucher.netAmount)}</span>

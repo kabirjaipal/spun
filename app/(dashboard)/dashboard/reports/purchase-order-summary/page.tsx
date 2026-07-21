@@ -58,6 +58,24 @@ export default async function PurchaseOrderSummaryPage({
     )
     .orderBy(tVouchers.voucherDate, tVouchers.voucherNo);
 
+  // Fetch purchase bills that are linked to any purchase order
+  const bills = await db
+    .select({
+      voucherId: tVouchers.voucherId,
+      voucherNo: tVouchers.voucherNo,
+      voucherDate: tVouchers.voucherDate,
+      netAmount: tVouchers.netAmount,
+      parentVoucherId: tVouchers.parentVoucherId,
+    })
+    .from(tVouchers)
+    .where(
+      and(
+        eq(tVouchers.companyId, companyId),
+        eq(tVouchers.voucherType, "purchase"),
+        isNull(tVouchers.deletedOn),
+      )
+    );
+
   const perms = getStaticPermissionsForRole(session.user.role as Role);
   const canExport = perms.find((x) => x.accessItem === "purchase_order_summary")?.e ?? false;
 
@@ -73,6 +91,10 @@ export default async function PurchaseOrderSummaryPage({
         ...o,
         netAmount: Number(o.netAmount),
         partyName: o.partyName || "General Supplier",
+      }))}
+      bills={bills.map(b => ({
+        ...b,
+        netAmount: Number(b.netAmount),
       }))}
       canExport={canExport}
     />
