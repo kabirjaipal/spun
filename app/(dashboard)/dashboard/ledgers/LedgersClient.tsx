@@ -118,6 +118,14 @@ export default function LedgersClient({
 
   const [fetchingGst, setFetchingGst] = useState(false);
 
+  const selectedGroup = groupList.find((g) => String(g.groupId) === form.groupId);
+  const groupNameLower = selectedGroup ? selectedGroup.groupName.toLowerCase() : "";
+  const newGroupNameLower = form.newGroupName.toLowerCase();
+
+  const isCreditorOrDebtor = showNewGroupInput
+    ? (newGroupNameLower.includes("creditor") || newGroupNameLower.includes("debitor") || newGroupNameLower.includes("debtor"))
+    : (groupNameLower.includes("creditor") || groupNameLower.includes("debitor") || groupNameLower.includes("debtor"));
+
   const handleFetchGST = async (targetGst: string) => {
     if (!targetGst) return;
     setFetchingGst(true);
@@ -344,77 +352,81 @@ export default function LedgersClient({
                 <Input id="address" placeholder="e.g. Ring Road, Surat" value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} />
               </div>
 
-              <div className="space-y-2">
-                <Label>GST No.</Label>
-                <div className="relative">
-                  <Input
-                    id="gstNo"
-                    placeholder="24AAAAB1234C1Z1"
-                    value={form.gstNo}
-                    onChange={(e) => setForm((f) => ({ ...f, gstNo: e.target.value.toUpperCase() }))}
-                    className="pr-10"
-                  />
-                  {form.gstNo && form.gstNo.trim().length >= 15 && (
-                    <Button
-                      type="button"
-                      onClick={() => handleFetchGST(form.gstNo)}
-                      disabled={fetchingGst}
-                      variant="ghost"
-                      className="absolute inset-y-0 right-0 h-10 w-10 p-0 text-muted-foreground hover:text-foreground"
-                      title="Fetch Details"
-                    >
-                      {fetchingGst ? (
-                        <Spinner className="h-4 w-4" />
-                      ) : (
-                        <Search className="h-4 w-4" />
+              {isCreditorOrDebtor && (
+                <>
+                  <div className="space-y-2">
+                    <Label>GST No.</Label>
+                    <div className="relative">
+                      <Input
+                        id="gstNo"
+                        placeholder="24AAAAB1234C1Z1"
+                        value={form.gstNo}
+                        onChange={(e) => setForm((f) => ({ ...f, gstNo: e.target.value.toUpperCase() }))}
+                        className="pr-10"
+                      />
+                      {form.gstNo && form.gstNo.trim().length >= 15 && (
+                        <Button
+                          type="button"
+                          onClick={() => handleFetchGST(form.gstNo)}
+                          disabled={fetchingGst}
+                          variant="ghost"
+                          className="absolute inset-y-0 right-0 h-10 w-10 p-0 text-muted-foreground hover:text-foreground"
+                          title="Fetch Details"
+                        >
+                          {fetchingGst ? (
+                            <Spinner className="h-4 w-4" />
+                          ) : (
+                            <Search className="h-4 w-4" />
+                          )}
+                        </Button>
                       )}
-                    </Button>
-                  )}
-                </div>
-              </div>
+                    </div>
+                  </div>
 
-              <div className="space-y-2">
-                <Label>PAN No.</Label>
-                <Input id="panNo" placeholder="ABCDE1234F" value={form.panNo} onChange={(e) => setForm((f) => ({ ...f, panNo: e.target.value.toUpperCase() }))} />
-              </div>
+                  <div className="space-y-2">
+                    <Label>PAN No.</Label>
+                    <Input id="panNo" placeholder="ABCDE1234F" value={form.panNo} onChange={(e) => setForm((f) => ({ ...f, panNo: e.target.value.toUpperCase() }))} />
+                  </div>
 
-              <div className="space-y-2">
-                <Label>MSME Registration Type</Label>
-                <Select value={form.msmeType} onValueChange={(v) => setForm((f) => ({ ...f, msmeType: v }))}>
-                  <SelectTrigger id="msmeType"><SelectValue placeholder="Select MSME status" /></SelectTrigger>
-                  <SelectContent>
-                    {MSME_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
+                  <div className="space-y-2">
+                    <Label>MSME Registration Type</Label>
+                    <Select value={form.msmeType} onValueChange={(v) => setForm((f) => ({ ...f, msmeType: v }))}>
+                      <SelectTrigger id="msmeType"><SelectValue placeholder="Select MSME status" /></SelectTrigger>
+                      <SelectContent>
+                        {MSME_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-              <div className="space-y-2">
-                <Label>Credit Days</Label>
-                <Input type="number" id="creditDays" value={form.creditDays} onChange={(e) => setForm((f) => ({ ...f, creditDays: Number(e.target.value) }))} />
-              </div>
+                  <div className="space-y-2">
+                    <Label>Credit Days</Label>
+                    <Input type="number" id="creditDays" value={form.creditDays} onChange={(e) => setForm((f) => ({ ...f, creditDays: Number(e.target.value) }))} />
+                  </div>
 
-              <div className="space-y-2">
-                <Label>Rate of Interest (%)</Label>
-                <Input type="text" id="rateOfInterest" value={form.rateOfInterest} onChange={(e) => setForm((f) => ({ ...f, rateOfInterest: e.target.value }))} />
-              </div>
+                  <div className="space-y-2">
+                    <Label>Rate of Interest (%)</Label>
+                    <Input type="text" id="rateOfInterest" value={form.rateOfInterest} onChange={(e) => setForm((f) => ({ ...f, rateOfInterest: e.target.value }))} />
+                  </div>
 
-              <div className="space-y-2">
-                <Label>TDS Details</Label>
-                <div className="flex items-center gap-4 mt-2">
-                  <label className="flex items-center gap-2 cursor-pointer text-sm font-normal text-muted-foreground select-none">
-                    <input
-                      type="checkbox"
-                      checked={form.isTdsApplicable}
-                      onChange={(e) => setForm((f) => ({ ...f, isTdsApplicable: e.target.checked }))}
-                      className="h-4 w-4 rounded border-input text-primary focus:ring-primary bg-background"
-                    />
-                    TDS Applicable
-                  </label>
-                  {form.isTdsApplicable && (
-                    <Input type="text" placeholder="TDS Rate %" className="w-24 h-9" value={form.tdsRate} onChange={(e) => setForm((f) => ({ ...f, tdsRate: e.target.value }))} />
-                  )}
-                </div>
-              </div>
+                  <div className="space-y-2">
+                    <Label>TDS Details</Label>
+                    <div className="flex items-center gap-4 mt-2">
+                      <label className="flex items-center gap-2 cursor-pointer text-sm font-normal text-muted-foreground select-none">
+                        <input
+                          type="checkbox"
+                          checked={form.isTdsApplicable}
+                          onChange={(e) => setForm((f) => ({ ...f, isTdsApplicable: e.target.checked }))}
+                          className="h-4 w-4 rounded border-input text-primary focus:ring-primary bg-background"
+                        />
+                        TDS Applicable
+                      </label>
+                      {form.isTdsApplicable && (
+                        <Input type="text" placeholder="TDS Rate %" className="w-24 h-9" value={form.tdsRate} onChange={(e) => setForm((f) => ({ ...f, tdsRate: e.target.value }))} />
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </SheetBody>
 
