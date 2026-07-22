@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, FileText, Eye } from "lucide-react";
 import PrintInvoiceModal from "@/components/PrintInvoiceModal";
 import BrokerHasteDialog from "@/components/BrokerHasteDialog";
 import JobFormDrawer from "@/components/JobFormDrawer";
@@ -52,10 +52,13 @@ interface LineItem {
   id: string;
   inventoryId: string;
   hsnCode: string;
-  pcs: string;
-  quantity: string; // meter / quantity
+  pcs: string; // finish pcs (blank initially in process house mode)
+  quantity: string; // finish quantity (blank initially in process house mode)
+  greyPcs: string; // grey pcs
+  greyQuantity: string; // grey quantity
+  tp: string; // transit pass
   fold: string; // fold percentage (default 100)
-  rate: string; // job rate
+  rate: string; // job rate (blank initially in process house mode)
   jobType: string; // e.g. dyeing, printing, etc.
   jobRateType: "pcs" | "mtr";
   gstRateId: string;
@@ -66,10 +69,13 @@ const EMPTY_LINE = (): LineItem => ({
   id: crypto.randomUUID(),
   inventoryId: "",
   hsnCode: "",
-  pcs: "0",
-  quantity: "0",
+  pcs: "",
+  quantity: "",
+  greyPcs: "0",
+  greyQuantity: "0.0000",
+  tp: "",
   fold: "100",
-  rate: "0",
+  rate: "",
   jobType: "dyeing",
   jobRateType: "mtr",
   gstRateId: "",
@@ -107,6 +113,7 @@ export default function JobOutwardClient({
   inwardVouchers,
   inwardItems,
   canCreate,
+  initialPastVouchers = [],
 }: {
   company: {
     companyName: string;
@@ -122,6 +129,7 @@ export default function JobOutwardClient({
   inwardVouchers: InwardVoucher[];
   inwardItems: InwardItem[];
   canCreate: boolean;
+  initialPastVouchers?: any[];
 }) {
   const [localJobs, setLocalJobs] = useState<JobOption[]>(jobs);
   const [showJobModal, setShowJobModal] = useState(false);
@@ -179,6 +187,7 @@ export default function JobOutwardClient({
   const [printAmount, setPrintAmount] = useState(true);
 
   const [lineItems, setLineItems] = useState<LineItem[]>([EMPTY_LINE()]);
+  const [pastVouchers, setPastVouchers] = useState<any[]>(initialPastVouchers);
   const [activePieceLineId, setActivePieceLineId] = useState<string | null>(
     null,
   );
@@ -261,10 +270,13 @@ export default function JobOutwardClient({
         id: crypto.randomUUID(),
         inventoryId: String(item.inventoryId),
         hsnCode: item.hsnCode || "",
-        pcs: String(item.pcs),
-        quantity: String(item.quantity),
+        pcs: "", // finish recieved pcs blank
+        quantity: "", // finish recieved mtr blank
+        greyPcs: String(item.pcs), // grey pcs auto
+        greyQuantity: String(item.quantity), // grey mtr auto
+        tp: "", // TP blank
         fold: String(item.fold || 100),
-        rate: String(item.rate || 0),
+        rate: "", // rate blank
         jobType: item.jobType || "dyeing",
         jobRateType: (item.jobRateType as any) || "mtr",
         gstRateId: item.gstRateId ? String(item.gstRateId) : "",
@@ -272,6 +284,7 @@ export default function JobOutwardClient({
     );
     if (parentVoucher) {
       setRemarks(`Outward against JI Lot: ${parentVoucher.lotNo || ""}`);
+      setLotNo(parentVoucher.lotNo || "");
     }
   }, [selectedInwardVoucherId, inwardItems, inwardVouchers, company.jobPartyType]);
 
@@ -347,6 +360,15 @@ export default function JobOutwardClient({
         sgst = Math.round((totalTax - cgst) * 100) / 100;
       }
 
+      // Shortage calculation (greyQuantity - quantity) / greyQuantity * 100
+      const greyMtr = Number(line.greyQuantity) || 0;
+      const finishMtr = Number(line.quantity) || 0;
+      const shortageQty = Math.max(0, greyMtr - finishMtr);
+      const shortagePercent =
+        greyMtr > 0
+          ? Math.round((shortageQty / greyMtr) * 100 * 100) / 100
+          : 0;
+
       return {
         amount,
         netAmount,
@@ -355,6 +377,7 @@ export default function JobOutwardClient({
         cgst,
         sgst,
         igst,
+        shortagePercent,
         net: taxableAmount + totalTax,
       };
     });
@@ -505,7 +528,7 @@ export default function JobOutwardClient({
         transport,
         vehicleNo,
         personName,
-        lotNo: company.jobPartyType === "process_house" ? parentVoucher?.lotNo || null : lotNo || null,
+        lotNo: lotNo || null,
         printRate,
         printAmount,
         parentVoucherId: company.jobPartyType === "process_house" ? Number(selectedInwardVoucherId) : null,
@@ -517,7 +540,7 @@ export default function JobOutwardClient({
         extraChargesData: extraCharges
           .filter((c) => c.value)
           .map(({ id, ...rest }) => rest),
-        lineItems: validLines.map((line, idx) => {
+        lineItems: validLines.map((line) => {
           const totals = lineTotals[lineItems.indexOf(line)];
           return {
             inventoryId: Number(line.inventoryId),
@@ -535,6 +558,12 @@ export default function JobOutwardClient({
             taxableAmount: totals.taxableAmount,
             lineNet: totals.net,
             pieceMeters: line.pieceMeters,
+            greyPcs: Number(line.greyPcs || 0),
+            greyQuantity: Number(line.greyQuantity || 0),
+            finishPcs: Number(line.pcs || 0),
+            finishQuantity: Number(line.quantity || 0),
+            tp: line.tp || "",
+            shortagePercent: totals.shortagePercent,
           };
         }),
       };
@@ -550,7 +579,29 @@ export default function JobOutwardClient({
         throw new Error(json.error || "Failed to save Job Outward voucher.");
       }
 
+      const savedData = await response.json();
+      const savedVoucher = Array.isArray(savedData) ? savedData[0] : savedData;
+
       setMessage("Job Outward Challan created successfully.");
+
+      const newPastVoucher = {
+        voucherId: savedVoucher?.voucherId || Date.now(),
+        voucherNo: body.voucherNo,
+        voucherDate: body.voucherDate,
+        status: "posted",
+        totalAmount: grandTotals.amount,
+        taxAmount: grandTotals.tax,
+        netAmount: finalGrandTotal,
+        remarks: body.remarks,
+        lotNo: body.lotNo,
+        party: selectedJobDetails ? {
+          name: selectedJobDetails.jobName,
+          gstNo: selectedJobDetails.gstNo,
+          address: selectedJobDetails.address,
+        } : null,
+      };
+      setPastVouchers((prev) => [newPastVoucher, ...prev].slice(0, 50));
+
       fetchNextVoucherNo();
       setRemarks("");
       setJobStatus("finished");
@@ -735,8 +786,8 @@ export default function JobOutwardClient({
               <Input value={voucherNo} readOnly disabled placeholder="Fetching..." className="h-10" />
             </div>
 
-            {/* Lot No. / Inward Voucher select */}
-            {company.jobPartyType === "process_house" ? (
+            {/* Inward Voucher Linking */}
+            {company.jobPartyType === "process_house" && (
               <div className="space-y-1.5 md:col-span-2">
                 <Label>
                   Against Inward Voucher No *
@@ -764,19 +815,20 @@ export default function JobOutwardClient({
                   </SelectContent>
                 </Select>
               </div>
-            ) : (
-              <div className="space-y-1.5">
-                <Label>
-                  Lot No. (Optional)
-                </Label>
-                <Input
-                  value={lotNo}
-                  onChange={(e) => setLotNo(e.target.value)}
-                  placeholder="e.g. LOT-450"
-                  className="h-10"
-                />
-              </div>
             )}
+
+            {/* Lot No. Input */}
+            <div className="space-y-1.5 md:col-span-2">
+              <Label>
+                Lot No. (Optional)
+              </Label>
+              <Input
+                value={lotNo}
+                onChange={(e) => setLotNo(e.target.value)}
+                placeholder="e.g. LOT-450"
+                className="h-10"
+              />
+            </div>
 
             {/* Challan Date */}
             <div className="space-y-1.5">
@@ -938,202 +990,394 @@ export default function JobOutwardClient({
                       onClick={() => removeLine(line.id)}
                       className="text-danger hover:bg-danger/10 hover:text-danger h-9 px-3 text-xs uppercase font-semibold flex items-center gap-1.5"
                     >
-                      <Trash2 className="h-4 w-4" /> Remove Item
+                  <Trash2 className="h-4 w-4" /> Remove Item
                     </Button>
                   )}
                 </div>
 
-                {/* Input Fields Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-                  {/* Select Item */}
-                  <div className="md:col-span-4 space-y-1.5">
-                    <Label >
-                      Select Item
-                    </Label>
-                    <Select
-                      value={line.inventoryId}
-                      onValueChange={(v) =>
-                        updateLine(line.id, "inventoryId", v)
-                      }
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select item" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {inventory.map((p) => (
-                          <SelectItem
-                            key={p.inventoryId}
-                            value={String(p.inventoryId)}
-                          >
-                            {p.inventoryName} ({p.unit})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                {company.jobPartyType === "process_house" ? (
+                  /* Process House Mode: Inline Inward Link Fields */
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                    {/* Select Item */}
+                    <div className="md:col-span-4 space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase text-foreground">
+                        Select Item
+                      </Label>
+                      <Select
+                        value={line.inventoryId}
+                        onValueChange={(v) =>
+                          updateLine(line.id, "inventoryId", v)
+                        }
+                      >
+                        <SelectTrigger className="w-full h-10">
+                          <SelectValue placeholder="Select item" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {inventory.map((p) => (
+                            <SelectItem
+                              key={p.inventoryId}
+                              value={String(p.inventoryId)}
+                            >
+                              {p.inventoryName} ({p.unit})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                  {/* HSN Code */}
-                  <div className="md:col-span-2 space-y-1.5">
-                    <Label >
-                      HSN Code
-                    </Label>
-                    <Input
-                      value={line.hsnCode}
-                      onChange={(e) =>
-                        updateLine(line.id, "hsnCode", e.target.value)
-                      }
-                      placeholder="HSN Code"
-                      className="h-10"
-                    />
-                  </div>
+                    {/* HSN Code */}
+                    <div className="md:col-span-2 space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase text-foreground">
+                        HSN Code
+                      </Label>
+                      <Input
+                        value={line.hsnCode || ""}
+                        onChange={(e) =>
+                          updateLine(line.id, "hsnCode", e.target.value)
+                        }
+                        placeholder="HSN Code"
+                        readOnly
+                        className="h-10"
+                      />
+                    </div>
 
-                  {/* Fold */}
-                  <div className="md:col-span-2 space-y-1.5">
-                    <Label >
-                      Fold %
-                    </Label>
-                    <Input
-                      type="number"
-                      value={line.fold}
-                      onChange={(e) =>
-                        updateLine(line.id, "fold", e.target.value)
-                      }
-                      className="h-10 text-right"
-                    />
-                  </div>
-
-                  {/* PCS */}
-                  <div className="md:col-span-2 space-y-1.5">
-                    <Label >
-                      PCS
-                    </Label>
-                    <div className="flex items-center gap-1.5">
+                    {/* Fold */}
+                    <div className="md:col-span-2 space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase text-foreground">
+                        Fold %
+                      </Label>
                       <Input
                         type="number"
-                        value={line.pcs}
+                        value={line.fold || ""}
                         onChange={(e) =>
-                          updateLine(line.id, "pcs", e.target.value)
+                          updateLine(line.id, "fold", e.target.value)
+                        }
+                        className="h-10 text-right bg-background"
+                      />
+                    </div>
+
+                    {/* GST Rate */}
+                    <div className="md:col-span-2 space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase text-foreground">
+                        GST Rate
+                      </Label>
+                      <Select
+                        value={line.gstRateId}
+                        onValueChange={(v) => updateLine(line.id, "gstRateId", v)}
+                      >
+                        <SelectTrigger className="w-full h-10">
+                          <SelectValue placeholder="Tax %" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {taxRates.map((t) => (
+                            <SelectItem
+                              key={t.taxRateId}
+                              value={String(t.taxRateId)}
+                            >
+                              {t.taxName} ({t.taxPercent}%)
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* TP */}
+                    <div className="md:col-span-2 space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase text-foreground">
+                        TP (Transit Pass)
+                      </Label>
+                      <Input
+                        type="text"
+                        placeholder="TP Number"
+                        value={line.tp || ""}
+                        onChange={(e) => updateLine(line.id, "tp", e.target.value)}
+                        className="h-10 bg-background"
+                      />
+                    </div>
+
+                    {/* Grey PCS */}
+                    <div className="md:col-span-2 space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase text-foreground">
+                        Grey PCS
+                      </Label>
+                      <Input
+                        type="number"
+                        placeholder="0"
+                        value={line.greyPcs || ""}
+                        onChange={(e) =>
+                          updateLine(line.id, "greyPcs", e.target.value)
+                        }
+                        className="h-10 text-right bg-background"
+                      />
+                    </div>
+
+                    {/* Grey MTR */}
+                    <div className="md:col-span-2 space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase text-foreground">
+                        Grey MTR
+                      </Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={line.greyQuantity || ""}
+                        onChange={(e) =>
+                          updateLine(line.id, "greyQuantity", e.target.value)
+                        }
+                        className="h-10 text-right bg-background"
+                      />
+                    </div>
+
+                    {/* Finish PCS */}
+                    <div className="md:col-span-2 space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase text-foreground">
+                        Finish PCS
+                      </Label>
+                      <div className="flex items-center gap-1.5">
+                        <Input
+                          type="number"
+                          placeholder="0"
+                          value={line.pcs || ""}
+                          onChange={(e) =>
+                            updateLine(line.id, "pcs", e.target.value)
+                          }
+                          className="h-10 text-right w-full bg-background"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-10 px-3 shrink-0 bg-secondary text-secondary-foreground"
+                          onClick={() => setActivePieceLineId(line.id)}
+                          title="Enter Piece Meters"
+                        >
+                          ⚙️
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Finish MTR */}
+                    <div className="md:col-span-2 space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase text-foreground">
+                        Finish MTR
+                      </Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={line.quantity || ""}
+                        onChange={(e) =>
+                          updateLine(line.id, "quantity", e.target.value)
+                        }
+                        className="h-10 text-right bg-background"
+                      />
+                    </div>
+
+                    {/* Shortage % */}
+                    <div className="md:col-span-2 space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase text-foreground">
+                        Shortage %
+                      </Label>
+                      <div className="h-10 flex items-center justify-end bg-muted/40 px-3 rounded-lg border border-border/50 text-xs font-bold text-danger">
+                        {totals.shortagePercent > 0 ? (
+                          <span>{totals.shortagePercent.toFixed(2)}%</span>
+                        ) : (
+                          <span className="text-success">No Shortage</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Rate */}
+                    <div className="md:col-span-2 space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase text-foreground">
+                        Rate (₹)
+                      </Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={line.rate || ""}
+                        onChange={(e) =>
+                          updateLine(line.id, "rate", e.target.value)
+                        }
+                        className="h-10 text-right bg-background"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  /* Trader Mode: Standard Layout */
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                    {/* Select Item */}
+                    <div className="md:col-span-4 space-y-1.5">
+                      <Label>Select Item</Label>
+                      <Select
+                        value={line.inventoryId}
+                        onValueChange={(v) =>
+                          updateLine(line.id, "inventoryId", v)
+                        }
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select item" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {inventory.map((p) => (
+                            <SelectItem
+                              key={p.inventoryId}
+                              value={String(p.inventoryId)}
+                            >
+                              {p.inventoryName} ({p.unit})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* HSN Code */}
+                    <div className="md:col-span-2 space-y-1.5">
+                      <Label>HSN Code</Label>
+                      <Input
+                        value={line.hsnCode}
+                        onChange={(e) =>
+                          updateLine(line.id, "hsnCode", e.target.value)
+                        }
+                        placeholder="HSN Code"
+                        className="h-10"
+                      />
+                    </div>
+
+                    {/* Fold */}
+                    <div className="md:col-span-2 space-y-1.5">
+                      <Label>Fold %</Label>
+                      <Input
+                        type="number"
+                        value={line.fold}
+                        onChange={(e) =>
+                          updateLine(line.id, "fold", e.target.value)
+                        }
+                        className="h-10 text-right"
+                      />
+                    </div>
+
+                    {/* PCS */}
+                    <div className="md:col-span-2 space-y-1.5">
+                      <Label>PCS</Label>
+                      <div className="flex items-center gap-1.5">
+                        <Input
+                          type="number"
+                          value={line.pcs}
+                          onChange={(e) =>
+                            updateLine(line.id, "pcs", e.target.value)
+                          }
+                          readOnly={
+                            !!(line.pieceMeters && line.pieceMeters.length > 0)
+                          }
+                          className={`h-10 text-right w-full ${line.pieceMeters && line.pieceMeters.length > 0 ? "bg-muted cursor-not-allowed" : ""}`}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-10 px-3 shrink-0"
+                          onClick={() => setActivePieceLineId(line.id)}
+                          title="Enter Piece Meters"
+                        >
+                          ⚙️
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Quantity (Meters) */}
+                    <div className="md:col-span-2 space-y-1.5">
+                      <Label>Quantity (Mtrs)</Label>
+                      <Input
+                        type="number"
+                        value={line.quantity}
+                        onChange={(e) =>
+                          updateLine(line.id, "quantity", e.target.value)
                         }
                         readOnly={
                           !!(line.pieceMeters && line.pieceMeters.length > 0)
                         }
-                        className={`h-10 text-right w-full ${line.pieceMeters && line.pieceMeters.length > 0 ? "bg-muted cursor-not-allowed" : ""}`}
+                        className={`h-10 text-right ${line.pieceMeters && line.pieceMeters.length > 0 ? "bg-muted cursor-not-allowed" : ""}`}
                       />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="h-10 px-3 shrink-0"
-                        onClick={() => setActivePieceLineId(line.id)}
-                        title="Enter Piece Meters"
+                    </div>
+
+                    {/* Job Type */}
+                    <div className="md:col-span-3 space-y-1.5">
+                      <Label>Job Type</Label>
+                      <Input
+                        value={line.jobType}
+                        onChange={(e) => updateLine(line.id, "jobType", e.target.value)}
+                        placeholder="e.g. dyeing"
+                        list={`job-types-${line.id}`}
+                        className="h-10"
+                      />
+                      <datalist id={`job-types-${line.id}`}>
+                        {uniqueJobTypes.map((t) => (
+                          <option key={t} value={t} />
+                        ))}
+                      </datalist>
+                    </div>
+
+                    {/* Unit */}
+                    <div className="md:col-span-3 space-y-1.5">
+                      <Label>Unit</Label>
+                      <Select
+                        value={line.jobRateType}
+                        onValueChange={(v) =>
+                          updateLine(line.id, "jobRateType", v as any)
+                        }
                       >
-                        ⚙️
-                      </Button>
+                        <SelectTrigger className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="mtr">Mtr</SelectItem>
+                          <SelectItem value="pcs">Pcs</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Rate */}
+                    <div className="md:col-span-3 space-y-1.5">
+                      <Label>Rate (₹)</Label>
+                      <Input
+                        type="number"
+                        value={line.rate}
+                        onChange={(e) =>
+                          updateLine(line.id, "rate", e.target.value)
+                        }
+                        className="h-10 text-right"
+                      />
+                    </div>
+
+                    {/* GST Rate */}
+                    <div className="md:col-span-3 space-y-1.5">
+                      <Label>GST Rate</Label>
+                      <Select
+                        value={line.gstRateId}
+                        onValueChange={(v) => updateLine(line.id, "gstRateId", v)}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Tax %" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {taxRates.map((t) => (
+                            <SelectItem
+                              key={t.taxRateId}
+                              value={String(t.taxRateId)}
+                            >
+                              {t.taxName} ({t.taxPercent}%)
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
-
-                  {/* Quantity (Meters) */}
-                  <div className="md:col-span-2 space-y-1.5">
-                    <Label >
-                      Quantity (Mtrs)
-                    </Label>
-                    <Input
-                      type="number"
-                      value={line.quantity}
-                      onChange={(e) =>
-                        updateLine(line.id, "quantity", e.target.value)
-                      }
-                      readOnly={
-                        !!(line.pieceMeters && line.pieceMeters.length > 0)
-                      }
-                      className={`h-10 text-right ${line.pieceMeters && line.pieceMeters.length > 0 ? "bg-muted cursor-not-allowed" : ""}`}
-                    />
-                  </div>
-
-                  {/* Job Type */}
-                  <div className="md:col-span-3 space-y-1.5">
-                    <Label >
-                      Job Type
-                    </Label>
-                    <Input
-                      value={line.jobType}
-                      onChange={(e) => updateLine(line.id, "jobType", e.target.value)}
-                      placeholder="e.g. dyeing"
-                      list={`job-types-${line.id}`}
-                      className="h-10"
-                    />
-                    <datalist id={`job-types-${line.id}`}>
-                      {uniqueJobTypes.map((t) => (
-                        <option key={t} value={t} />
-                      ))}
-                    </datalist>
-                  </div>
-
-                  {/* Unit */}
-                  <div className="md:col-span-3 space-y-1.5">
-                    <Label >
-                      Unit
-                    </Label>
-                    <Select
-                      value={line.jobRateType}
-                      onValueChange={(v) =>
-                        updateLine(line.id, "jobRateType", v as any)
-                      }
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="mtr">Mtr</SelectItem>
-                        <SelectItem value="pcs">Pcs</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Rate */}
-                  <div className="md:col-span-3 space-y-1.5">
-                    <Label >
-                      Rate (₹)
-                    </Label>
-                    <Input
-                      type="number"
-                      value={line.rate}
-                      onChange={(e) =>
-                        updateLine(line.id, "rate", e.target.value)
-                      }
-                      className="h-10 text-right"
-                    />
-                  </div>
-
-                  {/* GST Rate */}
-                  <div className="md:col-span-3 space-y-1.5">
-                    <Label >
-                      GST Rate
-                    </Label>
-                    <Select
-                      value={line.gstRateId}
-                      onValueChange={(v) => updateLine(line.id, "gstRateId", v)}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Tax %" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {taxRates.map((t) => (
-                          <SelectItem
-                            key={t.taxRateId}
-                            value={String(t.taxRateId)}
-                          >
-                            {t.taxName} ({t.taxPercent}%)
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
+                )}
 
                 {/* Calculations Summary Strip */}
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4 bg-muted/30 p-3 rounded-lg border border-border/50 text-xs mt-2">
+                <div className="grid grid-cols-2 md:grid-cols-6 gap-4 bg-muted/30 p-3 rounded-lg border border-border/50 text-xs mt-2">
                   <div className="space-y-0.5">
-                    <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px]">
+                    <span className="text-muted-foreground font-medium uppercase block text-[10px]">
                       Amount
                     </span>
                     <span className="font-semibold text-foreground text-sm">
@@ -1144,7 +1388,7 @@ export default function JobOutwardClient({
                     </span>
                   </div>
                   <div className="space-y-0.5">
-                    <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px]">
+                    <span className="text-muted-foreground font-medium uppercase block text-[10px]">
                       Taxable Amount
                     </span>
                     <span className="font-semibold text-foreground text-sm">
@@ -1155,30 +1399,31 @@ export default function JobOutwardClient({
                     </span>
                   </div>
                   <div className="space-y-0.5">
-                    <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px]">
-                      {isInterstate ? "IGST" : "CGST / SGST"}
+                    <span className="text-muted-foreground font-medium uppercase block text-[10px]">
+                      CGST
                     </span>
                     <span className="font-semibold text-foreground text-sm">
-                      {isInterstate ? (
-                        `₹ ${totals.igst.toFixed(2)}`
-                      ) : (
-                        `₹ ${totals.cgst.toFixed(2)} + ₹ ${totals.sgst.toFixed(2)}`
-                      )}
+                      ₹ {totals.cgst.toFixed(2)}
                     </span>
                   </div>
                   <div className="space-y-0.5">
-                    <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px]">
-                      GST Tax
+                    <span className="text-muted-foreground font-medium uppercase block text-[10px]">
+                      SGST
                     </span>
-                    <span className="font-semibold text-muted-foreground text-sm">
-                      ₹{" "}
-                      {totals.totalTax.toLocaleString("en-IN", {
-                        minimumFractionDigits: 2,
-                      })}
+                    <span className="font-semibold text-foreground text-sm">
+                      ₹ {totals.sgst.toFixed(2)}
                     </span>
                   </div>
                   <div className="space-y-0.5">
-                    <span className="text-muted-foreground font-medium uppercase tracking-wider block text-[10px] text-primary">
+                    <span className="text-muted-foreground font-medium uppercase block text-[10px]">
+                      IGST
+                    </span>
+                    <span className="font-semibold text-foreground text-sm">
+                      ₹ {totals.igst.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="space-y-0.5">
+                    <span className="text-muted-foreground font-medium uppercase block text-[10px] text-primary">
                       Net Total
                     </span>
                     <span className="font-bold text-foreground text-sm">
@@ -1463,6 +1708,137 @@ export default function JobOutwardClient({
             "Save Job Outward"
           )}
         </Button>
+      </div>
+
+      {/* Past Vouchers List */}
+      <div className="rounded-lg border border-border bg-card overflow-hidden shadow-sm mt-6">
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-border">
+          <FileText className="h-4 w-4 text-muted-foreground" />
+          <div>
+            <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">
+              Job Outward History
+            </h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Last 50 posted job outward vouchers
+            </p>
+          </div>
+        </div>
+
+        {pastVouchers.length === 0 ? (
+          <div className="px-5 py-10 text-center text-sm text-muted-foreground">
+            No job outward vouchers yet. Create your first outward above.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[900px]">
+              <thead className="bg-muted/40 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border">
+                <tr>
+                  <th className="px-4 py-3">Voucher No</th>
+                  <th className="px-4 py-3">Date</th>
+                  <th className="px-4 py-3">Party</th>
+                  <th className="px-4 py-3">Lot No</th>
+                  <th className="px-4 py-3">Remarks</th>
+                  <th className="px-4 py-3 text-right">Taxable</th>
+                  <th className="px-4 py-3 text-right">GST</th>
+                  <th className="px-4 py-3 text-right">Net Total</th>
+                  <th className="px-4 py-3 text-center">Status</th>
+                  <th className="px-4 py-3" />
+                </tr>
+              </thead>
+              <tbody>
+                {pastVouchers.map((v) => (
+                  <tr
+                    key={v.voucherId}
+                    className="border-b border-border/40 hover:bg-muted/10 transition-colors"
+                  >
+                    <td className="px-4 py-3 font-mono font-semibold text-foreground">
+                      {v.voucherNo}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {v.voucherDate}
+                    </td>
+                    <td className="px-4 py-3 text-foreground font-medium">
+                      {v.party?.name ?? "—"}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                      {v.lotNo || "—"}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground italic text-xs max-w-[160px] truncate">
+                      {v.remarks || "—"}
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono text-foreground">
+                      {Number(v.totalAmount).toFixed(2)}
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono text-muted-foreground">
+                      {Number(v.taxAmount).toFixed(2)}
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono font-bold text-foreground">
+                      {Number(v.netAmount).toFixed(2)}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span className="inline-flex items-center rounded-full bg-secondary px-2.5 py-0.5 text-xs font-semibold text-secondary-foreground uppercase">
+                        {v.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        title="Preview Outward"
+                        onClick={async () => {
+                          try {
+                            const res = await fetch(`/api/vouchers?type=job_outward&partyId=${v.partyId}&includeItems=true`);
+                            if (res.ok) {
+                              const items = await res.json();
+                              const matchedVoucher = items.find((x: any) => x.voucherId === v.voucherId);
+                              if (matchedVoucher) {
+                                setPrintVoucher({
+                                  voucher: {
+                                    voucherNo: matchedVoucher.voucherNo,
+                                    voucherDate: matchedVoucher.voucherDate,
+                                    voucherType: "job_outward",
+                                    remarks: matchedVoucher.remarks,
+                                    totalAmount: Number(matchedVoucher.totalAmount),
+                                    taxAmount: Number(matchedVoucher.taxAmount),
+                                    netAmount: Number(matchedVoucher.netAmount),
+                                  },
+                                  party: matchedVoucher.partyName ? {
+                                    name: matchedVoucher.partyName,
+                                    gstNo: matchedVoucher.partyGst,
+                                    address: matchedVoucher.partyAddress,
+                                  } : (v.party ?? {
+                                    name: "Job Party",
+                                    gstNo: null,
+                                    address: null,
+                                  }),
+                                  lines: matchedVoucher.lineItems.map((line: any) => ({
+                                    inventoryCode: line.inventoryCode || "PROD",
+                                    inventoryName: line.inventoryName || "Item",
+                                    quantity: Number(line.quantity),
+                                    unit: line.unit || "MTR",
+                                    rate: Number(line.rate),
+                                    fold: Number(line.fold || 100),
+                                    amount: Number(line.taxableAmount),
+                                    gstPercent: 0,
+                                  })),
+                                });
+                              }
+                            }
+                          } catch (err) {
+                            console.error("Error loading voucher preview", err);
+                          }
+                        }}
+                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       <BrokerHasteDialog

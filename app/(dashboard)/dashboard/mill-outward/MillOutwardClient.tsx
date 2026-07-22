@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, FileText, Eye } from "lucide-react";
 import PrintInvoiceModal from "@/components/PrintInvoiceModal";
 import BrokerHasteDialog from "@/components/BrokerHasteDialog";
 import MillFormDrawer from "@/components/MillFormDrawer";
@@ -51,10 +51,13 @@ interface LineItem {
   id: string;
   inventoryId: string;
   hsnCode: string;
-  pcs: string;
-  quantity: string; // meter / quantity
+  pcs: string; // finish pcs (blank initially in process house mode)
+  quantity: string; // finish quantity (blank initially in process house mode)
+  greyPcs: string; // grey pcs
+  greyQuantity: string; // grey quantity
+  tp: string; // transit pass
   fold: string; // fold percentage (default 100)
-  rate: string; // mill rate
+  rate: string; // mill rate (blank initially in process house mode)
   jobType: string; // e.g. processing, finishing, weaving etc.
   jobRateType: "pcs" | "mtr";
   gstRateId: string;
@@ -65,10 +68,13 @@ const EMPTY_LINE = (): LineItem => ({
   id: crypto.randomUUID(),
   inventoryId: "",
   hsnCode: "",
-  pcs: "0",
-  quantity: "0",
+  pcs: "",
+  quantity: "",
+  greyPcs: "0",
+  greyQuantity: "0.0000",
+  tp: "",
   fold: "100",
-  rate: "0",
+  rate: "",
   jobType: "processing",
   jobRateType: "mtr",
   gstRateId: "",
@@ -106,6 +112,7 @@ export default function MillOutwardClient({
   inwardVouchers,
   inwardItems,
   canCreate,
+  initialPastVouchers = [],
 }: {
   company: {
     companyName: string;
@@ -121,6 +128,7 @@ export default function MillOutwardClient({
   inwardVouchers: InwardVoucher[];
   inwardItems: InwardItem[];
   canCreate: boolean;
+  initialPastVouchers?: any[];
 }) {
   const [localMills, setLocalMills] = useState<MillOption[]>(mills);
   const [showMillModal, setShowMillModal] = useState(false);
@@ -175,6 +183,7 @@ export default function MillOutwardClient({
   const [printAmount, setPrintAmount] = useState(true);
 
   const [lineItems, setLineItems] = useState<LineItem[]>([EMPTY_LINE()]);
+  const [pastVouchers, setPastVouchers] = useState<any[]>(initialPastVouchers);
   const [activePieceLineId, setActivePieceLineId] = useState<string | null>(
     null,
   );
@@ -257,10 +266,13 @@ export default function MillOutwardClient({
         id: crypto.randomUUID(),
         inventoryId: String(item.inventoryId),
         hsnCode: item.hsnCode || "",
-        pcs: String(item.pcs),
-        quantity: String(item.quantity),
+        pcs: "", // finish recieved pcs blank
+        quantity: "", // finish recieved mtr blank
+        greyPcs: String(item.pcs), // grey pcs auto
+        greyQuantity: String(item.quantity), // grey mtr auto
+        tp: "", // TP blank
         fold: String(item.fold || 100),
-        rate: String(item.rate || 0),
+        rate: "", // rate blank
         jobType: item.jobType || "processing",
         jobRateType: (item.jobRateType as any) || "mtr",
         gstRateId: item.gstRateId ? String(item.gstRateId) : "",
@@ -268,6 +280,7 @@ export default function MillOutwardClient({
     );
     if (parentVoucher) {
       setRemarks(`Outward against MI Lot: ${parentVoucher.lotNo || ""}`);
+      setLotNo(parentVoucher.lotNo || "");
     }
   }, [selectedInwardVoucherId, inwardItems, inwardVouchers, company.jobPartyType]);
 
@@ -343,6 +356,15 @@ export default function MillOutwardClient({
         sgst = Math.round((totalTax - cgst) * 100) / 100;
       }
 
+      // Shortage calculation (greyQuantity - quantity) / greyQuantity * 100
+      const greyMtr = Number(line.greyQuantity) || 0;
+      const finishMtr = Number(line.quantity) || 0;
+      const shortageQty = Math.max(0, greyMtr - finishMtr);
+      const shortagePercent =
+        greyMtr > 0
+          ? Math.round((shortageQty / greyMtr) * 100 * 100) / 100
+          : 0;
+
       return {
         amount,
         netAmount,
@@ -351,6 +373,7 @@ export default function MillOutwardClient({
         cgst,
         sgst,
         igst,
+        shortagePercent,
         net: taxableAmount + totalTax,
       };
     });
@@ -490,7 +513,7 @@ export default function MillOutwardClient({
         transport,
         vehicleNo,
         personName,
-        lotNo: company.jobPartyType === "process_house" ? parentVoucher?.lotNo || null : lotNo || null,
+        lotNo: lotNo || null,
         printRate,
         printAmount,
         parentVoucherId: company.jobPartyType === "process_house" ? Number(selectedInwardVoucherId) : null,
@@ -520,6 +543,12 @@ export default function MillOutwardClient({
             taxableAmount: totals.taxableAmount,
             lineNet: totals.net,
             pieceMeters: line.pieceMeters,
+            greyPcs: Number(line.greyPcs || 0),
+            greyQuantity: Number(line.greyQuantity || 0),
+            finishPcs: Number(line.pcs || 0),
+            finishQuantity: Number(line.quantity || 0),
+            tp: line.tp || "",
+            shortagePercent: totals.shortagePercent,
           };
         }),
       };
@@ -535,7 +564,29 @@ export default function MillOutwardClient({
         throw new Error(json.error || "Failed to save Mill Outward voucher.");
       }
 
+      const savedData = await response.json();
+      const savedVoucher = Array.isArray(savedData) ? savedData[0] : savedData;
+
       setMessage("Mill Outward Challan created successfully.");
+
+      const newPastVoucher = {
+        voucherId: savedVoucher?.voucherId || Date.now(),
+        voucherNo: body.voucherNo,
+        voucherDate: body.voucherDate,
+        status: "posted",
+        totalAmount: grandTotals.amount,
+        taxAmount: grandTotals.tax,
+        netAmount: finalGrandTotal,
+        remarks: body.remarks,
+        lotNo: body.lotNo,
+        party: localMills.find((m) => String(m.millId) === selectedMill) ? {
+          name: localMills.find((m) => String(m.millId) === selectedMill)!.millName,
+          gstNo: localMills.find((m) => String(m.millId) === selectedMill)!.gstNo,
+          address: localMills.find((m) => String(m.millId) === selectedMill)!.address,
+        } : null,
+      };
+      setPastVouchers((prev) => [newPastVoucher, ...prev].slice(0, 50));
+
       fetchNextVoucherNo();
       setRemarks("");
       setBroker("");
@@ -721,8 +772,8 @@ export default function MillOutwardClient({
             <Input value={voucherNo} readOnly disabled placeholder="Fetching..." className="h-9" />
           </div>
 
-          {/* Lot No / Inward Voucher selection */}
-          {company.jobPartyType === "process_house" ? (
+          {/* Inward Voucher Linking */}
+          {company.jobPartyType === "process_house" && (
             <div className="space-y-1.5 md:col-span-2">
               <Label>
                 Against Inward Voucher No *
@@ -750,19 +801,20 @@ export default function MillOutwardClient({
                 </SelectContent>
               </Select>
             </div>
-          ) : (
-            <div className="space-y-1.5">
-              <Label>
-                Lot No. (Optional)
-              </Label>
-              <Input
-                value={lotNo}
-                onChange={(e) => setLotNo(e.target.value)}
-                placeholder="e.g. LOT-450"
-                className="h-10"
-              />
-            </div>
           )}
+
+          {/* Lot No. Input */}
+          <div className="space-y-1.5 md:col-span-2">
+            <Label>
+              Lot No. (Optional)
+            </Label>
+            <Input
+              value={lotNo}
+              onChange={(e) => setLotNo(e.target.value)}
+              placeholder="e.g. LOT-450"
+              className="h-10"
+            />
+          </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
@@ -860,57 +912,65 @@ export default function MillOutwardClient({
         </div>
       </div>
 
-      {/* Line Items Table */}
-      <div className="rounded-lg border border-border bg-card p-5 shadow-sm space-y-4">
-        <div className="flex items-center justify-between border-b border-border pb-3">
-          <div>
-            <h2 className="text-sm font-bold text-foreground uppercase tracking-wide">
-              Mill Outward Items & Specifications
-            </h2>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Input inventory, PCS, meters (Qty), fold, processing types, and
-              rates.
-            </p>
+      {/* Line Items Section */}
+      {company.jobPartyType === "process_house" ? (
+        /* Process House Mode: Card Based Layout for Linked Inward Vouchers */
+        <div className="space-y-4">
+          <div className="flex items-center justify-between bg-card border border-border p-4 rounded-lg shadow-sm">
+            <div>
+              <h2 className="text-sm font-bold text-foreground uppercase tracking-wide">
+                Mill Outward Items & Specifications (Linked Mode)
+              </h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Input received/finished metrics, TP, rates, and verify auto shortages.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              onClick={addLine}
+              className="h-9 text-xs font-semibold uppercase"
+            >
+              <Plus className="h-3.5 w-3.5 mr-1" /> Add Item
+            </Button>
           </div>
-          <Button
-            variant="outline"
-            onClick={addLine}
-            className="h-9 text-xs font-semibold uppercase"
-          >
-            <Plus className="h-3.5 w-3.5 mr-1" /> Add Item
-          </Button>
-        </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[1100px]">
-            <thead>
-              <tr className="border-b border-border text-xs font-bold uppercase text-muted-foreground">
-                <th className="py-2 pr-2 w-[20%]">Item</th>
-                <th className="py-2 px-2 w-[8%]">HSN Code</th>
-                <th className="py-2 px-2 w-[6%] text-center">Fold%</th>
-                <th className="py-2 px-2 w-[8%] text-center">PCS</th>
-                <th className="py-2 px-2 w-[8%] text-center">Meters</th>
-                <th className="py-2 px-2 w-[10%]">Process Type</th>
-                <th className="py-2 px-2 w-[8%]">Per</th>
-                <th className="py-2 px-2 w-[8%]">Rate</th>
-                <th className="py-2 px-2 w-[8%] text-right">Amount</th>
-                <th className="py-2 px-2 w-[8%] text-right">Net Amount</th>
-                <th className="py-2 pl-2 w-[5%]"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border text-sm">
-              {lineItems.map((line, index) => {
-                const totals = lineTotals[index];
-                return (
-                  <tr key={line.id} className="hover:bg-muted/30">
-                    <td className="py-3 pr-2">
+          <div className="space-y-4">
+            {lineItems.map((line, index) => {
+              const totals = lineTotals[index];
+              return (
+                <div
+                  key={line.id}
+                  className="rounded-lg border border-border bg-card p-5 shadow-sm space-y-4 relative"
+                >
+                  {/* Header Row */}
+                  <div className="flex items-center justify-between border-b border-border pb-2">
+                    <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                      Item #{index + 1}
+                    </span>
+                    {lineItems.length > 1 && (
+                      <Button
+                        variant="ghost"
+                        onClick={() => removeLine(line.id)}
+                        className="text-danger hover:bg-danger/10 hover:text-danger h-9 px-3 text-xs uppercase font-semibold flex items-center gap-1.5"
+                      >
+                        <Trash2 className="h-4 w-4" /> Remove Item
+                      </Button>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                    {/* Select Item */}
+                    <div className="md:col-span-4 space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase text-foreground">
+                        Select Item
+                      </Label>
                       <Select
                         value={line.inventoryId}
                         onValueChange={(v) =>
                           updateLine(line.id, "inventoryId", v)
                         }
                       >
-                        <SelectTrigger>
+                        <SelectTrigger className="w-full h-10">
                           <SelectValue placeholder="Select item" />
                         </SelectTrigger>
                         <SelectContent>
@@ -924,30 +984,405 @@ export default function MillOutwardClient({
                           ))}
                         </SelectContent>
                       </Select>
-                    </td>
-                    <td className="py-3 px-2">
+                    </div>
+
+                    {/* HSN Code */}
+                    <div className="md:col-span-2 space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase text-foreground">
+                        HSN Code
+                      </Label>
                       <Input
-                        value={line.hsnCode}
+                        value={line.hsnCode || ""}
                         onChange={(e) =>
                           updateLine(line.id, "hsnCode", e.target.value)
                         }
                         placeholder="HSN Code"
-                        className="h-9 font-mono text-xs"
+                        readOnly
+                        className="h-10"
                       />
-                    </td>
-                    <td className="py-3 px-2">
+                    </div>
+
+                    {/* Fold */}
+                    <div className="md:col-span-2 space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase text-foreground">
+                        Fold %
+                      </Label>
                       <Input
                         type="number"
-                        value={line.fold}
+                        value={line.fold || ""}
                         onChange={(e) =>
                           updateLine(line.id, "fold", e.target.value)
                         }
-                        className="h-9 font-mono text-xs text-center"
+                        className="h-10 text-right bg-background"
                       />
-                    </td>
+                    </div>
 
-                    <td className="py-3 px-2">
-                      <div className="flex items-center gap-1">
+                    {/* GST Rate */}
+                    <div className="md:col-span-2 space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase text-foreground">
+                        GST Rate
+                      </Label>
+                      <Select
+                        value={line.gstRateId}
+                        onValueChange={(v) => updateLine(line.id, "gstRateId", v)}
+                      >
+                        <SelectTrigger className="w-full h-10">
+                          <SelectValue placeholder="Tax %" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {taxRates.map((t) => (
+                            <SelectItem
+                              key={t.taxRateId}
+                              value={String(t.taxRateId)}
+                            >
+                              {t.taxName} ({t.taxPercent}%)
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* TP */}
+                    <div className="md:col-span-2 space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase text-foreground">
+                        TP (Transit Pass)
+                      </Label>
+                      <Input
+                        type="text"
+                        placeholder="TP Number"
+                        value={line.tp || ""}
+                        onChange={(e) => updateLine(line.id, "tp", e.target.value)}
+                        className="h-10 bg-background"
+                      />
+                    </div>
+
+                    {/* Grey PCS */}
+                    <div className="md:col-span-2 space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase text-foreground">
+                        Grey PCS
+                      </Label>
+                      <Input
+                        type="number"
+                        placeholder="0"
+                        value={line.greyPcs || ""}
+                        onChange={(e) =>
+                          updateLine(line.id, "greyPcs", e.target.value)
+                        }
+                        className="h-10 text-right bg-background"
+                      />
+                    </div>
+
+                    {/* Grey MTR */}
+                    <div className="md:col-span-2 space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase text-foreground">
+                        Grey MTR
+                      </Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={line.greyQuantity || ""}
+                        onChange={(e) =>
+                          updateLine(line.id, "greyQuantity", e.target.value)
+                        }
+                        className="h-10 text-right bg-background"
+                      />
+                    </div>
+
+                    {/* Finish PCS */}
+                    <div className="md:col-span-2 space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase text-foreground">
+                        Finish PCS
+                      </Label>
+                      <div className="flex items-center gap-1.5">
+                        <Input
+                          type="number"
+                          placeholder="0"
+                          value={line.pcs || ""}
+                          onChange={(e) =>
+                            updateLine(line.id, "pcs", e.target.value)
+                          }
+                          className="h-10 text-right w-full bg-background"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-10 px-3 shrink-0 bg-secondary text-secondary-foreground"
+                          onClick={() => setActivePieceLineId(line.id)}
+                          title="Enter Piece Meters"
+                        >
+                          ⚙️
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Finish MTR */}
+                    <div className="md:col-span-2 space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase text-foreground">
+                        Finish MTR
+                      </Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={line.quantity || ""}
+                        onChange={(e) =>
+                          updateLine(line.id, "quantity", e.target.value)
+                        }
+                        className="h-10 text-right bg-background"
+                      />
+                    </div>
+
+                    {/* Shortage % */}
+                    <div className="md:col-span-2 space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase text-foreground">
+                        Shortage %
+                      </Label>
+                      <div className="h-10 flex items-center justify-end bg-muted/40 px-3 rounded-lg border border-border/50 text-xs font-bold text-danger">
+                        {totals.shortagePercent > 0 ? (
+                          <span>{totals.shortagePercent.toFixed(2)}%</span>
+                        ) : (
+                          <span className="text-success">No Shortage</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Rate */}
+                    <div className="md:col-span-2 space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase text-foreground">
+                        Rate (₹)
+                      </Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={line.rate || ""}
+                        onChange={(e) =>
+                          updateLine(line.id, "rate", e.target.value)
+                        }
+                        className="h-10 text-right bg-background"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Calculations Summary Strip */}
+                  <div className="grid grid-cols-2 md:grid-cols-6 gap-4 bg-muted/30 p-3 rounded-lg border border-border/50 text-xs mt-2">
+                    <div className="space-y-0.5">
+                      <span className="text-muted-foreground font-medium uppercase block text-[10px]">
+                        Amount
+                      </span>
+                      <span className="font-semibold text-foreground text-sm">
+                        ₹{" "}
+                        {totals.amount.toLocaleString("en-IN", {
+                          minimumFractionDigits: 2,
+                        })}
+                      </span>
+                    </div>
+                    <div className="space-y-0.5">
+                      <span className="text-muted-foreground font-medium uppercase block text-[10px]">
+                        Taxable Amount
+                      </span>
+                      <span className="font-semibold text-foreground text-sm">
+                        ₹{" "}
+                        {totals.taxableAmount.toLocaleString("en-IN", {
+                          minimumFractionDigits: 2,
+                        })}
+                      </span>
+                    </div>
+                    <div className="space-y-0.5">
+                      <span className="text-muted-foreground font-medium uppercase block text-[10px]">
+                        CGST
+                      </span>
+                      <span className="font-semibold text-foreground text-sm">
+                        ₹ {totals.cgst.toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="space-y-0.5">
+                      <span className="text-muted-foreground font-medium uppercase block text-[10px]">
+                        SGST
+                      </span>
+                      <span className="font-semibold text-foreground text-sm">
+                        ₹ {totals.sgst.toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="space-y-0.5">
+                      <span className="text-muted-foreground font-medium uppercase block text-[10px]">
+                        IGST
+                      </span>
+                      <span className="font-semibold text-foreground text-sm">
+                        ₹ {totals.igst.toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="space-y-0.5">
+                      <span className="text-muted-foreground font-medium uppercase block text-[10px] text-primary">
+                        Net Total
+                      </span>
+                      <span className="font-bold text-foreground text-sm">
+                        ₹{" "}
+                        {totals.net.toLocaleString("en-IN", {
+                          minimumFractionDigits: 2,
+                        })}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        /* Trader Mode: Card Based Layout (GST & Calculations integrated) */
+        <div className="space-y-4">
+          <div className="flex items-center justify-between bg-card border border-border p-4 rounded-lg shadow-sm">
+            <div>
+              <h2 className="text-sm font-bold text-foreground uppercase tracking-wide">
+                Mill Outward Items & Specifications
+              </h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Input inventory, PCS, meters (Qty), fold, process type, rates, and GST.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              onClick={addLine}
+              className="h-9 text-xs font-semibold uppercase"
+            >
+              <Plus className="h-3.5 w-3.5 mr-1" /> Add Item
+            </Button>
+          </div>
+
+          <div className="space-y-4">
+            {lineItems.map((line, index) => {
+              const totals = lineTotals[index];
+              return (
+                <div
+                  key={line.id}
+                  className="rounded-lg border border-border bg-card p-5 shadow-sm space-y-4 relative"
+                >
+                  {/* Header Row */}
+                  <div className="flex items-center justify-between border-b border-border pb-2">
+                    <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                      Item #{index + 1}
+                    </span>
+                    {lineItems.length > 1 && (
+                      <Button
+                        variant="ghost"
+                        onClick={() => removeLine(line.id)}
+                        className="text-danger hover:bg-danger/10 hover:text-danger h-9 px-3 text-xs uppercase font-semibold flex items-center gap-1.5"
+                      >
+                        <Trash2 className="h-4 w-4" /> Remove Item
+                      </Button>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                    {/* Select Item */}
+                    <div className="md:col-span-4 space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase text-foreground">
+                        Select Item
+                      </Label>
+                      <Select
+                        value={line.inventoryId}
+                        onValueChange={(v) =>
+                          updateLine(line.id, "inventoryId", v)
+                        }
+                      >
+                        <SelectTrigger className="w-full h-10">
+                          <SelectValue placeholder="Select item" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {inventory.map((p) => (
+                            <SelectItem
+                              key={p.inventoryId}
+                              value={String(p.inventoryId)}
+                            >
+                              {p.inventoryName} ({p.unit})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* HSN Code */}
+                    <div className="md:col-span-2 space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase text-foreground">
+                        HSN Code
+                      </Label>
+                      <Input
+                        value={line.hsnCode || ""}
+                        onChange={(e) =>
+                          updateLine(line.id, "hsnCode", e.target.value)
+                        }
+                        placeholder="HSN Code"
+                        className="h-10 font-mono text-xs"
+                      />
+                    </div>
+
+                    {/* Fold */}
+                    <div className="md:col-span-2 space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase text-foreground">
+                        Fold %
+                      </Label>
+                      <Input
+                        type="number"
+                        value={line.fold || ""}
+                        onChange={(e) =>
+                          updateLine(line.id, "fold", e.target.value)
+                        }
+                        className="h-10 text-right bg-background"
+                      />
+                    </div>
+
+                    {/* GST Rate */}
+                    <div className="md:col-span-2 space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase text-foreground">
+                        GST Rate
+                      </Label>
+                      <Select
+                        value={line.gstRateId}
+                        onValueChange={(v) => updateLine(line.id, "gstRateId", v)}
+                      >
+                        <SelectTrigger className="w-full h-10">
+                          <SelectValue placeholder="Tax %" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {taxRates.map((t) => (
+                            <SelectItem
+                              key={t.taxRateId}
+                              value={String(t.taxRateId)}
+                            >
+                              {t.taxName} ({t.taxPercent}%)
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Process Type */}
+                    <div className="md:col-span-2 space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase text-foreground">
+                        Process Type
+                      </Label>
+                      <Input
+                        value={line.jobType}
+                        onChange={(e) => updateLine(line.id, "jobType", e.target.value)}
+                        placeholder="e.g. processing"
+                        list={`job-types-${line.id}`}
+                        className="h-10"
+                      />
+                      <datalist id={`job-types-${line.id}`}>
+                        {uniqueJobTypes.map((t) => (
+                          <option key={t} value={t} />
+                        ))}
+                      </datalist>
+                    </div>
+
+                    {/* PCS */}
+                    <div className="md:col-span-3 space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase text-foreground">
+                        PCS
+                      </Label>
+                      <div className="flex items-center gap-1.5">
                         <Input
                           type="number"
                           value={line.pcs}
@@ -957,21 +1392,25 @@ export default function MillOutwardClient({
                           readOnly={
                             !!(line.pieceMeters && line.pieceMeters.length > 0)
                           }
-                          className={`h-9 font-mono text-xs text-center w-full ${line.pieceMeters && line.pieceMeters.length > 0 ? "bg-muted cursor-not-allowed" : ""}`}
+                          className={`h-10 text-right w-full bg-background ${line.pieceMeters && line.pieceMeters.length > 0 ? "bg-muted cursor-not-allowed" : ""}`}
                         />
                         <Button
                           type="button"
                           variant="outline"
-                          className="h-9 px-2 shrink-0 text-[10px]"
+                          className="h-10 px-3 shrink-0 bg-secondary text-secondary-foreground"
                           onClick={() => setActivePieceLineId(line.id)}
                           title="Enter Piece Meters"
                         >
                           ⚙️
                         </Button>
                       </div>
-                    </td>
+                    </div>
 
-                    <td className="py-3 px-2">
+                    {/* Meters (Qty) */}
+                    <div className="md:col-span-3 space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase text-foreground">
+                        Meters
+                      </Label>
                       <Input
                         type="number"
                         value={line.quantity}
@@ -981,33 +1420,22 @@ export default function MillOutwardClient({
                         readOnly={
                           !!(line.pieceMeters && line.pieceMeters.length > 0)
                         }
-                        className={`h-9 font-mono text-xs text-center ${line.pieceMeters && line.pieceMeters.length > 0 ? "bg-muted cursor-not-allowed" : ""}`}
+                        className={`h-10 text-right bg-background ${line.pieceMeters && line.pieceMeters.length > 0 ? "bg-muted cursor-not-allowed" : ""}`}
                       />
-                    </td>
+                    </div>
 
-                    <td className="py-3 px-2">
-                      <Input
-                        value={line.jobType}
-                        onChange={(e) => updateLine(line.id, "jobType", e.target.value)}
-                        placeholder="e.g. processing"
-                        list={`job-types-${line.id}`}
-                        className="h-9 text-xs"
-                      />
-                      <datalist id={`job-types-${line.id}`}>
-                        {uniqueJobTypes.map((t) => (
-                          <option key={t} value={t} />
-                        ))}
-                      </datalist>
-                    </td>
-
-                    <td className="py-3 px-2">
+                    {/* Per (Unit) */}
+                    <div className="md:col-span-3 space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase text-foreground">
+                        Per
+                      </Label>
                       <Select
                         value={line.jobRateType}
                         onValueChange={(v) =>
                           updateLine(line.id, "jobRateType", v as any)
                         }
                       >
-                        <SelectTrigger>
+                        <SelectTrigger className="w-full h-10">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -1015,48 +1443,90 @@ export default function MillOutwardClient({
                           <SelectItem value="pcs">Pcs</SelectItem>
                         </SelectContent>
                       </Select>
-                    </td>
+                    </div>
 
-                    <td className="py-3 px-2">
+                    {/* Rate */}
+                    <div className="md:col-span-3 space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase text-foreground">
+                        Rate
+                      </Label>
                       <Input
                         type="number"
                         value={line.rate}
                         onChange={(e) =>
                           updateLine(line.id, "rate", e.target.value)
                         }
-                        className="h-9 font-mono text-xs text-right"
+                        className="h-10 text-right bg-background"
                       />
-                    </td>
+                    </div>
+                  </div>
 
-                    <td className="py-3 px-2 text-right font-mono font-bold text-foreground">
-                      ₹{" "}
-                      {totals.amount.toLocaleString("en-IN", {
-                        minimumFractionDigits: 2,
-                      })}
-                    </td>
-                    <td className="py-3 px-2 text-right font-mono font-bold text-foreground">
-                      ₹{" "}
-                      {totals.netAmount.toLocaleString("en-IN", {
-                        minimumFractionDigits: 2,
-                      })}
-                    </td>
-
-                    <td className="py-3 pl-2 text-center">
-                      <Button
-                        type="button"
-                        onClick={() => removeLine(line.id)}
-                        disabled={lineItems.length === 1}
-                        variant="ghost" size="icon"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                  {/* Calculations Summary Strip */}
+                  <div className="grid grid-cols-2 md:grid-cols-6 gap-4 bg-muted/30 p-3 rounded-lg border border-border/50 text-xs mt-2">
+                    <div className="space-y-0.5">
+                      <span className="text-muted-foreground font-medium uppercase block text-[10px]">
+                        Amount
+                      </span>
+                      <span className="font-semibold text-foreground text-sm">
+                        ₹{" "}
+                        {totals.amount.toLocaleString("en-IN", {
+                          minimumFractionDigits: 2,
+                        })}
+                      </span>
+                    </div>
+                    <div className="space-y-0.5">
+                      <span className="text-muted-foreground font-medium uppercase block text-[10px]">
+                        Taxable Amount
+                      </span>
+                      <span className="font-semibold text-foreground text-sm">
+                        ₹{" "}
+                        {totals.taxableAmount.toLocaleString("en-IN", {
+                          minimumFractionDigits: 2,
+                        })}
+                      </span>
+                    </div>
+                    <div className="space-y-0.5">
+                      <span className="text-muted-foreground font-medium uppercase block text-[10px]">
+                        CGST
+                      </span>
+                      <span className="font-semibold text-foreground text-sm">
+                        ₹ {totals.cgst.toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="space-y-0.5">
+                      <span className="text-muted-foreground font-medium uppercase block text-[10px]">
+                        SGST
+                      </span>
+                      <span className="font-semibold text-foreground text-sm">
+                        ₹ {totals.sgst.toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="space-y-0.5">
+                      <span className="text-muted-foreground font-medium uppercase block text-[10px]">
+                        IGST
+                      </span>
+                      <span className="font-semibold text-foreground text-sm">
+                        ₹ {totals.igst.toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="space-y-0.5">
+                      <span className="text-muted-foreground font-medium uppercase block text-[10px] text-primary">
+                        Net Total
+                      </span>
+                      <span className="font-bold text-foreground text-sm">
+                        ₹{" "}
+                        {totals.net.toLocaleString("en-IN", {
+                          minimumFractionDigits: 2,
+                        })}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
+      )}
 
         {/* Summary Footer */}
         <div className="grid gap-6 md:grid-cols-3 border-t border-border pt-4">
@@ -1306,7 +1776,6 @@ export default function MillOutwardClient({
             </div>
           </div>
         </div>
-      </div>
 
       {/* Message and Save Action */}
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-border bg-card p-5 shadow-sm">
@@ -1327,6 +1796,137 @@ export default function MillOutwardClient({
             "Save Mill Outward"
           )}
         </Button>
+      </div>
+
+      {/* Past Vouchers List */}
+      <div className="rounded-lg border border-border bg-card overflow-hidden shadow-sm mt-6">
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-border">
+          <FileText className="h-4 w-4 text-muted-foreground" />
+          <div>
+            <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">
+              Mill Outward History
+            </h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Last 50 posted mill outward vouchers
+            </p>
+          </div>
+        </div>
+
+        {pastVouchers.length === 0 ? (
+          <div className="px-5 py-10 text-center text-sm text-muted-foreground">
+            No mill outward vouchers yet. Create your first outward above.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[900px]">
+              <thead className="bg-muted/40 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border">
+                <tr>
+                  <th className="px-4 py-3">Voucher No</th>
+                  <th className="px-4 py-3">Date</th>
+                  <th className="px-4 py-3">Party</th>
+                  <th className="px-4 py-3">Lot No</th>
+                  <th className="px-4 py-3">Remarks</th>
+                  <th className="px-4 py-3 text-right">Taxable</th>
+                  <th className="px-4 py-3 text-right">GST</th>
+                  <th className="px-4 py-3 text-right">Net Total</th>
+                  <th className="px-4 py-3 text-center">Status</th>
+                  <th className="px-4 py-3" />
+                </tr>
+              </thead>
+              <tbody>
+                {pastVouchers.map((v) => (
+                  <tr
+                    key={v.voucherId}
+                    className="border-b border-border/40 hover:bg-muted/10 transition-colors"
+                  >
+                    <td className="px-4 py-3 font-mono font-semibold text-foreground">
+                      {v.voucherNo}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {v.voucherDate}
+                    </td>
+                    <td className="px-4 py-3 text-foreground font-medium">
+                      {v.party?.name ?? "—"}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                      {v.lotNo || "—"}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground italic text-xs max-w-[160px] truncate">
+                      {v.remarks || "—"}
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono text-foreground">
+                      {Number(v.totalAmount).toFixed(2)}
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono text-muted-foreground">
+                      {Number(v.taxAmount).toFixed(2)}
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono font-bold text-foreground">
+                      {Number(v.netAmount).toFixed(2)}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span className="inline-flex items-center rounded-full bg-secondary px-2.5 py-0.5 text-xs font-semibold text-secondary-foreground uppercase">
+                        {v.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        title="Preview Outward"
+                        onClick={async () => {
+                          try {
+                            const res = await fetch(`/api/vouchers?type=mill_outward&partyId=${v.partyId}&includeItems=true`);
+                            if (res.ok) {
+                              const items = await res.json();
+                              const matchedVoucher = items.find((x: any) => x.voucherId === v.voucherId);
+                              if (matchedVoucher) {
+                                setPrintVoucher({
+                                  voucher: {
+                                    voucherNo: matchedVoucher.voucherNo,
+                                    voucherDate: matchedVoucher.voucherDate,
+                                    voucherType: "mill_outward",
+                                    remarks: matchedVoucher.remarks,
+                                    totalAmount: Number(matchedVoucher.totalAmount),
+                                    taxAmount: Number(matchedVoucher.taxAmount),
+                                    netAmount: Number(matchedVoucher.netAmount),
+                                  },
+                                  party: matchedVoucher.partyName ? {
+                                    name: matchedVoucher.partyName,
+                                    gstNo: matchedVoucher.partyGst,
+                                    address: matchedVoucher.partyAddress,
+                                  } : (v.party ?? {
+                                    name: "Mill Party",
+                                    gstNo: null,
+                                    address: null,
+                                  }),
+                                  lines: matchedVoucher.lineItems.map((line: any) => ({
+                                    inventoryCode: line.inventoryCode || "PROD",
+                                    inventoryName: line.inventoryName || "Item",
+                                    quantity: Number(line.quantity),
+                                    unit: line.unit || "MTR",
+                                    rate: Number(line.rate),
+                                    fold: Number(line.fold || 100),
+                                    amount: Number(line.taxableAmount),
+                                    gstPercent: 0,
+                                  })),
+                                });
+                              }
+                            }
+                          } catch (err) {
+                            console.error("Error loading voucher preview", err);
+                          }
+                        }}
+                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       <BrokerHasteDialog

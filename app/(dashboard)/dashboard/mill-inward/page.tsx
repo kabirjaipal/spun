@@ -2,7 +2,7 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { mMills, mInventory, mTaxRates, mCompanies, tVouchers, tVoucherItems, mBrokersHaste } from "@/lib/db/schema";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, desc, inArray } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
 import { APP_NAME } from "@/lib/constants";
 import MillInwardClient from "./MillInwardClient";
@@ -67,6 +67,38 @@ export default async function MillInwardPage() {
       .orderBy(mBrokersHaste.name),
   ]);
 
+  const pastVouchers = await db
+    .select({
+      voucherId: tVouchers.voucherId,
+      voucherNo: tVouchers.voucherNo,
+      voucherDate: tVouchers.voucherDate,
+      status: tVouchers.status,
+      totalAmount: tVouchers.totalAmount,
+      taxAmount: tVouchers.taxAmount,
+      netAmount: tVouchers.netAmount,
+      remarks: tVouchers.remarks,
+      partyId: tVouchers.partyId,
+      lotNo: tVouchers.lotNo,
+    })
+    .from(tVouchers)
+    .where(and(eq(tVouchers.companyId, companyId), eq(tVouchers.voucherType, "mill_inward"), isNull(tVouchers.deletedOn)))
+    .orderBy(desc(tVouchers.voucherDate), desc(tVouchers.voucherId))
+    .limit(50);
+
+  const millIds = pastVouchers.map((v) => v.partyId).filter(Boolean) as number[];
+  const pastMills = millIds.length > 0
+    ? await db.select().from(mMills).where(inArray(mMills.millId, millIds))
+    : [];
+
+  const vouchersWithParties = pastVouchers.map((v) => ({
+    ...v,
+    party: pastMills.find((m) => m.millId === v.partyId) ? {
+      name: pastMills.find((m) => m.millId === v.partyId)!.millName,
+      gstNo: pastMills.find((m) => m.millId === v.partyId)!.gstNo,
+      address: pastMills.find((m) => m.millId === v.partyId)!.address,
+    } : null,
+  }));
+
   const perms = getStaticPermissionsForRole(session.user.role as Role);
   const p = perms.find((x) => x.accessItem === "mill_inward");
 
@@ -118,6 +150,7 @@ export default async function MillInwardPage() {
         type: r.type,
       }))}
       canCreate={p?.c ?? false}
+      initialPastVouchers={vouchersWithParties}
     />
   );
 }

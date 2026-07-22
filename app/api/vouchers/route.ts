@@ -734,6 +734,12 @@ export async function POST(request: Request) {
             pieceMeters: line.pieceMeters
               ? JSON.stringify(line.pieceMeters)
               : null,
+            greyPcs: line.greyPcs !== undefined && line.greyPcs !== null ? Number(line.greyPcs) : null,
+            greyQuantity: line.greyQuantity !== undefined && line.greyQuantity !== null ? String(line.greyQuantity) : null,
+            finishPcs: line.finishPcs !== undefined && line.finishPcs !== null ? Number(line.finishPcs) : (line.pcs !== undefined ? Number(line.pcs) : null),
+            finishQuantity: line.finishQuantity !== undefined && line.finishQuantity !== null ? String(line.finishQuantity) : (line.qty !== undefined ? String(line.qty) : null),
+            tp: line.tp || null,
+            shortagePercent: line.shortagePercent !== undefined && line.shortagePercent !== null ? String(line.shortagePercent) : null,
             createdBy: userId,
             updatedBy: userId,
           });
@@ -863,6 +869,13 @@ export async function POST(request: Request) {
         newDataJson: createdVoucher,
         createdBy: userId,
       });
+
+      if (parentVoucherId && lotNo) {
+        await tx
+          .update(tVouchers)
+          .set({ lotNo: lotNo })
+          .where(eq(tVouchers.voucherId, Number(parentVoucherId)));
+      }
 
       return [createdVoucher];
     });

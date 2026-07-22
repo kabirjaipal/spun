@@ -497,6 +497,12 @@ export const tVoucherItems = pgTable(
     jobType: text("job_type"),
     jobRateType: text("job_rate_type"), // 'pcs', 'mtr'
     pieceMeters: text("piece_meters"),
+    greyPcs: integer("grey_pcs"),
+    greyQuantity: numeric("grey_quantity", { precision: 15, scale: 4 }),
+    finishPcs: integer("finish_pcs"),
+    finishQuantity: numeric("finish_quantity", { precision: 15, scale: 4 }),
+    tp: text("tp"),
+    shortagePercent: numeric("shortage_percent", { precision: 5, scale: 2 }),
 
     ...auditColumns,
   },

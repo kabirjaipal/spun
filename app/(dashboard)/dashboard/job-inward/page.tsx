@@ -2,7 +2,7 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { mJobs, mInventory, mTaxRates, mCompanies, tVouchers, tVoucherItems, mBrokersHaste } from "@/lib/db/schema";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, desc, inArray } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
 import { APP_NAME } from "@/lib/constants";
 import JobInwardClient from "./JobInwardClient";
@@ -67,6 +67,38 @@ export default async function JobInwardPage() {
       .orderBy(mBrokersHaste.name),
   ]);
 
+  const pastVouchers = await db
+    .select({
+      voucherId: tVouchers.voucherId,
+      voucherNo: tVouchers.voucherNo,
+      voucherDate: tVouchers.voucherDate,
+      status: tVouchers.status,
+      totalAmount: tVouchers.totalAmount,
+      taxAmount: tVouchers.taxAmount,
+      netAmount: tVouchers.netAmount,
+      remarks: tVouchers.remarks,
+      partyId: tVouchers.partyId,
+      lotNo: tVouchers.lotNo,
+    })
+    .from(tVouchers)
+    .where(and(eq(tVouchers.companyId, companyId), eq(tVouchers.voucherType, "job_inward"), isNull(tVouchers.deletedOn)))
+    .orderBy(desc(tVouchers.voucherDate), desc(tVouchers.voucherId))
+    .limit(50);
+
+  const jobIds = pastVouchers.map((v) => v.partyId).filter(Boolean) as number[];
+  const pastJobs = jobIds.length > 0
+    ? await db.select().from(mJobs).where(inArray(mJobs.jobId, jobIds))
+    : [];
+
+  const vouchersWithParties = pastVouchers.map((v) => ({
+    ...v,
+    party: pastJobs.find((j) => j.jobId === v.partyId) ? {
+      name: pastJobs.find((j) => j.jobId === v.partyId)!.jobName,
+      gstNo: pastJobs.find((j) => j.jobId === v.partyId)!.gstNo,
+      address: pastJobs.find((j) => j.jobId === v.partyId)!.address,
+    } : null,
+  }));
+
   const perms = getStaticPermissionsForRole(session.user.role as Role);
   const p = perms.find((x) => x.accessItem === "job_inward");
 
@@ -118,6 +150,7 @@ export default async function JobInwardPage() {
         type: r.type,
       }))}
       canCreate={p?.c ?? false}
+      initialPastVouchers={vouchersWithParties}
     />
   );
 }
