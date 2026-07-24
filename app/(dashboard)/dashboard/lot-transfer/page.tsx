@@ -41,6 +41,7 @@ export default async function LotTransferPage() {
         voucherDate: tVouchers.voucherDate,
         lotNo: tVouchers.lotNo,
         partyId: tVouchers.partyId,
+        fromPartyId: tVouchers.fromPartyId,
         remarks: tVouchers.remarks,
       })
       .from(tVouchers)

@@ -169,6 +169,13 @@
       "when": 1784880580280,
       "tag": "0023_regular_blue_marvel",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1784882422195,
+      "tag": "0024_loose_stephen_strange",
+      "breakpoints": true
     }
   ]
 }

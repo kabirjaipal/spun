@@ -1,0 +1,1 @@
+ALTER TABLE "t_vouchers" ADD COLUMN "from_party_id" bigint;

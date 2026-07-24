@@ -15,6 +15,7 @@ interface TransferItem {
   voucherDate: Date | null;
   lotNo: string | null;
   partyId: number | null;
+  fromPartyId?: number | null;
   remarks: string | null;
 }
 
@@ -41,6 +42,7 @@ export default function LotTransferClient({
   const [selectedLot, setSelectedLot] = useState("");
   const [customLot, setCustomLot] = useState("");
   const [selectedParty, setSelectedParty] = useState("");
+  const [selectedFromParty, setSelectedFromParty] = useState("");
   const [remarks, setRemarks] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -80,6 +82,7 @@ export default function LotTransferClient({
         voucherNo,
         voucherDate,
         partyId: Number(selectedParty),
+        fromPartyId: selectedFromParty && selectedFromParty !== "none" ? Number(selectedFromParty) : null,
         lotNo,
         remarks,
       };
@@ -103,6 +106,7 @@ export default function LotTransferClient({
         voucherDate: newVoucher.voucherDate ? new Date(newVoucher.voucherDate) : null,
         lotNo: newVoucher.lotNo,
         partyId: newVoucher.partyId,
+        fromPartyId: newVoucher.fromPartyId,
         remarks: newVoucher.remarks,
       };
 
@@ -114,6 +118,7 @@ export default function LotTransferClient({
       setSelectedLot("");
       setCustomLot("");
       setSelectedParty("");
+      setSelectedFromParty("");
       setRemarks("");
       fetchNextVoucherNo();
     } catch (err) {
@@ -180,6 +185,23 @@ export default function LotTransferClient({
                 />
               )}
             </div>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-2 border-t border-border/30 pt-4">
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">From Party (Optional)</Label>
+              <Select value={selectedFromParty} onValueChange={setSelectedFromParty}>
+                <SelectTrigger className="h-10 text-sm"><SelectValue placeholder="Choose From Party (Optional)" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None / Direct from Company</SelectItem>
+                  {targetParties.map((p) => (
+                    <SelectItem key={`from-${p.type}-${p.id}`} value={String(p.id)}>
+                      {p.name} ({p.type})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
             <div className="space-y-2">
               <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Transfer To Party</Label>
@@ -187,7 +209,7 @@ export default function LotTransferClient({
                 <SelectTrigger className="h-10 text-sm"><SelectValue placeholder="Choose Target Party" /></SelectTrigger>
                 <SelectContent>
                   {targetParties.map((p) => (
-                    <SelectItem key={`${p.type}-${p.id}`} value={String(p.id)}>
+                    <SelectItem key={`to-${p.type}-${p.id}`} value={String(p.id)}>
                       {p.name} ({p.type})
                     </SelectItem>
                   ))}
@@ -242,6 +264,7 @@ export default function LotTransferClient({
               <th className="px-4 py-3">Transfer No</th>
               <th className="px-4 py-3">Date</th>
               <th className="px-4 py-3">Lot Number</th>
+              <th className="px-4 py-3">From Party</th>
               <th className="px-4 py-3">Transferred To</th>
               <th className="px-4 py-3">Remarks</th>
             </tr>
@@ -249,12 +272,13 @@ export default function LotTransferClient({
           <tbody>
             {transfers.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">
+                <td colSpan={6} className="px-4 py-8 text-center text-sm text-muted-foreground">
                   No lot transfers recorded yet.
                 </td>
               </tr>
             ) : (
               transfers.map((t) => {
+                const fromParty = t.fromPartyId ? targetParties.find((p) => p.id === t.fromPartyId) : null;
                 const party = targetParties.find((p) => p.id === t.partyId);
                 return (
                   <tr key={t.voucherId} className="border-t border-border/50 hover:bg-muted/10 transition-colors">
@@ -263,6 +287,9 @@ export default function LotTransferClient({
                       {t.voucherDate ? new Date(t.voucherDate).toISOString().slice(0, 10) : "—"}
                     </td>
                     <td className="px-4 py-3 text-foreground font-semibold">{t.lotNo || "—"}</td>
+                    <td className="px-4 py-3 text-foreground">
+                      {fromParty ? `${fromParty.name} (${fromParty.type})` : "—"}
+                    </td>
                     <td className="px-4 py-3 text-foreground">
                       {party ? `${party.name} (${party.type})` : `Party ID ${t.partyId}`}
                     </td>

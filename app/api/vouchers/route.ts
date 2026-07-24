@@ -82,6 +82,7 @@ export async function POST(request: Request) {
     tdsSection,
     tdsRate,
     tdsAmount,
+    fromPartyId,
   } = body;
 
   if (!voucherType || !voucherNo || !voucherDate) {
@@ -374,6 +375,7 @@ export async function POST(request: Request) {
           printRate: printRate,
           printAmount: printAmount,
           parentVoucherId: parentVoucherId ? Number(parentVoucherId) : null,
+          fromPartyId: fromPartyId ? Number(fromPartyId) : null,
           cashBankLedgerId: cashBankLedgerId ? Number(cashBankLedgerId) : null,
           billDetails: billDetails || null,
           discountType: discountType || null,
