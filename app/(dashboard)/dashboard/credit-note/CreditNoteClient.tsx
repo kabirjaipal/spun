@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Plus, X, ArrowLeft, Trash2 } from "lucide-react";
+import { Plus, X, ArrowLeft, Trash2, Pencil } from "lucide-react";
 
 interface CreditNoteItem {
   voucherId: number;
@@ -19,6 +19,11 @@ interface CreditNoteItem {
   netAmount: string;
   remarks: string | null;
   partyName: string | null;
+  parentVoucherId?: number | null;
+  tdsSection?: string | null;
+  tdsRate?: string | null;
+  tdsAmount?: string | null;
+  lineItems?: LineItem[];
 }
 
 interface PartyOption {
@@ -49,9 +54,10 @@ interface TaxRateOption {
   taxPercent: string;
 }
 
-interface SalesInvoiceOption {
+interface InvoiceOption {
   voucherId: number;
   voucherNo: string;
+  voucherType: string;
   voucherDate: string;
   netAmount: string;
 }
@@ -80,6 +86,9 @@ export default function CreditNoteClient({
   ledgers,
   taxRates,
   canCreate,
+  canUpdate,
+  canDelete,
+  customTdsSections,
 }: {
   initialNotes: CreditNoteItem[];
   company: { companyName: string; gstNo?: string | null; address?: string | null; state?: string | null };
@@ -88,9 +97,13 @@ export default function CreditNoteClient({
   ledgers: LedgerOption[];
   taxRates: TaxRateOption[];
   canCreate: boolean;
+  canUpdate?: boolean;
+  canDelete?: boolean;
+  customTdsSections?: string[];
 }) {
   const [notes, setNotes] = useState<CreditNoteItem[]>(initialNotes);
   const [isCreating, setIsCreating] = useState(false);
+  const [editingNote, setEditingNote] = useState<CreditNoteItem | null>(null);
   const [voucherNo, setVoucherNo] = useState("");
   const [voucherDate, setVoucherDate] = useState(getLocalTodayString());
   const [selectedParty, setSelectedParty] = useState("");
@@ -100,8 +113,78 @@ export default function CreditNoteClient({
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
-  // Fetch sales invoices for selected party
-  const [invoices, setInvoices] = useState<SalesInvoiceOption[]>([]);
+  // Custom TDS section state
+  const [customInputTdsSection, setCustomInputTdsSection] = useState("");
+
+  const resetForm = () => {
+    setEditingNote(null);
+    setSelectedParty("");
+    setSelectedInvoice("");
+    setRemarks("");
+    setTdsSection("None");
+    setCustomInputTdsSection("");
+    setTdsRate("0");
+    setLineItems([EMPTY_LINE()]);
+    fetchNextVoucherNo();
+  };
+
+  const handleEdit = (note: CreditNoteItem) => {
+    setEditingNote(note);
+    setVoucherNo(note.voucherNo);
+    setVoucherDate(note.voucherDate ? new Date(note.voucherDate).toISOString().slice(0, 10) : getLocalTodayString());
+    setSelectedParty(note.partyId ? String(note.partyId) : "");
+    setSelectedInvoice(note.parentVoucherId ? String(note.parentVoucherId) : "");
+
+    const rawRemarks = note.remarks || "";
+    const bracketIndex = rawRemarks.indexOf("]");
+    if (rawRemarks.startsWith("[AGAINST BILL ") && bracketIndex !== -1) {
+      setRemarks(rawRemarks.slice(bracketIndex + 1).trim());
+    } else {
+      setRemarks(rawRemarks);
+    }
+
+    const defaultSecs = ["None", "194C", "194H", "194I", "194J", "194Q", "195"];
+    if (note.tdsSection) {
+      if (defaultSecs.includes(note.tdsSection) || (customTdsSections && customTdsSections.includes(note.tdsSection))) {
+        setTdsSection(note.tdsSection);
+        setCustomInputTdsSection("");
+      } else {
+        setTdsSection("Other");
+        setCustomInputTdsSection(note.tdsSection);
+      }
+    } else {
+      setTdsSection("None");
+      setCustomInputTdsSection("");
+    }
+    setTdsRate(note.tdsRate ? String(Number(note.tdsRate)) : "0");
+
+    if (note.lineItems && note.lineItems.length > 0) {
+      setLineItems(note.lineItems);
+    } else {
+      setLineItems([EMPTY_LINE()]);
+    }
+    setIsCreating(true);
+  };
+
+  const handleDelete = async (note: CreditNoteItem) => {
+    if (!confirm("Are you sure you want to delete this credit note?")) return;
+    try {
+      const res = await fetch(`/api/vouchers/${note.voucherId}`, { method: "DELETE" });
+      if (!res.ok) {
+        const json = await res.json();
+        throw new Error(json.error || "Failed to delete credit note");
+      }
+      setNotes(notes.filter((n) => n.voucherId !== note.voucherId));
+      setMessage("Credit note deleted successfully.");
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Error deleting credit note.");
+    }
+  };
+
+  // Fetch invoices for selected party
+  const [invoices, setInvoices] = useState<InvoiceOption[]>([]);
+  const [tdsSection, setTdsSection] = useState("None");
+  const [tdsRate, setTdsRate] = useState("0");
 
   const fetchNextVoucherNo = async () => {
     try {
@@ -119,20 +202,41 @@ export default function CreditNoteClient({
     fetchNextVoucherNo();
   }, []);
 
+
+
+  const handleTdsSectionChange = (section: string) => {
+    setTdsSection(section);
+    if (section === "194C") {
+      setTdsRate("2");
+    } else if (section === "194J") {
+      setTdsRate("10");
+    } else if (section === "194I") {
+      setTdsRate("10");
+    } else if (section === "194H") {
+      setTdsRate("5");
+    } else if (section === "194Q") {
+      setTdsRate("0.1");
+    } else if (section === "195") {
+      setTdsRate("10");
+    } else {
+      setTdsRate("0");
+    }
+  };
+
   useEffect(() => {
     if (!selectedParty) {
       setInvoices([]);
       setSelectedInvoice("");
       return;
     }
-    fetch(`/api/vouchers?type=sale&partyId=${selectedParty}`)
+    fetch(`/api/vouchers?type=all_bills&partyId=${selectedParty}`)
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) {
           setInvoices(data);
         }
       })
-      .catch((err) => console.error("Error fetching sales invoices:", err));
+      .catch((err) => console.error("Error fetching invoices:", err));
   }, [selectedParty]);
 
   const salesReturnLedgers = useMemo(() => {
@@ -199,6 +303,16 @@ export default function CreditNoteClient({
     );
   }, [lineTotals]);
 
+  const tdsAmount = useMemo(() => {
+    if (tdsSection === "None") return 0;
+    const rate = Number(tdsRate) || 0;
+    return Math.round(((summary.net * rate) / 100) * 100) / 100;
+  }, [summary.net, tdsRate, tdsSection]);
+
+  const finalNetAmount = useMemo(() => {
+    return Math.round((summary.net - tdsAmount) * 100) / 100;
+  }, [summary.net, tdsAmount]);
+
   function updateLine(id: string, field: keyof LineItem, value: string) {
     setLineItems((items) =>
       items.map((item) => {
@@ -218,7 +332,7 @@ export default function CreditNoteClient({
   }
 
   async function handleSubmit() {
-    if (!canCreate) return;
+    if (!canCreate && !editingNote) return;
     if (!selectedParty || !voucherNo) {
       setMessage("Please select party and enter voucher number.");
       return;
@@ -236,13 +350,17 @@ export default function CreditNoteClient({
     const invoiceVoucher = invoices.find((inv) => String(inv.voucherId) === selectedInvoice);
 
     try {
+      const finalTdsSection = tdsSection === "Other" ? customInputTdsSection : (tdsSection !== "None" ? tdsSection : null);
       const body = {
         voucherType: "credit_note",
         voucherNo,
         voucherDate,
         partyId: Number(selectedParty),
-        remarks: invoiceVoucher ? `[AGAINST SALES BILL ${invoiceVoucher.voucherNo}] ${remarks}` : remarks,
+        remarks: invoiceVoucher ? `[AGAINST BILL ${invoiceVoucher.voucherNo}] ${remarks}` : remarks,
         parentVoucherId: selectedInvoice ? Number(selectedInvoice) : null,
+        tdsSection: finalTdsSection,
+        tdsRate: tdsSection !== "None" ? Number(tdsRate) : 0,
+        tdsAmount: tdsSection !== "None" ? tdsAmount : 0,
         lineItems: validLines.map((line) => {
           const totals = lineTotals[lineItems.indexOf(line)];
           return {
@@ -263,15 +381,18 @@ export default function CreditNoteClient({
         }),
       };
 
-      const response = await fetch("/api/vouchers", {
-        method: "POST",
+      const url = editingNote ? `/api/vouchers/${editingNote.voucherId}` : "/api/vouchers";
+      const method = editingNote ? "PATCH" : "POST";
+
+      const response = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
 
       if (!response.ok) {
         const json = await response.json();
-        throw new Error(json.error || "Failed to save credit note.");
+        throw new Error(json.error || `Failed to ${editingNote ? "update" : "save"} credit note.`);
       }
 
       const newVoucher = await response.json();
@@ -285,18 +406,22 @@ export default function CreditNoteClient({
         netAmount: String(newVoucher.netAmount),
         remarks: newVoucher.remarks,
         partyName: custObj ? custObj.partyName : `ID ${newVoucher.partyId}`,
+        parentVoucherId: newVoucher.parentVoucherId,
+        tdsSection: newVoucher.tdsSection,
+        tdsRate: newVoucher.tdsRate,
+        tdsAmount: newVoucher.tdsAmount,
+        lineItems: validLines,
       };
 
-      setNotes([added, ...notes]);
-      setMessage("Credit note voucher recorded successfully.");
+      if (editingNote) {
+        setNotes(notes.map((n) => n.voucherId === editingNote.voucherId ? added : n));
+        setMessage("Credit note updated successfully.");
+      } else {
+        setNotes([added, ...notes]);
+        setMessage("Credit note recorded successfully.");
+      }
       setIsCreating(false);
-
-      // Reset
-      fetchNextVoucherNo();
-      setSelectedParty("");
-      setSelectedInvoice("");
-      setRemarks("");
-      setLineItems([EMPTY_LINE()]);
+      resetForm();
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "Error saving credit note.");
     } finally {
@@ -315,7 +440,7 @@ export default function CreditNoteClient({
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div>
-              <h1 className="text-lg font-bold text-foreground uppercase tracking-wide">Record Credit Note</h1>
+              <h1 className="text-lg font-bold text-foreground uppercase tracking-wide">{editingNote ? "Edit Credit Note" : "Record Credit Note"}</h1>
               <p className="text-xs text-muted-foreground mt-0.5">Credit party account ledger and post adjustments.</p>
             </div>
           </div>
@@ -347,13 +472,13 @@ export default function CreditNoteClient({
             </div>
 
             <div className="space-y-2">
-              <Label>Against Sales Invoice</Label>
+              <Label>Against Invoice</Label>
               <Select value={selectedInvoice} onValueChange={setSelectedInvoice}>
-                <SelectTrigger><SelectValue placeholder="Select Sales Bill" /></SelectTrigger>
+                <SelectTrigger className="h-10"><SelectValue placeholder="Choose Invoice" /></SelectTrigger>
                 <SelectContent>
                   {invoices.map((inv) => (
                     <SelectItem key={inv.voucherId} value={String(inv.voucherId)}>
-                      {inv.voucherNo} (₹{Number(inv.netAmount).toFixed(2)})
+                      {inv.voucherNo} ({inv.voucherType === "sale" ? "Sales" : "Purchase"}) (₹{Number(inv.netAmount).toFixed(2)})
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -442,10 +567,78 @@ export default function CreditNoteClient({
             </div>
           </div>
 
+          {/* TDS Section fields */}
+          <div className="grid gap-4 md:grid-cols-4 border-t border-border/50 pt-4 pb-2">
+            <div className="space-y-2">
+              <Label>TDS Undersection</Label>
+              <Select value={tdsSection} onValueChange={handleTdsSectionChange}>
+                <SelectTrigger><SelectValue placeholder="TDS Section" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="None">None</SelectItem>
+                  <SelectItem value="194C">194C (Contractors)</SelectItem>
+                  <SelectItem value="194H">194H (Commission)</SelectItem>
+                  <SelectItem value="194I">194I (Rent)</SelectItem>
+                  <SelectItem value="194J">194J (Professional/Technical)</SelectItem>
+                  <SelectItem value="194Q">194Q (Purchase of goods)</SelectItem>
+                  <SelectItem value="195">195 (Non-residents)</SelectItem>
+                  {customTdsSections && customTdsSections.map((sec) => (
+                    !["None", "194C", "194H", "194I", "194J", "194Q", "195"].includes(sec) && (
+                      <SelectItem key={sec} value={sec}>{sec}</SelectItem>
+                    )
+                  ))}
+                  <SelectItem value="Other">Other Section</SelectItem>
+                </SelectContent>
+              </Select>
+              {tdsSection === "Other" && (
+                <Input
+                  className="mt-2"
+                  value={customInputTdsSection}
+                  onChange={(e) => setCustomInputTdsSection(e.target.value)}
+                  placeholder="Type Custom TDS Section (e.g. 194IA)"
+                />
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label>TDS Percentage (%)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                max="100"
+                value={tdsRate}
+                onChange={(e) => setTdsRate(e.target.value)}
+                disabled={tdsSection === "None"}
+                placeholder="Rate %"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>TDS Amount</Label>
+              <Input
+                type="number"
+                value={tdsAmount.toFixed(2)}
+                disabled
+                className="bg-muted text-right font-mono"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Net Amount</Label>
+              <Input
+                type="number"
+                value={finalNetAmount.toFixed(2)}
+                disabled
+                className="bg-muted text-right font-semibold font-mono"
+              />
+            </div>
+          </div>
+
           <div className="flex justify-between items-center text-xs font-semibold pt-4 border-t border-border/50">
             <div>Taxable: ₹{summary.taxable.toFixed(2)}</div>
             <div>GST: ₹{summary.tax.toFixed(2)} {isInterstate ? "(IGST)" : "(CGST + SGST)"}</div>
-            <div className="text-sm font-bold text-foreground">Grand Total: ₹{summary.net.toFixed(2)}</div>
+            <div>TDS Deducted: ₹{tdsAmount.toFixed(2)}</div>
+            <div className="text-sm font-bold text-foreground">Net Grand Total: ₹{finalNetAmount.toFixed(2)}</div>
           </div>
 
           <div className="space-y-2">
@@ -457,18 +650,18 @@ export default function CreditNoteClient({
         {message && <div className="rounded-lg border border-border bg-muted/50 p-4 text-sm text-muted-foreground">{message}</div>}
 
         <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={() => setIsCreating(false)}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={saving || !canCreate}>
+          <Button variant="outline" onClick={() => { setIsCreating(false); resetForm(); }}>Cancel</Button>
+          <Button onClick={handleSubmit} disabled={saving || (!canCreate && !editingNote)}>
             {saving ? (
               <>
                 <Spinner className="mr-2" />
                 Saving
               </>
             ) : (
-              "Record Credit Note"
+              editingNote ? "Update Credit Note" : "Record Credit Note"
             )}
           </Button>
-        </div>
+      </div>
       </div>
     );
   }
@@ -480,7 +673,7 @@ export default function CreditNoteClient({
           <h1 className="text-xl font-bold tracking-tight text-foreground uppercase">Credit Notes</h1>
         </div>
         {canCreate && (
-          <Button onClick={() => setIsCreating(true)} className="flex items-center gap-2">
+          <Button onClick={() => { setIsCreating(true); setEditingNote(null); }} className="flex items-center gap-2">
             <Plus className="h-4 w-4" /> Record Credit Note
           </Button>
         )}
@@ -496,12 +689,13 @@ export default function CreditNoteClient({
               <th className="px-4 py-3 text-right">Taxable Amount</th>
               <th className="px-4 py-3 text-right">Net Amount</th>
               <th className="px-4 py-3">Remarks</th>
+              {(canUpdate || canDelete) && <th className="px-4 py-3 text-right">Actions</th>}
             </tr>
           </thead>
           <tbody>
             {notes.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-sm text-muted-foreground">
+                <td colSpan={(canUpdate || canDelete) ? 7 : 6} className="px-4 py-8 text-center text-sm text-muted-foreground">
                   No credit notes recorded yet.
                 </td>
               </tr>
@@ -513,9 +707,23 @@ export default function CreditNoteClient({
                     {n.voucherDate ? new Date(n.voucherDate).toISOString().slice(0, 10) : "—"}
                   </td>
                   <td className="px-4 py-3 text-foreground">{n.partyName || `Party ID ${n.partyId}`}</td>
-                  <td className="px-4 py-3 text-right text-foreground">₹{Number(n.totalAmount).toFixed(2)}</td>
-                  <td className="px-4 py-3 text-right text-foreground font-bold">₹{Number(n.netAmount).toFixed(2)}</td>
+                  <td className="px-4 py-3 text-right text-foreground font-mono">₹{Number(n.totalAmount).toFixed(2)}</td>
+                  <td className="px-4 py-3 text-right text-foreground font-bold font-mono">₹{Number(n.netAmount).toFixed(2)}</td>
                   <td className="px-4 py-3 text-muted-foreground truncate max-w-[200px]">{n.remarks || "—"}</td>
+                  {(canUpdate || canDelete) && (
+                    <td className="px-4 py-3 text-right space-x-2">
+                      {canUpdate && (
+                        <Button variant="ghost" size="icon" onClick={() => handleEdit(n)}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                      {canDelete && (
+                        <Button variant="ghost" size="icon" onClick={() => handleDelete(n)} className="text-danger hover:bg-danger/10">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </td>
+                  )}
                 </tr>
               ))
             )}

@@ -79,6 +79,9 @@ export async function POST(request: Request) {
     extraChargesData,
     bankName,
     paymentMethod,
+    tdsSection,
+    tdsRate,
+    tdsAmount,
   } = body;
 
   if (!voucherType || !voucherNo || !voucherDate) {
@@ -317,6 +320,9 @@ export async function POST(request: Request) {
         const totalDiscount = discount1Amt + discount2Amt;
 
         computedNet = Math.round((computedNet - totalDiscount) * 100) / 100;
+        if (tdsAmount) {
+          computedNet = Math.round((computedNet - Number(tdsAmount)) * 100) / 100;
+        }
       } else if (voucherType === "receipt" || voucherType === "payment") {
         computedTotal = Number(totalAmount || 0);
         computedNet = computedTotal;
@@ -378,6 +384,9 @@ export async function POST(request: Request) {
           extraChargesData: extraChargesData ?? null,
           bankName: bankName || null,
           paymentMethod: paymentMethod || null,
+          tdsSection: tdsSection || null,
+          tdsRate: tdsRate ? String(tdsRate) : null,
+          tdsAmount: tdsAmount ? String(tdsAmount) : null,
           createdBy: userId,
           updatedBy: userId,
         })
@@ -435,12 +444,17 @@ export async function POST(request: Request) {
       };
 
       // Insert Entries and Stock Movements
-      if (voucherType === "sale" || voucherType === "credit_note") {
+      if (
+        voucherType === "sale" ||
+        voucherType === "credit_note" ||
+        voucherType === "sales_return"
+      ) {
         // 1. Debit Party Ledger
+        const ledgerTypes = (voucherType === "credit_note") ? ["customer", "company"] : ["customer"];
         const partyLedger = await tx.query.mLedgers.findFirst({
           where: and(
             eq(mLedgers.referenceId, Number(partyId)),
-            eq(mLedgers.ledgerType, "company"),
+            inArray(mLedgers.ledgerType, ledgerTypes),
             eq(mLedgers.companyId, companyId),
             isNull(mLedgers.deletedOn),
           ),
@@ -549,10 +563,11 @@ export async function POST(request: Request) {
         voucherType === "direct_bill"
       ) {
         // 1. Credit Party Ledger
+        const ledgerTypes = (voucherType === "debit_note") ? ["customer", "company"] : ["company"];
         const partyLedger = await tx.query.mLedgers.findFirst({
           where: and(
             eq(mLedgers.referenceId, Number(partyId)),
-            eq(mLedgers.ledgerType, "company"),
+            inArray(mLedgers.ledgerType, ledgerTypes),
             eq(mLedgers.companyId, companyId),
             isNull(mLedgers.deletedOn),
           ),
@@ -902,6 +917,36 @@ export async function GET(request: Request) {
   const type = searchParams.get("type") ?? "sale";
   const partyId = searchParams.get("partyId");
   const includeItems = searchParams.get("includeItems") === "true";
+
+  if (type === "all_bills") {
+    if (!partyId)
+      return NextResponse.json(
+        { error: "partyId is required" },
+        { status: 400 },
+      );
+    const pId = Number(partyId);
+
+    const bills = await db
+      .select({
+        voucherId: tVouchers.voucherId,
+        voucherNo: tVouchers.voucherNo,
+        voucherType: tVouchers.voucherType,
+        voucherDate: tVouchers.voucherDate,
+        netAmount: tVouchers.netAmount,
+      })
+      .from(tVouchers)
+      .where(
+        and(
+          eq(tVouchers.companyId, companyId),
+          inArray(tVouchers.voucherType, ["sale", "purchase"]),
+          eq(tVouchers.partyId, pId),
+          isNull(tVouchers.deletedOn),
+        ),
+      )
+      .orderBy(desc(tVouchers.voucherDate));
+
+    return NextResponse.json(bills);
+  }
 
   if (type === "outstanding") {
     if (!partyId)

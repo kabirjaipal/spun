@@ -446,6 +446,9 @@ export const tVouchers = pgTable(
     extraChargesData: jsonb("extra_charges_data"),
     bankName: text("bank_name"),
     paymentMethod: text("payment_method"),
+    tdsSection: text("tds_section"),
+    tdsRate: numeric("tds_rate", { precision: 5, scale: 2 }),
+    tdsAmount: numeric("tds_amount", { precision: 15, scale: 2 }),
 
     ...auditColumns,
   },

@@ -2,9 +2,10 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { mInventory, mLedgers, mTaxRates, mCompanies, tVouchers } from "@/lib/db/schema";
-import { and, eq, isNull, desc } from "drizzle-orm";
+import { and, eq, isNull, desc, ne, isNotNull } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
 import { APP_NAME } from "@/lib/constants";
+import { tVoucherItems } from "@/lib/db/schema";
 import DebitNoteClient from "./DebitNoteClient";
 
 export default async function DebitNotePage() {
@@ -14,7 +15,7 @@ export default async function DebitNotePage() {
 
   const companyId = Number(session.user.companyId);
 
-  const [notes, companies, inventory, ledgers, taxRates, company] = await Promise.all([
+  const [notes, companies, inventory, ledgers, taxRates, company, voucherItems, uniqueTdsSections] = await Promise.all([
     db
       .select({
         voucherId: tVouchers.voucherId,
@@ -25,6 +26,10 @@ export default async function DebitNotePage() {
         netAmount: tVouchers.netAmount,
         remarks: tVouchers.remarks,
         companyName: mCompanies.companyName,
+        parentVoucherId: tVouchers.parentVoucherId,
+        tdsSection: tVouchers.tdsSection,
+        tdsRate: tVouchers.tdsRate,
+        tdsAmount: tVouchers.tdsAmount,
       })
       .from(tVouchers)
       .leftJoin(mCompanies, eq(tVouchers.partyId, mCompanies.companyId))
@@ -54,7 +59,43 @@ export default async function DebitNotePage() {
     db.query.mCompanies.findFirst({
       where: eq(mCompanies.companyId, companyId),
     }),
+    db
+      .select({
+        voucherItemId: tVoucherItems.voucherItemId,
+        voucherId: tVoucherItems.voucherId,
+        ledgerId: tVoucherItems.ledgerId,
+        hsnCode: tVoucherItems.hsnCode,
+        taxableAmount: tVoucherItems.taxableAmount,
+        gstRateId: tVoucherItems.gstRateId,
+      })
+      .from(tVoucherItems)
+      .where(isNull(tVoucherItems.deletedOn)),
+    db
+      .selectDistinct({ tdsSection: tVouchers.tdsSection })
+      .from(tVouchers)
+      .where(
+        and(
+          eq(tVouchers.companyId, companyId),
+          isNotNull(tVouchers.tdsSection),
+          ne(tVouchers.tdsSection, "")
+        )
+      ),
   ]);
+
+  const customTdsSections = uniqueTdsSections.map((x) => x.tdsSection).filter(Boolean) as string[];
+
+  const itemsByVoucher = voucherItems.reduce((acc: any, item) => {
+    const vId = Number(item.voucherId);
+    if (!acc[vId]) acc[vId] = [];
+    acc[vId].push({
+      id: String(item.voucherItemId),
+      ledgerId: item.ledgerId ? String(item.ledgerId) : "",
+      hsnCode: item.hsnCode || "",
+      taxableAmount: String(item.taxableAmount || "0"),
+      gstRateId: item.gstRateId ? String(item.gstRateId) : "",
+    });
+    return acc;
+  }, {});
 
   const perms = getStaticPermissionsForRole(session.user.role as Role);
   const p = perms.find((x) => x.accessItem === "debit_note");
@@ -63,9 +104,10 @@ export default async function DebitNotePage() {
     <DebitNoteClient
       initialNotes={notes.map(n => ({
         ...n,
-        voucherDate: n.voucherDate ? new Date(n.voucherDate) : null
+        voucherDate: n.voucherDate ? new Date(n.voucherDate) : null,
+        lineItems: itemsByVoucher[n.voucherId] || [],
       }))}
-      company={company ? { companyName: company.companyName, gstNo: company.gstNo, address: company.address, state: company.state } : { companyName: `{APP_NAME} Company`, state: null }}
+      company={company ? { companyName: company.companyName, gstNo: company.gstNo, address: company.address, state: company.state } : { companyName: `${APP_NAME} Company`, state: null }}
       companies={companies.map((comp) => ({
         companyId: comp.companyId,
         companyName: comp.companyName,
@@ -91,6 +133,9 @@ export default async function DebitNotePage() {
         taxPercent: String(rate.taxPercent),
       }))}
       canCreate={p?.c ?? false}
+      canUpdate={p?.u ?? false}
+      canDelete={p?.d ?? false}
+      customTdsSections={customTdsSections}
     />
   );
 }
