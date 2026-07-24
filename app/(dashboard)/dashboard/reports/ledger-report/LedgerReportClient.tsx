@@ -36,6 +36,7 @@ interface Voucher {
   netAmount: string;
   billDetails?: any;
   parentVoucherId?: number | null;
+  remarks?: string | null;
 }
 
 interface LedgerEntry {
@@ -264,6 +265,9 @@ function LedgerReportContent({
       const paymentsList: { voucherNo: string; voucherType: string; voucherDate: string; amount: number }[] = [];
 
       adjustments.forEach((adj) => {
+        if (adj.remarks?.includes("[RETURN CHEQUE REVERSAL]")) {
+          return;
+        }
         // 1. Check billDetails (payment/receipt links)
         if (adj.billDetails && Array.isArray(adj.billDetails)) {
           adj.billDetails.forEach((item: any) => {

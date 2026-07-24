@@ -32,6 +32,7 @@ interface Voucher {
   parentVoucherId?: number | null;
   createdBy?: string | null;
   createdByName?: string | null;
+  remarks?: string | null;
 }
 
 interface GroupInfo {
@@ -112,6 +113,9 @@ function GroupOutstandingsContent({
       let creditNotesSum = 0;
 
       adjustments.forEach((adj) => {
+        if (adj.remarks?.includes("[RETURN CHEQUE REVERSAL]")) {
+          return;
+        }
         // 1. billDetails link
         if (adj.billDetails && Array.isArray(adj.billDetails)) {
           adj.billDetails.forEach((item: any) => {

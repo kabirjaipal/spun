@@ -111,6 +111,7 @@ export default async function DashboardPage({
       netAmount: tVouchers.netAmount,
       partyId: tVouchers.partyId,
       billDetails: tVouchers.billDetails,
+      remarks: tVouchers.remarks,
     })
     .from(tVouchers)
     .where(

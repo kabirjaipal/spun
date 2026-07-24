@@ -971,6 +971,7 @@ export async function GET(request: Request) {
         voucherId: tVouchers.voucherId,
         voucherType: tVouchers.voucherType,
         billDetails: tVouchers.billDetails,
+        remarks: tVouchers.remarks,
       })
       .from(tVouchers)
       .where(
@@ -990,6 +991,9 @@ export async function GET(request: Request) {
 
     const paidAmounts: Record<number, number> = {};
     for (const adj of adjustments) {
+      if (adj.remarks?.includes("[RETURN CHEQUE REVERSAL]")) {
+        continue;
+      }
       if (adj.billDetails && Array.isArray(adj.billDetails)) {
         for (const item of adj.billDetails) {
           if (item && typeof item === "object" && "voucherId" in item) {

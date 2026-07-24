@@ -2,7 +2,7 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { mLedgers, tVouchers } from "@/lib/db/schema";
-import { and, eq, isNull, or, desc, ne } from "drizzle-orm";
+import { and, eq, isNull, or, desc, ne, sql } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
 import PaymentClient from "./PaymentClient";
 
@@ -26,10 +26,25 @@ export default async function PaymentPage() {
         lrNo: tVouchers.lrNo,
         bankName: tVouchers.bankName,
         paymentMethod: tVouchers.paymentMethod,
+        cashBankLedgerId: tVouchers.cashBankLedgerId,
+        billDetails: tVouchers.billDetails,
+        voucherType: tVouchers.voucherType,
       })
       .from(tVouchers)
       .leftJoin(mLedgers, eq(tVouchers.partyId, mLedgers.ledgerId))
-      .where(and(eq(tVouchers.companyId, companyId), eq(tVouchers.voucherType, "payment"), isNull(tVouchers.deletedOn)))
+      .where(
+        and(
+          eq(tVouchers.companyId, companyId),
+          or(
+            eq(tVouchers.voucherType, "payment"),
+            and(
+              eq(tVouchers.voucherType, "receipt"),
+              sql`${tVouchers.remarks} LIKE '%[RETURN CHEQUE REVERSAL]%'`
+            )
+          ),
+          isNull(tVouchers.deletedOn)
+        )
+      )
       .orderBy(desc(tVouchers.voucherDate))
       .limit(100),
     db
@@ -79,6 +94,8 @@ export default async function PaymentPage() {
       }))}
       cashBankLedgers={cashBankLedgers}
       canCreate={p?.c ?? false}
+      canUpdate={p?.u ?? false}
+      canDelete={p?.d ?? false}
     />
   );
 }

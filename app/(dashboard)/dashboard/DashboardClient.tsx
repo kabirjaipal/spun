@@ -46,6 +46,7 @@ interface VoucherData {
   netAmount: number;
   partyId: number | null;
   billDetails: any;
+  remarks?: string | null;
 }
 
 interface PartyData {
@@ -257,6 +258,9 @@ export default function DashboardClient({
   const paidAmounts: Record<number, number> = {};
   vouchers.forEach((v) => {
     if (v.voucherType !== "sale" && v.voucherType !== "purchase") {
+      if (v.remarks?.includes("[RETURN CHEQUE REVERSAL]")) {
+        return;
+      }
       if (v.billDetails && Array.isArray(v.billDetails)) {
         v.billDetails.forEach((item: any) => {
           if (item && typeof item === "object" && "voucherId" in item) {

@@ -196,6 +196,7 @@ export default async function LedgerReportPage({
             netAmount: tVouchers.netAmount,
             billDetails: tVouchers.billDetails,
             parentVoucherId: tVouchers.parentVoucherId,
+            remarks: tVouchers.remarks,
           })
           .from(tVouchers)
           .where(

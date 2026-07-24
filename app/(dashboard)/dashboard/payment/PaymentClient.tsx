@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Plus, ArrowLeft } from "lucide-react";
+import { Plus, ArrowLeft, Pencil } from "lucide-react";
 
 interface PaymentItem {
   voucherId: number;
@@ -21,6 +21,9 @@ interface PaymentItem {
   lrNo?: string | null; // Cheque / Ref No
   bankName?: string | null;
   paymentMethod?: string | null;
+  cashBankLedgerId?: number | null;
+  billDetails?: any;
+  voucherType?: string;
 }
 
 interface CompanyOption {
@@ -75,14 +78,19 @@ export default function PaymentClient({
   companies,
   cashBankLedgers,
   canCreate,
+  canUpdate,
+  canDelete,
 }: {
   initialPayments: PaymentItem[];
   companies: CompanyOption[];
   cashBankLedgers: LedgerOption[];
   canCreate: boolean;
+  canUpdate?: boolean;
+  canDelete?: boolean;
 }) {
   const [payments, setPayments] = useState<PaymentItem[]>(initialPayments);
   const [isCreating, setIsCreating] = useState(false);
+  const [editingPayment, setEditingPayment] = useState<PaymentItem | null>(null);
   const [voucherNo, setVoucherNo] = useState("");
   const [voucherDate, setVoucherDate] = useState(getLocalTodayString());
   const [selectedCompany, setSelectedCompany] = useState("");
@@ -95,6 +103,44 @@ export default function PaymentClient({
   const [isReversal, setIsReversal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+
+  const resetForm = () => {
+    setEditingPayment(null);
+    setVoucherNo("");
+    setSelectedCompany("");
+    setSelectedLedger("");
+    setAmount("0");
+    setRemarks("");
+    setChequeNo("");
+    setBankName("");
+    setPaymentMethod("");
+    setIsReversal(false);
+    setOutstandingBills([]);
+    setBillAdjustments({});
+    fetchNextVoucherNo();
+  };
+
+  const handleEdit = (payment: PaymentItem) => {
+    setEditingPayment(payment);
+    setVoucherNo(payment.voucherNo);
+    setVoucherDate(payment.voucherDate ? new Date(payment.voucherDate).toISOString().slice(0, 10) : getLocalTodayString());
+    setSelectedCompany(payment.partyId ? String(payment.partyId) : "");
+    setSelectedLedger(payment.cashBankLedgerId ? String(payment.cashBankLedgerId) : "");
+    
+    const hasReversal = payment.remarks?.includes("[RETURN CHEQUE REVERSAL]");
+    setIsReversal(!!hasReversal);
+    if (hasReversal) {
+      setRemarks(payment.remarks?.replace("[RETURN CHEQUE REVERSAL]", "").trim() || "");
+    } else {
+      setRemarks(payment.remarks || "");
+    }
+    
+    setAmount(payment.totalAmount || "0");
+    setChequeNo(payment.lrNo || "");
+    setBankName(payment.bankName || "");
+    setPaymentMethod(payment.paymentMethod || "");
+    setIsCreating(true);
+  };
 
   // Bill adjustments states
   const [outstandingBills, setOutstandingBills] = useState<OutstandingBill[]>([]);
@@ -127,9 +173,10 @@ export default function PaymentClient({
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) {
-          setOutstandingBills(data);
+          let mergedOutstanding = [...data];
           const initialAdjs: Record<number, BillAdjustment> = {};
-          data.forEach((bill) => {
+
+          mergedOutstanding.forEach((bill) => {
             const invDate = new Date(bill.voucherDate);
             const payDate = new Date(voucherDate);
             const days = Math.max(0, Math.floor((payDate.getTime() - invDate.getTime()) / (1000 * 60 * 60 * 24)));
@@ -142,11 +189,59 @@ export default function PaymentClient({
               interest,
             };
           });
+
+          if (editingPayment && String(editingPayment.partyId) === selectedCompany && editingPayment.billDetails) {
+            const details = editingPayment.billDetails as any[];
+            details.forEach((adjItem) => {
+              const vId = Number(adjItem.voucherId);
+              const idx = mergedOutstanding.findIndex((b) => b.voucherId === vId);
+              if (idx !== -1) {
+                const bill = mergedOutstanding[idx];
+                const updatedOutstanding = bill.outstanding + adjItem.amount;
+                mergedOutstanding[idx] = {
+                  ...bill,
+                  outstanding: updatedOutstanding,
+                  paidAmount: Math.max(0, bill.paidAmount - adjItem.amount),
+                };
+                
+                const rate = Number(bill.rateOfInterest || 0);
+                const payDate = new Date(voucherDate);
+                const invDate = new Date(bill.voucherDate);
+                const days = Math.max(0, Math.floor((payDate.getTime() - invDate.getTime()) / (1000 * 60 * 60 * 24)));
+                const interest = Math.round(((adjItem.amount * rate * days) / 36500) * 100) / 100;
+                
+                initialAdjs[vId] = {
+                  amount: String(adjItem.amount),
+                  days,
+                  interest,
+                };
+              } else {
+                mergedOutstanding.push({
+                  voucherId: adjItem.voucherId,
+                  voucherNo: adjItem.voucherNo,
+                  voucherDate: new Date().toISOString(),
+                  netAmount: adjItem.amount,
+                  paidAmount: 0,
+                  outstanding: adjItem.amount,
+                  rateOfInterest: 0,
+                  creditDays: 0,
+                });
+                
+                initialAdjs[vId] = {
+                  amount: String(adjItem.amount),
+                  days: adjItem.days || 0,
+                  interest: adjItem.interest || 0,
+                };
+              }
+            });
+          }
+
+          setOutstandingBills(mergedOutstanding);
           setBillAdjustments(initialAdjs);
         }
       })
       .catch((err) => console.error("Error fetching outstanding bills:", err));
-  }, [selectedCompany, voucherDate]);
+  }, [selectedCompany, voucherDate, editingPayment]);
 
   // Sync total amount with adjustments
   const totalAdjusted = Object.values(billAdjustments).reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
@@ -172,7 +267,7 @@ export default function PaymentClient({
   };
 
   async function handleSubmit() {
-    if (!canCreate) return;
+    if (!canCreate && !editingPayment) return;
     const finalAmount = totalAdjusted > 0 ? totalAdjusted : Number(amount);
     if (!voucherNo || !selectedCompany || !selectedLedger || finalAmount <= 0) {
       setMessage("Please fill in all fields and ensure amount is greater than 0.");
@@ -215,15 +310,18 @@ export default function PaymentClient({
         isReversal,
       };
 
-      const response = await fetch("/api/vouchers", {
-        method: "POST",
+      const url = editingPayment ? `/api/vouchers/${editingPayment.voucherId}` : "/api/vouchers";
+      const method = editingPayment ? "PATCH" : "POST";
+
+      const response = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
 
       if (!response.ok) {
         const json = await response.json();
-        throw new Error(json.error || "Failed to create payment voucher.");
+        throw new Error(json.error || `Failed to ${editingPayment ? "update" : "create"} payment voucher.`);
       }
 
       const newVoucher = await response.json();
@@ -240,25 +338,20 @@ export default function PaymentClient({
         lrNo: newVoucher.lrNo,
         bankName: newVoucher.bankName,
         paymentMethod: newVoucher.paymentMethod,
+        cashBankLedgerId: newVoucher.cashBankLedgerId,
+        billDetails: newVoucher.billDetails,
+        voucherType: newVoucher.voucherType,
       };
 
-      setPayments([addedPayment, ...payments]);
-      setMessage("Payment voucher recorded successfully.");
+      if (editingPayment) {
+        setPayments(payments.map((p) => p.voucherId === editingPayment.voucherId ? addedPayment : p));
+        setMessage("Payment voucher updated successfully.");
+      } else {
+        setPayments([addedPayment, ...payments]);
+        setMessage("Payment voucher recorded successfully.");
+      }
       setIsCreating(false);
-
-      // Reset form
-      setVoucherNo("");
-      setSelectedCompany("");
-      setSelectedLedger("");
-      setAmount("0");
-      setRemarks("");
-      setChequeNo("");
-      setBankName("");
-      setPaymentMethod("");
-      setIsReversal(false);
-      setOutstandingBills([]);
-      setBillAdjustments({});
-      fetchNextVoucherNo();
+      resetForm();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to save payment.");
     } finally {
@@ -275,7 +368,7 @@ export default function PaymentClient({
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div>
-              <h1 className="text-lg font-bold text-foreground uppercase tracking-wide">Record Payment Voucher</h1>
+              <h1 className="text-lg font-bold text-foreground uppercase tracking-wide">{editingPayment ? "Edit Payment Voucher" : "Record Payment Voucher"}</h1>
               <p className="text-xs text-muted-foreground mt-0.5">Credit cash/bank and debit company ledger.</p>
             </div>
           </div>
@@ -389,19 +482,21 @@ export default function PaymentClient({
             </div>
           )}
 
-          {/* Cheque Return Toggle */}
-          <div className="flex items-center gap-2 py-2 border-t border-b border-border/50">
-            <input
-              type="checkbox"
-              id="isReversal"
-              checked={isReversal}
-              onChange={(e) => setIsReversal(e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-            />
-            <Label htmlFor="isReversal" className="cursor-pointer">
-              Mark as Cheque Return / Bounce Log (Reverses double entry)
-            </Label>
-          </div>
+          {/* Cheque Return Toggle (Show ONLY in Edit Mode) */}
+          {editingPayment !== null && (
+            <div className="flex items-center gap-2 py-2 border-t border-b border-border/50">
+              <input
+                type="checkbox"
+                id="isReversal"
+                checked={isReversal}
+                onChange={(e) => setIsReversal(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+              />
+              <Label htmlFor="isReversal" className="cursor-pointer">
+                Mark as Cheque Return / Bounce Log (Reverses double entry)
+              </Label>
+            </div>
+          )}
 
           {/* Outstanding Bills Table Section */}
           {outstandingBills.length > 0 && (
@@ -456,17 +551,17 @@ export default function PaymentClient({
         {message && <div className="rounded-lg border border-border bg-muted/50 p-4 text-sm text-muted-foreground">{message}</div>}
 
         <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={() => setIsCreating(false)}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={saving || !canCreate}>
+          <Button variant="outline" onClick={() => { setIsCreating(false); resetForm(); }}>Cancel</Button>
+          <Button onClick={handleSubmit} disabled={saving || (!canCreate && !editingPayment)}>
             {saving ? (
               <>
                 <Spinner className="mr-2" />
                 Saving
               </>
             ) : isReversal ? (
-              "Record Reversal / Return"
+              editingPayment ? "Update Reversal / Return" : "Record Reversal / Return"
             ) : (
-              "Record Payment"
+              editingPayment ? "Update Payment" : "Record Payment"
             )}
           </Button>
         </div>
@@ -474,7 +569,15 @@ export default function PaymentClient({
     );
   }
 
-  const totalPayments = payments.reduce((sum, item) => sum + Number(item.totalAmount ?? 0), 0);
+  const totalPayments = payments.reduce((sum, item) => {
+    const isPaymentRev = item.remarks?.includes("[RETURN CHEQUE REVERSAL]") && item.voucherType !== "receipt";
+    const isReceiptRev = item.remarks?.includes("[RETURN CHEQUE REVERSAL]") && item.voucherType === "receipt";
+    const amt = Number(item.totalAmount ?? 0);
+    // Payment reversal reduces payment totals (inflow)
+    // Receipt reversal increases payment totals (outflow)
+    if (isPaymentRev) return sum - amt;
+    return sum + amt;
+  }, 0);
 
   return (
     <div className="space-y-6">
@@ -483,7 +586,7 @@ export default function PaymentClient({
           <h1 className="text-xl font-bold tracking-tight text-foreground uppercase">Payment Vouchers</h1>
         </div>
         {canCreate && (
-          <Button onClick={() => setIsCreating(true)} className="flex items-center gap-2">
+          <Button onClick={() => { setIsCreating(true); setEditingPayment(null); }} className="flex items-center gap-2">
             <Plus className="h-4 w-4" /> Record Payment
           </Button>
         )}
@@ -512,19 +615,22 @@ export default function PaymentClient({
               <th className="px-4 py-3">Ref No (Cheque)</th>
               <th className="px-4 py-3 text-right">Amount</th>
               <th className="px-4 py-3">Remarks</th>
+              {(canUpdate || canDelete) && <th className="px-4 py-3 text-right">Actions</th>}
             </tr>
           </thead>
           <tbody>
             {payments.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-sm text-muted-foreground">
+                <td colSpan={(canUpdate || canDelete) ? 7 : 6} className="px-4 py-8 text-center text-sm text-muted-foreground">
                   No payment vouchers recorded yet.
                 </td>
               </tr>
             ) : (
               payments.map((payment) => {
                 const partyName = payment.partyName || `ID ${payment.partyId}`;
-                const hasReversal = payment.remarks?.includes("[RETURN CHEQUE REVERSAL]");
+                const isPaymentRev = payment.remarks?.includes("[RETURN CHEQUE REVERSAL]") && payment.voucherType !== "receipt";
+                const isReceiptRev = payment.remarks?.includes("[RETURN CHEQUE REVERSAL]") && payment.voucherType === "receipt";
+                const hasReversal = isPaymentRev || isReceiptRev;
                 return (
                   <tr key={payment.voucherId} className="border-t border-border/50 hover:bg-muted/10 transition-colors">
                     <td className="px-4 py-3 font-medium text-foreground">
@@ -547,8 +653,19 @@ export default function PaymentClient({
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-right text-foreground">₹{Number(payment.totalAmount ?? 0).toFixed(2)}</td>
+                    <td className={`px-4 py-3 text-right font-medium ${isPaymentRev ? "text-danger" : "text-foreground"}`}>
+                      {isPaymentRev ? `(-) ₹${Number(payment.totalAmount ?? 0).toFixed(2)}` : `₹${Number(payment.totalAmount ?? 0).toFixed(2)}`}
+                    </td>
                     <td className="px-4 py-3 text-muted-foreground truncate">{payment.remarks || "—"}</td>
+                    {(canUpdate || canDelete) && (
+                      <td className="px-4 py-3 text-right space-x-2">
+                        {canUpdate && !isReceiptRev && (
+                          <Button variant="ghost" size="icon" onClick={() => handleEdit(payment)}>
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 );
               })

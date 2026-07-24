@@ -83,6 +83,9 @@ export async function GET() {
 
   const paidAmounts: Record<number, number> = {};
   for (const adj of adjustments) {
+    if (adj.remarks?.includes("[RETURN CHEQUE REVERSAL]")) {
+      continue;
+    }
     if (adj.billDetails && Array.isArray(adj.billDetails)) {
       for (const item of adj.billDetails) {
         if (item && typeof item === "object" && "voucherId" in item) {

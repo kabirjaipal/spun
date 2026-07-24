@@ -153,6 +153,7 @@ export default async function GroupOutstandingsPage({
             parentVoucherId: tVouchers.parentVoucherId,
             createdBy: tVouchers.createdBy,
             createdByName: mUsers.name,
+            remarks: tVouchers.remarks,
           })
           .from(tVouchers)
           .leftJoin(mUsers, eq(tVouchers.createdBy, mUsers.id))

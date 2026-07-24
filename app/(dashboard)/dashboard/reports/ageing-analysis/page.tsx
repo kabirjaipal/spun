@@ -18,11 +18,14 @@ async function fetchOutstandingBills(companyId: number, voucherType: "purchase" 
   const [parties, ledgers, adjustments] = await Promise.all([
     db.select({ companyId: mCompanies.companyId, companyName: mCompanies.companyName, dueDay: mCompanies.dueDay }).from(mCompanies).where(and(eq(mCompanies.parentCompanyId, companyId), isNull(mCompanies.deletedOn), inArray(mCompanies.companyId, partyIds))),
     db.select({ referenceId: mLedgers.referenceId, creditDays: mLedgers.creditDays }).from(mLedgers).where(and(eq(mLedgers.companyId, companyId), inArray(mLedgers.ledgerType, ["company", "customer"]), isNull(mLedgers.deletedOn), inArray(mLedgers.referenceId, partyIds))),
-    db.select({ voucherId: tVouchers.voucherId, voucherType: tVouchers.voucherType, billDetails: tVouchers.billDetails }).from(tVouchers).where(and(eq(tVouchers.companyId, companyId), inArray(tVouchers.voucherType, adjustmentTypes), isNull(tVouchers.deletedOn))),
+    db.select({ voucherId: tVouchers.voucherId, voucherType: tVouchers.voucherType, billDetails: tVouchers.billDetails, remarks: tVouchers.remarks }).from(tVouchers).where(and(eq(tVouchers.companyId, companyId), inArray(tVouchers.voucherType, adjustmentTypes), isNull(tVouchers.deletedOn))),
   ]);
 
   const paidAmounts: Record<number, number> = {};
   adjustments.forEach(adj => {
+    if (adj.remarks?.includes("[RETURN CHEQUE REVERSAL]")) {
+      return;
+    }
     if (adj.billDetails && Array.isArray(adj.billDetails)) {
       (adj.billDetails as any[]).forEach((item: any) => {
         if (item && typeof item === "object" && "voucherId" in item) {

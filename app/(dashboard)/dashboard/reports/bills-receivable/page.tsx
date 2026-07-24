@@ -109,6 +109,7 @@ export default async function BillsReceivablePage({
         voucherId: tVouchers.voucherId,
         voucherType: tVouchers.voucherType,
         billDetails: tVouchers.billDetails,
+        remarks: tVouchers.remarks,
       })
       .from(tVouchers)
       .where(
@@ -128,6 +129,7 @@ export default async function BillsReceivablePage({
         voucherId: tVouchers.voucherId,
         voucherType: tVouchers.voucherType,
         billDetails: tVouchers.billDetails,
+        remarks: tVouchers.remarks,
       })
       .from(tVouchers)
       .where(
@@ -142,6 +144,9 @@ export default async function BillsReceivablePage({
   // 6. Aggregate adjustments receipts per invoice
   const paidAmounts: Record<number, number> = {};
   adjustments.forEach((adj) => {
+    if (adj.remarks?.includes("[RETURN CHEQUE REVERSAL]")) {
+      return;
+    }
     if (adj.billDetails && Array.isArray(adj.billDetails)) {
       adj.billDetails.forEach((item: any) => {
         if (item && typeof item === "object" && "voucherId" in item) {
