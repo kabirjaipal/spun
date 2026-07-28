@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useRouter, useSearchParams } from "next/navigation";
-import { formatAmount, formatDateToTally } from "@/lib/utils";
+import { formatAmount, formatDateToTally, getVoucherRedirectUrl } from "@/lib/utils";
 import { useOmittedLines } from "@/lib/hooks";
 import { ReportPeriodDialog } from "@/components/ReportPeriodDialog";
 import { ReportOmittedBanner } from "@/components/ReportOmittedBanner";
@@ -390,7 +390,13 @@ function PaymentRegisterContent({
                     const isVchCancelled = v.status === "cancelled";
                     return (
                       <React.Fragment key={v.voucherId}>
-                        <tr className={`group/row hover:bg-muted/10 transition-colors font-medium ${isVchCancelled ? "bg-destructive/5 text-muted-foreground" : ""}`}>
+                        <tr
+                          key={v.voucherId}
+                          className={`group/row hover:bg-muted/10 transition-colors font-medium cursor-pointer ${isVchCancelled ? "bg-destructive/5 text-muted-foreground" : ""}`}
+                          onClick={() => {
+                            router.push(getVoucherRedirectUrl(v.voucherType || "payment", v.voucherId));
+                          }}
+                        >
                           <td className="p-3 font-mono text-xs whitespace-nowrap">
                             {formatDateToTally(v.voucherDate)}
                           </td>

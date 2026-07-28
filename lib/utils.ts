@@ -82,5 +82,46 @@ export async function fetchGstDetails(gstin: string): Promise<GstLookupResult> {
   return data.data;
 }
 
+export function getVoucherRedirectUrl(voucherType: string, voucherId: number): string {
+  switch (voucherType) {
+    case "sale":
+      return `/dashboard/sales?editId=${voucherId}`;
+    case "purchase":
+      return `/dashboard/purchase?editId=${voucherId}`;
+    case "payment":
+      return `/dashboard/payment?editId=${voucherId}`;
+    case "receipt":
+      return `/dashboard/receipt?editId=${voucherId}`;
+    case "journal":
+      return `/dashboard/journal-entry?editId=${voucherId}`;
+    case "credit_note":
+      return `/dashboard/credit-note?editId=${voucherId}`;
+    case "debit_note":
+      return `/dashboard/debit-note?editId=${voucherId}`;
+    case "purchase_return":
+      return `/dashboard/purchase-return?editId=${voucherId}`;
+    case "sales_return":
+      return `/dashboard/sales-return?editId=${voucherId}`;
+    case "purchase_order":
+      return `/dashboard/purchase-order?editId=${voucherId}`;
+    case "sales_order":
+      return `/dashboard/sales-order?editId=${voucherId}`;
+    case "direct_bill":
+      return `/dashboard/direct-bill?editId=${voucherId}`;
+    case "lot_transfer":
+      return `/dashboard/lot-transfer?editId=${voucherId}`;
+    case "mill_inward":
+      return `/dashboard/mill-inward?editId=${voucherId}`;
+    case "mill_outward":
+      return `/dashboard/mill-outward?editId=${voucherId}`;
+    case "job_inward":
+      return `/dashboard/job-inward?editId=${voucherId}`;
+    case "job_outward":
+      return `/dashboard/job-outward?editId=${voucherId}`;
+    default:
+      return "#";
+  }
+}
+
 
 

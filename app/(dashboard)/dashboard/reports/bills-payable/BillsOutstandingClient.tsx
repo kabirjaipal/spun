@@ -275,7 +275,14 @@ function BillsOutstandingContent({
                   return (
                     <tr
                       key={b.voucherId}
-                      className="group/row hover:bg-muted/10 transition-colors font-medium"
+                      className="group/row hover:bg-muted/10 transition-colors font-medium cursor-pointer"
+                      onClick={(e) => {
+                        if ((e.target as HTMLElement).closest("button") || (e.target as HTMLElement).closest("a")) {
+                          return;
+                        }
+                        const route = type === "payable" ? "purchase" : "sales";
+                        router.push(`/dashboard/${route}?editId=${b.voucherId}`);
+                      }}
                     >
                       {/* Date */}
                       <td className="p-3 pl-6 font-mono text-xs whitespace-nowrap">

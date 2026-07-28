@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useRouter, useSearchParams } from "next/navigation";
+import { getVoucherRedirectUrl } from "@/lib/utils";
 
 interface Company {
   companyId: number;
@@ -69,6 +70,8 @@ interface PendingBill {
   dueOn: string;
   overdueDays: number;
   type: "Dr" | "Cr";
+  voucherId?: number;
+  voucherType?: string;
   payments?: {
     voucherNo: string;
     voucherType: string;
@@ -344,6 +347,8 @@ function LedgerReportContent({
           dueOn: dueDate.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "2-digit" }),
           overdueDays,
           type: defaultType,
+          voucherId: inv.voucherId,
+          voucherType: inv.voucherType,
           payments: paymentsList,
         });
       }
@@ -363,6 +368,8 @@ function LedgerReportContent({
           dueOn: "—",
           overdueDays: 0,
           type: defaultType === "Dr" ? "Cr" : "Dr",
+          voucherId: adj.voucherId,
+          voucherType: adj.voucherType,
         });
       }
     });
@@ -588,7 +595,18 @@ function LedgerReportContent({
                 {/* Data rows */}
                 <div className="divide-y divide-border/40 font-mono text-sm">
                   {pendingBills.map((bill, i) => (
-                    <div key={i} className="grid grid-cols-12 hover:bg-muted/30 text-foreground transition-colors">
+                    <div
+                      key={i}
+                      className="grid grid-cols-12 hover:bg-muted/30 text-foreground transition-colors cursor-pointer"
+                      onClick={(e) => {
+                        if ((e.target as HTMLElement).closest("button") || (e.target as HTMLElement).closest("a")) {
+                          return;
+                        }
+                        if (bill.voucherId && bill.voucherType) {
+                          router.push(getVoucherRedirectUrl(bill.voucherType, bill.voucherId));
+                        }
+                      }}
+                    >
                       <div className="col-span-2 p-3 pl-4 border-r border-border/50 text-foreground/80 flex items-center text-xs">
                         {fmtDate(bill.date, true)}
                       </div>
@@ -764,7 +782,16 @@ function LedgerReportContent({
                     </div>
                   ) : (
                     ledgerVoucherRows.map((e) => (
-                      <div key={e.entryId} className="grid grid-cols-12 hover:bg-muted/30 transition-colors font-mono text-sm text-foreground">
+                      <div
+                        key={e.entryId}
+                        className="grid grid-cols-12 hover:bg-muted/30 transition-colors font-mono text-sm text-foreground cursor-pointer"
+                        onClick={(eTarget) => {
+                          if ((eTarget.target as HTMLElement).closest("button") || (eTarget.target as HTMLElement).closest("a")) {
+                            return;
+                          }
+                          router.push(getVoucherRedirectUrl(e.voucherType, e.voucherId));
+                        }}
+                      >
                         <div className="col-span-2 p-3 pl-4 border-r border-border/50 text-foreground/70 flex items-center text-xs font-sans">
                           {fmtDate(e.voucherDate, true)}
                         </div>

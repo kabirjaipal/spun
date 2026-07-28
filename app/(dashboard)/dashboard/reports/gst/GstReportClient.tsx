@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useRouter, useSearchParams } from "next/navigation";
+import { getVoucherRedirectUrl } from "@/lib/utils";
 
 interface Company {
   companyId: number;
@@ -572,7 +573,13 @@ function GstReportContent({
                               {row.list.map((v) => {
                                 const details = rollup([v]);
                                 return (
-                                  <tr key={v.voucherId} className="border-b border-border/20 hover:bg-muted/30">
+                                  <tr
+                                    key={v.voucherId}
+                                    className="border-b border-border/20 hover:bg-muted/30 cursor-pointer"
+                                    onClick={() => {
+                                      router.push(getVoucherRedirectUrl(v.voucherType, v.voucherId));
+                                    }}
+                                  >
                                     <td className="p-2 pl-6 text-left">
                                       {v.voucherNo} <span className="text-[10px] text-muted-foreground">({v.voucherDate})</span>
                                     </td>
@@ -830,7 +837,13 @@ function GstReportContent({
                 </thead>
                 <tbody className="divide-y divide-border">
                   {uncertainVouchers.map((v) => (
-                    <tr key={v.voucherId} className="hover:bg-muted/5 font-mono text-xs">
+                    <tr
+                      key={v.voucherId}
+                      className="hover:bg-muted/5 font-mono text-xs cursor-pointer"
+                      onClick={() => {
+                        router.push(getVoucherRedirectUrl(v.voucherType, v.voucherId));
+                      }}
+                    >
                       <td className="p-3 text-left font-semibold">
                         <div className="text-foreground text-sm font-sans">{v.voucherNo}</div>
                         <div className="text-muted-foreground font-mono mt-0.5">{v.voucherDate} ({v.voucherType})</div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
@@ -96,6 +97,8 @@ export default function SalesClient({
   brokersHaste,
   canCreate,
   pastVouchers: initialPastVouchers,
+  editVoucher,
+  editVoucherItems,
 }: {
   company: {
     companyName: string;
@@ -110,7 +113,10 @@ export default function SalesClient({
   brokersHaste: BrokerHasteOption[];
   canCreate: boolean;
   pastVouchers: PastVoucher[];
+  editVoucher?: any;
+  editVoucherItems?: any[];
 }) {
+  const router = useRouter();
   const [localParties, setLocalParties] = useState<PartyOption[]>(parties);
   const [showPartyModal, setShowPartyModal] = useState(false);
 
@@ -164,7 +170,20 @@ export default function SalesClient({
   const [vehicleNo, setVehicleNo] = useState("");
   const [personName, setPersonName] = useState("");
 
-  const [lineItems, setLineItems] = useState<LineItem[]>([EMPTY_LINE()]);
+  const [lineItems, setLineItems] = useState<LineItem[]>(() => {
+    if (editVoucherItems && editVoucherItems.length > 0) {
+      return editVoucherItems;
+    }
+    return [EMPTY_LINE()];
+  });
+
+  useEffect(() => {
+    if (editVoucherItems && editVoucherItems.length > 0) {
+      setLineItems(editVoucherItems);
+    } else {
+      setLineItems([EMPTY_LINE()]);
+    }
+  }, [editVoucherItems]);
   const [activePieceLineId, setActivePieceLineId] = useState<string | null>(
     null,
   );
@@ -270,8 +289,44 @@ export default function SalesClient({
   };
 
   useEffect(() => {
-    fetchNextVoucherNo();
-  }, []);
+    if (editVoucher) {
+      setSelectedParty(String(editVoucher.partyId || ""));
+      setInvoiceNo(editVoucher.voucherNo || "");
+      setVoucherDate(editVoucher.voucherDate ? editVoucher.voucherDate.substring(0, 10) : getLocalTodayString());
+      setBroker(editVoucher.broker || "");
+      setHaste(editVoucher.haste || "");
+      setLrNo(editVoucher.lrNo || "");
+      setLrDate(editVoucher.lrDate ? editVoucher.lrDate.substring(0, 10) : getLocalTodayString());
+      setTransport(editVoucher.transport || "");
+      setRemarks(editVoucher.remarks || "");
+      setVehicleNo(editVoucher.vehicleNo || "");
+      setPersonName(editVoucher.personName || "");
+
+      setDiscountType(editVoucher.discountType || "percentage");
+      setDiscountValue(editVoucher.discountValue !== undefined && editVoucher.discountValue !== null ? String(editVoucher.discountValue) : "");
+      setDiscountType2(editVoucher.discountType2 || "percentage");
+      setDiscountValue2(editVoucher.discountValue2 !== undefined && editVoucher.discountValue2 !== null ? String(editVoucher.discountValue2) : "");
+
+      if (editVoucher.extraChargesData) {
+        const parsed = typeof editVoucher.extraChargesData === "string"
+          ? JSON.parse(editVoucher.extraChargesData)
+          : editVoucher.extraChargesData;
+        setExtraCharges(parsed || []);
+      }
+    } else {
+      fetchNextVoucherNo();
+      setRemarks("");
+      setBroker("");
+      setHaste("");
+      setLrNo("");
+      setLrDate(getLocalTodayString());
+      setIsLrDateCustom(false);
+      setTransport("");
+      setDiscountValue("");
+      setDiscountValue2("");
+      setExtraCharges([]);
+    }
+  }, [editVoucher]);
 
   // Check if Interstate or Intrastate GST
   const isInterstate = useMemo(() => {
@@ -584,6 +639,7 @@ export default function SalesClient({
           gstRateId: line.gstRateId ? Number(line.gstRateId) : null,
           pieceMeters: line.pieceMeters,
         })),
+        ...(editVoucher ? { voucherId: editVoucher.voucherId } : {}),
       };
 
       const response = await fetch("/api/vouchers", {
@@ -598,13 +654,13 @@ export default function SalesClient({
       }
 
       const responseData = await response.json();
-      setMessage("Sales voucher created successfully.");
+      setMessage(editVoucher ? "Sales voucher updated successfully." : "Sales voucher created successfully.");
 
       const party = localParties.find(
         (c) => String(c.partyId) === selectedParty,
       );
       const newVoucher: PastVoucher = {
-        voucherId: responseData.voucherId,
+        voucherId: responseData.voucherId || (editVoucher ? editVoucher.voucherId : 0),
         voucherNo: body.voucherNo,
         voucherDate: body.voucherDate,
         status: "posted",
@@ -622,7 +678,13 @@ export default function SalesClient({
           : null,
       };
 
-      setPastVouchers((prev) => [newVoucher, ...prev]);
+      if (editVoucher) {
+        setPastVouchers((prev) =>
+          prev.map((v) => (v.voucherId === editVoucher.voucherId ? newVoucher : v))
+        );
+      } else {
+        setPastVouchers((prev) => [newVoucher, ...prev]);
+      }
 
       // Print setup
       const invoiceLines = validLines.map((line) => {
@@ -668,6 +730,10 @@ export default function SalesClient({
       setDiscountValue2("");
       setExtraCharges([]);
       setLineItems([EMPTY_LINE()]);
+
+      if (editVoucher) {
+        router.push("/dashboard/sales");
+      }
     } catch (error) {
       setMessage(
         error instanceof Error ? error.message : "Unable to save voucher.",

@@ -6,7 +6,7 @@ import { Download, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useRouter, useSearchParams } from "next/navigation";
-import { formatAmount } from "@/lib/utils";
+import { formatAmount, getVoucherRedirectUrl } from "@/lib/utils";
 import { useOmittedLines } from "@/lib/hooks";
 import { ReportPeriodDialog } from "@/components/ReportPeriodDialog";
 import { ReportOmittedBanner } from "@/components/ReportOmittedBanner";
@@ -153,7 +153,14 @@ function CreditNoteRegisterContent({ company, monthlySummary, canExport }: Props
                   </tr>
                 ) : (
                   selectedMonth.vouchers.map(v => (
-                  <tr key={v.voucherId} className={`hover:bg-muted/10 transition-colors ${v.status === "cancelled" ? "bg-destructive/5 text-muted-foreground" : ""}`}>
+                  <tr
+                    key={v.voucherId}
+                    className={`hover:bg-muted/10 transition-colors cursor-pointer ${v.status === "cancelled" ? "bg-destructive/5 text-muted-foreground" : ""}`}
+                    onClick={(e) => {
+                      if ((e.target as HTMLElement).closest("a")) return;
+                      router.push(getVoucherRedirectUrl("credit_note", v.voucherId));
+                    }}
+                  >
                     <td className="py-3 px-3">{new Date(v.voucherDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</td>
                     <td className="py-3 px-3 font-mono font-medium">{v.voucherNo}</td>
                     <td className="py-3 px-3">

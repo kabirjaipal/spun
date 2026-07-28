@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useRouter, useSearchParams } from "next/navigation";
+import { getVoucherRedirectUrl } from "@/lib/utils";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface LedgerItem {
@@ -170,6 +171,7 @@ function GroupOutstandingsContent({
 
         pendingBills.push({
           voucherId: inv.voucherId,
+          voucherType: inv.voucherType,
           date: inv.voucherDate,
           refNo: inv.voucherNo,
           billingAmount: billing,
@@ -190,6 +192,7 @@ function GroupOutstandingsContent({
       if (unlinked > 0.01) {
         pendingBills.push({
           voucherId: adj.voucherId,
+          voucherType: adj.voucherType,
           date: adj.voucherDate,
           refNo: `${adj.voucherType.replace(/_/g, " ").toUpperCase()} (On Account)`,
           billingAmount: unlinked,
@@ -655,7 +658,15 @@ function GroupOutstandingsContent({
                   </tr>
                 ) : (
                   currentMonth.bills.map((bill: any, idx: number) => (
-                    <tr key={idx} className="border-b border-border/40 hover:bg-muted/10">
+                    <tr
+                      key={idx}
+                      className="border-b border-border/40 hover:bg-muted/10 cursor-pointer"
+                      onClick={() => {
+                        if (bill.voucherId && bill.voucherType) {
+                          router.push(getVoucherRedirectUrl(bill.voucherType, bill.voucherId));
+                        }
+                      }}
+                    >
                       <td className="p-3 pl-6 font-mono">{formatDateToTally(bill.date)}</td>
                       <td className="p-3 font-semibold">{bill.refNo}</td>
                       <td className="p-3 text-right font-mono">{formatAmount(bill.billingAmount)}</td>

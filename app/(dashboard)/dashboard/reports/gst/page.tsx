@@ -9,7 +9,7 @@ import {
   tVoucherItems,
   mInventory,
 } from "@/lib/db/schema";
-import { and, eq, isNull, gte, lte } from "drizzle-orm";
+import { and, eq, isNull, gte, lte, notInArray } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
 import GstReportClient from "./GstReportClient";
 
@@ -83,6 +83,7 @@ export default async function GstReportsPage({
       and(
         eq(tVouchers.companyId, companyId),
         isNull(tVouchers.deletedOn),
+        notInArray(tVouchers.voucherType, ["purchase_order", "sales_order"]),
         gte(tVouchers.voucherDate, fromDate),
         lte(tVouchers.voucherDate, toDate)
       )

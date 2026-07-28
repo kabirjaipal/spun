@@ -98,35 +98,54 @@ export async function POST(request: Request) {
       const extraChargesNum = Number(extraCharges) || 0;
       // Handle sequence number generation
       let finalVoucherNo = voucherNo;
-      const seq = await tx.query.mVoucherSequences.findFirst({
-        where: and(
-          eq(mVoucherSequences.companyId, companyId),
-          eq(mVoucherSequences.voucherType, voucherType),
-        ),
-      });
+      const isEdit = !!body.voucherId;
+      let voucherIdNum = Number(body.voucherId || 0);
 
-      if (seq) {
-        finalVoucherNo = `${seq.prefix}${seq.nextNumber}`;
-        await tx
-          .update(mVoucherSequences)
-          .set({ nextNumber: seq.nextNumber + 1 })
-          .where(eq(mVoucherSequences.sequenceId, seq.sequenceId));
-      } else {
-        const prefix =
-          DEFAULT_PREFIXES[voucherType] ||
-          `${voucherType.toUpperCase().substring(0, 3)}-`;
-        await tx.insert(mVoucherSequences).values({
-          companyId,
-          voucherType,
-          prefix,
-          nextNumber: 2,
-          createdBy: userId,
-          updatedBy: userId,
+      if (isEdit) {
+        // Validate voucher exists and belongs to company
+        const oldV = await tx.query.tVouchers.findFirst({
+          where: and(
+            eq(tVouchers.voucherId, voucherIdNum),
+            eq(tVouchers.companyId, companyId),
+            isNull(tVouchers.deletedOn)
+          )
         });
-        finalVoucherNo = `${prefix}1`;
-      }
+        if (!oldV) throw new Error("Voucher not found for update");
+        finalVoucherNo = oldV.voucherNo; // Preserve original voucher number
 
-      // Determine interstate vs intrastate GST based on state/GSTIN prefix
+        // Clear existing dependencies to re-insert
+        await tx.delete(tVoucherEntries).where(eq(tVoucherEntries.voucherId, voucherIdNum));
+        await tx.delete(tVoucherItems).where(eq(tVoucherItems.voucherId, voucherIdNum));
+        await tx.delete(tStockMovements).where(eq(tStockMovements.voucherId, voucherIdNum));
+      } else {
+        const seq = await tx.query.mVoucherSequences.findFirst({
+          where: and(
+            eq(mVoucherSequences.companyId, companyId),
+            eq(mVoucherSequences.voucherType, voucherType),
+          ),
+        });
+
+        if (seq) {
+          finalVoucherNo = `${seq.prefix}${seq.nextNumber}`;
+          await tx
+            .update(mVoucherSequences)
+            .set({ nextNumber: seq.nextNumber + 1 })
+            .where(eq(mVoucherSequences.sequenceId, seq.sequenceId));
+        } else {
+          const prefix =
+            DEFAULT_PREFIXES[voucherType] ||
+            `${voucherType.toUpperCase().substring(0, 3)}-`;
+          await tx.insert(mVoucherSequences).values({
+            companyId,
+            voucherType,
+            prefix,
+            nextNumber: 2,
+            createdBy: userId,
+            updatedBy: userId,
+          });
+          finalVoucherNo = `${prefix}1`;
+        }
+      }      // Determine interstate vs intrastate GST based on state/GSTIN prefix
       const company = await tx.query.mCompanies.findFirst({
         where: eq(mCompanies.companyId, companyId),
       });
@@ -346,55 +365,106 @@ export async function POST(request: Request) {
         computedNet = debits;
       }
 
-      // Insert Voucher Summary
-      const [createdVoucher] = await tx
-        .insert(tVouchers)
-        .values({
-          companyId,
-          voucherType,
-          voucherNo: finalVoucherNo,
-          voucherDate: String(voucherDate),
-          partyId: partyId ? Number(partyId) : null,
-          remarks: remarks || null,
-          jobStatus: jobStatus || null,
-          status: "posted",
-          totalAmount: String(computedTotal),
-          taxAmount: String(computedTax),
-          netAmount: String(computedNet),
-          broker: broker || null,
-          haste: haste || null,
-          lrNo: lrNo || null,
-          lrDate: lrDate ? String(lrDate) : null,
-          transport: transport || null,
-          vehicleNo: vehicleNo || null,
-          personName: personName || null,
-          lotNo: lotNo || null,
-          invoiceNo: invoiceNo || null,
-          invoiceDate: invoiceDate ? String(invoiceDate) : null,
-          goodsName: goodsName || null,
-          printRate: printRate,
-          printAmount: printAmount,
-          parentVoucherId: parentVoucherId ? Number(parentVoucherId) : null,
-          fromPartyId: fromPartyId ? Number(fromPartyId) : null,
-          cashBankLedgerId: cashBankLedgerId ? Number(cashBankLedgerId) : null,
-          billDetails: billDetails || null,
-          discountType: discountType || null,
-          discountValue: discountValue ? String(discountValue) : null,
-          discountType2: discountType2 || null,
-          discountValue2: discountValue2 ? String(discountValue2) : null,
-          extraCharges: extraCharges ? String(extraCharges) : "0.00",
-          extraChargesData: extraChargesData ?? null,
-          bankName: bankName || null,
-          paymentMethod: paymentMethod || null,
-          tdsSection: tdsSection || null,
-          tdsRate: tdsRate ? String(tdsRate) : null,
-          tdsAmount: tdsAmount ? String(tdsAmount) : null,
-          createdBy: userId,
-          updatedBy: userId,
-        })
-        .returning();
+      // Insert or Update Voucher Summary
+      let createdVoucher: any;
+      if (isEdit) {
+        const [v] = await tx
+          .update(tVouchers)
+          .set({
+            voucherDate: String(voucherDate),
+            partyId: partyId ? Number(partyId) : null,
+            remarks: remarks || null,
+            jobStatus: jobStatus || null,
+            totalAmount: String(computedTotal),
+            taxAmount: String(computedTax),
+            netAmount: String(computedNet),
+            broker: broker || null,
+            haste: haste || null,
+            lrNo: lrNo || null,
+            lrDate: lrDate ? String(lrDate) : null,
+            transport: transport || null,
+            vehicleNo: vehicleNo || null,
+            personName: personName || null,
+            lotNo: lotNo || null,
+            invoiceNo: invoiceNo || null,
+            invoiceDate: invoiceDate ? String(invoiceDate) : null,
+            goodsName: goodsName || null,
+            printRate: printRate,
+            printAmount: printAmount,
+            parentVoucherId: parentVoucherId ? Number(parentVoucherId) : null,
+            fromPartyId: fromPartyId ? Number(fromPartyId) : null,
+            cashBankLedgerId: cashBankLedgerId ? Number(cashBankLedgerId) : null,
+            billDetails: billDetails || null,
+            discountType: discountType || null,
+            discountValue: discountValue ? String(discountValue) : null,
+            discountType2: discountType2 || null,
+            discountValue2: discountValue2 ? String(discountValue2) : null,
+            extraCharges: extraCharges ? String(extraCharges) : "0.00",
+            extraChargesData: extraChargesData ?? null,
+            bankName: bankName || null,
+            paymentMethod: paymentMethod || null,
+            tdsSection: tdsSection || null,
+            tdsRate: tdsRate ? String(tdsRate) : null,
+            tdsAmount: tdsAmount ? String(tdsAmount) : null,
+            updatedBy: userId,
+            updatedOn: new Date(),
+          })
+          .where(eq(tVouchers.voucherId, voucherIdNum))
+          .returning();
+        createdVoucher = v;
+      } else {
+        const [v] = await tx
+          .insert(tVouchers)
+          .values({
+            companyId,
+            voucherType,
+            voucherNo: finalVoucherNo,
+            voucherDate: String(voucherDate),
+            partyId: partyId ? Number(partyId) : null,
+            remarks: remarks || null,
+            jobStatus: jobStatus || null,
+            status: "posted",
+            totalAmount: String(computedTotal),
+            taxAmount: String(computedTax),
+            netAmount: String(computedNet),
+            broker: broker || null,
+            haste: haste || null,
+            lrNo: lrNo || null,
+            lrDate: lrDate ? String(lrDate) : null,
+            transport: transport || null,
+            vehicleNo: vehicleNo || null,
+            personName: personName || null,
+            lotNo: lotNo || null,
+            invoiceNo: invoiceNo || null,
+            invoiceDate: invoiceDate ? String(invoiceDate) : null,
+            goodsName: goodsName || null,
+            printRate: printRate,
+            printAmount: printAmount,
+            parentVoucherId: parentVoucherId ? Number(parentVoucherId) : null,
+            fromPartyId: fromPartyId ? Number(fromPartyId) : null,
+            cashBankLedgerId: cashBankLedgerId ? Number(cashBankLedgerId) : null,
+            billDetails: billDetails || null,
+            discountType: discountType || null,
+            discountValue: discountValue ? String(discountValue) : null,
+            discountType2: discountType2 || null,
+            discountValue2: discountValue2 ? String(discountValue2) : null,
+            extraCharges: extraCharges ? String(extraCharges) : "0.00",
+            extraChargesData: extraChargesData ?? null,
+            bankName: bankName || null,
+            paymentMethod: paymentMethod || null,
+            tdsSection: tdsSection || null,
+            tdsRate: tdsRate ? String(tdsRate) : null,
+            tdsAmount: tdsAmount ? String(tdsAmount) : null,
+            createdBy: userId,
+            updatedBy: userId,
+          })
+          .returning();
+        createdVoucher = v;
+      }
 
-      const voucherIdNum = Number(createdVoucher.voucherId);
+      if (!isEdit) {
+        voucherIdNum = Number(createdVoucher.voucherId);
+      }
 
       // Helper to find or create a Tax/GST ledger
       const getOrCreateTaxLedger = async () => {
@@ -466,14 +536,21 @@ export async function POST(request: Request) {
         await tx.insert(tVoucherEntries).values({
           voucherId: voucherIdNum,
           ledgerId: Number(partyLedger.ledgerId),
-          entryType: voucherType === "sale" ? "debit" : "credit",
+          entryType: (voucherType === "sale" || voucherType === "sales_return")
+            ? (voucherType === "sale" ? "debit" : "credit")
+            : (voucherType === "credit_note" ? "credit" : "debit"),
           amount: String(computedNet),
           createdBy: userId,
           updatedBy: userId,
         });
 
         // 2. Insert item details, ledger postings, and stock movements
-        for (const line of processedLines) {
+        const isCapitalized = voucherType === "sale" || voucherType === "sales_return";
+        const totalLineNets = processedLines.reduce((sum, l) => sum + Number(l.lineNet || 0), 0);
+        let allocatedSum = 0;
+
+        for (let idx = 0; idx < processedLines.length; idx++) {
+          const line = processedLines[idx];
           await tx.insert(tVoucherItems).values({
             voucherId: voucherIdNum,
             inventoryId: (line.inventoryId && !isNaN(Number(line.inventoryId))) ? Number(line.inventoryId) : null,
@@ -501,28 +578,42 @@ export async function POST(request: Request) {
           // Credit / Debit Revenue Account — only if ledgerId explicitly provided
           const lineLedgerId = Number(line.ledgerId) || 0;
           if (lineLedgerId) {
+            let amountToPost = line.taxableAmount;
+            if (isCapitalized) {
+              if (idx === processedLines.length - 1) {
+                amountToPost = Math.round((computedNet - allocatedSum) * 100) / 100;
+              } else {
+                amountToPost = totalLineNets > 0
+                  ? Math.round((Number(line.lineNet || 0) / totalLineNets) * computedNet * 100) / 100
+                  : Math.round((computedNet / processedLines.length) * 100) / 100;
+                allocatedSum += amountToPost;
+              }
+            }
+
             await tx.insert(tVoucherEntries).values({
               voucherId: voucherIdNum,
               ledgerId: lineLedgerId,
               entryType: voucherType === "sale" ? "credit" : "debit",
-              amount: String(line.taxableAmount),
+              amount: String(amountToPost),
               createdBy: userId,
               updatedBy: userId,
             });
           }
 
           // Tax Ledger Entries
-          const taxLedger = await getOrCreateTaxLedger();
-          const totalLineTax = line.cgst + line.sgst + line.igst;
-          if (totalLineTax > 0) {
-            await tx.insert(tVoucherEntries).values({
-              voucherId: voucherIdNum,
-              ledgerId: Number(taxLedger.ledgerId),
-              entryType: voucherType === "sale" ? "credit" : "debit",
-              amount: String(totalLineTax),
-              createdBy: userId,
-              updatedBy: userId,
-            });
+          if (!isCapitalized) {
+            const taxLedger = await getOrCreateTaxLedger();
+            const totalLineTax = line.cgst + line.sgst + line.igst;
+            if (totalLineTax > 0) {
+              await tx.insert(tVoucherEntries).values({
+                voucherId: voucherIdNum,
+                ledgerId: Number(taxLedger.ledgerId),
+                entryType: voucherType === "sale" ? "credit" : "debit",
+                amount: String(totalLineTax),
+                createdBy: userId,
+                updatedBy: userId,
+              });
+            }
           }
 
           // Stock movements
@@ -547,7 +638,7 @@ export async function POST(request: Request) {
           }
         }
 
-        if (extraChargesNum > 0) {
+        if (!isCapitalized && extraChargesNum > 0) {
           const extraLedger = await getOrCreateExtraChargesLedger();
           await tx.insert(tVoucherEntries).values({
             voucherId: voucherIdNum,
@@ -577,13 +668,9 @@ export async function POST(request: Request) {
         if (!partyLedger) throw new Error("Party ledger not found");
 
         const companyEntryType =
-          voucherType === "purchase" || voucherType === "direct_bill"
-            ? "credit"
-            : "debit";
-        const taxEntryType =
-          voucherType === "purchase" || voucherType === "direct_bill"
-            ? "debit"
-            : "credit";
+          (voucherType === "purchase" || voucherType === "direct_bill" || voucherType === "purchase_return")
+            ? (voucherType === "purchase" || voucherType === "direct_bill" ? "credit" : "debit")
+            : (voucherType === "debit_note" ? "debit" : "credit");
 
         await tx.insert(tVoucherEntries).values({
           voucherId: voucherIdNum,
@@ -595,7 +682,12 @@ export async function POST(request: Request) {
         });
 
         // 2. Insert item details, ledger postings, and stock movements
-        for (const line of processedLines) {
+        const isCapitalized = voucherType === "purchase" || voucherType === "purchase_return";
+        const totalLineNets = processedLines.reduce((sum, l) => sum + Number(l.lineNet || 0), 0);
+        let allocatedSum = 0;
+
+        for (let idx = 0; idx < processedLines.length; idx++) {
+          const line = processedLines[idx];
           await tx.insert(tVoucherItems).values({
             voucherId: voucherIdNum,
             inventoryId: (line.inventoryId && !isNaN(Number(line.inventoryId))) ? Number(line.inventoryId) : null,
@@ -623,6 +715,18 @@ export async function POST(request: Request) {
           // Debit / Credit Expense/Asset Account — only if ledgerId explicitly provided
           const lineLedgerId = Number(line.ledgerId) || 0;
           if (lineLedgerId) {
+            let amountToPost = line.taxableAmount;
+            if (isCapitalized) {
+              if (idx === processedLines.length - 1) {
+                amountToPost = Math.round((computedNet - allocatedSum) * 100) / 100;
+              } else {
+                amountToPost = totalLineNets > 0
+                  ? Math.round((Number(line.lineNet || 0) / totalLineNets) * computedNet * 100) / 100
+                  : Math.round((computedNet / processedLines.length) * 100) / 100;
+                allocatedSum += amountToPost;
+              }
+            }
+
             const lineEntryType =
               voucherType === "purchase" || voucherType === "direct_bill"
                 ? "debit"
@@ -631,24 +735,30 @@ export async function POST(request: Request) {
               voucherId: voucherIdNum,
               ledgerId: lineLedgerId,
               entryType: lineEntryType,
-              amount: String(line.taxableAmount),
+              amount: String(amountToPost),
               createdBy: userId,
               updatedBy: userId,
             });
           }
 
           // Tax Ledger Entries
-          const taxLedger = await getOrCreateTaxLedger();
-          const totalLineTax = line.cgst + line.sgst + line.igst;
-          if (totalLineTax > 0) {
-            await tx.insert(tVoucherEntries).values({
-              voucherId: voucherIdNum,
-              ledgerId: Number(taxLedger.ledgerId),
-              entryType: taxEntryType,
-              amount: String(totalLineTax),
-              createdBy: userId,
-              updatedBy: userId,
-            });
+          if (!isCapitalized) {
+            const taxLedger = await getOrCreateTaxLedger();
+            const taxEntryType =
+              voucherType === "purchase" || voucherType === "direct_bill"
+                ? "debit"
+                : "credit";
+            const totalLineTax = line.cgst + line.sgst + line.igst;
+            if (totalLineTax > 0) {
+              await tx.insert(tVoucherEntries).values({
+                voucherId: voucherIdNum,
+                ledgerId: Number(taxLedger.ledgerId),
+                entryType: taxEntryType,
+                amount: String(totalLineTax),
+                createdBy: userId,
+                updatedBy: userId,
+              });
+            }
           }
 
           // Stock movements (Only for standard trading purchases, not direct non-trading bills)
@@ -678,7 +788,7 @@ export async function POST(request: Request) {
           }
         }
 
-        if (extraChargesNum > 0) {
+        if (!isCapitalized && extraChargesNum > 0) {
           const extraLedger = await getOrCreateExtraChargesLedger();
           const extraEntryType =
             voucherType === "purchase" || voucherType === "direct_bill"

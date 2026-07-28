@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useRouter, useSearchParams } from "next/navigation";
+import { getVoucherRedirectUrl } from "@/lib/utils";
 
 interface Company {
   companyId: number;
@@ -283,7 +284,15 @@ function DayBookContent({
               const { debit, credit } = getDebitAndCredit(v);
               return (
                 <React.Fragment key={v.voucherId}>
-                  <tr className="border-b border-border hover:bg-muted/20 text-foreground transition duration-150">
+                  <tr
+                    className="border-b border-border hover:bg-muted/20 text-foreground transition duration-150 cursor-pointer"
+                    onClick={(e) => {
+                      if ((e.target as HTMLElement).closest("button") || (e.target as HTMLElement).closest("a")) {
+                        return;
+                      }
+                      router.push(getVoucherRedirectUrl(v.voucherType, v.voucherId));
+                    }}
+                  >
                     <td className="p-3 text-left font-mono font-medium">{formatDateToTally(v.voucherDate)}</td>
                     <td className="p-3 text-left font-semibold">{v.partyName || "Cash / General Ledger"}</td>
                     <td className="p-3 text-left">{VOUCHER_TYPE_LABELS[v.voucherType] || v.voucherType}</td>

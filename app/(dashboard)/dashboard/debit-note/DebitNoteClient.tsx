@@ -2,6 +2,7 @@
 import { getLocalTodayString } from "@/lib/utils";
 
 import React, { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
@@ -89,6 +90,7 @@ export default function DebitNoteClient({
   canUpdate,
   canDelete,
   customTdsSections,
+  initialEditVoucher,
 }: {
   initialNotes: DebitNoteItem[];
   company: { companyName: string; gstNo?: string | null; address?: string | null; state?: string | null };
@@ -100,7 +102,9 @@ export default function DebitNoteClient({
   canUpdate?: boolean;
   canDelete?: boolean;
   customTdsSections?: string[];
+  initialEditVoucher?: any;
 }) {
+  const router = useRouter();
   const [notes, setNotes] = useState<DebitNoteItem[]>(initialNotes);
   const [isCreating, setIsCreating] = useState(false);
   const [editingNote, setEditingNote] = useState<DebitNoteItem | null>(null);
@@ -126,6 +130,9 @@ export default function DebitNoteClient({
     setTdsRate("0");
     setLineItems([EMPTY_LINE()]);
     fetchNextVoucherNo();
+    if (editingNote || initialEditVoucher) {
+      router.push("/dashboard/debit-note");
+    }
   };
 
   const handleEdit = (note: DebitNoteItem) => {
@@ -185,6 +192,7 @@ export default function DebitNoteClient({
   const [invoices, setInvoices] = useState<InvoiceOption[]>([]);
   const [tdsSection, setTdsSection] = useState("None");
   const [tdsRate, setTdsRate] = useState("0");
+  const [outstandingBills, setOutstandingBills] = useState<any[]>([]);
 
   const fetchNextVoucherNo = async () => {
     try {
@@ -194,13 +202,19 @@ export default function DebitNoteClient({
         if (data.nextVoucherNo) setVoucherNo(data.nextVoucherNo);
       }
     } catch (err) {
-      console.error("Error fetching next debit note number:", err);
+      console.error("Error fetching next debit note voucher number:", err);
     }
   };
 
   useEffect(() => {
     fetchNextVoucherNo();
   }, []);
+
+  useEffect(() => {
+    if (initialEditVoucher) {
+      handleEdit(initialEditVoucher);
+    }
+  }, [initialEditVoucher]);
 
 
 

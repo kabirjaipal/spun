@@ -2,6 +2,7 @@
 import { getLocalTodayString } from "@/lib/utils";
 
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
@@ -80,6 +81,7 @@ export default function PaymentClient({
   canCreate,
   canUpdate,
   canDelete,
+  initialEditVoucher,
 }: {
   initialPayments: PaymentItem[];
   companies: CompanyOption[];
@@ -87,7 +89,9 @@ export default function PaymentClient({
   canCreate: boolean;
   canUpdate?: boolean;
   canDelete?: boolean;
+  initialEditVoucher?: any;
 }) {
+  const router = useRouter();
   const [payments, setPayments] = useState<PaymentItem[]>(initialPayments);
   const [isCreating, setIsCreating] = useState(false);
   const [editingPayment, setEditingPayment] = useState<PaymentItem | null>(null);
@@ -118,6 +122,9 @@ export default function PaymentClient({
     setOutstandingBills([]);
     setBillAdjustments({});
     fetchNextVoucherNo();
+    if (editingPayment || initialEditVoucher) {
+      router.push("/dashboard/payment");
+    }
   };
 
   const handleEdit = (payment: PaymentItem) => {
@@ -161,6 +168,12 @@ export default function PaymentClient({
   useEffect(() => {
     fetchNextVoucherNo();
   }, []);
+
+  useEffect(() => {
+    if (initialEditVoucher) {
+      handleEdit(initialEditVoucher);
+    }
+  }, [initialEditVoucher]);
 
   useEffect(() => {
     if (!selectedCompany) {

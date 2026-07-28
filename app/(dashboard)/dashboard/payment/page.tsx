@@ -6,12 +6,18 @@ import { and, eq, isNull, or, desc, ne, sql } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
 import PaymentClient from "./PaymentClient";
 
-export default async function PaymentPage() {
+export default async function PaymentPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ editId?: string }>;
+}) {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
   if (!session.user.companyId) redirect("/setup-company");
 
   const companyId = Number(session.user.companyId);
+  const params = await searchParams;
+  const editId = params.editId ? Number(params.editId) : undefined;
 
   const [payments, companies, cashBankLedgers] = await Promise.all([
     db
@@ -82,6 +88,41 @@ export default async function PaymentPage() {
   const perms = getStaticPermissionsForRole(session.user.role as Role);
   const p = perms.find((x) => x.accessItem === "payment");
 
+  let initialEditVoucher: any = null;
+  if (editId) {
+    const existing = payments.find(py => py.voucherId === editId);
+    if (existing) {
+      initialEditVoucher = {
+        ...existing,
+        voucherDate: existing.voucherDate ? new Date(existing.voucherDate) : null
+      };
+    } else {
+      const ev = await db.query.tVouchers.findFirst({
+        where: and(eq(tVouchers.voucherId, editId), eq(tVouchers.companyId, companyId)),
+      });
+      if (ev) {
+        const ledger = await db.query.mLedgers.findFirst({
+          where: eq(mLedgers.ledgerId, ev.partyId || 0),
+        });
+        initialEditVoucher = {
+          voucherId: ev.voucherId,
+          voucherNo: ev.voucherNo,
+          voucherDate: ev.voucherDate ? new Date(ev.voucherDate) : null,
+          partyId: ev.partyId,
+          totalAmount: ev.totalAmount,
+          remarks: ev.remarks,
+          partyName: ledger?.ledgerName || null,
+          lrNo: ev.lrNo,
+          bankName: ev.bankName,
+          paymentMethod: ev.paymentMethod,
+          cashBankLedgerId: ev.cashBankLedgerId,
+          billDetails: ev.billDetails,
+          voucherType: ev.voucherType,
+        };
+      }
+    }
+  }
+
   return (
     <PaymentClient
       initialPayments={payments.map(py => ({
@@ -96,6 +137,7 @@ export default async function PaymentPage() {
       canCreate={p?.c ?? false}
       canUpdate={p?.u ?? false}
       canDelete={p?.d ?? false}
+      initialEditVoucher={initialEditVoucher}
     />
   );
 }

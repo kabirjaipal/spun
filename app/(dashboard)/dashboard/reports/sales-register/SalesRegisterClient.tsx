@@ -414,7 +414,13 @@ function SalesRegisterContent({
                   dailySummaryList.map((dayRow) => {
                     const dayBalSign = dayRow.closingBalance >= 0 ? "Cr" : "Dr";
                     return (
-                      <tr key={dayRow.date} className="hover:bg-muted/10">
+                      <tr
+                        key={dayRow.date}
+                        className="hover:bg-muted/10 cursor-pointer"
+                        onClick={() => {
+                          router.push(`/dashboard/reports/day-book?date=${dayRow.date}`);
+                        }}
+                      >
                         <td className="p-3 pl-6 font-mono">{formatDateToTally(dayRow.date)}</td>
                         <td className="p-3 text-right border-l border-border font-mono text-muted-foreground">{formatAmount(dayRow.debit)}</td>
                         <td className="p-3 text-right border-l border-border font-mono">{formatAmount(dayRow.credit)}</td>

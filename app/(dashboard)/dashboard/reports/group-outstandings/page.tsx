@@ -9,7 +9,7 @@ import {
   tVouchers,
   mUsers,
 } from "@/lib/db/schema";
-import { and, eq, isNull, sql, gte, lte, inArray, or } from "drizzle-orm";
+import { and, eq, isNull, sql, gte, lte, inArray, or, notInArray } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
 import GroupOutstandingsClient from "./GroupOutstandingsClient";
 
@@ -162,6 +162,7 @@ export default async function GroupOutstandingsPage({
               eq(tVouchers.companyId, companyId),
               inArray(tVouchers.partyId, partyIdsToFetch),
               isNull(tVouchers.deletedOn),
+              notInArray(tVouchers.voucherType, ["purchase_order", "sales_order"]),
               gte(tVouchers.voucherDate, fromDate),
               lte(tVouchers.voucherDate, toDate)
             )

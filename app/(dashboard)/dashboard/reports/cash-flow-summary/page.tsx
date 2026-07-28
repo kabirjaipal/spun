@@ -8,7 +8,7 @@ import {
   tVouchers,
   tVoucherEntries,
 } from "@/lib/db/schema";
-import { and, eq, isNull, gte, lte, inArray } from "drizzle-orm";
+import { and, eq, isNull, gte, lte, inArray, notInArray } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
 import CashFlowSummaryClient from "./CashFlowSummaryClient";
 
@@ -116,6 +116,7 @@ export default async function CashFlowSummaryPage({
       and(
         eq(tVouchers.companyId, companyId),
         isNull(tVouchers.deletedOn),
+        notInArray(tVouchers.voucherType, ["purchase_order", "sales_order"]),
         gte(tVouchers.voucherDate, fromDate),
         lte(tVouchers.voucherDate, toDate)
       )

@@ -1,19 +1,24 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { mInventory, mLedgers, mTaxRates, mCompanies, tVouchers } from "@/lib/db/schema";
+import { mInventory, mLedgers, mTaxRates, mCompanies, tVouchers, tVoucherItems } from "@/lib/db/schema";
 import { and, eq, isNull, desc, ne, isNotNull } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
 import { APP_NAME } from "@/lib/constants";
-import { tVoucherItems } from "@/lib/db/schema";
 import CreditNoteClient from "./CreditNoteClient";
 
-export default async function CreditNotePage() {
+export default async function CreditNotePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ editId?: string }>;
+}) {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
   if (!session.user.companyId) redirect("/setup-company");
 
   const companyId = Number(session.user.companyId);
+  const params = await searchParams;
+  const editId = params.editId ? Number(params.editId) : undefined;
 
   const [notes, parties, inventory, ledgers, taxRates, company, voucherItems, uniqueTdsSections] = await Promise.all([
     db
@@ -106,6 +111,48 @@ export default async function CreditNotePage() {
   const perms = getStaticPermissionsForRole(session.user.role as Role);
   const p = perms.find((x) => x.accessItem === "credit_note");
 
+  let initialEditVoucher: any = null;
+  if (editId) {
+    const existing = notes.find(n => n.voucherId === editId);
+    if (existing) {
+      initialEditVoucher = {
+        ...existing,
+        voucherDate: existing.voucherDate ? new Date(existing.voucherDate) : null,
+        lineItems: itemsByVoucher[existing.voucherId] || [],
+      };
+    } else {
+      const ev = await db.query.tVouchers.findFirst({
+        where: and(eq(tVouchers.voucherId, editId), eq(tVouchers.companyId, companyId)),
+      });
+      if (ev) {
+        const its = await db
+          .select()
+          .from(tVoucherItems)
+          .where(and(eq(tVoucherItems.voucherId, editId), isNull(tVoucherItems.deletedOn)));
+        initialEditVoucher = {
+          voucherId: ev.voucherId,
+          voucherNo: ev.voucherNo,
+          voucherDate: ev.voucherDate ? new Date(ev.voucherDate) : null,
+          partyId: ev.partyId,
+          totalAmount: ev.totalAmount,
+          netAmount: ev.netAmount,
+          remarks: ev.remarks,
+          parentVoucherId: ev.parentVoucherId,
+          tdsSection: ev.tdsSection,
+          tdsRate: ev.tdsRate,
+          tdsAmount: ev.tdsAmount,
+          lineItems: its.map((item) => ({
+            id: String(item.voucherItemId),
+            ledgerId: item.ledgerId ? String(item.ledgerId) : "",
+            hsnCode: item.hsnCode || "",
+            taxableAmount: String(item.taxableAmount || "0"),
+            gstRateId: item.gstRateId ? String(item.gstRateId) : "",
+          })),
+        };
+      }
+    }
+  }
+
   return (
     <CreditNoteClient
       initialNotes={notes.map(n => ({
@@ -142,6 +189,7 @@ export default async function CreditNotePage() {
       canUpdate={p?.u ?? false}
       canDelete={p?.d ?? false}
       customTdsSections={customTdsSections}
+      initialEditVoucher={initialEditVoucher}
     />
   );
 }

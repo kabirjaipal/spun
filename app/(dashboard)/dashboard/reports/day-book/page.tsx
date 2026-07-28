@@ -9,7 +9,7 @@ import {
   mLedgers,
   mInventory,
 } from "@/lib/db/schema";
-import { and, eq, isNull, gte, lte, inArray, desc, sql } from "drizzle-orm";
+import { and, eq, isNull, gte, lte, inArray, desc, sql, notInArray } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
 import DayBookClient from "./DayBookClient";
 
@@ -65,6 +65,7 @@ export default async function DayBookPage({
       and(
         eq(tVouchers.companyId, companyId),
         isNull(tVouchers.deletedOn),
+        notInArray(tVouchers.voucherType, ["purchase_order", "sales_order"]),
         eq(tVouchers.voucherDate, selectedDate)
       )
     )

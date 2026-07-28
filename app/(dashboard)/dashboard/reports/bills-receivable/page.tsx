@@ -103,13 +103,15 @@ export default async function BillsReceivablePage({
         )
       );
 
-    // 5. Fetch receipt adjustments
+    // 5. Fetch receipt adjustments for all involved parties
     adjustments = await db
       .select({
         voucherId: tVouchers.voucherId,
         voucherType: tVouchers.voucherType,
         billDetails: tVouchers.billDetails,
         remarks: tVouchers.remarks,
+        partyId: tVouchers.partyId,
+        netAmount: tVouchers.netAmount,
       })
       .from(tVouchers)
       .where(
@@ -117,45 +119,78 @@ export default async function BillsReceivablePage({
           eq(tVouchers.companyId, companyId),
           inArray(tVouchers.voucherType, ["receipt", "credit_note", "sales_return"]),
           isNull(tVouchers.deletedOn),
-          eq(tVouchers.partyId, partyIds[0]) // Filter to reduce matching
+          inArray(tVouchers.partyId, partyIds)
         )
       );
   }
 
-  // Fallback adjustment query for all company payments if multiple parties are involved
-  if (partyIds.length > 1) {
-    adjustments = await db
-      .select({
-        voucherId: tVouchers.voucherId,
-        voucherType: tVouchers.voucherType,
-        billDetails: tVouchers.billDetails,
-        remarks: tVouchers.remarks,
-      })
-      .from(tVouchers)
-      .where(
-        and(
-          eq(tVouchers.companyId, companyId),
-          inArray(tVouchers.voucherType, ["receipt", "credit_note", "sales_return"]),
-          isNull(tVouchers.deletedOn)
-        )
-      );
-  }
-
-  // 6. Aggregate adjustments receipts per invoice
+  // 6. Aggregate adjustments receipts per invoice and unallocated pool
   const paidAmounts: Record<number, number> = {};
+  const partyUnallocatedAmounts: Record<number, number> = {};
+
   adjustments.forEach((adj) => {
     if (adj.remarks?.includes("[RETURN CHEQUE REVERSAL]")) {
       return;
     }
+    const partyId = adj.partyId ? Number(adj.partyId) : 0;
+    if (!partyId) return;
+
+    let allocatedSum = 0;
     if (adj.billDetails && Array.isArray(adj.billDetails)) {
       adj.billDetails.forEach((item: any) => {
         if (item && typeof item === "object" && "voucherId" in item) {
           const vId = Number(item.voucherId);
           const amt = Number(item.amount) || 0;
           paidAmounts[vId] = (paidAmounts[vId] || 0) + amt;
+          allocatedSum += amt;
         }
       });
     }
+    const netAmt = Number(adj.netAmount) || 0;
+    const unallocated = Math.max(0, netAmt - allocatedSum);
+    if (unallocated > 0) {
+      partyUnallocatedAmounts[partyId] = (partyUnallocatedAmounts[partyId] || 0) + unallocated;
+    }
+  });
+
+  // Group invoices by partyId
+  const invoicesByParty: Record<number, typeof invoices> = {};
+  invoices.forEach((inv) => {
+    const partyId = inv.partyId ? Number(inv.partyId) : 0;
+    if (!partyId) return;
+    if (!invoicesByParty[partyId]) {
+      invoicesByParty[partyId] = [];
+    }
+    invoicesByParty[partyId].push(inv);
+  });
+
+  // For each party, allocate unallocated amounts to invoices FIFO
+  const billPendingAmounts: Record<number, number> = {};
+  const billPaidAmounts: Record<number, number> = {};
+
+  Object.keys(invoicesByParty).forEach((partyIdStr) => {
+    const pId = Number(partyIdStr);
+    const partyInvoices = invoicesByParty[pId];
+    partyInvoices.sort((a, b) => new Date(a.voucherDate).getTime() - new Date(b.voucherDate).getTime());
+
+    let unallocatedPool = partyUnallocatedAmounts[pId] || 0;
+
+    partyInvoices.forEach((inv) => {
+      const netAmount = Number(inv.netAmount) || 0;
+      const specificPaid = paidAmounts[inv.voucherId] || 0;
+      let pending = Math.max(0, netAmount - specificPaid);
+      let extraPaid = 0;
+
+      if (unallocatedPool > 0 && pending > 0) {
+         const allocation = Math.min(pending, unallocatedPool);
+         pending -= allocation;
+         unallocatedPool -= allocation;
+         extraPaid = allocation;
+      }
+
+      billPendingAmounts[inv.voucherId] = pending;
+      billPaidAmounts[inv.voucherId] = specificPaid + extraPaid;
+    });
   });
 
   // 7. Calculate outstanding balances and due dates
@@ -165,8 +200,8 @@ export default async function BillsReceivablePage({
       const ledger = ledgers.find((l) => l.referenceId === inv.partyId);
 
       const netAmount = Number(inv.netAmount) || 0;
-      const paidAmount = paidAmounts[inv.voucherId] || 0;
-      const pendingAmount = netAmount - paidAmount;
+      const pendingAmount = billPendingAmounts[inv.voucherId] !== undefined ? billPendingAmounts[inv.voucherId] : netAmount;
+      const paidAmount = billPaidAmounts[inv.voucherId] !== undefined ? billPaidAmounts[inv.voucherId] : 0;
       const creditDays = ledger?.creditDays ?? party?.dueDay ?? 10;
 
       // Due Date

@@ -2,6 +2,7 @@
 import { getLocalTodayString } from "@/lib/utils";
 
 import { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
@@ -89,6 +90,7 @@ export default function CreditNoteClient({
   canUpdate,
   canDelete,
   customTdsSections,
+  initialEditVoucher,
 }: {
   initialNotes: CreditNoteItem[];
   company: { companyName: string; gstNo?: string | null; address?: string | null; state?: string | null };
@@ -100,7 +102,9 @@ export default function CreditNoteClient({
   canUpdate?: boolean;
   canDelete?: boolean;
   customTdsSections?: string[];
+  initialEditVoucher?: any;
 }) {
+  const router = useRouter();
   const [notes, setNotes] = useState<CreditNoteItem[]>(initialNotes);
   const [isCreating, setIsCreating] = useState(false);
   const [editingNote, setEditingNote] = useState<CreditNoteItem | null>(null);
@@ -126,6 +130,9 @@ export default function CreditNoteClient({
     setTdsRate("0");
     setLineItems([EMPTY_LINE()]);
     fetchNextVoucherNo();
+    if (editingNote || initialEditVoucher) {
+      router.push("/dashboard/credit-note");
+    }
   };
 
   const handleEdit = (note: CreditNoteItem) => {
@@ -185,6 +192,7 @@ export default function CreditNoteClient({
   const [invoices, setInvoices] = useState<InvoiceOption[]>([]);
   const [tdsSection, setTdsSection] = useState("None");
   const [tdsRate, setTdsRate] = useState("0");
+  const [outstandingBills, setOutstandingBills] = useState<any[]>([]);
 
   const fetchNextVoucherNo = async () => {
     try {
@@ -194,7 +202,7 @@ export default function CreditNoteClient({
         if (data.nextVoucherNo) setVoucherNo(data.nextVoucherNo);
       }
     } catch (err) {
-      console.error("Error fetching next credit note number:", err);
+      console.error("Error fetching next credit note voucher number:", err);
     }
   };
 
@@ -202,7 +210,11 @@ export default function CreditNoteClient({
     fetchNextVoucherNo();
   }, []);
 
-
+  useEffect(() => {
+    if (initialEditVoucher) {
+      handleEdit(initialEditVoucher);
+    }
+  }, [initialEditVoucher]);
 
   const handleTdsSectionChange = (section: string) => {
     setTdsSection(section);

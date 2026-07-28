@@ -10,7 +10,7 @@ import {
   tVoucherEntries,
   tStockMovements,
 } from "@/lib/db/schema";
-import { eq, sql, isNull, and, gte, lte, or, inArray } from "drizzle-orm";
+import { eq, sql, isNull, and, gte, lte, or, inArray, notInArray } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import DashboardClient from "./DashboardClient";
 
@@ -118,6 +118,7 @@ export default async function DashboardPage({
       and(
         eq(tVouchers.companyId, companyIdVal),
         isNull(tVouchers.deletedOn),
+        notInArray(tVouchers.voucherType, ["purchase_order", "sales_order"]),
         lte(tVouchers.voucherDate, toDate)
       )
     );

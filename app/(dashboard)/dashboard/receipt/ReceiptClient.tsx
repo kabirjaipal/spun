@@ -2,6 +2,7 @@
 import { getLocalTodayString } from "@/lib/utils";
 
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
@@ -80,6 +81,7 @@ export default function ReceiptClient({
   canCreate,
   canUpdate,
   canDelete,
+  initialEditVoucher,
 }: {
   initialReceipts: ReceiptItem[];
   parties: PartyOption[];
@@ -87,7 +89,9 @@ export default function ReceiptClient({
   canCreate: boolean;
   canUpdate?: boolean;
   canDelete?: boolean;
+  initialEditVoucher?: any;
 }) {
+  const router = useRouter();
   const [receipts, setReceipts] = useState<ReceiptItem[]>(initialReceipts);
   const [isCreating, setIsCreating] = useState(false);
   const [editingReceipt, setEditingReceipt] = useState<ReceiptItem | null>(null);
@@ -118,6 +122,9 @@ export default function ReceiptClient({
     setOutstandingBills([]);
     setBillAdjustments({});
     fetchNextVoucherNo();
+    if (editingReceipt || initialEditVoucher) {
+      router.push("/dashboard/receipt");
+    }
   };
 
   const handleEdit = (receipt: ReceiptItem) => {
@@ -161,6 +168,12 @@ export default function ReceiptClient({
   useEffect(() => {
     fetchNextVoucherNo();
   }, []);
+
+  useEffect(() => {
+    if (initialEditVoucher) {
+      handleEdit(initialEditVoucher);
+    }
+  }, [initialEditVoucher]);
 
   useEffect(() => {
     if (!selectedParty) {

@@ -87,6 +87,8 @@ export default function PurchaseClient({
   taxRates,
   brokersHaste,
   canCreate,
+  editVoucher,
+  editVoucherItems,
 }: {
   company: {
     companyName: string;
@@ -100,6 +102,8 @@ export default function PurchaseClient({
   taxRates: TaxRateOption[];
   brokersHaste: BrokerHasteOption[];
   canCreate: boolean;
+  editVoucher?: any;
+  editVoucherItems?: any[];
 }) {
   const router = useRouter();
 
@@ -176,7 +180,20 @@ export default function PurchaseClient({
   const [vehicleNo, setVehicleNo] = useState("");
   const [personName, setPersonName] = useState("");
 
-  const [lineItems, setLineItems] = useState<LineItem[]>([EMPTY_LINE()]);
+  const [lineItems, setLineItems] = useState<LineItem[]>(() => {
+    if (editVoucherItems && editVoucherItems.length > 0) {
+      return editVoucherItems;
+    }
+    return [EMPTY_LINE()];
+  });
+
+  useEffect(() => {
+    if (editVoucherItems && editVoucherItems.length > 0) {
+      setLineItems(editVoucherItems);
+    } else {
+      setLineItems([EMPTY_LINE()]);
+    }
+  }, [editVoucherItems]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [printVoucher, setPrintVoucher] = useState<any>(null);
@@ -277,8 +294,48 @@ export default function PurchaseClient({
   };
 
   useEffect(() => {
-    fetchNextVoucherNo();
-  }, []);
+    if (editVoucher) {
+      setSelectedCompany(String(editVoucher.partyId || ""));
+      setVoucherNo(editVoucher.voucherNo || "");
+      setVoucherDate(editVoucher.voucherDate ? editVoucher.voucherDate.substring(0, 10) : getLocalTodayString());
+      setInvoiceNo(editVoucher.invoiceNo || "");
+      setInvoiceDate(editVoucher.invoiceDate ? editVoucher.invoiceDate.substring(0, 10) : getLocalTodayString());
+      setBroker(editVoucher.broker || "");
+      setHaste(editVoucher.haste || "");
+      setLrNo(editVoucher.lrNo || "");
+      setLrDate(editVoucher.lrDate ? editVoucher.lrDate.substring(0, 10) : getLocalTodayString());
+      setTransport(editVoucher.transport || "");
+      setRemarks(editVoucher.remarks || "");
+      setVehicleNo(editVoucher.vehicleNo || "");
+      setPersonName(editVoucher.personName || "");
+
+      setGoodsName(editVoucher.goodsName || "");
+      setDiscountType(editVoucher.discountType || "percentage");
+      setDiscountValue(editVoucher.discountValue !== undefined && editVoucher.discountValue !== null ? String(editVoucher.discountValue) : "");
+      setDiscountType2(editVoucher.discountType2 || "percentage");
+      setDiscountValue2(editVoucher.discountValue2 !== undefined && editVoucher.discountValue2 !== null ? String(editVoucher.discountValue2) : "");
+
+      if (editVoucher.extraChargesData) {
+        const parsed = typeof editVoucher.extraChargesData === "string"
+          ? JSON.parse(editVoucher.extraChargesData)
+          : editVoucher.extraChargesData;
+        setExtraCharges(parsed || []);
+      }
+    } else {
+      fetchNextVoucherNo();
+      setRemarks("");
+      setBroker("");
+      setHaste("");
+      setLrNo("");
+      setLrDate(getLocalTodayString());
+      setIsInvoiceDateCustom(false);
+      setIsLrDateCustom(false);
+      setTransport("");
+      setDiscountValue("");
+      setDiscountValue2("");
+      setExtraCharges([]);
+    }
+  }, [editVoucher]);
 
   // Piece meters modal state
   const [activePieceLineId, setActivePieceLineId] = useState<string | null>(
@@ -619,6 +676,7 @@ export default function PurchaseClient({
             pieceMeters: line.pieceMeters,
           };
         }),
+        ...(editVoucher ? { voucherId: editVoucher.voucherId } : {}),
       };
 
       const response = await fetch("/api/vouchers", {
@@ -632,7 +690,7 @@ export default function PurchaseClient({
         throw new Error(json.error || "Failed to save purchase voucher.");
       }
 
-      setMessage("Purchase voucher created successfully.");
+      setMessage(editVoucher ? "Purchase voucher updated successfully." : "Purchase voucher created successfully.");
       fetchNextVoucherNo();
       setInvoiceNo("");
       setGoodsName("");
@@ -640,7 +698,7 @@ export default function PurchaseClient({
       setBroker("");
       setHaste("");
       setLrNo("");
-       setLrDate("");
+      setLrDate("");
       setIsInvoiceDateCustom(false);
       setIsLrDateCustom(false);
       setTransport("");
@@ -648,6 +706,10 @@ export default function PurchaseClient({
       setDiscountValue2("");
       setExtraCharges([]);
       setLineItems([EMPTY_LINE()]);
+
+      if (editVoucher) {
+        router.push("/dashboard/purchase");
+      }
 
       // Print preview setup
       const subCompany = localCompanies.find(
