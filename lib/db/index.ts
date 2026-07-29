@@ -17,9 +17,10 @@ let db: ReturnType<typeof drizzle<typeof schema>>;
 if (process.env.NODE_ENV === "production") {
   pool = new Pool({
     connectionString,
-    max: 20,
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 15000,
+    max: 10,
+    idleTimeoutMillis: 10000,
+    connectionTimeoutMillis: 5000,
+    allowExitOnIdle: true,
   });
   db = drizzle(pool, { schema });
 } else {
