@@ -114,127 +114,304 @@ function BalanceSheetContent({
   // LIVE DATA ROLLUP CALCULATION
   // -------------------------------------------------------------
   const getLiveReportData = () => {
-    const getSubGroup = (groupId: number | null, ledgerType: string): string => {
-      if (ledgerType === "capital") return "Capital Account";
-      if (ledgerType === "loan") return "Loans (Liability)";
-      if (ledgerType === "tax") return "Duties & Taxes";
-      if (ledgerType === "cash") return "Cash-in-hand";
-      if (ledgerType === "bank") return "Bank Accounts";
-      if (ledgerType === "customer") return "Sundry Debtors";
-      if (ledgerType === "company") return "Sundry Creditors";
-
-      if (groupId) {
-        const gp = groups.find((g) => g.groupId === groupId);
-        if (gp) {
-          const name = gp.groupName.toLowerCase();
-          if (name.includes("bank")) return "Bank Accounts";
-          if (name.includes("cash")) return "Cash-in-hand";
-          if (name.includes("debtor")) return "Sundry Debtors";
-          if (name.includes("creditor")) return "Sundry Creditors";
-          if (name.includes("secured") || name.includes("unsecured") || name.includes("loan")) {
-            if (name.includes("secured") && !name.includes("unsecured")) return "Secured Loans";
-            if (name.includes("unsecured")) return "Unsecured Loans";
-            return "Loans (Liability)";
-          }
-          if (name.includes("tax") || name.includes("duties")) return "Duties & Taxes";
-          if (name.includes("provision")) return "Provisions";
-          if (name.includes("fixed asset")) return "Fixed Assets";
-          if (name.includes("investment")) return "Investments";
-          if (name.includes("capital")) return "Capital Account";
-          return gp.groupName;
-        }
+    // GroupNames helper
+    const getGroupNames = (gId: number | null): string[] => {
+      if (!gId) return [];
+      const names: string[] = [];
+      let cur = gId;
+      for (let i = 0; i < 10; i++) {
+        const g = groups.find((x) => x.groupId === cur);
+        if (!g) break;
+        names.push(g.groupName.toLowerCase());
+        if (!g.parentGroupId) break;
+        cur = g.parentGroupId;
       }
-      return "Current Assets";
+      return names;
     };
 
-    const isLiabilityGroup = (sub: string): boolean => {
-      const lower = sub.toLowerCase();
-      return (
-        lower.includes("capital") ||
-        lower.includes("loan") ||
-        lower.includes("creditor") ||
-        lower.includes("tax") ||
-        lower.includes("duties") ||
-        lower.includes("provision") ||
-        lower.includes("liability")
-      );
+    // PL classification helper (must match ProfitLossClient)
+    const getPLCategory = (l: Ledger) => {
+      const name = l.ledgerName.toLowerCase();
+      const type = l.ledgerType.toLowerCase();
+      const gNames = getGroupNames(l.groupId || null);
+      const hasGroup = (str: string) => gNames.some((gn) => gn.includes(str));
+
+      if (type === "sales_return" || name.includes("sales return") || name.includes("sales_return") || hasGroup("sales return") || hasGroup("sales_return")) {
+        return "sales_return";
+      }
+      if (type === "purchase_return" || name.includes("purchase return") || name.includes("purchase_return") || hasGroup("purchase return") || hasGroup("purchase_return")) {
+        return "purchase_return";
+      }
+      if (type === "sales" || name.includes("sales account") || hasGroup("sales account") || gNames.some((gn) => gn === "sales")) {
+        return "sales";
+      }
+      if (type === "purchase" || name.includes("purchase account") || hasGroup("purchase account") || gNames.some((gn) => gn === "purchase")) {
+        return "purchase";
+      }
+      if (gNames.some((gn) => gn.includes("direct expense")) || (type === "expense" && (hasGroup("direct") || hasGroup("trading") || hasGroup("manufacturing")))) {
+        return "direct_expense";
+      }
+      if (gNames.some((gn) => gn.includes("indirect expense")) || type === "expense" || type === "general") {
+        return "indirect_expense";
+      }
+      if (gNames.some((gn) => gn.includes("direct income")) || (type === "income" && (hasGroup("direct") || hasGroup("trading") || hasGroup("revenue")))) {
+        return "direct_income";
+      }
+      if (gNames.some((gn) => gn.includes("indirect income")) || type === "income") {
+        return "indirect_income";
+      }
+      return null;
     };
 
-    const liabilitiesGroups: Record<string, { name: string; amount: number; ledgerId?: number }[]> = {};
-    const assetsGroups: Record<string, { name: string; amount: number; ledgerId?: number }[]> = {};
-
-    let salesTotal = 0;
-    let purchaseTotal = 0;
-    let expensesTotal = 0;
-    let incomeTotal = 0;
+    // Calculate net profit exactly like P&L
+    let salesGrossTotal = 0;
+    let salesReturnTotal = 0;
+    let purchaseGrossTotal = 0;
+    let purchaseReturnTotal = 0;
+    let directExpTotal = 0;
+    let directIncTotal = 0;
+    let indirectExpTotal = 0;
+    let indirectIncTotal = 0;
 
     ledgers.forEach((l) => {
-      const bal = Number(l.debit) - Number(l.credit);
+      const plCat = getPLCategory(l);
+      if (!plCat) return;
 
-      const isPL =
-        l.ledgerType === "sales" ||
-        l.ledgerType === "purchase" ||
-        l.ledgerType === "expense" ||
-        l.ledgerType === "income" ||
-        (l.groupId &&
-          groups
-            .find((g) => g.groupId === l.groupId)
-            ?.groupName.toLowerCase()
-            .match(/(sales|purchase|expense|income|profit|loss)/));
-
-      if (isPL) {
-        if (l.ledgerType === "sales" || l.ledgerType === "income") {
-          salesTotal += -bal;
-        } else {
-          purchaseTotal += bal;
-        }
-        return;
-      }
-
-      const sub = getSubGroup(l.groupId || null, l.ledgerType);
-      const name = l.ledgerName;
-
-      // Skip stock ledger balances (opening stock) in assets list, as closing stock is added separately
-      if (sub.toLowerCase().includes("stock")) {
-        return;
-      }
-
-      if (isLiabilityGroup(sub)) {
-        if (!liabilitiesGroups[sub]) liabilitiesGroups[sub] = [];
-        liabilitiesGroups[sub].push({ name, amount: -bal, ledgerId: l.ledgerId });
-      } else {
-        if (!assetsGroups[sub]) assetsGroups[sub] = [];
-        assetsGroups[sub].push({ name, amount: bal, ledgerId: l.ledgerId });
+      if (plCat === "sales") {
+        salesGrossTotal += l.credit - l.debit;
+      } else if (plCat === "sales_return") {
+        salesReturnTotal += l.debit - l.credit;
+      } else if (plCat === "purchase") {
+        purchaseGrossTotal += l.debit - l.credit;
+      } else if (plCat === "purchase_return") {
+        purchaseReturnTotal += l.credit - l.debit;
+      } else if (plCat === "direct_expense") {
+        directExpTotal += l.debit - l.credit;
+      } else if (plCat === "direct_income") {
+        directIncTotal += l.credit - l.debit;
+      } else if (plCat === "indirect_expense") {
+        indirectExpTotal += l.debit - l.credit;
+      } else if (plCat === "indirect_income") {
+        indirectIncTotal += l.credit - l.debit;
       }
     });
 
-    if (calculatedClosingStock > 0) {
-      assetsGroups["Stock-in-hand"] = [{ name: "Closing Stock", amount: calculatedClosingStock }];
+    const netSalesTotal = salesGrossTotal - salesReturnTotal;
+    const netPurchaseTotal = purchaseGrossTotal - purchaseReturnTotal;
+
+    const drSide1 = calculatedOpeningStock + netPurchaseTotal + directExpTotal;
+    const crSide1 = netSalesTotal + directIncTotal + calculatedClosingStock;
+    const grossProfit = crSide1 - drSide1;
+
+    const grossLossBF = grossProfit < 0 ? Math.abs(grossProfit) : 0;
+    const grossProfitBF = grossProfit > 0 ? grossProfit : 0;
+
+    const drSide2 = grossLossBF + indirectExpTotal;
+    const crSide2 = grossProfitBF + indirectIncTotal;
+    const netProfitVal = crSide2 - drSide2;
+
+    // Classify non-PL ledgers
+    const liabilitiesMap: Record<string, { name: string; amount: number; ledgerId?: number }[]> = {
+      "Capital Account": [],
+      "Secured Loans": [],
+      "Unsecured Loans": [],
+      "Provisions": [],
+      "Preliminery Expenses": [],
+      "Sundry Creditors": [],
+      "Suspense Ac": [],
+      "Bad Debts": [],
+    };
+
+    const assetsMap: Record<string, { name: string; amount: number; ledgerId?: number }[]> = {
+      "Fixed Assets": [],
+      "Deposit Assets": [],
+      "Investments": [],
+      "Loan (Assets)": [],
+      "Cash & Bank Ac": [],
+      "Sundry Debtors": [],
+    };
+
+    ledgers.forEach((l) => {
+      const plCat = getPLCategory(l);
+      if (plCat) return; // Skip PL
+
+      const name = l.ledgerName;
+      const type = l.ledgerType.toLowerCase();
+      const gNames = getGroupNames(l.groupId || null);
+
+      let bsGroup: string | null = null;
+
+      if (gNames.some((gn) => gn.includes("bad debt")) || name.toLowerCase().includes("bad debt")) {
+        bsGroup = "Bad Debts";
+      } else if (gNames.some((gn) => gn.includes("capital")) || type === "capital") {
+        bsGroup = "Capital Account";
+      } else if (gNames.some((gn) => gn.includes("secured loan")) && !gNames.some((gn) => gn.includes("unsecured"))) {
+        bsGroup = "Secured Loans";
+      } else if (gNames.some((gn) => gn.includes("unsecured loan"))) {
+        bsGroup = "Unsecured Loans";
+      } else if (gNames.some((gn) => gn.includes("provision")) || gNames.some((gn) => gn.includes("tax")) || gNames.some((gn) => gn.includes("duties")) || type === "tax") {
+        bsGroup = "Provisions";
+      } else if (gNames.some((gn) => gn.includes("preliminary")) || gNames.some((gn) => gn.includes("preliminery")) || name.toLowerCase().includes("preliminary") || name.toLowerCase().includes("preliminery")) {
+        bsGroup = "Preliminery Expenses";
+      } else if (gNames.some((gn) => gn.includes("creditor")) || type === "company") {
+        bsGroup = "Sundry Creditors";
+      } else if (gNames.some((gn) => gn.includes("suspense"))) {
+        bsGroup = "Suspense Ac";
+      } else if (gNames.some((gn) => gn.includes("fixed asset"))) {
+        bsGroup = "Fixed Assets";
+      } else if (gNames.some((gn) => gn.includes("deposit"))) {
+        bsGroup = "Deposit Assets";
+      } else if (gNames.some((gn) => gn.includes("investment"))) {
+        bsGroup = "Investments";
+      } else if (gNames.some((gn) => gn.includes("loan (asset)")) || gNames.some((gn) => gn.includes("loan(asset)")) || gNames.some((gn) => gn.includes("loans (asset)")) || type === "loan_asset") {
+        bsGroup = "Loan (Assets)";
+      } else if (gNames.some((gn) => gn.includes("cash")) || gNames.some((gn) => gn.includes("bank")) || type === "cash" || type === "bank") {
+        bsGroup = "Cash & Bank Ac";
+      } else if (gNames.some((gn) => gn.includes("debtor")) || type === "customer") {
+        bsGroup = "Sundry Debtors";
+      } else {
+        // Fallback based on net balance
+        const net = l.debit - l.credit;
+        if (net < 0) {
+          bsGroup = "Suspense Ac";
+        } else {
+          bsGroup = "Deposit Assets";
+        }
+      }
+
+      if (bsGroup in liabilitiesMap) {
+        if (bsGroup === "Preliminery Expenses" || bsGroup === "Bad Debts") {
+          liabilitiesMap[bsGroup].push({ name, amount: l.debit - l.credit, ledgerId: l.ledgerId });
+        } else {
+          liabilitiesMap[bsGroup].push({ name, amount: l.credit - l.debit, ledgerId: l.ledgerId });
+        }
+      } else if (bsGroup in assetsMap) {
+        assetsMap[bsGroup].push({ name, amount: l.debit - l.credit, ledgerId: l.ledgerId });
+      }
+    });
+
+    // Compute initial sums (excluding Suspense Ac and Net Profit/Loss)
+    const initialAssetsTotal =
+      assetsMap["Fixed Assets"].reduce((s, i) => s + i.amount, 0) +
+      assetsMap["Deposit Assets"].reduce((s, i) => s + i.amount, 0) +
+      assetsMap["Investments"].reduce((s, i) => s + i.amount, 0) +
+      assetsMap["Loan (Assets)"].reduce((s, i) => s + i.amount, 0) +
+      assetsMap["Cash & Bank Ac"].reduce((s, i) => s + i.amount, 0) +
+      calculatedClosingStock +
+      assetsMap["Sundry Debtors"].reduce((s, i) => s + i.amount, 0) +
+      (netProfitVal > 0 ? netProfitVal : 0);
+
+    const initialLiabilitiesTotal =
+      liabilitiesMap["Capital Account"].reduce((s, i) => s + i.amount, 0) +
+      liabilitiesMap["Secured Loans"].reduce((s, i) => s + i.amount, 0) +
+      liabilitiesMap["Unsecured Loans"].reduce((s, i) => s + i.amount, 0) +
+      liabilitiesMap["Provisions"].reduce((s, i) => s + i.amount, 0) +
+      liabilitiesMap["Preliminery Expenses"].reduce((s, i) => s + i.amount, 0) +
+      liabilitiesMap["Sundry Creditors"].reduce((s, i) => s + i.amount, 0) +
+      liabilitiesMap["Bad Debts"].reduce((s, i) => s + i.amount, 0) +
+      (netProfitVal < 0 ? Math.abs(netProfitVal) : 0);
+
+    // Calculate suspense difference to make it balance perfectly
+    const existingSuspense = liabilitiesMap["Suspense Ac"].reduce((s, i) => s + i.amount, 0);
+    const suspenseDifference = initialAssetsTotal - (initialLiabilitiesTotal + existingSuspense);
+
+    if (Math.abs(suspenseDifference) > 0.009) {
+      liabilitiesMap["Suspense Ac"].push({
+        name: "Difference in Opening Balances",
+        amount: suspenseDifference,
+      });
     }
 
-    const netProfitVal = salesTotal + calculatedClosingStock - calculatedOpeningStock - purchaseTotal - expensesTotal + incomeTotal;
+    const liabilitiesList = [
+      {
+        name: "Capital Account",
+        amount: liabilitiesMap["Capital Account"].reduce((s, i) => s + i.amount, 0),
+        ledgers: liabilitiesMap["Capital Account"],
+      },
+      {
+        name: "Secured Loans",
+        amount: liabilitiesMap["Secured Loans"].reduce((s, i) => s + i.amount, 0),
+        ledgers: liabilitiesMap["Secured Loans"],
+      },
+      {
+        name: "Unsecured Loans",
+        amount: liabilitiesMap["Unsecured Loans"].reduce((s, i) => s + i.amount, 0),
+        ledgers: liabilitiesMap["Unsecured Loans"],
+      },
+      {
+        name: "Provisions",
+        amount: liabilitiesMap["Provisions"].reduce((s, i) => s + i.amount, 0),
+        ledgers: liabilitiesMap["Provisions"],
+      },
+      {
+        name: "Preliminery Expenses",
+        amount: liabilitiesMap["Preliminery Expenses"].reduce((s, i) => s + i.amount, 0),
+        ledgers: liabilitiesMap["Preliminery Expenses"],
+      },
+      {
+        name: "Sundry Creditors",
+        amount: liabilitiesMap["Sundry Creditors"].reduce((s, i) => s + i.amount, 0),
+        ledgers: liabilitiesMap["Sundry Creditors"],
+      },
+      {
+        name: "Suspense Ac",
+        amount: liabilitiesMap["Suspense Ac"].reduce((s, i) => s + i.amount, 0),
+        ledgers: liabilitiesMap["Suspense Ac"],
+      },
+      {
+        name: "Bad Debts",
+        amount: liabilitiesMap["Bad Debts"].reduce((s, i) => s + i.amount, 0),
+        ledgers: liabilitiesMap["Bad Debts"],
+      },
+    ];
 
-    const liabilitiesList = Object.entries(liabilitiesGroups).map(([name, items]) => ({
-      name,
-      amount: items.reduce((s, i) => s + i.amount, 0),
-      ledgers: items,
-    }));
-
-    const assetsList = Object.entries(assetsGroups).map(([name, items]) => ({
-      name,
-      amount: items.reduce((s, i) => s + i.amount, 0),
-      ledgers: items,
-    }));
+    const assetsList = [
+      {
+        name: "Fixed Assets",
+        amount: assetsMap["Fixed Assets"].reduce((s, i) => s + i.amount, 0),
+        ledgers: assetsMap["Fixed Assets"],
+      },
+      {
+        name: "Deposit Assets",
+        amount: assetsMap["Deposit Assets"].reduce((s, i) => s + i.amount, 0),
+        ledgers: assetsMap["Deposit Assets"],
+      },
+      {
+        name: "Investments",
+        amount: assetsMap["Investments"].reduce((s, i) => s + i.amount, 0),
+        ledgers: assetsMap["Investments"],
+      },
+      {
+        name: "Loan (Assets)",
+        amount: assetsMap["Loan (Assets)"].reduce((s, i) => s + i.amount, 0),
+        ledgers: assetsMap["Loan (Assets)"],
+      },
+      {
+        name: "Cash & Bank Ac",
+        amount: assetsMap["Cash & Bank Ac"].reduce((s, i) => s + i.amount, 0),
+        ledgers: assetsMap["Cash & Bank Ac"],
+      },
+      {
+        name: "Closing Stock",
+        amount: calculatedClosingStock,
+        ledgers: calculatedClosingStock > 0 ? [{ name: "Stock-in-hand", amount: calculatedClosingStock }] : [],
+      },
+      {
+        name: "Sundry Debtors",
+        amount: assetsMap["Sundry Debtors"].reduce((s, i) => s + i.amount, 0),
+        ledgers: assetsMap["Sundry Debtors"],
+      },
+    ];
 
     if (netProfitVal >= 0) {
-      liabilitiesList.push({
-        name: "Profit & Loss A/c",
+      assetsList.push({
+        name: "Net Profit",
         amount: netProfitVal,
         ledgers: [{ name: "Current Period Profit", amount: netProfitVal }],
       });
     } else {
-      assetsList.push({
-        name: "Profit & Loss A/c",
+      liabilitiesList.push({
+        name: "Net Loss",
         amount: Math.abs(netProfitVal),
         ledgers: [{ name: "Current Period Loss", amount: Math.abs(netProfitVal) }],
       });
