@@ -11,6 +11,7 @@ import {
   tStockMovements,
   tVoucherItems,
   mVoucherSequences,
+  mLedgerGroups,
 } from "@/lib/db/schema";
 import { and, eq, isNull, desc, inArray, or } from "drizzle-orm";
 import { NextResponse } from "next/server";
@@ -515,6 +516,38 @@ export async function POST(request: Request) {
         return ledger;
       };
 
+      const getOrCreateLedger = async (ledgerName: string, groupName: string, ledgerType: string) => {
+        let ledger = await tx.query.mLedgers.findFirst({
+          where: and(
+            eq(mLedgers.companyId, companyId),
+            eq(mLedgers.ledgerName, ledgerName),
+            isNull(mLedgers.deletedOn),
+          ),
+        });
+        if (!ledger) {
+          const group = await tx.query.mLedgerGroups.findFirst({
+            where: and(
+              eq(mLedgerGroups.companyId, companyId),
+              eq(mLedgerGroups.groupName, groupName),
+              isNull(mLedgerGroups.deletedOn),
+            ),
+          });
+          const [newL] = await tx
+            .insert(mLedgers)
+            .values({
+              companyId,
+              ledgerName,
+              ledgerType,
+              groupId: group ? group.groupId : null,
+              createdBy: userId,
+              updatedBy: userId,
+            })
+            .returning();
+          ledger = newL;
+        }
+        return ledger;
+      };
+
       // Insert Entries and Stock Movements
       if (
         voucherType === "sale" ||
@@ -533,12 +566,17 @@ export async function POST(request: Request) {
         });
         if (!partyLedger) throw new Error("Party ledger not found");
 
+        const partyEntryType =
+          voucherType === "sale"
+            ? "debit"
+            : voucherType === "sales_return"
+            ? "credit"
+            : "debit"; // credit_note
+
         await tx.insert(tVoucherEntries).values({
           voucherId: voucherIdNum,
           ledgerId: Number(partyLedger.ledgerId),
-          entryType: (voucherType === "sale" || voucherType === "sales_return")
-            ? (voucherType === "sale" ? "debit" : "credit")
-            : (voucherType === "credit_note" ? "credit" : "debit"),
+          entryType: partyEntryType,
           amount: String(computedNet),
           createdBy: userId,
           updatedBy: userId,
@@ -575,30 +613,45 @@ export async function POST(request: Request) {
             updatedBy: userId,
           });
 
-          // Credit / Debit Revenue Account — only if ledgerId explicitly provided
-          const lineLedgerId = Number(line.ledgerId) || 0;
-          if (lineLedgerId) {
-            let amountToPost = line.taxableAmount;
-            if (isCapitalized) {
-              if (idx === processedLines.length - 1) {
-                amountToPost = Math.round((computedNet - allocatedSum) * 100) / 100;
-              } else {
-                amountToPost = totalLineNets > 0
-                  ? Math.round((Number(line.lineNet || 0) / totalLineNets) * computedNet * 100) / 100
-                  : Math.round((computedNet / processedLines.length) * 100) / 100;
-                allocatedSum += amountToPost;
-              }
+          // Credit / Debit Revenue Account
+          let lineLedgerId = Number(line.ledgerId) || 0;
+          if (!lineLedgerId) {
+            let defaultLedger;
+            if (voucherType === "sale") {
+              defaultLedger = await getOrCreateLedger("Sales A/c", "Sales Account", "sales");
+            } else { // credit_note or sales_return
+              defaultLedger = await getOrCreateLedger("Sales Return A/c", "Sales Return", "sales_return");
             }
-
-            await tx.insert(tVoucherEntries).values({
-              voucherId: voucherIdNum,
-              ledgerId: lineLedgerId,
-              entryType: voucherType === "sale" ? "credit" : "debit",
-              amount: String(amountToPost),
-              createdBy: userId,
-              updatedBy: userId,
-            });
+            lineLedgerId = Number(defaultLedger.ledgerId);
           }
+
+          let amountToPost = line.taxableAmount; // default to line.taxableAmount (includes extra charges)
+          if (isCapitalized) {
+            if (idx === processedLines.length - 1) {
+              amountToPost = Math.round((computedNet - allocatedSum) * 100) / 100;
+            } else {
+              amountToPost = totalLineNets > 0
+                ? Math.round((Number(line.lineNet || 0) / totalLineNets) * computedNet * 100) / 100
+                : Math.round((computedNet / processedLines.length) * 100) / 100;
+              allocatedSum += amountToPost;
+            }
+          }
+
+          const lineEntryType =
+            voucherType === "sale"
+              ? "credit"
+              : voucherType === "sales_return"
+              ? "debit"
+              : "credit"; // credit_note
+
+          await tx.insert(tVoucherEntries).values({
+            voucherId: voucherIdNum,
+            ledgerId: lineLedgerId,
+            entryType: lineEntryType,
+            amount: String(amountToPost),
+            createdBy: userId,
+            updatedBy: userId,
+          });
 
           // Tax Ledger Entries
           if (!isCapitalized) {
@@ -608,7 +661,7 @@ export async function POST(request: Request) {
               await tx.insert(tVoucherEntries).values({
                 voucherId: voucherIdNum,
                 ledgerId: Number(taxLedger.ledgerId),
-                entryType: voucherType === "sale" ? "credit" : "debit",
+                entryType: lineEntryType,
                 amount: String(totalLineTax),
                 createdBy: userId,
                 updatedBy: userId,
@@ -637,18 +690,6 @@ export async function POST(request: Request) {
             }
           }
         }
-
-        if (!isCapitalized && extraChargesNum > 0) {
-          const extraLedger = await getOrCreateExtraChargesLedger();
-          await tx.insert(tVoucherEntries).values({
-            voucherId: voucherIdNum,
-            ledgerId: Number(extraLedger.ledgerId),
-            entryType: voucherType === "sale" ? "credit" : "debit",
-            amount: String(extraChargesNum),
-            createdBy: userId,
-            updatedBy: userId,
-          });
-        }
       } else if (
         voucherType === "purchase" ||
         voucherType === "debit_note" ||
@@ -668,9 +709,11 @@ export async function POST(request: Request) {
         if (!partyLedger) throw new Error("Party ledger not found");
 
         const companyEntryType =
-          (voucherType === "purchase" || voucherType === "direct_bill" || voucherType === "purchase_return")
-            ? (voucherType === "purchase" || voucherType === "direct_bill" ? "credit" : "debit")
-            : (voucherType === "debit_note" ? "debit" : "credit");
+          voucherType === "purchase" || voucherType === "direct_bill"
+            ? "credit"
+            : voucherType === "purchase_return"
+            ? "debit"
+            : "credit"; // debit_note
 
         await tx.insert(tVoucherEntries).values({
           voucherId: voucherIdNum,
@@ -712,48 +755,57 @@ export async function POST(request: Request) {
             updatedBy: userId,
           });
 
-          // Debit / Credit Expense/Asset Account — only if ledgerId explicitly provided
-          const lineLedgerId = Number(line.ledgerId) || 0;
-          if (lineLedgerId) {
-            let amountToPost = line.taxableAmount;
-            if (isCapitalized) {
-              if (idx === processedLines.length - 1) {
-                amountToPost = Math.round((computedNet - allocatedSum) * 100) / 100;
-              } else {
-                amountToPost = totalLineNets > 0
-                  ? Math.round((Number(line.lineNet || 0) / totalLineNets) * computedNet * 100) / 100
-                  : Math.round((computedNet / processedLines.length) * 100) / 100;
-                allocatedSum += amountToPost;
-              }
+          // Debit / Credit Expense/Asset Account
+          let lineLedgerId = Number(line.ledgerId) || 0;
+          if (!lineLedgerId) {
+            let defaultLedger;
+            if (voucherType === "purchase") {
+              defaultLedger = await getOrCreateLedger("Purchase A/c", "Purchase Account", "purchase");
+            } else if (voucherType === "purchase_return" || voucherType === "debit_note") {
+              defaultLedger = await getOrCreateLedger("Purchase Return A/c", "Purchase Return", "purchase_return");
+            } else { // direct_bill
+              defaultLedger = await getOrCreateLedger("Purchase A/c", "Purchase Account", "purchase");
             }
-
-            const lineEntryType =
-              voucherType === "purchase" || voucherType === "direct_bill"
-                ? "debit"
-                : "credit";
-            await tx.insert(tVoucherEntries).values({
-              voucherId: voucherIdNum,
-              ledgerId: lineLedgerId,
-              entryType: lineEntryType,
-              amount: String(amountToPost),
-              createdBy: userId,
-              updatedBy: userId,
-            });
+            lineLedgerId = Number(defaultLedger.ledgerId);
           }
+
+          let amountToPost = line.taxableAmount; // default to line.taxableAmount (includes extra charges)
+          if (isCapitalized) {
+            if (idx === processedLines.length - 1) {
+              amountToPost = Math.round((computedNet - allocatedSum) * 100) / 100;
+            } else {
+              amountToPost = totalLineNets > 0
+                ? Math.round((Number(line.lineNet || 0) / totalLineNets) * computedNet * 100) / 100
+                : Math.round((computedNet / processedLines.length) * 100) / 100;
+              allocatedSum += amountToPost;
+            }
+          }
+
+          const lineEntryType =
+            voucherType === "purchase" || voucherType === "direct_bill"
+              ? "debit"
+              : voucherType === "purchase_return"
+              ? "credit"
+              : "debit"; // debit_note
+
+          await tx.insert(tVoucherEntries).values({
+            voucherId: voucherIdNum,
+            ledgerId: lineLedgerId,
+            entryType: lineEntryType,
+            amount: String(amountToPost),
+            createdBy: userId,
+            updatedBy: userId,
+          });
 
           // Tax Ledger Entries
           if (!isCapitalized) {
             const taxLedger = await getOrCreateTaxLedger();
-            const taxEntryType =
-              voucherType === "purchase" || voucherType === "direct_bill"
-                ? "debit"
-                : "credit";
             const totalLineTax = line.cgst + line.sgst + line.igst;
             if (totalLineTax > 0) {
               await tx.insert(tVoucherEntries).values({
                 voucherId: voucherIdNum,
                 ledgerId: Number(taxLedger.ledgerId),
-                entryType: taxEntryType,
+                entryType: lineEntryType,
                 amount: String(totalLineTax),
                 createdBy: userId,
                 updatedBy: userId,
@@ -786,22 +838,6 @@ export async function POST(request: Request) {
               }
             }
           }
-        }
-
-        if (!isCapitalized && extraChargesNum > 0) {
-          const extraLedger = await getOrCreateExtraChargesLedger();
-          const extraEntryType =
-            voucherType === "purchase" || voucherType === "direct_bill"
-              ? "debit"
-              : "credit";
-          await tx.insert(tVoucherEntries).values({
-            voucherId: voucherIdNum,
-            ledgerId: Number(extraLedger.ledgerId),
-            entryType: extraEntryType,
-            amount: String(extraChargesNum),
-            createdBy: userId,
-            updatedBy: userId,
-          });
         }
       } else if (
         voucherType === "purchase_order" ||
@@ -908,17 +944,26 @@ export async function POST(request: Request) {
           throw new Error(
             "Cash/Bank and Party account are required for Receipts",
           );
-        const partyLedger = await tx.query.mLedgers.findFirst({
+        let partyLedger = await tx.query.mLedgers.findFirst({
           where: and(
             eq(mLedgers.ledgerId, Number(partyId)),
             eq(mLedgers.companyId, companyId),
             isNull(mLedgers.deletedOn),
           ),
         });
+        if (!partyLedger) {
+          partyLedger = await tx.query.mLedgers.findFirst({
+            where: and(
+              eq(mLedgers.referenceId, Number(partyId)),
+              eq(mLedgers.companyId, companyId),
+              isNull(mLedgers.deletedOn),
+            ),
+          });
+        }
         if (!partyLedger) throw new Error("Party ledger not found");
 
-        const bankEntryType = isReversal ? "credit" : "debit";
-        const partyEntryType = isReversal ? "debit" : "credit";
+        const bankEntryType = "debit";
+        const partyEntryType = "credit";
 
         // Bank Entry
         await tx.insert(tVoucherEntries).values({
@@ -944,17 +989,26 @@ export async function POST(request: Request) {
           throw new Error(
             "Cash/Bank and Party account are required for Payments",
           );
-        const partyLedger = await tx.query.mLedgers.findFirst({
+        let partyLedger = await tx.query.mLedgers.findFirst({
           where: and(
             eq(mLedgers.ledgerId, Number(partyId)),
             eq(mLedgers.companyId, companyId),
             isNull(mLedgers.deletedOn),
           ),
         });
+        if (!partyLedger) {
+          partyLedger = await tx.query.mLedgers.findFirst({
+            where: and(
+              eq(mLedgers.referenceId, Number(partyId)),
+              eq(mLedgers.companyId, companyId),
+              isNull(mLedgers.deletedOn),
+            ),
+          });
+        }
         if (!partyLedger) throw new Error("Party ledger not found");
 
-        const bankEntryType = isReversal ? "debit" : "credit";
-        const companyEntryType = isReversal ? "credit" : "debit";
+        const bankEntryType = "credit";
+        const companyEntryType = "debit";
 
         // Bank Entry
         await tx.insert(tVoucherEntries).values({
