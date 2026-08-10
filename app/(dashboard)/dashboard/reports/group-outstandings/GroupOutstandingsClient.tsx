@@ -34,6 +34,8 @@ interface Voucher {
   createdBy?: string | null;
   createdByName?: string | null;
   remarks?: string | null;
+  invoiceNo?: string | null;
+  invoiceDate?: string | null;
 }
 
 interface GroupInfo {
@@ -86,6 +88,8 @@ function GroupOutstandingsContent({
   const [maxOverdue, setMaxOverdue] = useState("");
   const [removedLines, setRemovedLines] = useState<string[]>([]);
   const [lastRemovedLine, setLastRemovedLine] = useState<string | null>(null);
+  const [calcFromBillDate, setCalcFromBillDate] = useState(true);
+  const [selectedBillForDetails, setSelectedBillForDetails] = useState<any>(null);
 
   const ledgerIdParam = searchParams.get("ledgerId");
   const monthParam = searchParams.get("month");
@@ -112,51 +116,60 @@ function GroupOutstandingsContent({
       let paymentsSum = 0;
       let debitNotesSum = 0;
       let creditNotesSum = 0;
+      let salesReturnsSum = 0;
+      let purchaseReturnsSum = 0;
+      const paymentsList: { voucherNo: string; voucherType: string; voucherDate: string; amount: number }[] = [];
 
       adjustments.forEach((adj) => {
         if (adj.remarks?.includes("[RETURN CHEQUE REVERSAL]")) {
           return;
         }
+        
+        let linkAmt = 0;
         // 1. billDetails link
         if (adj.billDetails && Array.isArray(adj.billDetails)) {
           adj.billDetails.forEach((item: any) => {
             if (item && typeof item === "object" && Number(item.voucherId) === inv.voucherId) {
-              const amt = Number(item.amount) || 0;
-              linkedAdjustmentAmounts[adj.voucherId] = (linkedAdjustmentAmounts[adj.voucherId] || 0) + amt;
-              if (adj.voucherType === "payment" || adj.voucherType === "receipt") {
-                paymentsSum += amt;
-              } else if (adj.voucherType === "debit_note") {
-                debitNotesSum += amt;
-              } else if (adj.voucherType === "credit_note") {
-                creditNotesSum += amt;
-              } else {
-                paymentsSum += amt;
-              }
+              linkAmt += Number(item.amount) || 0;
             }
           });
         }
 
         // 2. parentVoucherId link
         if (adj.parentVoucherId && Number(adj.parentVoucherId) === inv.voucherId) {
-          const amt = Number(adj.netAmount) || 0;
-          linkedAdjustmentAmounts[adj.voucherId] = (linkedAdjustmentAmounts[adj.voucherId] || 0) + amt;
-          if (adj.voucherType === "debit_note") {
-            debitNotesSum += amt;
+          linkAmt += Number(adj.netAmount) || 0;
+        }
+
+        if (linkAmt > 0) {
+          linkedAdjustmentAmounts[adj.voucherId] = (linkedAdjustmentAmounts[adj.voucherId] || 0) + linkAmt;
+          paymentsList.push({
+            voucherNo: adj.invoiceNo || adj.voucherNo,
+            voucherType: adj.voucherType,
+            voucherDate: adj.voucherDate,
+            amount: linkAmt,
+          });
+
+          if (adj.voucherType === "payment" || adj.voucherType === "receipt") {
+            paymentsSum += linkAmt;
+          } else if (adj.voucherType === "debit_note") {
+            debitNotesSum += linkAmt;
           } else if (adj.voucherType === "credit_note") {
-            creditNotesSum += amt;
-          } else if (adj.voucherType === "payment" || adj.voucherType === "receipt") {
-            paymentsSum += amt;
+            creditNotesSum += linkAmt;
+          } else if (adj.voucherType === "sales_return") {
+            salesReturnsSum += linkAmt;
+          } else if (adj.voucherType === "purchase_return") {
+            purchaseReturnsSum += linkAmt;
           } else {
-            paymentsSum += amt;
+            paymentsSum += linkAmt;
           }
         }
       });
 
       let paid = 0;
       if (!isCustomer) {
-        paid = paymentsSum - debitNotesSum;
+        paid = paymentsSum + debitNotesSum + purchaseReturnsSum - creditNotesSum;
       } else {
-        paid = paymentsSum + creditNotesSum;
+        paid = paymentsSum + creditNotesSum + salesReturnsSum - debitNotesSum;
       }
 
       const pending = billing - paid;
@@ -168,19 +181,22 @@ function GroupOutstandingsContent({
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const overdueDays = Math.max(0, Math.floor((today.getTime() - dueDate.getTime()) / 86400000));
+        const days = Math.max(0, Math.floor((today.getTime() - invDate.getTime()) / 86400000));
 
         pendingBills.push({
           voucherId: inv.voucherId,
           voucherType: inv.voucherType,
           date: inv.voucherDate,
-          refNo: inv.voucherNo,
+          refNo: inv.invoiceNo || inv.voucherNo,
           billingAmount: billing,
           paidAmount: paid,
           pendingAmount: pending,
           dueDate: dueDate.toISOString().split("T")[0],
           overdueDays,
+          days,
           createdBy: inv.createdByName || inv.createdBy || "System",
           type: defaultType,
+          payments: paymentsList,
         });
       }
     });
@@ -200,8 +216,10 @@ function GroupOutstandingsContent({
           pendingAmount: unlinked,
           dueDate: "—",
           overdueDays: 0,
+          days: 0,
           createdBy: adj.createdByName || adj.createdBy || "System",
           type: defaultType === "Dr" ? "Cr" : "Dr",
+          payments: [],
         });
       }
     });
@@ -453,6 +471,19 @@ function GroupOutstandingsContent({
               className="pl-9 bg-background border-border h-10 text-sm"
             />
           </div>
+          {/* Bill Date Ageing Toggle */}
+          <div className="flex items-center gap-2 no-print border border-border rounded-md px-3 h-10 bg-background text-foreground">
+            <input
+              id="calc-from-bill-date"
+              type="checkbox"
+              checked={calcFromBillDate}
+              onChange={(e) => setCalcFromBillDate(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+            />
+            <Label htmlFor="calc-from-bill-date" className="text-xs font-semibold uppercase text-muted-foreground cursor-pointer select-none">
+              Bill Date Ageing
+            </Label>
+          </div>
 
           {/* Period Button */}
           <Button
@@ -562,12 +593,12 @@ function GroupOutstandingsContent({
               ) : (
                 <tr className="border-b border-border bg-muted/40 text-xs font-bold uppercase tracking-wider text-muted-foreground">
                   <th className="p-3 text-left pl-6">Date</th>
-                  <th className="p-3 text-left">Ref No</th>
+                  <th className="p-3 text-left">Invoice No</th>
                   <th className="p-3 text-right">Billing Amt</th>
                   <th className="p-3 text-right">Paid Amt</th>
                   <th className="p-3 text-right">Pending Amt</th>
                   <th className="p-3 text-left">Due Date</th>
-                  <th className="p-3 text-right">Overdue</th>
+                  <th className="p-3 text-right">{calcFromBillDate ? "Days" : "Overdue"}</th>
                   <th className="p-3 text-left">Who Did</th>
                 </tr>
               )}
@@ -670,11 +701,28 @@ function GroupOutstandingsContent({
                       <td className="p-3 pl-6 font-mono">{formatDateToTally(bill.date)}</td>
                       <td className="p-3 font-semibold">{bill.refNo}</td>
                       <td className="p-3 text-right font-mono">{formatAmount(bill.billingAmount)}</td>
-                      <td className="p-3 text-right font-mono">{formatAmount(bill.paidAmount)}</td>
+                      <td 
+                        className={`p-3 text-right font-mono ${
+                          bill.paidAmount > 0 
+                            ? "cursor-pointer hover:underline text-primary" 
+                            : ""
+                        }`}
+                        onClick={(e) => {
+                          if (bill.paidAmount > 0) {
+                            e.stopPropagation();
+                            setSelectedBillForDetails(bill);
+                          }
+                        }}
+                      >
+                        {formatAmount(bill.paidAmount)}
+                      </td>
                       <td className="p-3 text-right font-mono font-bold">{formatAmount(bill.pendingAmount)} {bill.type}</td>
                       <td className="p-3 font-mono">{bill.dueDate}</td>
                       <td className="p-3 text-right font-sans font-semibold text-destructive">
-                        {bill.overdueDays > 0 ? `${bill.overdueDays} days` : "—"}
+                        {calcFromBillDate 
+                          ? (bill.days > 0 ? `${bill.days} days` : "—") 
+                          : (bill.overdueDays > 0 ? `${bill.overdueDays} days` : "—")
+                        }
                       </td>
                       <td className="p-3 text-muted-foreground">{bill.createdBy}</td>
                     </tr>
@@ -774,6 +822,71 @@ function GroupOutstandingsContent({
           <DialogFooter>
             <Button onClick={handleApplyPeriod} className="h-10 text-sm">
               Apply Period
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Payment Details Dialog */}
+      <Dialog open={!!selectedBillForDetails} onOpenChange={(open) => { if (!open) setSelectedBillForDetails(null); }}>
+        <DialogContent className="max-w-md bg-card border-border text-foreground">
+          <DialogHeader>
+            <DialogTitle className="text-foreground uppercase tracking-wider text-sm font-semibold">Payment Details</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <p className="text-xs text-muted-foreground uppercase font-semibold">Bill Reference</p>
+              <p className="text-sm font-bold text-foreground font-mono">{selectedBillForDetails?.refNo}</p>
+            </div>
+            <div className="border border-border rounded-md overflow-hidden bg-card">
+              <div className="grid grid-cols-3 bg-muted/40 text-[10px] font-bold uppercase p-2 border-b border-border text-muted-foreground">
+                <div>Date</div>
+                <div>Voucher</div>
+                <div className="text-right">Amount</div>
+              </div>
+              <div className="divide-y divide-border/60 max-h-60 overflow-y-auto">
+                {selectedBillForDetails?.payments && selectedBillForDetails.payments.length > 0 ? (
+                  selectedBillForDetails.payments.map((p: any, idx: number) => {
+                    const isDebitNote = p.voucherType === "debit_note";
+                    const isCreditNote = p.voucherType === "credit_note";
+                    const isVendor = currentLedger?.ledgerType === "company" || currentLedger?.ledgerType === "supplier";
+                    const sign = (isVendor && isDebitNote) ? "-" : "";
+                    return (
+                      <div key={idx} className="grid grid-cols-3 p-2 text-xs font-mono text-foreground hover:bg-muted/10 transition-colors">
+                        <div className="text-[11px] text-muted-foreground flex items-center font-sans">
+                          {formatDateToTally(p.voucherDate)}
+                        </div>
+                        <div className="font-sans flex flex-col justify-center">
+                          <span className="font-semibold text-foreground truncate text-[11px]">
+                            {p.voucherNo}
+                          </span>
+                          <span className="text-[9px] text-muted-foreground uppercase">
+                            {p.voucherType.replace(/_/g, " ")}
+                          </span>
+                        </div>
+                        <div className={`text-right font-bold flex items-center justify-end ${isDebitNote ? "text-destructive" : "text-foreground"}`}>
+                          {sign}{formatAmount(p.amount)}
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="p-4 text-center text-xs text-muted-foreground font-sans">
+                    No payment details found.
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="flex justify-between items-center bg-muted/20 p-3 rounded-md border border-border/50 font-mono text-sm font-bold">
+              <span className="font-sans text-xs text-muted-foreground uppercase">Total Adjusted</span>
+              <span className="text-foreground">
+                {formatAmount(selectedBillForDetails?.paidAmount || 0)}
+              </span>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" className="h-9 text-sm" onClick={() => setSelectedBillForDetails(null)}>
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>

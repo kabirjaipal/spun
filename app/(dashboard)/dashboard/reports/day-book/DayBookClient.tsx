@@ -38,6 +38,7 @@ interface Voucher {
   totalAmount: number;
   taxAmount: number;
   netAmount: number;
+  extraCharges: number;
   partyName?: string | null;
   entries: VoucherEntry[];
   items: VoucherItem[];
@@ -332,22 +333,53 @@ function DayBookContent({
                           {v.entries.length > 0 && (
                             <div className="space-y-1">
                               <p className="text-[10px] uppercase font-bold text-muted-foreground/80 tracking-wider">Ledger Splits:</p>
-                              {v.entries.map((entry, idx) => (
-                                <div key={idx} className="grid grid-cols-6 gap-2 pl-4 text-foreground/80">
-                                  <span className="col-span-3">
-                                    {entry.ledgerName}{" "}
-                                    <span className="text-[10px] text-muted-foreground">
-                                      ({entry.entryType === "debit" ? "Dr" : "Cr"})
-                                    </span>
-                                  </span>
-                                  <span className="col-span-1 text-right font-mono">
-                                    {entry.entryType === "debit" ? `₹${formatAmount(entry.amount)}` : ""}
-                                  </span>
-                                  <span className="col-span-1 text-right font-mono col-start-5">
-                                    {entry.entryType === "credit" ? `₹${formatAmount(entry.amount)}` : ""}
-                                  </span>
-                                </div>
-                              ))}
+                              {v.entries.map((entry, idx) => {
+                                const isPurchaseDr = v.voucherType === "purchase" && entry.entryType === "debit";
+                                const isSaleCr = v.voucherType === "sale" && entry.entryType === "credit";
+                                
+                                return (
+                                  <div key={idx} className="space-y-1">
+                                    <div className="grid grid-cols-6 gap-2 pl-4 text-foreground/80">
+                                      <span className="col-span-3">
+                                        {entry.ledgerName}{" "}
+                                        <span className="text-[10px] text-muted-foreground">
+                                          ({entry.entryType === "debit" ? "Dr" : "Cr"})
+                                        </span>
+                                      </span>
+                                      <span className="col-span-1 text-right font-mono">
+                                        {entry.entryType === "debit" ? `₹${formatAmount(entry.amount)}` : ""}
+                                      </span>
+                                      <span className="col-span-1 text-right font-mono col-start-5">
+                                        {entry.entryType === "credit" ? `₹${formatAmount(entry.amount)}` : ""}
+                                      </span>
+                                    </div>
+                                    
+                                    {/* Component breakdown details under primary posting */}
+                                    {(isPurchaseDr || isSaleCr) && (
+                                      <div className="pl-8 border-l border-border/80 text-[11px] text-muted-foreground space-y-1">
+                                        {v.items.map((item, itemIdx) => (
+                                          <div key={itemIdx} className="flex justify-between max-w-sm text-[10px]">
+                                            <span>| {item.itemName || "Stock Item"}</span>
+                                            <span className="font-mono">₹{formatAmount(item.netAmount)}</span>
+                                          </div>
+                                        ))}
+                                        {v.extraCharges > 0 && (
+                                          <div className="flex justify-between max-w-sm text-[10px]">
+                                            <span>| Charges / Freight</span>
+                                            <span className="font-mono">₹{formatAmount(v.extraCharges)}</span>
+                                          </div>
+                                        )}
+                                        {v.taxAmount > 0 && (
+                                          <div className="flex justify-between max-w-sm text-[10px]">
+                                            <span>| GST Tax</span>
+                                            <span className="font-mono">₹{formatAmount(v.taxAmount)}</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
                             </div>
                           )}
                         </div>

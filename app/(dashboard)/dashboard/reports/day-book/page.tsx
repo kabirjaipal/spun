@@ -57,6 +57,7 @@ export default async function DayBookPage({
       totalAmount: tVouchers.totalAmount,
       taxAmount: tVouchers.taxAmount,
       netAmount: tVouchers.netAmount,
+      extraCharges: tVouchers.extraCharges,
       partyName: mLedgers.ledgerName,
     })
     .from(tVouchers)
@@ -116,6 +117,7 @@ export default async function DayBookPage({
       totalAmount: Number(v.totalAmount),
       taxAmount: Number(v.taxAmount),
       netAmount: Number(v.netAmount),
+      extraCharges: Number(v.extraCharges),
       partyName: v.partyName,
       entries: [],
       items: [],

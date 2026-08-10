@@ -154,6 +154,8 @@ export default async function GroupOutstandingsPage({
             createdBy: tVouchers.createdBy,
             createdByName: mUsers.name,
             remarks: tVouchers.remarks,
+            invoiceNo: tVouchers.invoiceNo,
+            invoiceDate: tVouchers.invoiceDate,
           })
           .from(tVouchers)
           .leftJoin(mUsers, eq(tVouchers.createdBy, mUsers.id))

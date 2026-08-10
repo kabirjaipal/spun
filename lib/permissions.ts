@@ -53,8 +53,6 @@ export const ALL_PAGES: PageConfig[] = [
   { accessItem: "debit_note_register", pageUrl: "/dashboard/reports/debit-note-register", pageTitle: "Debit Note Register", pageIcon: "BookOpen", pageGroup: "Reports", accessGroup: "company" },
   { accessItem: "journal_register", pageUrl: "/dashboard/reports/journal-register", pageTitle: "Journal Register", pageIcon: "BookOpen", pageGroup: "Reports", accessGroup: "company" },
   { accessItem: "group_outstandings", pageUrl: "/dashboard/reports/group-outstandings", pageTitle: "Group Outstandings", pageIcon: "BookOpen", pageGroup: "Reports", accessGroup: "company" },
-  { accessItem: "bills_payable", pageUrl: "/dashboard/reports/bills-payable", pageTitle: "Bills Payable", pageIcon: "BookOpen", pageGroup: "Reports", accessGroup: "company" },
-  { accessItem: "bills_receivable", pageUrl: "/dashboard/reports/bills-receivable", pageTitle: "Bills Receivable", pageIcon: "BookOpen", pageGroup: "Reports", accessGroup: "company" },
   { accessItem: "payment_register", pageUrl: "/dashboard/reports/payment-register", pageTitle: "Payment Register", pageIcon: "BookOpen", pageGroup: "Reports", accessGroup: "company" },
   { accessItem: "purchase_register", pageUrl: "/dashboard/reports/purchase-register", pageTitle: "Purchase Register", pageIcon: "BookOpen", pageGroup: "Reports", accessGroup: "company" },
   { accessItem: "sales_register", pageUrl: "/dashboard/reports/sales-register", pageTitle: "Sales Register", pageIcon: "BookOpen", pageGroup: "Reports", accessGroup: "company" },

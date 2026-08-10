@@ -163,13 +163,33 @@ export default async function LedgerReportPage({
         // Find opposite ledger names in the same voucher
         const postingsInVoucher = allVoucherPostings.filter((p) => p.voucherId === e.voucherId);
         const opposites = postingsInVoucher.filter((p) => p.ledgerId !== ledgerId);
+        
         let particularsName = "As per Details";
-        if (opposites.length === 1) {
-          particularsName = opposites[0].ledgerName;
-        } else if (opposites.length > 1) {
-          particularsName = opposites[0].ledgerName + " & others";
+        
+        // Custom name mapping for party ledgers (customer, vendor, company)
+        const isParty = selectedLedger.referenceId || selectedLedger.ledgerType === "customer" || selectedLedger.ledgerType === "company" || selectedLedger.ledgerType === "supplier";
+        if (isParty && e.voucherType && ["sale", "sales_return", "purchase", "purchase_return", "direct_bill", "credit_note", "debit_note"].includes(e.voucherType)) {
+          if (e.voucherType === "sale") particularsName = "Sales A/c";
+          else if (e.voucherType === "sales_return") particularsName = "Sales Return A/c";
+          else if (e.voucherType === "purchase") particularsName = "Purchase A/c";
+          else if (e.voucherType === "purchase_return") particularsName = "Purchase Return A/c";
+          else if (e.voucherType === "direct_bill") particularsName = "Purchase A/c";
+          else if (e.voucherType === "credit_note") particularsName = "Credit Note / Discount A/c";
+          else if (e.voucherType === "debit_note") particularsName = "Debit Note / Discount A/c";
         } else {
-          particularsName = selectedLedger.ledgerName;
+          // Standard opposite lookup
+          if (opposites.length === 1) {
+            particularsName = opposites[0].ledgerName;
+          } else if (opposites.length > 1) {
+            // Avoid selecting tax or freight/charges as the primary opposite name
+            const nonTaxOpposite = opposites.find(
+              (p) => p.ledgerName !== "GST Tax Paid/Collected" && 
+                     p.ledgerName !== "Freight & Other Charges A/c"
+            );
+            particularsName = (nonTaxOpposite ? nonTaxOpposite.ledgerName : opposites[0].ledgerName) + " & others";
+          } else {
+            particularsName = selectedLedger.ledgerName;
+          }
         }
 
         return {

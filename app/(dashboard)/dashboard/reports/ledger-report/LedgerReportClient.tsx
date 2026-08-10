@@ -265,68 +265,62 @@ function LedgerReportContent({
       let paymentsSum = 0;
       let debitNotesSum = 0;
       let creditNotesSum = 0;
+      let salesReturnsSum = 0;
+      let purchaseReturnsSum = 0;
       const paymentsList: { voucherNo: string; voucherType: string; voucherDate: string; amount: number }[] = [];
 
       adjustments.forEach((adj) => {
         if (adj.remarks?.includes("[RETURN CHEQUE REVERSAL]")) {
           return;
         }
+        
+        let linkAmt = 0;
         // 1. Check billDetails (payment/receipt links)
         if (adj.billDetails && Array.isArray(adj.billDetails)) {
           adj.billDetails.forEach((item: any) => {
             if (item && typeof item === "object" && Number(item.voucherId) === inv.voucherId) {
-              const amt = Number(item.amount) || 0;
-              linkedAdjustmentAmounts[adj.voucherId] = (linkedAdjustmentAmounts[adj.voucherId] || 0) + amt;
-              paymentsList.push({
-                voucherNo: adj.voucherNo,
-                voucherType: adj.voucherType,
-                voucherDate: adj.voucherDate,
-                amount: amt,
-              });
-              if (adj.voucherType === "payment" || adj.voucherType === "receipt") {
-                paymentsSum += amt;
-              } else if (adj.voucherType === "debit_note") {
-                debitNotesSum += amt;
-              } else if (adj.voucherType === "credit_note") {
-                creditNotesSum += amt;
-              } else {
-                paymentsSum += amt;
-              }
+              linkAmt += Number(item.amount) || 0;
             }
           });
         }
 
         // 2. Check parentVoucherId (debit_note/credit_note links)
         if (adj.parentVoucherId && Number(adj.parentVoucherId) === inv.voucherId) {
-          const amt = Number(adj.netAmount) || 0;
-          linkedAdjustmentAmounts[adj.voucherId] = (linkedAdjustmentAmounts[adj.voucherId] || 0) + amt;
+          linkAmt += Number(adj.netAmount) || 0;
+        }
+
+        if (linkAmt > 0) {
+          linkedAdjustmentAmounts[adj.voucherId] = (linkedAdjustmentAmounts[adj.voucherId] || 0) + linkAmt;
           paymentsList.push({
             voucherNo: adj.voucherNo,
             voucherType: adj.voucherType,
             voucherDate: adj.voucherDate,
-            amount: amt,
+            amount: linkAmt,
           });
-          if (adj.voucherType === "debit_note") {
-            debitNotesSum += amt;
+
+          if (adj.voucherType === "payment" || adj.voucherType === "receipt") {
+            paymentsSum += linkAmt;
+          } else if (adj.voucherType === "debit_note") {
+            debitNotesSum += linkAmt;
           } else if (adj.voucherType === "credit_note") {
-            creditNotesSum += amt;
-          } else if (adj.voucherType === "payment" || adj.voucherType === "receipt") {
-            paymentsSum += amt;
+            creditNotesSum += linkAmt;
+          } else if (adj.voucherType === "sales_return") {
+            salesReturnsSum += linkAmt;
+          } else if (adj.voucherType === "purchase_return") {
+            purchaseReturnsSum += linkAmt;
           } else {
-            paymentsSum += amt;
+            paymentsSum += linkAmt;
           }
         }
       });
 
-      // User logic:
-      // "and in purchase debit note will be - and in sales it will be the credit note will be the + vice versa"
       let paid = 0;
       if (!isCustomer) {
         // Purchase (vendor)
-        paid = paymentsSum - debitNotesSum;
+        paid = paymentsSum + debitNotesSum + purchaseReturnsSum - creditNotesSum;
       } else {
         // Sales (customer)
-        paid = paymentsSum + creditNotesSum;
+        paid = paymentsSum + creditNotesSum + salesReturnsSum - debitNotesSum;
       }
 
       const pending = billing - paid;

@@ -226,8 +226,22 @@ export default async function CashFlowSummaryPage({
       if (!ledger) return;
 
       const topGroup = getTopLevelGroup(ledger.groupId ? Number(ledger.groupId) : null);
-      const groupId = topGroup ? topGroup.groupId : 0;
-      const groupName = topGroup ? topGroup.groupName : "Other Accounts";
+      let groupId = topGroup ? topGroup.groupId : 0;
+      let groupName = topGroup ? topGroup.groupName : "Other Accounts";
+
+      if (groupName.toLowerCase() === "sundry debtors") {
+        groupId = -1;
+        groupName = "Sales (Sundry Debtors)";
+      } else if (groupName.toLowerCase() === "sales account" || groupName.toLowerCase() === "sales accounts") {
+        groupId = -2;
+        groupName = "Sales (Direct/Cash Sales)";
+      } else if (groupName.toLowerCase() === "sundry creditors") {
+        groupId = -3;
+        groupName = "Purchase (Sundry Creditors)";
+      } else if (groupName.toLowerCase() === "purchase account" || groupName.toLowerCase() === "purchase accounts") {
+        groupId = -4;
+        groupName = "Purchase (Direct/Cash Purchases)";
+      }
 
       if (!groupMap.has(groupId)) {
         groupMap.set(groupId, {
