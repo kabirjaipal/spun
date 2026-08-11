@@ -22,6 +22,8 @@ interface SalesOrderItem {
   companyName: string | null;
   dueDate: string | null;
   status: string | null;
+  totalQuantity: number;
+  totalPcs: number;
 }
 
 interface CompanyOption {
@@ -299,6 +301,9 @@ export default function SalesOrderClient({
 
       const newVoucher = await response.json();
 
+      const totalQty = lineItems.reduce((acc, l) => acc + (parseFloat(l.quantity) || 0), 0);
+      const totalPcs = lineItems.reduce((acc, l) => acc + (parseInt(l.pcs) || 0), 0);
+
       const added: SalesOrderItem = {
         voucherId: newVoucher.voucherId,
         voucherNo: newVoucher.voucherNo,
@@ -310,6 +315,8 @@ export default function SalesOrderClient({
         companyName: custObj ? custObj.companyName : `ID ${newVoucher.partyId}`,
         dueDate: newVoucher.lrDate,
         status: newVoucher.status,
+        totalQuantity: totalQty,
+        totalPcs: totalPcs,
       };
 
       setNotes([added, ...notes]);
@@ -573,6 +580,7 @@ export default function SalesOrderClient({
               <th className="px-4 py-3">Party</th>
               <th className="px-4 py-3 text-center">Due Date</th>
               <th className="px-4 py-3 text-center">Status</th>
+              <th className="px-4 py-3 text-right">Total Qty</th>
               <th className="px-4 py-3 text-right">Taxable Amount</th>
               <th className="px-4 py-3 text-right">Net Amount</th>
               <th className="px-4 py-3">Remarks</th>
@@ -581,7 +589,7 @@ export default function SalesOrderClient({
           <tbody>
             {notes.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-sm text-muted-foreground">
+                <td colSpan={9} className="px-4 py-8 text-center text-sm text-muted-foreground">
                   No sales orders recorded yet.
                 </td>
               </tr>
@@ -598,6 +606,9 @@ export default function SalesOrderClient({
                     <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
                       {n.status || "pending"}
                     </span>
+                  </td>
+                  <td className="px-4 py-3 text-right font-mono text-xs text-foreground whitespace-nowrap">
+                    {n.totalPcs > 0 ? `${n.totalPcs} pcs / ` : ""}{Number(n.totalQuantity).toFixed(2)}
                   </td>
                   <td className="px-4 py-3 text-right text-foreground">₹{Number(n.totalAmount).toFixed(2)}</td>
                   <td className="px-4 py-3 text-right text-foreground font-bold">₹{Number(n.netAmount).toFixed(2)}</td>

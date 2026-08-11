@@ -378,6 +378,11 @@ export const mLedgers = pgTable(
     ledgerType: text("ledger_type").notNull(), // e.g., 'cash', 'bank', 'customer', 'company', etc.
     referenceId: bigint("reference_id", { mode: "number" }),
     stateCode: text("state_code"),
+    hsnCode: text("hsn_code"),
+    cgst: numeric("cgst", { precision: 5, scale: 2 }),
+    sgst: numeric("sgst", { precision: 5, scale: 2 }),
+    igst: numeric("igst", { precision: 5, scale: 2 }),
+    gstRate: numeric("gst_rate", { precision: 5, scale: 2 }),
     ...auditColumns,
   },
   (table) => ({

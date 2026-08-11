@@ -2,7 +2,7 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { mInventory, mTaxRates, mCompanies, mBrokersHaste, mLedgerGroups, mLedgers, tVouchers, tVoucherItems } from "@/lib/db/schema";
-import { and, eq, isNull, inArray } from "drizzle-orm";
+import { and, eq, isNull, inArray, desc } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
 import { APP_NAME } from "@/lib/constants";
 import PurchaseClient from "./PurchaseClient";
@@ -65,7 +65,7 @@ export default async function PurchasePage({
     getDescendants(targetGroup.groupId);
   }
 
-  const [companies, inventory, taxRates, company, brokersHaste] = await Promise.all([
+  const [companies, inventory, taxRates, company, brokersHaste, pastVouchers] = await Promise.all([
     groupIds.length > 0
       ? db
           .select()
@@ -74,7 +74,7 @@ export default async function PurchasePage({
             mLedgers,
             and(
               eq(mLedgers.referenceId, mCompanies.companyId),
-              eq(mLedgers.ledgerType, "company"),
+              inArray(mLedgers.ledgerType, ["company", "customer"]),
               isNull(mLedgers.deletedOn)
             )
           )
@@ -106,14 +106,67 @@ export default async function PurchasePage({
       .from(mBrokersHaste)
       .where(and(eq(mBrokersHaste.companyId, companyId), isNull(mBrokersHaste.deletedOn)))
       .orderBy(mBrokersHaste.name),
+    db
+      .select({
+        voucherId: tVouchers.voucherId,
+        voucherNo: tVouchers.voucherNo,
+        voucherDate: tVouchers.voucherDate,
+        status: tVouchers.status,
+        totalAmount: tVouchers.totalAmount,
+        taxAmount: tVouchers.taxAmount,
+        netAmount: tVouchers.netAmount,
+        remarks: tVouchers.remarks,
+        partyId: tVouchers.partyId,
+      })
+      .from(tVouchers)
+      .where(and(eq(tVouchers.companyId, companyId), eq(tVouchers.voucherType, "purchase"), isNull(tVouchers.deletedOn)))
+      .orderBy(desc(tVouchers.voucherDate), desc(tVouchers.voucherId))
+      .limit(50)
   ]);
 
   const perms = getStaticPermissionsForRole(session.user.role as Role);
   const p = perms.find((x) => x.accessItem === "purchase");
 
+  // Resolve parties for the past vouchers
+  const partyIds = pastVouchers.map((v) => v.partyId).filter(Boolean) as number[];
+  const pastParties = partyIds.length > 0
+    ? await db.select().from(mCompanies).where(inArray(mCompanies.companyId, partyIds))
+    : [];
+
+  const partyMap = Object.fromEntries(
+    pastParties.map((c) => [c.companyId, { name: c.companyName, gstNo: c.gstNo, address: c.address }])
+  );
+
+  const voucherIds = pastVouchers.map((v) => v.voucherId);
+  const items = voucherIds.length > 0
+    ? await db
+        .select({
+          voucherId: tVoucherItems.voucherId,
+          quantity: tVoucherItems.quantity,
+          pcs: tVoucherItems.pcs,
+        })
+        .from(tVoucherItems)
+        .where(and(inArray(tVoucherItems.voucherId, voucherIds), isNull(tVoucherItems.deletedOn)))
+    : [];
+
+  const qtyMap = items.reduce((acc, curr) => {
+    const vId = Number(curr.voucherId);
+    if (!acc[vId]) acc[vId] = { quantity: 0, pcs: 0 };
+    acc[vId].quantity += Number(curr.quantity) || 0;
+    acc[vId].pcs += curr.pcs || 0;
+    return acc;
+  }, {} as Record<number, { quantity: number; pcs: number }>);
+
+  const vouchersWithParties = pastVouchers.map((v) => ({
+    ...v,
+    totalQuantity: qtyMap[v.voucherId]?.quantity || 0,
+    totalPcs: qtyMap[v.voucherId]?.pcs || 0,
+    party: v.partyId ? (partyMap[v.partyId] ?? null) : null,
+  }));
+
   return (
     <PurchaseClient
-      company={company ? { companyName: company.companyName, gstNo: company.gstNo, address: company.address, companyType: company.companyType, state: company.state } : { companyName: `{APP_NAME} Company`, companyType: "general", state: null }}
+      company={company ? { companyName: company.companyName, gstNo: company.gstNo, address: company.address, companyType: company.companyType, state: company.state } : { companyName: `${APP_NAME} Company`, companyType: "general", state: null }}
       companies={companies.map((comp) => ({
         companyId: comp.companyId,
         companyName: comp.companyName,
@@ -139,6 +192,7 @@ export default async function PurchasePage({
         type: r.type,
       }))}
       canCreate={p?.c ?? false}
+      pastVouchers={vouchersWithParties}
       editVoucher={editVoucher ? {
         voucherId: editVoucher.voucherId,
         voucherNo: editVoucher.voucherNo,

@@ -29,6 +29,11 @@ interface Ledger {
   creditDays: number;
   rateOfInterest: string;
   stateCode: string | null;
+  hsnCode?: string | null;
+  cgst?: string | null;
+  sgst?: string | null;
+  igst?: string | null;
+  gstRate?: string | null;
 }
 
 interface LedgerGroup {
@@ -85,6 +90,11 @@ const EMPTY = {
   newGroupName: "", // for inline creation
   newGroupParentId: "", // parent group ID for inline group creation
   stateCode: "",
+  hsnCode: "",
+  cgst: "",
+  sgst: "",
+  igst: "",
+  gstRate: "",
 };
 
 export default function LedgersClient({
@@ -131,6 +141,11 @@ export default function LedgersClient({
        parentGroupNameLower.includes("creditor") || parentGroupNameLower.includes("debitor") || parentGroupNameLower.includes("debtor"))
     : (groupNameLower.includes("creditor") || groupNameLower.includes("debitor") || groupNameLower.includes("debtor"));
 
+  const isExpenseOrIncome = showNewGroupInput
+    ? (newGroupNameLower.includes("expense") || newGroupNameLower.includes("income") ||
+       parentGroupNameLower.includes("expense") || parentGroupNameLower.includes("income"))
+    : (groupNameLower.includes("expense") || groupNameLower.includes("income"));
+
   const handleFetchGST = async (targetGst: string) => {
     if (!targetGst) return;
     setFetchingGst(true);
@@ -176,10 +191,27 @@ export default function LedgersClient({
       newGroupName: "",
       newGroupParentId: "",
       stateCode: row.stateCode || "",
+      hsnCode: row.hsnCode || "",
+      cgst: row.cgst || "",
+      sgst: row.sgst || "",
+      igst: row.igst || "",
+      gstRate: row.gstRate || "",
     });
     setShowNewGroupInput(false);
     setSheetOpen(true);
   }
+
+  const handleGstRateChange = (rateStr: string) => {
+    const rate = parseFloat(rateStr) || 0;
+    const half = (rate / 2).toFixed(2);
+    setForm((f) => ({
+      ...f,
+      gstRate: rateStr,
+      cgst: rate > 0 ? half : "",
+      sgst: rate > 0 ? half : "",
+      igst: rate > 0 ? rate.toFixed(2) : "",
+    }));
+  };
 
   async function handleSave() {
     if (!form.ledgerName || !form.ledgerType) return;
@@ -374,6 +406,64 @@ export default function LedgersClient({
                 <Label>Address</Label>
                 <Input id="address" placeholder="e.g. Ring Road, Surat" value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} />
               </div>
+
+              {isExpenseOrIncome && (
+                <>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-semibold uppercase">HSN Code</Label>
+                    <Input
+                      id="hsnCode"
+                      placeholder="e.g. 5208"
+                      value={form.hsnCode}
+                      onChange={(e) => setForm((f) => ({ ...f, hsnCode: e.target.value }))}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-xs font-semibold uppercase">GST Rate (%)</Label>
+                    <Input
+                      type="number"
+                      id="gstRate"
+                      placeholder="e.g. 18"
+                      value={form.gstRate}
+                      onChange={(e) => handleGstRateChange(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-xs font-semibold uppercase">CGST (%)</Label>
+                    <Input
+                      type="number"
+                      id="cgst"
+                      placeholder="e.g. 9"
+                      value={form.cgst}
+                      onChange={(e) => setForm((f) => ({ ...f, cgst: e.target.value }))}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-xs font-semibold uppercase">SGST (%)</Label>
+                    <Input
+                      type="number"
+                      id="sgst"
+                      placeholder="e.g. 9"
+                      value={form.sgst}
+                      onChange={(e) => setForm((f) => ({ ...f, sgst: e.target.value }))}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-xs font-semibold uppercase">IGST (%)</Label>
+                    <Input
+                      type="number"
+                      id="igst"
+                      placeholder="e.g. 18"
+                      value={form.igst}
+                      onChange={(e) => setForm((f) => ({ ...f, igst: e.target.value }))}
+                    />
+                  </div>
+                </>
+              )}
 
               {isCreditorOrDebtor && (
                 <>

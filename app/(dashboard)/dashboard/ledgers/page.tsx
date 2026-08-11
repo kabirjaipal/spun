@@ -46,6 +46,11 @@ export default async function LedgersPage() {
         creditDays: r.creditDays,
         rateOfInterest: r.rateOfInterest,
         stateCode: r.stateCode,
+        hsnCode: r.hsnCode,
+        cgst: r.cgst,
+        sgst: r.sgst,
+        igst: r.igst,
+        gstRate: r.gstRate,
       }))}
       groups={groups}
       canCreate={p?.c ?? false}

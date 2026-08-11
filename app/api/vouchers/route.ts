@@ -555,11 +555,10 @@ export async function POST(request: Request) {
         voucherType === "sales_return"
       ) {
         // 1. Debit Party Ledger
-        const ledgerTypes = (voucherType === "credit_note") ? ["customer", "company"] : ["customer"];
         const partyLedger = await tx.query.mLedgers.findFirst({
           where: and(
             eq(mLedgers.referenceId, Number(partyId)),
-            inArray(mLedgers.ledgerType, ledgerTypes),
+            inArray(mLedgers.ledgerType, ["customer", "company"]),
             eq(mLedgers.companyId, companyId),
             isNull(mLedgers.deletedOn),
           ),
@@ -697,11 +696,10 @@ export async function POST(request: Request) {
         voucherType === "direct_bill"
       ) {
         // 1. Credit Party Ledger
-        const ledgerTypes = (voucherType === "debit_note") ? ["customer", "company"] : ["company"];
         const partyLedger = await tx.query.mLedgers.findFirst({
           where: and(
             eq(mLedgers.referenceId, Number(partyId)),
-            inArray(mLedgers.ledgerType, ledgerTypes),
+            inArray(mLedgers.ledgerType, ["customer", "company"]),
             eq(mLedgers.companyId, companyId),
             isNull(mLedgers.deletedOn),
           ),

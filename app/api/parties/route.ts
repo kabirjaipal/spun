@@ -266,10 +266,20 @@ export async function POST(request: Request) {
       );
 
       // 6. Create ledger entry in parent company pointing to this sub-company/party
+      let resolvedLedgerType = "company";
+      if (groupId) {
+        const grp = await tx.query.mLedgerGroups.findFirst({
+          where: eq(mLedgerGroups.groupId, Number(groupId)),
+        });
+        if (grp && (grp.groupName.toLowerCase().includes("debtor") || grp.groupName.toLowerCase().includes("customer"))) {
+          resolvedLedgerType = "customer";
+        }
+      }
+
       const [newL] = await tx.insert(mLedgers).values({
         companyId: parentCompanyId,
         ledgerName: companyName,
-        ledgerType: "company",
+        ledgerType: resolvedLedgerType,
         referenceId: newCompanyId,
         groupId: groupId ? Number(groupId) : null,
         createdBy: userId,

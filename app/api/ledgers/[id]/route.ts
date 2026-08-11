@@ -26,6 +26,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     creditDays,
     rateOfInterest,
     stateCode,
+    hsnCode,
+    cgst,
+    sgst,
+    igst,
+    gstRate,
   } = await request.json();
 
   const [row] = await db
@@ -44,6 +49,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       creditDays: creditDays && !isNaN(Number(creditDays)) ? Math.round(Number(creditDays)) : 0,
       rateOfInterest: rateOfInterest && !isNaN(Number(rateOfInterest)) ? String(Number(rateOfInterest).toFixed(2)) : "0.00",
       stateCode: stateCode || null,
+      hsnCode: hsnCode || null,
+      cgst: cgst ? String(Number(cgst).toFixed(2)) : null,
+      sgst: sgst ? String(Number(sgst).toFixed(2)) : null,
+      igst: igst ? String(Number(igst).toFixed(2)) : null,
+      gstRate: gstRate ? String(Number(gstRate).toFixed(2)) : null,
       updatedBy: userId,
       updatedOn: new Date(),
     })

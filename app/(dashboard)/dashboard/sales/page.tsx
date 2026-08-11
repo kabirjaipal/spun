@@ -74,7 +74,7 @@ export default async function SalesPage({
             mLedgers,
             and(
               eq(mLedgers.referenceId, mCompanies.companyId),
-              eq(mLedgers.ledgerType, "company"),
+              inArray(mLedgers.ledgerType, ["company", "customer"]),
               isNull(mLedgers.deletedOn)
             )
           )
@@ -135,14 +135,34 @@ export default async function SalesPage({
   const perms = getStaticPermissionsForRole(session.user.role as Role);
   const p = perms.find((x) => x.accessItem === "sales");
 
-  // Build party map for past vouchers display
+  // Resolve parties for the past vouchers
   const partyMap = Object.fromEntries(
     parties.map((c) => [c.partyId, { name: c.partyName, gstNo: c.gstNo, address: c.address }])
   );
 
+  const voucherIds = pastVouchers.map((v) => v.voucherId);
+  const items = voucherIds.length > 0
+    ? await db
+        .select({
+          voucherId: tVoucherItems.voucherId,
+          quantity: tVoucherItems.quantity,
+          pcs: tVoucherItems.pcs,
+        })
+        .from(tVoucherItems)
+        .where(and(inArray(tVoucherItems.voucherId, voucherIds), isNull(tVoucherItems.deletedOn)))
+    : [];
+
+  const qtyMap = items.reduce((acc, curr) => {
+    const vId = Number(curr.voucherId);
+    if (!acc[vId]) acc[vId] = { quantity: 0, pcs: 0 };
+    acc[vId].quantity += Number(curr.quantity) || 0;
+    acc[vId].pcs += curr.pcs || 0;
+    return acc;
+  }, {} as Record<number, { quantity: number; pcs: number }>);
+
   return (
     <SalesClient
-      company={company ? { companyName: company.companyName, gstNo: company.gstNo, address: company.address, companyType: company.companyType, state: company.state } : { companyName: `{APP_NAME} Company`, companyType: "general", state: null }}
+      company={company ? { companyName: company.companyName, gstNo: company.gstNo, address: company.address, companyType: company.companyType, state: company.state } : { companyName: `${APP_NAME} Company`, companyType: "general", state: null }}
       parties={parties.map((c) => ({
         partyId: c.partyId,
         partyName: c.partyName,
@@ -178,6 +198,8 @@ export default async function SalesPage({
         netAmount: Number(v.netAmount),
         remarks: v.remarks,
         party: v.partyId ? (partyMap[v.partyId] ?? null) : null,
+        totalQuantity: qtyMap[v.voucherId]?.quantity || 0,
+        totalPcs: qtyMap[v.voucherId]?.pcs || 0,
       }))}
       editVoucher={editVoucher ? {
         voucherId: editVoucher.voucherId,

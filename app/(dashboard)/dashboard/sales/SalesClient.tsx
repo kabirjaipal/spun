@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, Eye, FileText } from "lucide-react";
+import { Plus, Trash2, Eye, FileText, Edit2 } from "lucide-react";
 import PrintInvoiceModal from "@/components/PrintInvoiceModal";
 import BrokerHasteDialog from "@/components/BrokerHasteDialog";
 import PartyFormDrawer from "@/components/PartyFormDrawer";
@@ -66,6 +66,8 @@ interface PastVoucher {
   extraCharges?: number | string | null;
   remarks: string | null;
   party: { name: string; gstNo: string | null; address: string | null } | null;
+  totalPcs: number;
+  totalQuantity: string | number;
 }
 
 interface BrokerHasteOption {
@@ -119,6 +121,7 @@ export default function SalesClient({
   const router = useRouter();
   const [localParties, setLocalParties] = useState<PartyOption[]>(parties);
   const [showPartyModal, setShowPartyModal] = useState(false);
+  const [isCreating, setIsCreating] = useState(!!editVoucher);
 
   const [brokersHasteData, setBrokersHasteData] = useState(brokersHaste);
   const brokers = brokersHasteData.filter((r) => r.type === "broker");
@@ -669,6 +672,8 @@ export default function SalesClient({
         netAmount: finalGrandTotal,
         extraCharges: extraCharges ? Number(extraCharges) : 0,
         remarks: body.remarks,
+        totalQuantity: validLines.reduce((sum, line) => sum + (Number(line.quantity) || 0), 0),
+        totalPcs: validLines.reduce((sum, line) => sum + (Number(line.pcs) || 0), 0),
         party: party
           ? {
               name: party.partyName,
@@ -730,6 +735,7 @@ export default function SalesClient({
       setDiscountValue2("");
       setExtraCharges([]);
       setLineItems([EMPTY_LINE()]);
+      setIsCreating(false);
 
       if (editVoucher) {
         router.push("/dashboard/sales");
@@ -743,26 +749,179 @@ export default function SalesClient({
     }
   }
 
+  if (!isCreating) {
+    return (
+      <div className="space-y-6 p-2">
+        {/* Top Header */}
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-foreground uppercase">
+              Sales History
+            </h1>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Manage and view your sales history
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            {canCreate && (
+              <Button
+                onClick={() => {
+                  router.push("/dashboard/sales");
+                  setIsCreating(true);
+                }}
+                className="flex items-center gap-2 h-10"
+              >
+                <Plus className="h-4 w-4" /> Record Sale
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Past Vouchers List */}
+        <div className="rounded-lg border border-border bg-card overflow-hidden shadow-sm">
+          {pastVouchers.length === 0 ? (
+            <div className="px-5 py-10 text-center text-sm text-muted-foreground">
+              No sales vouchers yet. Click 'Record Sale' above to create one.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[900px]">
+                <thead className="bg-muted/40 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border">
+                  <tr>
+                    <th className="px-4 py-3">Voucher No</th>
+                    <th className="px-4 py-3">Date</th>
+                    <th className="px-4 py-3">Party</th>
+                    <th className="px-4 py-3">Remarks</th>
+                    <th className="px-4 py-3 text-right">Total Qty</th>
+                    <th className="px-4 py-3 text-right">Taxable</th>
+                    <th className="px-4 py-3 text-right">GST</th>
+                    <th className="px-4 py-3 text-right">Net Total</th>
+                    <th className="px-4 py-3 text-center">Status</th>
+                    <th className="px-4 py-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pastVouchers.map((v) => (
+                    <tr
+                      key={v.voucherId}
+                      className="border-b border-border/40 hover:bg-muted/10 transition-colors"
+                    >
+                      <td className="px-4 py-3 font-mono font-semibold text-foreground">
+                        {v.voucherNo}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground">
+                        {v.voucherDate}
+                      </td>
+                      <td className="px-4 py-3 text-foreground font-medium">
+                        {v.party?.name ?? "—"}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground italic text-xs max-w-[160px] truncate">
+                        {v.remarks || "—"}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono text-xs text-foreground whitespace-nowrap">
+                        {v.totalPcs > 0 ? `${v.totalPcs} pcs / ` : ""}{Number(v.totalQuantity).toFixed(2)}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono text-foreground">
+                        {fmt(v.totalAmount)}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono text-muted-foreground">
+                        {fmt(v.taxAmount)}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono font-bold text-foreground">
+                        {fmt(v.netAmount)}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <Badge
+                          variant={
+                            v.status === "posted" ? "secondary" : "outline"
+                          }
+                          className="text-xs uppercase font-semibold"
+                        >
+                          {v.status}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex justify-end gap-1">
+                          {canCreate && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Edit Sale"
+                              onClick={() => {
+                                router.push(`/dashboard/sales?editId=${v.voucherId}`);
+                                setIsCreating(true);
+                              }}
+                              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Preview Invoice"
+                            onClick={() => openReprint(v)}
+                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {printVoucher && (
+          <PrintInvoiceModal
+            isOpen={!!printVoucher}
+            onClose={() => setPrintVoucher(null)}
+            company={company}
+            party={printVoucher.party}
+            voucher={printVoucher.voucher}
+            lines={printVoucher.lines}
+          />
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 p-2">
       {/* Top Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-foreground uppercase">
-            Sales Invoice Entry
+            {editVoucher ? "Edit Sales Invoice" : "Record Sales Invoice"}
           </h1>
         </div>
-        <div className="flex items-center gap-2">
-          {(["grey", "finished", "other"] as const).map((type) => (
-            <Button
-              key={type}
-              variant={salesType === type ? "default" : "outline"}
-              onClick={() => setSalesType(type)}
-              className="text-xs uppercase font-semibold h-8"
-            >
-              {type} Sales
-            </Button>
-          ))}
+        <div className="flex items-center gap-4">
+          <Button
+            variant="outline"
+            onClick={() => {
+              setIsCreating(false);
+              if (editVoucher) {
+                router.push("/dashboard/sales");
+              }
+            }}
+          >
+            Cancel / View History
+          </Button>
+          <div className="flex items-center gap-2">
+            {(["grey", "finished", "other"] as const).map((type) => (
+              <Button
+                key={type}
+                variant={salesType === type ? "default" : "outline"}
+                onClick={() => setSalesType(type)}
+                className="text-xs uppercase font-semibold h-8"
+              >
+                {type} Sales
+              </Button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -1541,95 +1700,7 @@ export default function SalesClient({
         </div>
       )}
 
-      {/* Past Vouchers List */}
-      <div className="rounded-lg border border-border bg-card overflow-hidden shadow-sm">
-        <div className="flex items-center gap-3 px-5 py-4 border-b border-border">
-          <FileText className="h-4 w-4 text-muted-foreground" />
-          <div>
-            <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">
-              Sales History
-            </h2>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Last 50 posted sales vouchers
-            </p>
-          </div>
-        </div>
 
-        {pastVouchers.length === 0 ? (
-          <div className="px-5 py-10 text-center text-sm text-muted-foreground">
-            No sales vouchers yet. Create your first sale above.
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm min-w-[900px]">
-              <thead className="bg-muted/40 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border">
-                <tr>
-                  <th className="px-4 py-3">Voucher No</th>
-                  <th className="px-4 py-3">Date</th>
-                  <th className="px-4 py-3">Party</th>
-                  <th className="px-4 py-3">Remarks</th>
-                  <th className="px-4 py-3 text-right">Taxable</th>
-                  <th className="px-4 py-3 text-right">GST</th>
-                  <th className="px-4 py-3 text-right">Net Total</th>
-                  <th className="px-4 py-3 text-center">Status</th>
-                  <th className="px-4 py-3" />
-                </tr>
-              </thead>
-              <tbody>
-                {pastVouchers.map((v) => (
-                  <tr
-                    key={v.voucherId}
-                    className="border-b border-border/40 hover:bg-muted/10 transition-colors"
-                  >
-                    <td className="px-4 py-3 font-mono font-semibold text-foreground">
-                      {v.voucherNo}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {v.voucherDate}
-                    </td>
-                    <td className="px-4 py-3 text-foreground font-medium">
-                      {v.party?.name ?? "—"}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground italic text-xs max-w-[160px] truncate">
-                      {v.remarks || "—"}
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono text-foreground">
-                      {fmt(v.totalAmount)}
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono text-muted-foreground">
-                      {fmt(v.taxAmount)}
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono font-bold text-foreground">
-                      {fmt(v.netAmount)}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <Badge
-                        variant={
-                          v.status === "posted" ? "secondary" : "outline"
-                        }
-                        className="text-xs uppercase font-semibold"
-                      >
-                        {v.status}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        title="Preview Invoice"
-                        onClick={() => openReprint(v)}
-                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
 
       <BrokerHasteDialog
         type="broker"

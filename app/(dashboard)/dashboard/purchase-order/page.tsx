@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { mInventory, mLedgers, mTaxRates, mCompanies, tVouchers, mLedgerGroups } from "@/lib/db/schema";
+import { mInventory, mLedgers, mTaxRates, mCompanies, tVouchers, mLedgerGroups, tVoucherItems } from "@/lib/db/schema";
 import { and, eq, isNull, desc, inArray } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
 import { APP_NAME } from "@/lib/constants";
@@ -40,7 +40,7 @@ export default async function PurchaseOrderPage() {
     getDescendants(targetGroup.groupId);
   }
 
-  const [notes, companies, inventory, ledgers, taxRates, company] = await Promise.all([
+  const [notesRaw, companies, inventory, ledgers, taxRates, company] = await Promise.all([
     db
       .select({
         voucherId: tVouchers.voucherId,
@@ -67,7 +67,7 @@ export default async function PurchaseOrderPage() {
             mLedgers,
             and(
               eq(mLedgers.referenceId, mCompanies.companyId),
-              eq(mLedgers.ledgerType, "company"),
+              inArray(mLedgers.ledgerType, ["company", "customer"]),
               isNull(mLedgers.deletedOn)
             )
           )
@@ -100,6 +100,32 @@ export default async function PurchaseOrderPage() {
       where: eq(mCompanies.companyId, companyId),
     }),
   ]);
+
+  const voucherIds = notesRaw.map((n) => n.voucherId);
+  const items = voucherIds.length > 0
+    ? await db
+        .select({
+          voucherId: tVoucherItems.voucherId,
+          quantity: tVoucherItems.quantity,
+          pcs: tVoucherItems.pcs,
+        })
+        .from(tVoucherItems)
+        .where(and(inArray(tVoucherItems.voucherId, voucherIds), isNull(tVoucherItems.deletedOn)))
+    : [];
+
+  const qtyMap = items.reduce((acc, curr) => {
+    const vId = Number(curr.voucherId);
+    if (!acc[vId]) acc[vId] = { quantity: 0, pcs: 0 };
+    acc[vId].quantity += Number(curr.quantity) || 0;
+    acc[vId].pcs += curr.pcs || 0;
+    return acc;
+  }, {} as Record<number, { quantity: number; pcs: number }>);
+
+  const notes = notesRaw.map((n) => ({
+    ...n,
+    totalQuantity: qtyMap[n.voucherId]?.quantity || 0,
+    totalPcs: qtyMap[n.voucherId]?.pcs || 0,
+  }));
 
   const perms = getStaticPermissionsForRole(session.user.role as Role);
   const p = perms.find((x) => x.accessItem === "purchase_order");

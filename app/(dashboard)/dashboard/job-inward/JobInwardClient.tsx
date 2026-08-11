@@ -19,6 +19,9 @@ import PrintInvoiceModal from "@/components/PrintInvoiceModal";
 import BrokerHasteDialog from "@/components/BrokerHasteDialog";
 import JobFormDrawer from "@/components/JobFormDrawer";
 import PieceMetersDialog from "@/components/PieceMetersDialog";
+import useRouter from "next/navigation";
+import { Badge } from "@/components/ui/badge";
+import { Edit2 } from "lucide-react";
 
 interface JobOption {
   jobId: number;
@@ -100,6 +103,8 @@ export default function JobInwardClient({
   brokersHaste,
   canCreate,
   initialPastVouchers = [],
+  editVoucher,
+  editVoucherItems,
 }: {
   company: {
     companyName: string;
@@ -116,7 +121,11 @@ export default function JobInwardClient({
   brokersHaste: BrokerHasteOption[];
   canCreate: boolean;
   initialPastVouchers?: any[];
+  editVoucher?: any;
+  editVoucherItems?: any[];
 }) {
+  const router = useRouter.useRouter();
+  const [isCreating, setIsCreating] = useState(!!editVoucher);
   const [discountType, setDiscountType] = useState<"percentage" | "value">("percentage");
   const [discountValue, setDiscountValue] = useState("");
   const [discountType2, setDiscountType2] = useState<"percentage" | "value">("percentage");
@@ -571,6 +580,7 @@ export default function JobInwardClient({
             shortagePercent: totals.shortagePercent,
           };
         }),
+        ...(editVoucher ? { voucherId: editVoucher.voucherId } : {}),
       };
 
       const response = await fetch("/api/vouchers", {
@@ -607,6 +617,10 @@ export default function JobInwardClient({
       };
       setPastVouchers((prev) => [newPastVoucher, ...prev].slice(0, 50));
 
+      setIsCreating(false);
+      if (editVoucher) {
+        router.push("/dashboard/job-inward");
+      }
       fetchNextVoucherNo();
       setRemarks("");
       setJobStatus("finished");
@@ -676,15 +690,212 @@ export default function JobInwardClient({
     }
   }
 
+  if (!isCreating) {
+    return (
+      <div className="space-y-6 p-2">
+        {/* Top Header */}
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-foreground uppercase">
+              Job Inward History
+            </h1>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Manage and view your job inward history
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            {canCreate && (
+              <Button
+                onClick={() => {
+                  router.push("/dashboard/job-inward");
+                  setIsCreating(true);
+                }}
+                className="flex items-center gap-2 h-10"
+              >
+                <Plus className="h-4 w-4" /> Record Job Inward
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Past Vouchers List */}
+        <div className="rounded-lg border border-border bg-card overflow-hidden shadow-sm">
+          {pastVouchers.length === 0 ? (
+            <div className="px-5 py-10 text-center text-sm text-muted-foreground">
+              No job inward vouchers yet. Click 'Record Job Inward' above to create one.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[900px]">
+                <thead className="bg-muted/40 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border">
+                  <tr>
+                    <th className="px-4 py-3">Voucher No</th>
+                    <th className="px-4 py-3">Date</th>
+                    <th className="px-4 py-3">Job Party</th>
+                    <th className="px-4 py-3">Lot No</th>
+                    <th className="px-4 py-3 font-semibold">Remarks</th>
+                    <th className="px-4 py-3 text-right">Total Qty</th>
+                    <th className="px-4 py-3 text-right">Taxable</th>
+                    <th className="px-4 py-3 text-right">GST</th>
+                    <th className="px-4 py-3 text-right">Net Total</th>
+                    <th className="px-4 py-3 text-center">Status</th>
+                    <th className="px-4 py-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pastVouchers.map((v) => (
+                    <tr
+                      key={v.voucherId}
+                      className="border-b border-border/40 hover:bg-muted/10 transition-colors"
+                    >
+                      <td className="px-4 py-3 font-mono font-semibold text-foreground">
+                        {v.voucherNo}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground">
+                        {v.voucherDate}
+                      </td>
+                      <td className="px-4 py-3 text-foreground font-medium">
+                        {v.party?.name ?? "—"}
+                      </td>
+                      <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                        {v.lotNo || "—"}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground italic text-xs max-w-[160px] truncate">
+                        {v.remarks || "—"}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono text-xs text-foreground whitespace-nowrap">
+                        {v.totalPcs > 0 ? `${v.totalPcs} pcs / ` : ""}{Number(v.totalQuantity).toFixed(2)}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono text-foreground font-medium text-xs">
+                        ₹{Number(v.totalAmount).toFixed(2)}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono text-muted-foreground text-xs">
+                        ₹{Number(v.taxAmount).toFixed(2)}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono font-bold text-foreground text-xs">
+                        ₹{Number(v.netAmount).toFixed(2)}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <Badge
+                          variant={
+                            v.status === "posted" ? "secondary" : "outline"
+                          }
+                          className="text-xs uppercase font-semibold"
+                        >
+                          {v.status}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex justify-end gap-1">
+                          {canCreate && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Edit Job Inward"
+                              onClick={() => {
+                                router.push(`/dashboard/job-inward?editId=${v.voucherId}`);
+                                setIsCreating(true);
+                              }}
+                              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Preview Inward"
+                            onClick={async () => {
+                              try {
+                                const res = await fetch(`/api/vouchers?type=job_inward&partyId=${v.partyId}&includeItems=true`);
+                                if (res.ok) {
+                                  const items = await res.json();
+                                  const matchedVoucher = items.find((x: any) => x.voucherId === v.voucherId);
+                                  if (matchedVoucher) {
+                                    setPrintVoucher({
+                                      voucher: {
+                                        voucherNo: matchedVoucher.voucherNo,
+                                        voucherDate: matchedVoucher.voucherDate,
+                                        voucherType: "job_inward",
+                                        remarks: matchedVoucher.remarks,
+                                        totalAmount: Number(matchedVoucher.totalAmount),
+                                        taxAmount: Number(matchedVoucher.taxAmount),
+                                        netAmount: Number(matchedVoucher.netAmount),
+                                      },
+                                      party: matchedVoucher.partyName ? {
+                                        name: matchedVoucher.partyName,
+                                        gstNo: matchedVoucher.partyGst,
+                                        address: matchedVoucher.partyAddress,
+                                      } : (v.party ?? {
+                                        name: "Job Party",
+                                        gstNo: null,
+                                        address: null,
+                                      }),
+                                      lines: matchedVoucher.lineItems.map((line: any) => ({
+                                        inventoryCode: line.inventoryCode || "PROD",
+                                        inventoryName: line.inventoryName || "Item",
+                                        quantity: Number(line.quantity),
+                                        unit: line.unit || "MTR",
+                                        rate: Number(line.rate),
+                                        fold: Number(line.fold || 100),
+                                        amount: Number(line.taxableAmount),
+                                        gstPercent: 0,
+                                      })),
+                                    });
+                                  }
+                                }
+                              } catch (err) {
+                                console.error("Error loading voucher preview", err);
+                              }
+                            }}
+                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {printVoucher && (
+          <PrintInvoiceModal
+            isOpen={!!printVoucher}
+            onClose={() => setPrintVoucher(null)}
+            company={company}
+            party={printVoucher.party}
+            voucher={printVoucher.voucher}
+            lines={printVoucher.lines}
+          />
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 p-2">
       {/* Top Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-foreground uppercase">
-            Job Inward Entry
+            {editVoucher ? "Edit Job Inward" : "Record Job Inward"}
           </h1>
         </div>
+        <Button
+          variant="outline"
+          onClick={() => {
+            setIsCreating(false);
+            if (editVoucher) {
+              router.push("/dashboard/job-inward");
+            }
+          }}
+        >
+          Cancel / View History
+        </Button>
       </div>
 
       {/* Main Form Fields */}
@@ -1517,135 +1728,7 @@ export default function JobInwardClient({
       </div>
 
       {/* Past Vouchers List */}
-      <div className="rounded-lg border border-border bg-card overflow-hidden shadow-sm mt-6">
-        <div className="flex items-center gap-3 px-5 py-4 border-b border-border">
-          <FileText className="h-4 w-4 text-muted-foreground" />
-          <div>
-            <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">
-              Job Inward History
-            </h2>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Last 50 posted job inward vouchers
-            </p>
-          </div>
-        </div>
 
-        {pastVouchers.length === 0 ? (
-          <div className="px-5 py-10 text-center text-sm text-muted-foreground">
-            No job inward vouchers yet. Create your first inward above.
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm min-w-[900px]">
-              <thead className="bg-muted/40 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border">
-                <tr>
-                  <th className="px-4 py-3">Voucher No</th>
-                  <th className="px-4 py-3">Date</th>
-                  <th className="px-4 py-3">Party</th>
-                  <th className="px-4 py-3">Lot No</th>
-                  <th className="px-4 py-3">Remarks</th>
-                  <th className="px-4 py-3 text-right">Taxable</th>
-                  <th className="px-4 py-3 text-right">GST</th>
-                  <th className="px-4 py-3 text-right">Net Total</th>
-                  <th className="px-4 py-3 text-center">Status</th>
-                  <th className="px-4 py-3" />
-                </tr>
-              </thead>
-              <tbody>
-                {pastVouchers.map((v) => (
-                  <tr
-                    key={v.voucherId}
-                    className="border-b border-border/40 hover:bg-muted/10 transition-colors"
-                  >
-                    <td className="px-4 py-3 font-mono font-semibold text-foreground">
-                      {v.voucherNo}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {v.voucherDate}
-                    </td>
-                    <td className="px-4 py-3 text-foreground font-medium">
-                      {v.party?.name ?? "—"}
-                    </td>
-                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
-                      {v.lotNo || "—"}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground italic text-xs max-w-[160px] truncate">
-                      {v.remarks || "—"}
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono text-foreground">
-                      {Number(v.totalAmount).toFixed(2)}
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono text-muted-foreground">
-                      {Number(v.taxAmount).toFixed(2)}
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono font-bold text-foreground">
-                      {Number(v.netAmount).toFixed(2)}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span className="inline-flex items-center rounded-full bg-secondary px-2.5 py-0.5 text-xs font-semibold text-secondary-foreground uppercase">
-                        {v.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        title="Preview Inward"
-                        onClick={async () => {
-                          try {
-                            const res = await fetch(`/api/vouchers?type=job_inward&partyId=${v.partyId}&includeItems=true`);
-                            if (res.ok) {
-                              const items = await res.json();
-                              const matchedVoucher = items.find((x: any) => x.voucherId === v.voucherId);
-                              if (matchedVoucher) {
-                                setPrintVoucher({
-                                  voucher: {
-                                    voucherNo: matchedVoucher.voucherNo,
-                                    voucherDate: matchedVoucher.voucherDate,
-                                    voucherType: "job_inward",
-                                    remarks: matchedVoucher.remarks,
-                                    totalAmount: Number(matchedVoucher.totalAmount),
-                                    taxAmount: Number(matchedVoucher.taxAmount),
-                                    netAmount: Number(matchedVoucher.netAmount),
-                                  },
-                                  party: matchedVoucher.partyName ? {
-                                    name: matchedVoucher.partyName,
-                                    gstNo: matchedVoucher.partyGst,
-                                    address: matchedVoucher.partyAddress,
-                                  } : (v.party ?? {
-                                    name: "Job Party",
-                                    gstNo: null,
-                                    address: null,
-                                  }),
-                                  lines: matchedVoucher.lineItems.map((line: any) => ({
-                                    inventoryCode: line.inventoryCode || "PROD",
-                                    inventoryName: line.inventoryName || "Item",
-                                    quantity: Number(line.quantity),
-                                    unit: line.unit || "MTR",
-                                    rate: Number(line.rate),
-                                    fold: Number(line.fold || 100),
-                                    amount: Number(line.taxableAmount),
-                                    gstPercent: 0,
-                                  })),
-                                });
-                              }
-                            }
-                          } catch (err) {
-                            console.error("Error loading voucher preview", err);
-                          }
-                        }}
-                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
 
       <BrokerHasteDialog
         type="broker"

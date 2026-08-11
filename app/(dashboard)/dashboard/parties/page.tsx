@@ -2,7 +2,7 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { mCompanies, mLedgers, mLedgerGroups } from "@/lib/db/schema";
-import { and, isNull, eq, desc } from "drizzle-orm";
+import { and, isNull, eq, desc, inArray } from "drizzle-orm";
 import { getStaticPermissionsForRole, type Role } from "@/lib/permissions";
 import PartiesClient from "./PartiesClient";
 
@@ -52,7 +52,7 @@ export default async function PartiesPage() {
       mLedgers,
       and(
         eq(mLedgers.referenceId, mCompanies.companyId),
-        eq(mLedgers.ledgerType, "company"),
+        inArray(mLedgers.ledgerType, ["company", "customer"]),
         isNull(mLedgers.deletedOn)
       )
     )

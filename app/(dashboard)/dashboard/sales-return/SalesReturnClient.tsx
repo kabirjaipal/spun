@@ -12,8 +12,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Trash2, Loader2, Edit, FileText, Eye } from "lucide-react";
+import { Trash2, Loader2, Edit, FileText, Eye, Plus, Edit2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import useRouter from "next/navigation";
 import { formatDate, getLocalTodayString } from "@/lib/utils";
 import PieceMetersDialog from "@/components/PieceMetersDialog";
 import PrintInvoiceModal from "@/components/PrintInvoiceModal";
@@ -100,6 +101,8 @@ interface PastVoucher {
     gstNo: string | null;
     address: string | null;
   } | null;
+  totalPcs: number;
+  totalQuantity: string | number;
 }
 
 export default function SalesReturnClient({
@@ -109,6 +112,8 @@ export default function SalesReturnClient({
   taxRates,
   canCreate,
   initialPastVouchers = [],
+  editVoucher,
+  editVoucherItems,
 }: {
   company: {
     companyName: string;
@@ -122,7 +127,11 @@ export default function SalesReturnClient({
   taxRates: TaxRateOption[];
   canCreate: boolean;
   initialPastVouchers?: PastVoucher[];
+  editVoucher?: any;
+  editVoucherItems?: any[];
 }) {
+  const router = useRouter.useRouter();
+  const [isCreating, setIsCreating] = useState(!!editVoucher);
   const [selectedCompany, setSelectedCompany] = useState("");
   const [voucherNo, setVoucherNo] = useState(""); // Credit Note / Sales Return No
   const [voucherDate, setVoucherDate] = useState(
@@ -602,6 +611,7 @@ export default function SalesReturnClient({
             pieceMeters: line.pieceMeters,
           };
         }),
+        ...(editVoucher ? { voucherId: editVoucher.voucherId } : {}),
       };
 
       const response = await fetch("/api/vouchers", {
@@ -633,18 +643,15 @@ export default function SalesReturnClient({
             gstNo: companies.find((c) => c.companyId === savedVoucher.partyId)!.gstNo,
             address: companies.find((c) => c.companyId === savedVoucher.partyId)!.address,
           } : null,
+          totalQuantity: validLines.reduce((sum, line) => sum + (Number(line.quantity) || 0), 0),
+          totalPcs: validLines.reduce((sum, line) => sum + (Number(line.pcs) || 0), 0),
         },
         ...prev,
-      ]);
-      fetchNextVoucherNo();
-      setRemarks("");
-      setLrNo("");
-      setLrDate("");
-      setIsLrDateCustom(false);
-      setTransport("");
-      setExtraCharges([]);
-      setLineItems([]);
-      setSelectedInvoiceIds([]);
+      ].slice(0, 50));
+      setIsCreating(false);
+      if (editVoucher) {
+        router.push("/dashboard/sales-return");
+      }
     } catch (error) {
       setMessage(
         error instanceof Error ? error.message : "Unable to save voucher.",
@@ -654,15 +661,181 @@ export default function SalesReturnClient({
     }
   }
 
+  if (!isCreating) {
+    return (
+      <div className="space-y-6 p-2">
+        {/* Top Header */}
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-foreground uppercase">
+              Sales Return History
+            </h1>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Manage and view your sales return history
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            {canCreate && (
+              <Button
+                onClick={() => {
+                  router.push("/dashboard/sales-return");
+                  setIsCreating(true);
+                }}
+                className="flex items-center gap-2 h-10"
+              >
+                <Plus className="h-4 w-4" /> Record Sales Return
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Past Vouchers List */}
+        <div className="rounded-lg border border-border bg-card overflow-hidden shadow-sm">
+          {pastVouchers.length === 0 ? (
+            <div className="px-5 py-10 text-center text-sm text-muted-foreground">
+              No sales return vouchers yet. Click 'Record Sales Return' above to create one.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[900px]">
+                <thead className="bg-muted/40 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border">
+                  <tr>
+                    <th className="px-4 py-3">Voucher No</th>
+                    <th className="px-4 py-3">Date</th>
+                    <th className="px-4 py-3">Party</th>
+                    <th className="px-4 py-3">Remarks</th>
+                    <th className="px-4 py-3 text-right">Total Qty</th>
+                    <th className="px-4 py-3 text-right">Taxable</th>
+                    <th className="px-4 py-3 text-right">GST</th>
+                    <th className="px-4 py-3 text-right">Net Total</th>
+                    <th className="px-4 py-3 text-center">Status</th>
+                    <th className="px-4 py-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pastVouchers.map((v) => (
+                    <tr
+                      key={v.voucherId}
+                      className="border-b border-border/40 hover:bg-muted/10 transition-colors"
+                    >
+                      <td className="px-4 py-3 font-mono font-semibold text-foreground">
+                        {v.voucherNo}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground text-xs font-mono">
+                        {v.voucherDate}
+                      </td>
+                      <td className="px-4 py-3 text-foreground font-medium">
+                        {v.party?.name ?? "—"}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground italic text-xs max-w-[160px] truncate">
+                        {v.remarks || "—"}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono text-xs text-foreground whitespace-nowrap">
+                        {v.totalPcs > 0 ? `${v.totalPcs} pcs / ` : ""}{Number(v.totalQuantity).toFixed(2)}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono text-foreground text-xs">
+                        ₹{Number(v.totalAmount).toFixed(2)}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono text-muted-foreground text-xs">
+                        ₹{Number(v.taxAmount).toFixed(2)}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono font-bold text-foreground text-xs">
+                        ₹{Number(v.netAmount).toFixed(2)}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <Badge
+                          variant={v.status === "posted" ? "secondary" : "outline"}
+                          className="text-[10px] uppercase font-semibold py-0.5 px-1.5"
+                        >
+                          {v.status}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                        <div className="flex justify-end gap-1">
+                          {canCreate && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Edit Sales Return"
+                              onClick={() => {
+                                router.push(`/dashboard/sales-return?editId=${v.voucherId}`);
+                                setIsCreating(true);
+                              }}
+                              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Preview Invoice"
+                            onClick={() => {
+                              setPrintVoucher({
+                                voucher: {
+                                  voucherNo: v.voucherNo,
+                                  voucherDate: v.voucherDate,
+                                  voucherType: "credit_note",
+                                  remarks: v.remarks,
+                                  totalAmount: Number(v.totalAmount),
+                                  taxAmount: Number(v.taxAmount),
+                                  netAmount: Number(v.netAmount),
+                                },
+                                party: v.party ?? {
+                                  name: "Company",
+                                  gstNo: null,
+                                  address: null,
+                                },
+                              });
+                            }}
+                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+        
+        {printVoucher && (
+          <PrintInvoiceModal
+            isOpen={!!printVoucher}
+            onClose={() => setPrintVoucher(null)}
+            company={company}
+            party={printVoucher.party}
+            voucher={printVoucher.voucher}
+            lines={[]}
+          />
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 p-2">
       {/* Top Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-foreground uppercase">
-            Sales Return
+            {editVoucher ? "Edit Sales Return" : "Record Sales Return"}
           </h1>
         </div>
+        <Button
+          variant="outline"
+          onClick={() => {
+            setIsCreating(false);
+            if (editVoucher) {
+              router.push("/dashboard/sales-return");
+            }
+          }}
+        >
+          Cancel / View History
+        </Button>
       </div>
 
       {/* Main Form Fields */}
@@ -1326,112 +1499,7 @@ export default function SalesReturnClient({
         ) : null;
       })()}
 
-      {/* Past Vouchers List */}
-      <div className="rounded-lg border border-border bg-card overflow-hidden shadow-sm mt-6">
-        <div className="flex items-center gap-3 px-5 py-4 border-b border-border">
-          <FileText className="h-4 w-4 text-muted-foreground" />
-          <div>
-            <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">
-              Sales Return History
-            </h2>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Last 50 posted sales return vouchers
-            </p>
-          </div>
-        </div>
 
-        {pastVouchers.length === 0 ? (
-          <div className="px-5 py-10 text-center text-sm text-muted-foreground">
-            No sales return vouchers yet. Create your first return above.
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm min-w-[900px]">
-              <thead className="bg-muted/40 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border">
-                <tr>
-                  <th className="px-4 py-3">Voucher No</th>
-                  <th className="px-4 py-3">Date</th>
-                  <th className="px-4 py-3">Party</th>
-                  <th className="px-4 py-3">Remarks</th>
-                  <th className="px-4 py-3 text-right">Taxable</th>
-                  <th className="px-4 py-3 text-right">GST</th>
-                  <th className="px-4 py-3 text-right">Net Total</th>
-                  <th className="px-4 py-3 text-center">Status</th>
-                  <th className="px-4 py-3" />
-                </tr>
-              </thead>
-              <tbody>
-                {pastVouchers.map((v) => (
-                  <tr
-                    key={v.voucherId}
-                    className="border-b border-border/40 hover:bg-muted/10 transition-colors"
-                  >
-                    <td className="px-4 py-3 font-mono font-semibold text-foreground">
-                      {v.voucherNo}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {v.voucherDate}
-                    </td>
-                    <td className="px-4 py-3 text-foreground font-medium">
-                      {v.party?.name ?? "—"}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground italic text-xs max-w-[160px] truncate">
-                      {v.remarks || "—"}
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono text-foreground">
-                      {Number(v.totalAmount).toFixed(2)}
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono text-muted-foreground">
-                      {Number(v.taxAmount).toFixed(2)}
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono font-bold text-foreground">
-                      {Number(v.netAmount).toFixed(2)}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <Badge
-                        variant={
-                          v.status === "posted" ? "secondary" : "outline"
-                        }
-                        className="text-xs uppercase font-semibold"
-                      >
-                        {v.status}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        title="Preview Return"
-                        onClick={() => {
-                          setPrintVoucher({
-                            voucher: {
-                              voucherNo: v.voucherNo,
-                              voucherDate: v.voucherDate,
-                              voucherType: "credit_note",
-                              remarks: v.remarks,
-                              totalAmount: Number(v.totalAmount),
-                              taxAmount: Number(v.taxAmount),
-                              netAmount: Number(v.netAmount),
-                            },
-                            party: v.party ?? {
-                              name: "Company",
-                              gstNo: null,
-                              address: null,
-                            },
-                          });
-                        }}
-                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
 
       {printVoucher && (
         <PrintInvoiceModal

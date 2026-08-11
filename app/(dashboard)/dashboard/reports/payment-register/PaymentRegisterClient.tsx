@@ -373,14 +373,13 @@ function PaymentRegisterContent({
                   <th className="p-3 text-left min-w-[220px]">Particulars</th>
                   <th className="p-3 text-left w-[130px]">Vch Type</th>
                   <th className="p-3 text-left w-[110px]">Vch No.</th>
-                  <th className="p-3 text-right border-l border-border w-[140px]">Debit Amount</th>
-                  <th className="p-3 text-right border-l border-border w-[140px]">Credit Amount</th>
+                  <th className="p-3 text-right border-l border-border w-[140px]">Amount</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/40 text-foreground">
                 {selectedMonth && getFilteredDialogVouchers(selectedMonth.vouchers).length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="p-8 text-center text-xs text-muted-foreground italic">
+                    <td colSpan={5} className="p-8 text-center text-xs text-muted-foreground italic">
                       No payment vouchers matched search criteria
                     </td>
                   </tr>
@@ -408,46 +407,30 @@ function PaymentRegisterContent({
                           <td className={`p-3 text-right border-l border-border font-mono font-bold ${isVchCancelled ? "line-through text-muted-foreground/60" : ""}`}>
                             {formatAmount(v.netAmount)}
                           </td>
-                          <td className="p-3 text-right border-l border-border font-mono text-muted-foreground">—</td>
                         </tr>
 
                         {isDetailed && (
                           <>
-                            {v.entries.map((entry) => (
+                            {v.entries.filter(entry => entry.entryType === "debit").map((entry) => (
                               <tr
                                 key={entry.entryId}
                                 className="bg-muted/5 hover:bg-muted/15 transition-colors border-t border-border/20"
                               >
                                 <td className="p-2"></td>
                                 <td className="p-2 text-xs italic pl-8 text-foreground/80">
-                                  {entry.entryType === "credit" ? (
-                                    <span className="pl-4">
-                                      To{" "}
-                                      <a
-                                        href={`/dashboard/reports/ledger-report?ledgerId=${entry.ledgerId}`}
-                                        className="text-primary hover:underline font-semibold"
-                                      >
-                                        {entry.ledgerName}
-                                      </a>
-                                    </span>
-                                  ) : (
-                                    <span>
-                                      <a
-                                        href={`/dashboard/reports/ledger-report?ledgerId=${entry.ledgerId}`}
-                                        className="text-primary hover:underline font-semibold"
-                                      >
-                                        {entry.ledgerName}
-                                      </a>
-                                    </span>
-                                  )}
+                                  <span>
+                                    <a
+                                      href={`/dashboard/reports/ledger-report?ledgerId=${entry.ledgerId}`}
+                                      className="text-primary hover:underline font-semibold"
+                                    >
+                                      {entry.ledgerName}
+                                    </a>
+                                  </span>
                                 </td>
                                 <td className="p-2"></td>
                                 <td className="p-2"></td>
                                 <td className="p-2 text-right border-l border-border text-xs font-mono text-foreground/80">
-                                  {entry.entryType === "debit" ? formatAmount(entry.amount) : "—"}
-                                </td>
-                                <td className="p-2 text-right border-l border-border text-xs font-mono text-foreground/80">
-                                  {entry.entryType === "credit" ? formatAmount(entry.amount) : "—"}
+                                  {formatAmount(entry.amount)}
                                 </td>
                               </tr>
                             ))}
@@ -455,7 +438,7 @@ function PaymentRegisterContent({
                             {v.remarks && (
                               <tr className="bg-muted/5 border-t border-border/20">
                                 <td className="p-1"></td>
-                                <td colSpan={5} className="p-2 pl-12 text-xs text-muted-foreground italic">
+                                <td colSpan={4} className="p-2 pl-12 text-xs text-muted-foreground italic">
                                   Narration: {v.remarks}
                                 </td>
                               </tr>
