@@ -73,6 +73,8 @@ export const ALL_PAGES: PageConfig[] = [
   { accessItem: "day_book", pageUrl: "/dashboard/reports/day-book", pageTitle: "Day Book", pageIcon: "BookOpen", pageGroup: "Reports", accessGroup: "company" },
   { accessItem: "stock_summary", pageUrl: "/dashboard/reports/stock-summary", pageTitle: "Stock Summary", pageIcon: "Layers", pageGroup: "Reports", accessGroup: "company" },
   { accessItem: "stock_movements", pageUrl: "/dashboard/reports/stock-movements", pageTitle: "Stock Movements", pageIcon: "Activity", pageGroup: "Reports", accessGroup: "company" },
+  { accessItem: "mill_process_report", pageUrl: "/dashboard/reports/mill-process", pageTitle: "Mill Process Report", pageIcon: "Layers", pageGroup: "Reports", accessGroup: "company" },
+  { accessItem: "job_process_report", pageUrl: "/dashboard/reports/job-process", pageTitle: "Job Process Report", pageIcon: "Briefcase", pageGroup: "Reports", accessGroup: "company" },
   
   // Administration
   { accessItem: "users", pageUrl: "/dashboard/users", pageTitle: "Users List", pageIcon: "UserCheck", pageGroup: "Administration", accessGroup: "owner" },
