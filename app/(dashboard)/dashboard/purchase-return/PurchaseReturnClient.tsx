@@ -555,6 +555,42 @@ export default function PurchaseReturnClient({
       }
     }
 
+    const totalSubtotal = validLines.reduce((sum, line) => {
+      const index = lineItems.indexOf(line);
+      const totals = lineTotals[index];
+      return sum + (totals?.netAmount || 0);
+    }, 0);
+
+    const computedBillDetails = selectedInvoiceIds.map((invoiceId) => {
+      const inv = invoices.find((i) => i.voucherId === invoiceId);
+      if (!inv) return null;
+
+      let invoiceLineTotal = 0;
+      let invoiceSubtotal = 0;
+      validLines.forEach((line) => {
+        if (line.invoiceNo === inv.voucherNo) {
+          const index = lineItems.indexOf(line);
+          const totals = lineTotals[index];
+          if (totals) {
+            invoiceLineTotal += totals.net;
+            invoiceSubtotal += totals.netAmount;
+          }
+        }
+      });
+
+      const extraChargesAllocated = totalSubtotal > 0
+        ? (invoiceSubtotal / totalSubtotal) * totalExtraCharges
+        : totalExtraCharges / selectedInvoiceIds.length;
+
+      const totalForInvoice = invoiceLineTotal + extraChargesAllocated;
+
+      return {
+        voucherId: inv.voucherId,
+        voucherNo: inv.voucherNo,
+        amount: Math.round(totalForInvoice * 100) / 100,
+      };
+    }).filter((x): x is { voucherId: number; voucherNo: string; amount: number } => !!x);
+
     setSaving(true);
     setMessage(null);
 
@@ -570,6 +606,8 @@ export default function PurchaseReturnClient({
         lrNo,
         lrDate: lrDate || null,
         transport,
+        parentVoucherId: selectedInvoiceIds.length === 1 ? selectedInvoiceIds[0] : null,
+        billDetails: computedBillDetails.length > 0 ? computedBillDetails : null,
         extraCharges: totalExtraCharges,
         extraChargesData: extraCharges
           .filter((c) => c.value)

@@ -118,7 +118,7 @@ function GroupOutstandingsContent({
       let creditNotesSum = 0;
       let salesReturnsSum = 0;
       let purchaseReturnsSum = 0;
-      const paymentsList: { voucherNo: string; voucherType: string; voucherDate: string; amount: number }[] = [];
+      const paymentsList: { voucherId: number; voucherNo: string; voucherType: string; voucherDate: string; amount: number }[] = [];
 
       adjustments.forEach((adj) => {
         if (adj.remarks?.includes("[RETURN CHEQUE REVERSAL]")) {
@@ -136,13 +136,14 @@ function GroupOutstandingsContent({
         }
 
         // 2. parentVoucherId link
-        if (adj.parentVoucherId && Number(adj.parentVoucherId) === inv.voucherId) {
+        if (linkAmt === 0 && adj.parentVoucherId && Number(adj.parentVoucherId) === inv.voucherId) {
           linkAmt += Number(adj.netAmount) || 0;
         }
 
         if (linkAmt > 0) {
           linkedAdjustmentAmounts[adj.voucherId] = (linkedAdjustmentAmounts[adj.voucherId] || 0) + linkAmt;
           paymentsList.push({
+            voucherId: adj.voucherId,
             voucherNo: adj.invoiceNo || adj.voucherNo,
             voucherType: adj.voucherType,
             voucherDate: adj.voucherDate,
@@ -190,12 +191,12 @@ function GroupOutstandingsContent({
           refNo: inv.invoiceNo || inv.voucherNo,
           billingAmount: billing,
           paidAmount: paid,
-          pendingAmount: pending,
+          pendingAmount: Math.abs(pending),
           dueDate: dueDate.toISOString().split("T")[0],
           overdueDays,
           days,
           createdBy: inv.createdByName || inv.createdBy || "System",
-          type: defaultType,
+          type: pending >= 0 ? defaultType : (defaultType === "Dr" ? "Cr" : "Dr"),
           payments: paymentsList,
         });
       }
@@ -359,8 +360,7 @@ function GroupOutstandingsContent({
     ? (currentMonth ? currentMonth.bills.filter((x: any) => x.type === "Cr").reduce((sum: number, x: any) => sum + x.pendingAmount, 0) : currentLedger.monthlyBills.reduce((sum: number, l: any) => sum + l.credit, 0)) 
     : ledgersToDisplay.reduce((sum: number, l: any) => sum + l.credit, 0);
 
-  const netPending = Math.abs(totalDebit - totalCredit);
-  const netPendingType = totalDebit >= totalCredit ? "Dr" : "Cr";
+  const totalPending = totalDebit + totalCredit;
 
   const triggerPrint = () => {
     window.print();
@@ -576,20 +576,13 @@ function GroupOutstandingsContent({
             {/* Table Headers */}
             <thead>
               {(!currentLedger || !currentMonth) ? (
-                <>
-                  <tr className="border-b border-border bg-muted/40 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    <th className="p-3 text-left pl-6 min-w-[240px]" rowSpan={2}>
-                      {!currentLedger ? "Particulars" : "Month"}
-                    </th>
-                    <th className="p-2 text-center border-l border-border" colSpan={2}>
-                      Pending Bills
-                    </th>
-                  </tr>
-                  <tr className="border-b border-border bg-muted/20 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    <th className="p-3 text-right border-l border-border w-[180px]">Debit</th>
-                    <th className="p-3 text-right border-l border-border w-[180px]">Credit</th>
-                  </tr>
-                </>
+                <tr className="border-b border-border bg-muted/40 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  <th className="p-3 text-left pl-6 min-w-[240px]">
+                    {!currentLedger ? "Particulars" : "Month"}
+                  </th>
+                  <th className="p-3 text-right border-l border-border w-[180px]">Pending Amt</th>
+                  <th className="p-3 text-right border-l border-border w-[180px]">Days</th>
+                </tr>
               ) : (
                 <tr className="border-b border-border bg-muted/40 text-xs font-bold uppercase tracking-wider text-muted-foreground">
                   <th className="p-3 text-left pl-6">Date</th>
@@ -598,7 +591,8 @@ function GroupOutstandingsContent({
                   <th className="p-3 text-right">Paid Amt</th>
                   <th className="p-3 text-right">Pending Amt</th>
                   <th className="p-3 text-left">Due Date</th>
-                  <th className="p-3 text-right">{calcFromBillDate ? "Days" : "Overdue"}</th>
+                  <th className="p-3 text-right">Overdue Days</th>
+                  <th className="p-3 text-right">Bill Days</th>
                   <th className="p-3 text-left">Who Did</th>
                 </tr>
               )}
@@ -615,36 +609,43 @@ function GroupOutstandingsContent({
                     </td>
                   </tr>
                 ) : (
-                  ledgersToDisplay.map((l) => (
-                    <tr
-                      key={l.ledgerId}
-                      className="group/row hover:bg-muted/10 transition-colors font-medium cursor-pointer"
-                      onClick={() => {
-                        router.push(`?from=${fromParam}&to=${toParam}&groupId=${selectedGroup.groupId}&ledgerId=${l.ledgerId}`);
-                      }}
-                    >
-                      <td className="p-3 pl-6 font-semibold">
-                        <div className="flex items-center justify-between w-full">
-                          <span className="hover:underline hover:text-primary">{l.ledgerName}</span>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRemoveLine(String(l.ledgerId));
-                            }}
-                            className="opacity-0 group-hover/row:opacity-100 text-xs text-destructive hover:underline p-1 ml-2 no-print font-normal"
-                          >
-                            Omit
-                          </button>
-                        </div>
-                      </td>
-                      <td className="p-3 text-right border-l border-border font-mono">
-                        {formatAmount(l.debit)}
-                      </td>
-                      <td className="p-3 text-right border-l border-border font-mono font-bold text-foreground">
-                        {formatAmount(l.credit)}
-                      </td>
-                    </tr>
-                  ))
+                  ledgersToDisplay.map((l) => {
+                    const net = l.bills.reduce((sum: number, b: any) => sum + b.pendingAmount, 0);
+                    const maxDays = l.bills.length > 0
+                      ? Math.max(...l.bills.map((b: any) => b.overdueDays))
+                      : 0;
+
+                    return (
+                      <tr
+                        key={l.ledgerId}
+                        className="group/row hover:bg-muted/10 transition-colors font-medium cursor-pointer"
+                        onClick={() => {
+                          router.push(`?from=${fromParam}&to=${toParam}&groupId=${selectedGroup.groupId}&ledgerId=${l.ledgerId}`);
+                        }}
+                      >
+                        <td className="p-3 pl-6 font-semibold">
+                          <div className="flex items-center justify-between w-full">
+                            <span className="hover:underline hover:text-primary">{l.ledgerName}</span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRemoveLine(String(l.ledgerId));
+                              }}
+                              className="opacity-0 group-hover/row:opacity-100 text-xs text-destructive hover:underline p-1 ml-2 no-print font-normal"
+                            >
+                              Omit
+                            </button>
+                          </div>
+                        </td>
+                        <td className="p-3 text-right border-l border-border font-mono font-bold text-foreground">
+                          {net > 0.01 ? formatAmount(net) : "—"}
+                        </td>
+                        <td className="p-3 text-right border-l border-border font-mono text-muted-foreground font-semibold">
+                          {maxDays > 0 ? `${maxDays} days` : "—"}
+                        </td>
+                      </tr>
+                    );
+                  })
                 )
               )}
 
@@ -657,25 +658,32 @@ function GroupOutstandingsContent({
                     </td>
                   </tr>
                 ) : (
-                  currentLedger.monthlyBills.map((month: any) => (
-                    <tr
-                      key={month.monthKey}
-                      className="hover:bg-muted/10 transition-colors cursor-pointer font-medium"
-                      onClick={() => {
-                        router.push(`?from=${fromParam}&to=${toParam}&groupId=${selectedGroup.groupId}&ledgerId=${currentLedger.ledgerId}&month=${month.monthKey}`);
-                      }}
-                    >
-                      <td className="p-3 pl-6 font-semibold">
-                        <span className="hover:underline hover:text-primary">{month.monthName}</span>
-                      </td>
-                      <td className="p-3 text-right border-l border-border font-mono">
-                        {formatAmount(month.debit)}
-                      </td>
-                      <td className="p-3 text-right border-l border-border font-mono font-bold text-foreground">
-                        {formatAmount(month.credit)}
-                      </td>
-                    </tr>
-                  ))
+                  currentLedger.monthlyBills.map((month: any) => {
+                    const net = month.bills.reduce((sum: number, b: any) => sum + b.pendingAmount, 0);
+                    const maxMonthDays = month.bills.length > 0
+                      ? Math.max(...month.bills.map((b: any) => b.overdueDays))
+                      : 0;
+
+                    return (
+                      <tr
+                        key={month.monthKey}
+                        className="hover:bg-muted/10 transition-colors cursor-pointer font-medium"
+                        onClick={() => {
+                          router.push(`?from=${fromParam}&to=${toParam}&groupId=${selectedGroup.groupId}&ledgerId=${currentLedger.ledgerId}&month=${month.monthKey}`);
+                        }}
+                      >
+                        <td className="p-3 pl-6 font-semibold">
+                          <span className="hover:underline hover:text-primary">{month.monthName}</span>
+                        </td>
+                        <td className="p-3 text-right border-l border-border font-mono font-bold text-foreground">
+                          {net > 0.01 ? formatAmount(net) : "—"}
+                        </td>
+                        <td className="p-3 text-right border-l border-border font-mono text-muted-foreground font-semibold">
+                          {maxMonthDays > 0 ? `${maxMonthDays} days` : "—"}
+                        </td>
+                      </tr>
+                    );
+                  })
                 )
               )}
 
@@ -683,7 +691,7 @@ function GroupOutstandingsContent({
               {currentLedger && currentMonth && (
                 currentMonth.bills.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="p-8 text-center text-xs text-muted-foreground italic">
+                    <td colSpan={9} className="p-8 text-center text-xs text-muted-foreground italic">
                       No pending bills found for this month
                     </td>
                   </tr>
@@ -716,13 +724,13 @@ function GroupOutstandingsContent({
                       >
                         {formatAmount(bill.paidAmount)}
                       </td>
-                      <td className="p-3 text-right font-mono font-bold">{formatAmount(bill.pendingAmount)} {bill.type}</td>
+                      <td className="p-3 text-right font-mono font-bold">{formatAmount(bill.pendingAmount)}</td>
                       <td className="p-3 font-mono">{bill.dueDate}</td>
                       <td className="p-3 text-right font-sans font-semibold text-destructive">
-                        {calcFromBillDate 
-                          ? (bill.days > 0 ? `${bill.days} days` : "—") 
-                          : (bill.overdueDays > 0 ? `${bill.overdueDays} days` : "—")
-                        }
+                        {bill.overdueDays > 0 ? `${bill.overdueDays} days` : "—"}
+                      </td>
+                      <td className="p-3 text-right font-sans font-semibold text-muted-foreground">
+                        {bill.days > 0 ? `${bill.days} days` : "—"}
                       </td>
                       <td className="p-3 text-muted-foreground">{bill.createdBy}</td>
                     </tr>
@@ -737,11 +745,9 @@ function GroupOutstandingsContent({
                 <tr className="border-t-2 border-double border-border bg-muted/20 text-sm font-bold">
                   <td className="p-3 pl-6">Grand Total</td>
                   <td className="p-3 text-right border-l border-border font-mono text-base">
-                    {formatAmount(totalDebit)}
+                    {totalPending > 0.01 ? formatAmount(totalPending) : "—"}
                   </td>
-                  <td className="p-3 text-right border-l border-border font-mono text-base">
-                    {formatAmount(totalCredit)}
-                  </td>
+                  <td className="border-l border-border"></td>
                 </tr>
               ) : (
                 <tr className="border-t-2 border-double border-border bg-muted/20 text-sm font-bold">
@@ -753,9 +759,9 @@ function GroupOutstandingsContent({
                     {formatAmount(currentMonth.bills.reduce((sum: number, b: any) => sum + b.paidAmount, 0))}
                   </td>
                   <td className="p-3 text-right border-l border-border font-mono text-base text-foreground">
-                    {netPending > 0.01 ? `${formatAmount(netPending)} ${netPendingType}` : "—"}
+                    {totalPending > 0.01 ? formatAmount(totalPending) : "—"}
                   </td>
-                  <td colSpan={3}></td>
+                  <td colSpan={4}></td>
                 </tr>
               )}
             </tfoot>
@@ -852,12 +858,20 @@ function GroupOutstandingsContent({
                     const isVendor = currentLedger?.ledgerType === "company" || currentLedger?.ledgerType === "supplier";
                     const sign = (isVendor && isDebitNote) ? "-" : "";
                     return (
-                      <div key={idx} className="grid grid-cols-3 p-2 text-xs font-mono text-foreground hover:bg-muted/10 transition-colors">
+                      <div 
+                        key={idx} 
+                        className="grid grid-cols-3 p-2 text-xs font-mono text-foreground hover:bg-muted/20 cursor-pointer transition-colors"
+                        onClick={() => {
+                          if (p.voucherId && p.voucherType) {
+                            router.push(getVoucherRedirectUrl(p.voucherType, p.voucherId));
+                          }
+                        }}
+                      >
                         <div className="text-[11px] text-muted-foreground flex items-center font-sans">
                           {formatDateToTally(p.voucherDate)}
                         </div>
                         <div className="font-sans flex flex-col justify-center">
-                          <span className="font-semibold text-foreground truncate text-[11px]">
+                          <span className="font-semibold text-primary hover:underline truncate text-[11px]">
                             {p.voucherNo}
                           </span>
                           <span className="text-[9px] text-muted-foreground uppercase">

@@ -267,7 +267,7 @@ function LedgerReportContent({
       let creditNotesSum = 0;
       let salesReturnsSum = 0;
       let purchaseReturnsSum = 0;
-      const paymentsList: { voucherNo: string; voucherType: string; voucherDate: string; amount: number }[] = [];
+      const paymentsList: { voucherId: number; voucherNo: string; voucherType: string; voucherDate: string; amount: number }[] = [];
 
       adjustments.forEach((adj) => {
         if (adj.remarks?.includes("[RETURN CHEQUE REVERSAL]")) {
@@ -285,13 +285,14 @@ function LedgerReportContent({
         }
 
         // 2. Check parentVoucherId (debit_note/credit_note links)
-        if (adj.parentVoucherId && Number(adj.parentVoucherId) === inv.voucherId) {
+        if (linkAmt === 0 && adj.parentVoucherId && Number(adj.parentVoucherId) === inv.voucherId) {
           linkAmt += Number(adj.netAmount) || 0;
         }
 
         if (linkAmt > 0) {
           linkedAdjustmentAmounts[adj.voucherId] = (linkedAdjustmentAmounts[adj.voucherId] || 0) + linkAmt;
           paymentsList.push({
+            voucherId: adj.voucherId,
             voucherNo: adj.voucherNo,
             voucherType: adj.voucherType,
             voucherDate: adj.voucherDate,
@@ -337,10 +338,10 @@ function LedgerReportContent({
           refNo: inv.voucherNo,
           openingAmount: billing,
           paidAmount: paid,
-          pendingAmount: pending,
+          pendingAmount: Math.abs(pending),
           dueOn: dueDate.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "2-digit" }),
           overdueDays,
-          type: defaultType,
+          type: pending >= 0 ? defaultType : (defaultType === "Dr" ? "Cr" : "Dr"),
           voucherId: inv.voucherId,
           voucherType: inv.voucherType,
           payments: paymentsList,
@@ -372,9 +373,9 @@ function LedgerReportContent({
   };
 
   const pendingBills = calculateOutstandings();
-  const totalOpening = pendingBills.reduce((s, b) => s + (b.type === "Cr" ? -b.openingAmount : b.openingAmount), 0);
-  const totalPaid = pendingBills.reduce((s, b) => s + (b.type === "Cr" ? -b.paidAmount : b.paidAmount), 0);
-  const totalPending = pendingBills.reduce((s, b) => s + (b.type === "Cr" ? -b.pendingAmount : b.pendingAmount), 0);
+  const totalOpening = pendingBills.reduce((s, b) => s + b.openingAmount, 0);
+  const totalPaid = pendingBills.reduce((s, b) => s + b.paidAmount, 0);
+  const totalPending = pendingBills.reduce((s, b) => s + b.pendingAmount, 0);
 
   // ─── Running Balance ─────────────────────────────────────────────────────────
   let runningSum = openingBalance;
@@ -625,7 +626,7 @@ function LedgerReportContent({
                         {formatAmount(bill.paidAmount, bill.type)}
                       </div>
                       <div className="col-span-2 p-3 text-right border-r border-border/50 pr-4 flex items-center justify-end font-bold">
-                        {formatAmount(bill.pendingAmount, bill.type)}
+                        {formatAmount(bill.pendingAmount)}
                       </div>
                       <div className="col-span-1 p-3 border-r border-border/50 pl-3 font-sans text-xs text-foreground/80 flex items-center">
                         {bill.dueOn}
@@ -647,7 +648,7 @@ function LedgerReportContent({
                     {formatAmount(Math.abs(totalPaid), totalPaid >= 0 ? "Dr" : "Cr")}
                   </div>
                   <div className="col-span-2 p-3.5 text-right border-r border-border/50 pr-4 font-black">
-                    {formatAmount(Math.abs(totalPending), totalPending >= 0 ? "Dr" : "Cr")}
+                    {formatAmount(Math.abs(totalPending))}
                   </div>
                   <div className="col-span-2 p-3.5" />
                 </div>
