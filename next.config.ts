@@ -1,10 +1,14 @@
 import type { NextConfig } from "next";
+import path from "path";
 
 const nextConfig: NextConfig = {
   devIndicators: false,
   poweredByHeader: false,
   compress: true,
   serverExternalPackages: ["pg", "bcryptjs"],
+  turbopack: {
+    root: path.resolve(process.cwd()),
+  },
   experimental: {
     optimizePackageImports: ["lucide-react", "recharts", "clsx", "tailwind-merge"],
     staleTimes: {
