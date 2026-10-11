@@ -21,10 +21,33 @@ export const metadata: Metadata = {
     template: `%s · ${APP_NAME}`,
   },
   description: APP_DESCRIPTION,
-  keywords: ["ERP", "textile", "open-source", "self-hosted", "bookkeeping", "inventory", "GST", "vouchers", "accounting"],
+  keywords: [
+    "ERP",
+    "textile",
+    "open-source",
+    "self-hosted",
+    "bookkeeping",
+    "inventory",
+    "GST",
+    "vouchers",
+    "accounting",
+    "Tally alternative",
+    "double-entry accounting",
+  ],
   authors: [{ name: APP_NAME }],
   creator: APP_NAME,
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
+  alternates: {
+    canonical: "/",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+    },
+  },
   openGraph: {
     title: `${APP_NAME} — Open-Source ERP for Textile Businesses`,
     description:
@@ -39,6 +62,22 @@ export const metadata: Metadata = {
   },
 };
 
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: APP_NAME,
+  applicationCategory: "BusinessApplication",
+  operatingSystem: "Linux, Windows, macOS, Docker",
+  offers: {
+    "@type": "Offer",
+    price: "0",
+    priceCurrency: "USD",
+  },
+  description: APP_DESCRIPTION,
+  license: "https://opensource.org/licenses/MIT",
+  softwareVersion: "0.1.1",
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -49,6 +88,12 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      </head>
       <body className="min-h-full flex flex-col">
         <SessionProvider refetchInterval={0} refetchOnWindowFocus={false}>
           {children}
