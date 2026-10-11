@@ -97,7 +97,7 @@ To maintain consistency and high performance across the ERP:
    ```bash
    git commit -m "feat: add GST summary export in reports"
    ```
-3. Push to your fork and submit a Pull Request against the `dev` branch.
+3. Push to your fork and submit a Pull Request against the `main` branch.
 4. Describe the problem your PR solves and attach screenshots or test instructions.
 
 ---

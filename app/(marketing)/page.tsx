@@ -472,7 +472,7 @@ export default async function LandingPage() {
               Self-Host
             </Link>
             <Link
-              href="https://github.com/kabirjaipal/spun/blob/dev/CONTRIBUTING.md"
+              href="https://github.com/kabirjaipal/spun/blob/main/CONTRIBUTING.md"
               target="_blank"
               rel="noopener noreferrer"
               className="hover:text-foreground"
