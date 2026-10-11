@@ -17,25 +17,25 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: `${APP_NAME} — Modern ERP for Textile Businesses`,
+    default: `${APP_NAME} — Open-Source ERP for Textile Businesses`,
     template: `%s · ${APP_NAME}`,
   },
   description: APP_DESCRIPTION,
-  keywords: ["ERP", "textile", "bookkeeping", "inventory", "GST", "vouchers", "accounting"],
+  keywords: ["ERP", "textile", "open-source", "self-hosted", "bookkeeping", "inventory", "GST", "vouchers", "accounting"],
   authors: [{ name: APP_NAME }],
   creator: APP_NAME,
-  metadataBase: new URL("https://spun.app"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
   openGraph: {
-    title: `${APP_NAME} — Modern ERP for Textile Businesses`,
+    title: `${APP_NAME} — Open-Source ERP for Textile Businesses`,
     description:
-      "Cloud ERP built for textile businesses. Tally-standard voucher engine, inventory, GST reports, and more.",
+      "Self-hosted, open-source ERP built for textile businesses. Tally-standard voucher engine, inventory, GST reports, and more.",
     siteName: APP_NAME,
     type: "website",
   },
   twitter: {
     card: "summary",
-    title: `${APP_NAME} — Modern ERP for Textile Businesses`,
-    description: "Cloud ERP built for textile businesses.",
+    title: `${APP_NAME} — Open-Source ERP for Textile Businesses`,
+    description: "Self-hosted, open-source ERP built for textile businesses.",
   },
 };
 

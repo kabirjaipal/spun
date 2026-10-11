@@ -1,1103 +1,198 @@
-# TextileERP MVP PRD & Architecture
+<div align="center">
 
-## Vision
+# 🧵 Spun (TextileERP)
 
-Build a modern cloud-based textile accounting ERP that feels familiar to Tally users while providing a cleaner UI, better navigation, faster workflows, and role-based access control.
+**Modern, Open-Source & Self-Hosted Accounting & ERP for Textile Businesses**
 
-Primary goal:
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5+-blue?logo=typescript)](https://www.typescriptlang.org/)
+[![Drizzle ORM](https://img.shields.io/badge/Drizzle_ORM-PostgreSQL-green)](https://orm.drizzle.team/)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker)](https://www.docker.com/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4-38B2AC?logo=tailwind-css)](https://tailwindcss.com/)
 
-> A Tally user should be productive within minutes without training.
+*Tally-familiar speed and accounting workflows meet a modern, responsive web application.*
 
-The system should preserve familiar accounting concepts while simplifying interaction.
+[Features](#-key-features) • [Self-Hosting with Docker](#-self-hosting-with-docker) • [Local Development](#-local-development) • [Environment Variables](#%EF%B8%8F-environment-variables) • [Architecture](#-architecture) • [Contributing](#-contributing)
 
----
-
-# Technology Stack
-
-## Frontend & Backend
-* Next.js (App Router)
-* TypeScript
-* Tailwind CSS
-* shadcn/ui
-* shadcn multi-select component https://shadcn-multi-select-component.vercel.app/
-* NextAuth.js (Auth.js) for authentication
-
-## Database & ORM
-* PostgreSQL
-* Drizzle ORM
-* Drizzle Kit migrations
-
-## Storage
-* S3-compatible object storage
+</div>
 
 ---
 
-# Naming Standards
+## 💡 Why Spun?
 
-## Tables
+Traditional desktop accounting tools like Tally are powerful and fast, but they tie businesses to local machines, complex networks, and outdated user experiences.
 
-snake_case
-
-Prefixes:
-
-Master tables:
-
-```text
-m_users
-m_companies
-m_customers
-m_suppliers
-m_products
-m_ledgers
-m_tax_rates
-m_access
-```
-
-Permission tables:
-
-```text
-m_role
-p_user_role
-p_role_access
-```
-
-Transaction tables:
-
-```text
-t_vouchers
-t_voucher_entries
-t_stock_movements
-t_audit_log
-```
-
-## Columns
-
-snake_case
-
-Examples:
-
-```text
-customer_id
-voucher_no
-created_on
-deleted_on
-created_by
-deleted_by
-```
-
-## Enums
-
-snake_case
-
-Examples:
-
-```text
-e_voucher_type
-e_party_type
-e_ledger_type
-```
+**Spun** gives textile traders, weavers, mills, and manufacturers the best of both worlds:
+1. **Preserved Accounting Mental Model**: Double-entry bookkeeping, debit/credit journal vouchers, party accounts, and ledger groups that every accountant already understands.
+2. **Modern Web Experience**: Instant searchable dropdowns, keyboard-friendly entries, clean responsive UI, and role-based access control.
+3. **100% Data Ownership**: Completely open-source and self-hosted. Run it on your own server, Docker container, or local network with zero vendor lock-in or subscription fees.
 
 ---
 
-# Audit Fields
+## ✨ Key Features
 
-Every table must contain:
+### 📑 Accounting & Vouchers
+- **Complete Voucher Engine**: Sales, Purchases, Sales Return, Purchase Return, Direct Bills.
+- **Financial Transactions**: Receipts, Payments, Debit Notes, Credit Notes, and multi-ledger Journal Entries.
+- **Double-Entry Balance Validation**: Real-time balancing checks with automated ledger entries.
 
-```sql
-created_on timestamp
-created_by bigint
+### 🏭 Textile & Manufacturing Operations
+- **Mill Workflows**: Mill Inward and Mill Outward lot tracking.
+- **Job Work Management**: Job Inward and Job Outward processing steps.
+- **Lot Transfers & Inventory**: Real-time stock movement tracking across gray, processed, and finished yarn/fabrics.
 
-updated_on timestamp
-updated_by bigint
+### 🗂️ Master Records
+- **Parties & Ledgers**: Customers, Suppliers, Brokers/Haste, Chart of Accounts, Parent Ledger Groups.
+- **Tax Configuration**: GST rates (CGST/SGST/IGST), states, and optional automated GSTIN lookup.
+- **Units & Currencies**: Flexible measurement units (MTR, KGS, PCS, etc.) and global currency support.
 
-deleted_on timestamp null
-deleted_by bigint null
-```
+### 📊 Real-Time Financial Reports
+- **Day Book**: Filterable day-by-day record of all operational vouchers.
+- **Ledger Statements**: Detailed debits, credits, running balances, and voucher drill-downs.
+- **Outstanding Balances**: Group-wise accounts receivable and accounts payable.
+- **Cash & Bank Summaries**: Cash flow positions across all bank and cash accounts.
 
-Soft delete only.
-
-Never physically delete:
-
-```text
-vouchers
-voucher_entries
-payments
-receipts
-stock_movements
-```
-
----
-
-# Role Based Access Control
-
-## Access Table
-
-### m_access
-
-```sql
-access_item varchar unique
-
-page_url varchar
-page_title varchar
-page_icon varchar
-page_group varchar
-
-created_on
-created_by
-updated_on
-updated_by
-deleted_on
-deleted_by
-```
-
-Examples:
-
-```text
-users
-roles
-customers
-suppliers
-products
-sales
-purchase
-receipt
-payment
-ledger
-reports
-```
-
-Owner-only examples:
-
-```text
-o_company_settings
-o_billing
-```
+### 🛡️ Security & Multi-Tenancy
+- **Granular RBAC**: Control Create, Read, Update, Delete (soft-delete), Export, and Approve permissions per role.
+- **Multi-Company Context**: Manage multiple branches or legal entities under a single installation.
 
 ---
 
-## Roles
+## 🐳 Self-Hosting with Docker
 
-### m_role
+You can launch Spun and a PostgreSQL database in seconds with Docker Compose.
 
-```sql
-role_id bigint pk
+### 1. Clone & Configure
 
-role_name varchar
-
-created_on
-created_by
-updated_on
-updated_by
-deleted_on
-deleted_by
+```bash
+git clone https://github.com/your-username/spun.git
+cd spun
+cp .env.example .env
 ```
 
-Examples:
-
-```text
-owner
-admin
-accountant
-sales
-inventory_manager
-viewer
+Edit `.env` and set a random production secret:
+```bash
+# Generate a secret:
+openssl rand -hex 32
 ```
+Update `AUTH_SECRET="<your-generated-secret>"` in `.env`.
+
+### 2. Start Containers
+
+```bash
+docker compose up -d
+```
+
+### 3. Apply Migrations & Seed (First Time Only)
+
+```bash
+# Run migrations inside the web container
+docker compose exec web npx drizzle-kit migrate
+
+# (Optional) Seed realistic demo data
+docker compose exec web npx tsx --env-file=.env lib/db/real_seed.ts
+```
+
+Open **`http://localhost:3000`** in your browser.
 
 ---
 
-## User Role Mapping
+## 💻 Local Development
 
-### p_user_role
+### Prerequisites
+* **Node.js** 20.x or higher
+* **PostgreSQL** 14+ running locally or in Docker
+* **npm** or **pnpm**
 
-```sql
-user_role_id bigint pk
+### Step-by-Step Setup
 
-user_id bigint
-role_id bigint
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/your-username/spun.git
+   cd spun
+   ```
 
-created_on
-created_by
-updated_on
-updated_by
-deleted_on
-deleted_by
-```
+2. **Install dependencies**:
+   ```bash
+   npm install
+   ```
 
----
+3. **Configure environment**:
+   ```bash
+   cp .env.example .env
+   ```
+   Ensure `DATABASE_URL` in `.env` points to your PostgreSQL database:
+   ```env
+   DATABASE_URL="postgres://postgres:postgres@localhost:5432/spun"
+   AUTH_SECRET="any-development-secret-key-32-chars-long"
+   ```
 
-## Role Permissions
+4. **Initialize database & seed data**:
+   ```bash
+   # Run schema migrations
+   npm run db:migrate
 
-### p_role_access
+   # Populate full realistic textile company & transactions
+   npm run db:realseed
+   ```
 
-```sql
-role_access_id bigint pk
+5. **Start development server**:
+   ```bash
+   npm run dev
+   ```
 
-role_id bigint
-access_id bigint
+Navigate to `http://localhost:3000`.
 
-c boolean
-r boolean
-u boolean
-d boolean
-e boolean
-a boolean
+### 🔑 Demo Login Credentials
 
-created_on
-created_by
-updated_on
-updated_by
-deleted_on
-deleted_by
-```
+The realistic seed script populates sample companies and users:
 
----
-
-# Authorization Rules
-
-Frontend:
-
-If:
-
-```text
-can_create = false
-```
-
-Hide create button.
-
-If:
-
-```text
-can_update = false
-```
-
-Hide edit button.
-
-If:
-
-```text
-can_delete = false
-```
-
-Hide delete button.
-
-If:
-
-```text
-can_export = false
-```
-
-Hide export actions.
-
-If:
-
-```text
-can_approve = false
-```
-
-Hide approve actions.
+| Email | Password | Role / Company |
+|---|---|---|
+| `test@spun.app` | `password123` | **Spun Trading Co.** (Full ERP Demo) |
+| `owner@spun.app` | `password123` | **Owner** (Multi-Company Setup) |
 
 ---
 
-Backend:
+## ⚙️ Environment Variables
 
-Always validate permissions.
-
-Never trust frontend.
-
----
-
-Page middleware:
-
-```text
-User
- ↓
-Role
- ↓
-Role Access
- ↓
-Page Access
-```
-
-No read access:
-
-```text
-redirect /access-denied
-```
+| Variable | Required | Description | Default |
+|---|---|---|---|
+| `DATABASE_URL` | **Yes** | PostgreSQL connection string | `postgres://postgres:postgres@localhost:5432/spun` |
+| `AUTH_SECRET` | **Yes** | Session & JWT encryption secret | *(Required in production)* |
+| `NEXT_PUBLIC_APP_URL` | No | Canonical web application URL | `http://localhost:3000` |
+| `GOOGLE_CLIENT_ID` | No | Google OAuth App Client ID | `""` *(Disabled if empty)* |
+| `GOOGLE_CLIENT_SECRET` | No | Google OAuth App Secret | `""` *(Disabled if empty)* |
+| `GSTINCHECK_API_KEY` | No | Optional API key for GSTIN lookup | `""` *(Optional)* |
 
 ---
 
-# UI Design System
+## 📐 Architecture & Database Design
 
-## Colors
+Spun adheres to clean architectural principles for accounting integrity:
+* **Audit Columns**: Every table tracks `created_on`, `created_by`, `updated_on`, and `updated_by`.
+* **Soft Deletes**: Deletions are non-destructive (`deleted_on`, `deleted_by`) to ensure financial auditability.
+* **Database Transactions**: Multi-table updates and double-entry adjustments run inside ACID `db.transaction`.
+* **Table Naming Standards**:
+  - `m_*`: Master data tables (e.g. `m_users`, `m_companies`, `m_parties`, `m_ledgers`).
+  - `t_*`: Transaction & operational tables (e.g. `t_vouchers`, `t_voucher_entries`, `t_stock_movements`).
+  - `p_*`: Permission & mapping tables (e.g. `p_user_role`, `p_role_access`).
 
-Primary
-
-```text
-Blue
-```
-
-Use for:
-
-```text
-primary buttons
-active navigation
-links
-focus states
-```
-
-Success
-
-```text
-Green
-```
-
-Use for:
-
-```text
-paid
-received
-approved
-profit
-```
-
-Warning
-
-```text
-Amber
-```
-
-Use for:
-
-```text
-pending
-partial payment
-attention
-```
-
-Danger
-
-```text
-Red
-```
-
-Use for:
-
-```text
-delete
-overdue
-loss
-errors
-```
-
-Info
-
-```text
-Cyan
-```
-
-Use for:
-
-```text
-help
-tips
-references
-```
-
-Neutral
-
-```text
-Slate
-```
-
-Use for:
-
-```text
-tables
-text
-borders
-backgrounds
-```
+For a deep dive into the schema definitions and technical PRD, see **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 
 ---
 
-# Form Design Standard
+## 🤝 Contributing
 
-Always:
+Contributions from the open-source community are warmly welcomed! Whether you want to add new reports, print templates, e-invoicing integrations, or improve documentation:
 
-```text
-LABEL
-
-[input]
-```
-
-Example:
-
-```text
-CUSTOMER NAME
-
-[ABC Textiles]
-```
-
-Never:
-
-```text
-Customer Name: [ABC]
-```
-
-All labels:
-
-```text
-uppercase
-small
-semi-bold
-```
+1. Read our **[CONTRIBUTING.md](CONTRIBUTING.md)** guidelines.
+2. Fork the repository and create a feature branch (`feat/awesome-feature`).
+3. Submit a Pull Request.
 
 ---
 
-# Select Components
+## 📜 License
 
-Use searchable select everywhere.
-
-Use:
-
-* shadcn multi-select component
-
-For:
-
-```text
-customer
-supplier
-product
-tax
-ledger
-roles
-users
-warehouses
-```
-
----
-
-# Modal Standards
-
-## Small Forms
-
-Use Sheet
-
-Examples:
-
-```text
-customer
-supplier
-tax rate
-user
-role
-```
-
----
-
-## Large Forms
-
-Use Full Page
-
-Examples:
-
-```text
-sales voucher
-purchase voucher
-receipt voucher
-payment voucher
-journal voucher
-```
-
----
-
-## Confirmations
-
-Always Modal
-
-Examples:
-
-```text
-delete
-approve
-cancel
-reopen
-```
-
----
-
-# Sidebar
-
-## Dashboard
-
-```text
-dashboard
-```
-
----
-
-## Masters
-
-```text
-customers
-suppliers
-products
-ledgers
-tax rates
-warehouses
-```
-
----
-
-## Transactions
-
-```text
-sales
-purchase
-receipt
-payment
-journal
-```
-
----
-
-## Inventory
-
-```text
-stock items
-stock summary
-stock movements
-```
-
----
-
-## Reports
-
-```text
-ledger
-trial balance
-profit and loss
-balance sheet
-gst reports
-```
-
----
-
-## Administration
-
-```text
-users
-roles
-permissions
-company settings
-```
-
----
-
-# Core Database Structure
-
-## Companies
-
-### m_companies
-
-```sql
-company_id bigint pk
-
-company_name varchar
-gst_no varchar
-pan_no varchar
-
-address text
-
-financial_year_start date
-
-created_on
-created_by
-updated_on
-updated_by
-deleted_on
-deleted_by
-```
-
----
-
-## Users
-
-### m_users
-
-```sql
-user_id bigint pk
-
-full_name varchar
-
-email varchar
-
-password_hash text
-
-is_active boolean
-
-company_id bigint
-
-created_on
-created_by
-updated_on
-updated_by
-deleted_on
-deleted_by
-```
-
----
-
-## Customers
-
-### m_customers
-
-```sql
-customer_id bigint pk
-
-company_id bigint
-
-customer_name varchar
-
-gst_no varchar
-
-phone varchar
-
-email varchar
-
-address text
-
-opening_balance numeric
-
-created_on
-created_by
-updated_on
-updated_by
-deleted_on
-deleted_by
-```
-
----
-
-## Suppliers
-
-### m_suppliers
-
-```sql
-supplier_id bigint pk
-
-company_id bigint
-
-supplier_name varchar
-
-gst_no varchar
-
-phone varchar
-
-email varchar
-
-address text
-
-opening_balance numeric
-
-created_on
-created_by
-updated_on
-updated_by
-deleted_on
-deleted_by
-```
-
----
-
-## Products
-
-### m_products
-
-```sql
-product_id bigint pk
-
-company_id bigint
-
-product_code varchar
-
-product_name varchar
-
-unit varchar
-
-gst_rate_id bigint
-
-opening_stock_qty numeric
-
-opening_stock_rate numeric
-
-created_on
-created_by
-updated_on
-updated_by
-deleted_on
-deleted_by
-```
-
----
-
-## Tax Rates
-
-### m_tax_rates
-
-```sql
-tax_rate_id bigint pk
-
-tax_name varchar
-
-tax_percent numeric
-
-created_on
-created_by
-updated_on
-updated_by
-deleted_on
-deleted_by
-```
-
----
-
-# Accounting Engine
-
-## Ledgers
-
-### m_ledgers
-
-```sql
-ledger_id bigint pk
-
-company_id bigint
-
-ledger_name varchar
-
-ledger_type varchar
-
-reference_id bigint
-
-created_on
-created_by
-updated_on
-updated_by
-deleted_on
-deleted_by
-```
-
-Examples:
-
-```text
-cash
-bank
-customer
-supplier
-sales
-purchase
-tax
-expense
-```
-
----
-
-# Voucher System
-
-## Vouchers
-
-### t_vouchers
-
-```sql
-voucher_id bigint pk
-
-company_id bigint
-
-voucher_no varchar
-
-voucher_type varchar
-
-voucher_date date
-
-party_id bigint
-
-remarks text
-
-status varchar
-
-total_amount numeric
-
-tax_amount numeric
-
-net_amount numeric
-
-created_on
-created_by
-updated_on
-updated_by
-deleted_on
-deleted_by
-```
-
-Voucher Types:
-
-```text
-sale
-purchase
-receipt
-payment
-journal
-```
-
----
-
-## Voucher Entries
-
-### t_voucher_entries
-
-```sql
-voucher_entry_id bigint pk
-
-voucher_id bigint
-
-ledger_id bigint
-
-entry_type varchar
-
-amount numeric
-
-created_on
-created_by
-updated_on
-updated_by
-deleted_on
-deleted_by
-```
-
-Entry Types:
-
-```text
-debit
-credit
-```
-
----
-
-# Inventory
-
-## Stock Movements
-
-### t_stock_movements
-
-```sql
-stock_movement_id bigint pk
-
-company_id bigint
-
-product_id bigint
-
-voucher_id bigint
-
-movement_type varchar
-
-quantity numeric
-
-rate numeric
-
-amount numeric
-
-created_on
-created_by
-updated_on
-updated_by
-deleted_on
-deleted_by
-```
-
-Movement Types:
-
-```text
-purchase
-sale
-adjustment
-opening
-```
-
----
-
-# Audit System
-
-## Audit Log
-
-### t_audit_log
-
-```sql
-audit_log_id bigint pk
-
-table_name varchar
-
-record_id bigint
-
-action_type varchar
-
-old_data_json jsonb
-
-new_data_json jsonb
-
-created_on
-created_by
-```
-
-Action Types:
-
-```text
-create
-update
-delete
-approve
-```
-
----
-
-# Drizzle ORM & Database Strategy
-
-Define all schemas inside `lib/db/schema.ts` and import the client `db` from `lib/db/index.ts`.
-
-Use standard Drizzle ORM query builders:
-```typescript
-import { db } from "@/lib/db";
-import { mCustomers } from "@/lib/db/schema";
-import { isNull } from "drizzle-orm";
-
-const customers = await db
-  .select()
-  .from(mCustomers)
-  .where(isNull(mCustomers.deletedOn));
-```
-
-Use Drizzle transactions for multi-step edits:
-```typescript
-await db.transaction(async (tx) => {
-  // Perform multiple database operations within a single transaction
-});
-```
-
----
-
-# Migration Strategy
-
-Use Drizzle Kit.
-
-Structure:
-```text
-drizzle/
-  ├── meta/
-  └── 0000_initial.sql
-  └── 0001_roles.sql
-```
-
-Rules:
-* Never manually edit SQL files inside `drizzle/` folder.
-* Generate new migrations by running `npx drizzle-kit generate`.
-* Apply migrations to your DB by running `npx drizzle-kit migrate` (or `npx drizzle-kit push` for dev environments).
-
----
-
-# Development Phases
-
-## Phase 1
-
-Authentication
-
-Users
-
-Roles
-
-Permissions
-
-Companies
-
----
-
-## Phase 2
-
-Customers
-
-Suppliers
-
-Products
-
-Tax Rates
-
-Ledgers
-
----
-
-## Phase 3
-
-Sales Voucher
-
-Purchase Voucher
-
-Receipt Voucher
-
-Payment Voucher
-
-Journal Voucher
-
----
-
-## Phase 4
-
-Stock Movements
-
-Stock Summary
-
-Inventory Reports
-
----
-
-## Phase 5
-
-Ledger Report
-
-Trial Balance
-
-Profit & Loss
-
-Balance Sheet
-
-GST Reports
-
----
-
-## Phase 6
-
-Audit Logs
-
-Exports
-
-Print Templates
-
-Dashboard Analytics
-
----
-
-# Product Principle
-
-Keep Tally's mental model.
-
-Modernize:
-
-* navigation
-* search
-* forms
-* permissions
-* reports
-* usability
-
-Do not change accounting concepts.
-
-The user should feel:
-
-"I already know how this works."
+Spun is free, open-source software licensed under the **[MIT License](LICENSE)**.
